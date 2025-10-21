@@ -1,0 +1,127 @@
+{
+  "project_info": {
+    "project_number": "60183775527",
+    "firebase_url": "https://prototype-29c26-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "prototype-29c26",
+    "storage_bucket": "prototype-29c26.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:60183775527:android:04d3f828d648808c674102",
+        "android_client_info": {
+          "package_name": "com.example.freegram"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "60183775527-mifomgjm2uvpt3esk1so8580asto7vk6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnTEc3b6qOfjFUPuXK4RMf8O8dDNBjz1s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "60183775527-mifomgjm2uvpt3esk1so8580asto7vk6.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "60183775527-gjvde58t3u5lh1ftdufpupljlg8t9cj5.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.freegram.app.freegram"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:60183775527:android:efd28f0a996a0085674102",
+        "android_client_info": {
+          "package_name": "com.example.freegram_fresh_start"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "60183775527-mifomgjm2uvpt3esk1so8580asto7vk6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnTEc3b6qOfjFUPuXK4RMf8O8dDNBjz1s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "60183775527-mifomgjm2uvpt3esk1so8580asto7vk6.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "60183775527-gjvde58t3u5lh1ftdufpupljlg8t9cj5.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.freegram.app.freegram"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:60183775527:android:daaea6b4acd5c61f674102",
+        "android_client_info": {
+          "package_name": "com.freegram.app.freegram"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "60183775527-4o1f51fkpqsk4jfu8ij9h9rleuk8qp74.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.freegram.app.freegram",
+            "certificate_hash": "967517c41d8619f8c89ce49e34fb87e737bf4be5"
+          }
+        },
+        {
+          "client_id": "60183775527-mifomgjm2uvpt3esk1so8580asto7vk6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnTEc3b6qOfjFUPuXK4RMf8O8dDNBjz1s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "60183775527-mifomgjm2uvpt3esk1so8580asto7vk6.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "60183775527-gjvde58t3u5lh1ftdufpupljlg8t9cj5.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.freegram.app.freegram"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

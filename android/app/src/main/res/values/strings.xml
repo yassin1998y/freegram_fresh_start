@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Freegram</string>
+    <!--
+    [ACTION REQUIRED]
+    Replace "YOUR_APP_ID" with your Facebook App ID.
+    Replace "YOUR_CLIENT_TOKEN" with your Facebook Client Token.
+    You can get these from your app's dashboard on the Meta for Developers site.
+    -->
+    <string name="facebook_app_id">703196319414511</string>
+    <string name="facebook_client_token">9ce9b2bc5524dff39d25e0886cfca96d</string>
+    <!-- This is used by the Facebook SDK to handle the login callback. -->
+    <string name="fb_login_protocol_scheme">fb703196319414511</string>
+</resources>
