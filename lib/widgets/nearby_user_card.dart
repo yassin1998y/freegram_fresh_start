@@ -1,27 +1,33 @@
 // lib/widgets/nearby_user_card.dart
-
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/friends_bloc/friends_bloc.dart';
 import 'package:freegram/locator.dart';
-import 'package:freegram/models/user_model.dart';
+// Correct import for the aliased UserModel
+import 'package:freegram/models/user_model.dart' as ServerUserModel;
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:freegram/repositories/user_repository.dart';
+import 'package:freegram/repositories/user_repository.dart'; // Keep for FriendsBloc if needed
+import 'package:freegram/services/sonar/local_cache_service.dart';
+import 'package:freegram/services/sonar/sonar_controller.dart';
 import 'package:freegram/widgets/island_popup.dart';
+// Import the extension containing getNearbyUserByProfileId
+import 'package:freegram/services/sync_manager.dart' show LocalCacheServiceHelper;
+import 'package:collection/collection.dart'; // For firstWhereOrNull
 
 class NearbyUserCard extends StatelessWidget {
-  final UserModel user;
-  final int rssi;
+  // Use the imported alias ServerUserModel
+  final ServerUserModel.UserModel user;
+  final int? genderValue; // Raw gender value (0, 1, 2) for placeholder
+  final int rssi; // Keep for proximity bars
   final DateTime lastSeen;
-  final VoidCallback onTap;
+  final VoidCallback onTap; // For opening full profile
   final VoidCallback onDelete;
-  // This is no longer needed for the discovery-only version but kept for future use.
   final String? deviceAddress;
 
   const NearbyUserCard({
     super.key,
     required this.user,
+    this.genderValue,
     required this.rssi,
     required this.lastSeen,
     required this.onTap,
@@ -42,34 +48,30 @@ class NearbyUserCard extends StatelessWidget {
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return BlocProvider(
-          create: (context) => FriendsBloc(
-            userRepository: locator<UserRepository>(),
-          )..add(LoadFriends()),
+      shape: const RoundedRectangleBorder( borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (modalContext) {
+        // Use BlocProvider.value to pass the existing FriendsBloc from the context
+        return BlocProvider.value(
+          value: BlocProvider.of<FriendsBloc>(context),
           child: BlocBuilder<FriendsBloc, FriendsState>(
-            builder: (context, state) {
-              if (state is! FriendsLoaded) {
+            builder: (context, friendsState) {
+              // Handle loading state of FriendsBloc
+              if (friendsState is! FriendsLoaded) {
                 return const SizedBox(
-                  height: 200,
-                  child: Center(child: CircularProgressIndicator()),
+                    height: 250, // Give it a set height while loading
+                    child: Center(child: CircularProgressIndicator())
                 );
               }
-              final currentUser = state.user;
-              final sharedInterests = user.interests
-                  .where((interest) => currentUser.interests.any((i) => i.toLowerCase() == interest.toLowerCase()))
-                  .toList();
-              final mutualFriends = user.friends
-                  .where((friendId) => currentUser.friends.contains(friendId))
-                  .toList();
+              // Once loaded, get current user data
+              final currentUser = friendsState.user;
+              // Access fields directly from the passed 'user' object (which is a ServerUserModel)
+              final sharedInterests = user.interests.where((i) => currentUser.interests.any((ci) => ci.toLowerCase() == i.toLowerCase())).toList();
+              final mutualFriends = user.friends.where((friendId) => currentUser.friends.contains(friendId)).toList();
 
               return DraggableScrollableSheet(
-                initialChildSize: 0.6,
-                minChildSize: 0.4,
-                maxChildSize: 0.9,
+                initialChildSize: 0.6, // Start at 60% height
+                minChildSize: 0.4, // Min 40%
+                maxChildSize: 0.9, // Max 90%
                 expand: false,
                 builder: (_, scrollController) {
                   return Stack(
@@ -77,10 +79,11 @@ class NearbyUserCard extends StatelessWidget {
                       SingleChildScrollView(
                         controller: scrollController,
                         child: Padding(
-                          padding: const EdgeInsets.all(16.0),
+                          padding: const EdgeInsets.all(16.0).copyWith(bottom: 32), // Added bottom padding
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              // Drag handle
                               Container(
                                 width: 40,
                                 height: 5,
@@ -90,15 +93,17 @@ class NearbyUserCard extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
+                              // Profile Avatar and Name
                               CircleAvatar(
                                 radius: 30,
-                                backgroundImage: user.photoUrl.isNotEmpty
-                                    ? CachedNetworkImageProvider(user.photoUrl)
-                                    : null,
-                                child: user.photoUrl.isEmpty ? Text(user.username[0]) : null,
+                                backgroundImage: user.photoUrl.isNotEmpty ? CachedNetworkImageProvider(user.photoUrl) : null,
+                                child: user.photoUrl.isEmpty ? _buildGenderPlaceholderIcon(size: 30) : null,
+                                backgroundColor: user.photoUrl.isEmpty ? _getGenderPlaceholderColor() : Colors.transparent,
                               ),
                               const SizedBox(height: 8),
                               Text(user.username, style: Theme.of(context).textTheme.headlineSmall),
+
+                              // Nearby Status Message
                               if (user.nearbyStatusMessage.isNotEmpty)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 4.0),
@@ -113,67 +118,67 @@ class NearbyUserCard extends StatelessWidget {
                                 ),
                               const Divider(height: 24),
 
+                              // Shared Info Sections
                               if (mutualFriends.isNotEmpty)
                                 _InfoSection(
                                   icon: Icons.people_outline,
-                                  title: 'Friend of a Friend',
-                                  child: Text(
-                                    'You and ${user.username} both know ${mutualFriends.length} people.',
-                                    textAlign: TextAlign.center,
-                                    style: Theme.of(context).textTheme.bodyMedium,
-                                  ),
+                                  title: 'Friend${mutualFriends.length > 1 ? 's' : ''} in Common',
+                                  // Corrected Text widget call
+                                  child: Text('You both know ${mutualFriends.length} ${mutualFriends.length > 1 ? 'people' : 'person'}.'),
                                 ),
-
                               if (sharedInterests.isNotEmpty)
                                 _InfoSection(
                                   icon: Icons.favorite_border,
                                   title: 'Shared Interests',
                                   child: Wrap(
-                                    spacing: 6.0,
-                                    runSpacing: 4.0,
-                                    alignment: WrapAlignment.center,
-                                    children: sharedInterests.map((interest) => Chip(
-                                      label: Text(interest),
-                                      backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                      labelStyle: TextStyle(
-                                        color: Theme.of(context).colorScheme.primary,
-                                        fontSize: 12,
-                                      ),
-                                      visualDensity: VisualDensity.compact,
-                                    )).toList(),
+                                      spacing: 6.0,
+                                      runSpacing: 4.0,
+                                      alignment: WrapAlignment.center,
+                                      children: sharedInterests.map((interest) => Chip(
+                                          label: Text(interest),
+                                          backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                          labelStyle: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 12),
+                                          visualDensity: VisualDensity.compact
+                                      )).toList()
                                   ),
                                 ),
 
-                              const Divider(height: 24),
+                              if (mutualFriends.isNotEmpty || sharedInterests.isNotEmpty)
+                                const Divider(height: 24),
 
+                              // Action Buttons
                               _ActionButtons(
-                                currentUser: currentUser,
-                                targetUser: user,
-                                modalContext: ctx,
+                                  currentUser: currentUser,
+                                  targetUser: user,
+                                  modalContext: modalContext
                               ),
-
                               const SizedBox(height: 16),
+
+                              // View Full Profile Button
                               OutlinedButton(
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: Theme.of(context).colorScheme.primary,
-                                  side: BorderSide(color: Theme.of(context).colorScheme.primary),
+                                    foregroundColor: Theme.of(context).colorScheme.primary,
+                                    side: BorderSide(color: Theme.of(context).colorScheme.primary),
+                                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)
                                 ),
                                 onPressed: () {
-                                  Navigator.pop(ctx);
-                                  onTap();
+                                  Navigator.pop(modalContext); // Close modal
+                                  onTap(); // Execute original onTap (navigate to profile)
                                 },
                                 child: const Text('View Full Profile'),
                               ),
+                              const SizedBox(height: 20), // Bottom padding
                             ],
                           ),
                         ),
                       ),
+                      // Close Button
                       Positioned(
                         top: 16,
                         right: 16,
                         child: IconButton(
                           icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(ctx),
+                          onPressed: () => Navigator.pop(modalContext),
                         ),
                       ),
                     ],
@@ -187,13 +192,38 @@ class NearbyUserCard extends StatelessWidget {
     );
   }
 
+  /// **FIXED:** Added return type `Widget`
+  Widget _buildGenderPlaceholderIcon({double size = 40}) {
+    IconData iconData = Icons.person_outline;
+    Color iconColor = Colors.grey.shade700;
+    if (genderValue == 1) { // Male
+      iconData = Icons.male;
+      iconColor = Colors.blue.shade700;
+    } else if (genderValue == 2) { // Female
+      iconData = Icons.female;
+      iconColor = Colors.pink.shade700;
+    }
+    return Icon(iconData, size: size, color: iconColor);
+  }
+
+  /// **FIXED:** Added return type `Color` and default return
+  Color _getGenderPlaceholderColor() {
+    if (genderValue == 1) return Colors.blue.shade100;
+    if (genderValue == 2) return Colors.pink.shade100;
+    return Colors.grey.shade300; // Default
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isNew = DateTime.now().difference(lastSeen).inSeconds < 60;
     final proximity = _getProximityBars(rssi);
 
+    // Get placeholder styles
+    Widget placeholderChild = _buildGenderPlaceholderIcon();
+    Color placeholderBackground = _getGenderPlaceholderColor();
+
     return GestureDetector(
-      onTap: () => _showUserActions(context),
+      onTap: () => _showUserActions(context), // Show modal on tap
       child: Card(
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -201,15 +231,21 @@ class NearbyUserCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
+            // Display Image or Placeholder
             if (user.photoUrl.isNotEmpty)
               CachedNetworkImage(
                 imageUrl: user.photoUrl,
                 fit: BoxFit.cover,
+                // Show placeholder while loading image
+                placeholder: (context, url) => Container(color: placeholderBackground, child: Center(child: placeholderChild)),
+                // Show placeholder on error
                 errorWidget: (context, error, stackTrace) =>
-                    Icon(Icons.person, size: 40, color: Theme.of(context).iconTheme.color),
+                    Container(color: placeholderBackground, child: Center(child: placeholderChild)),
               )
-            else
-              Icon(Icons.person, size: 40, color: Theme.of(context).iconTheme.color),
+            else // Show gender placeholder if no photoUrl
+              Container(color: placeholderBackground, child: Center(child: placeholderChild)),
+
+            // Gradient Overlay
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -219,6 +255,8 @@ class NearbyUserCard extends StatelessWidget {
                 ),
               ),
             ),
+
+            // Username Text
             Positioned(
               bottom: 5,
               left: 5,
@@ -228,11 +266,14 @@ class NearbyUserCard extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.white,
-                    fontWeight: FontWeight.bold
+                    fontWeight: FontWeight.bold,
+                    shadows: [const Shadow(blurRadius: 2, color: Colors.black54)]
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+
+            // Delete Button
             Positioned(
               top: 4,
               right: 4,
@@ -244,44 +285,49 @@ class NearbyUserCard extends StatelessWidget {
                     color: Colors.black.withOpacity(0.6),
                     shape: BoxShape.circle,
                   ),
-                  child:
-                  const Icon(Icons.close, color: Colors.white, size: 14),
+                  child: const Icon(Icons.close, color: Colors.white, size: 14),
                 ),
               ),
             ),
+
+            // Proximity Indicators (Top Left)
             Positioned(
               top: 4,
               left: 4,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 'NEW' Badge
                   if (isNew)
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 5, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.redAccent,
-                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.redAccent, borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         'NEW',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 8,
+                          color: Colors.white, fontWeight: FontWeight.bold, fontSize: 8,
                         ),
                       ),
                     ),
                   const SizedBox(height: 4),
+                  // Proximity Bars
                   Row(
                     children: List.generate(5, (index) {
+                      IconData barIcon = Icons.signal_cellular_alt_1_bar_rounded;
+                      if (proximity > index) {
+                        barIcon = (proximity >= 4 && index >=3)
+                            ? Icons.signal_cellular_alt_rounded // Full bars for 4 & 5
+                            : Icons.signal_cellular_alt_2_bar_rounded; // Intermediate for 2 & 3
+                        if (proximity >=2 && index == 1) barIcon = Icons.signal_cellular_alt_2_bar_rounded; // ensure 2nd bar shows intermediate
+                      }
+
                       return Icon(
-                        index < proximity
-                            ? Icons.signal_cellular_alt_rounded
-                            : Icons.signal_cellular_alt_1_bar_rounded,
-                        color: Colors.white
-                            .withOpacity(index < proximity ? 1.0 : 0.4),
+                        barIcon,
+                        color: Colors.white.withOpacity(index < proximity ? 1.0 : 0.4),
                         size: 12,
+                        shadows: const [Shadow(blurRadius: 1, color: Colors.black87)], // Add shadow
                       );
                     }),
                   ),
@@ -295,9 +341,12 @@ class NearbyUserCard extends StatelessWidget {
   }
 }
 
+// --- MODAL HELPER WIDGETS (Corrected and Complete) ---
+
 class _ActionButtons extends StatefulWidget {
-  final UserModel currentUser;
-  final UserModel targetUser;
+  // Use the imported alias ServerUserModel
+  final ServerUserModel.UserModel currentUser;
+  final ServerUserModel.UserModel targetUser;
   final BuildContext modalContext;
 
   const _ActionButtons({
@@ -311,93 +360,127 @@ class _ActionButtons extends StatefulWidget {
 }
 
 class _ActionButtonsState extends State<_ActionButtons> {
-  bool _isLoading = false;
+  bool _isLoadingWave = false;
+  bool _isLoadingFriend = false;
 
-  void _handleBotInteraction(String featureName) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Cannot $featureName a bot user.")),
-    );
+  String? _getTargetUidShort() {
+    // Use the helper method from LocalCacheService
+    final nearbyUser = locator<LocalCacheService>().getNearbyUserByProfileId(widget.targetUser.id);
+    if (nearbyUser != null) {
+      return nearbyUser.uidShort;
+    }
+    // Fallback check
+    if (widget.targetUser.id.length <= 8) { // Check if ID *is* short ID
+      final directCheck = locator<LocalCacheService>().getNearbyUser(widget.targetUser.id);
+      if (directCheck != null) return directCheck.uidShort;
+    }
+    debugPrint("Warning: Could not determine uidShort for target user ${widget.targetUser.id}");
+    return null;
   }
 
-  Future<void> _handleAction(Future<void> Function() action, String successMessage) async {
-    if (_isLoading) return;
-    setState(() => _isLoading = true);
-
+  Future<void> _handleWave() async {
+    if (_isLoadingWave) return;
+    setState(() => _isLoadingWave = true);
+    final targetUidShort = _getTargetUidShort();
+    if (targetUidShort == null) {
+      if(mounted) showIslandPopup(context: context, message: "Cannot wave yet (user data missing).", icon: Icons.error_outline);
+      setState(() => _isLoadingWave = false);
+      return;
+    }
     try {
-      await action();
+      await locator<SonarController>().sendWave(targetUidShort);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(successMessage)),
-        );
+        Navigator.pop(widget.modalContext);
+        showIslandPopup(context: context, message: "Wave sent!", icon: Icons.waving_hand);
+      }
+    } catch (e) { if (mounted) showIslandPopup(context: context, message: "Failed to send wave: $e", icon: Icons.error_outline); }
+    finally { if (mounted) setState(() => _isLoadingWave = false); }
+  }
+
+  Future<void> _handleAddFriend() async {
+    if (_isLoadingFriend) return;
+    setState(() => _isLoadingFriend = true);
+    try {
+      context.read<FriendsBloc>().add(SendFriendRequest(widget.targetUser.id));
+      // Give Bloc time to optimistically update state
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (mounted) {
+        Navigator.pop(widget.modalContext);
+        // Corrected Icon Name
+        showIslandPopup(context: context, message: "Friend request sent!", icon: Icons.person_add_alt_1);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Action failed: $e'), backgroundColor: Colors.red),
-        );
+        showIslandPopup(context: context, message: "Failed to send request: $e", icon: Icons.error_outline);
       }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      // Reset state on error
+      if (mounted) setState(() => _isLoadingFriend = false);
     }
+    // Don't reset loading state on success, as Bloc state change will rebuild
   }
+
+  void _handleInvite() {
+    Navigator.pop(widget.modalContext);
+    showIslandPopup(context: context, message: "Game invites coming soon!");
+  }
+
 
   @override
   Widget build(BuildContext context) {
-    final friendsBloc = context.read<FriendsBloc>();
-    final isBot = widget.targetUser.id.startsWith('bot_');
+    // Get latest state directly via watch
+    final friendsBlocState = context.watch<FriendsBloc>().state;
 
-    bool isFriend = widget.currentUser.friends.contains(widget.targetUser.id);
-    bool requestSent = widget.currentUser.friendRequestsSent.contains(widget.targetUser.id);
-    bool requestReceived = widget.currentUser.friendRequestsReceived.contains(widget.targetUser.id);
+    // Handle loading state of friends bloc
+    if (friendsBlocState is! FriendsLoaded) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final currentUserData = friendsBlocState.user;
+
+    bool isFriend = currentUserData.friends.contains(widget.targetUser.id);
+    bool requestSent = currentUserData.friendRequestsSent.contains(widget.targetUser.id);
+    bool requestReceived = currentUserData.friendRequestsReceived.contains(widget.targetUser.id);
 
     return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      alignment: WrapAlignment.center,
+      spacing: 10, runSpacing: 10, alignment: WrapAlignment.center,
       children: [
-        _ActionButton(
-          icon: Icons.waving_hand_outlined,
-          label: 'Wave',
-          isLoading: _isLoading,
-          onTap: () {
-            showIslandPopup(context: context, message: "Chat temporarily disabled.");
-          },
-        ),
-        _ActionButton(
-          icon: Icons.chat_bubble_outline,
-          label: 'Chat',
-          isLoading: _isLoading,
-          onTap: () {
-            showIslandPopup(context: context, message: "Chat temporarily disabled.");
-          },
-        ),
-        if (!isFriend && !requestSent && !requestReceived)
-          _ActionButton(
-            icon: Icons.person_add_alt_1_outlined,
-            label: 'Add Friend',
-            isLoading: _isLoading,
-            onTap: isBot
-                ? () => _handleBotInteraction('add')
-                : () => _handleAction(
-                  () async => friendsBloc.add(SendFriendRequest(widget.targetUser.id)),
-              'Friend request sent to ${widget.targetUser.username}!',
+        _ActionButton( icon: Icons.waving_hand_outlined, label: 'Wave', isLoading: _isLoadingWave, onTap: _handleWave),
+        _ActionButton( icon: Icons.chat_bubble_outline, label: 'Chat', onTap: () { showIslandPopup(context: context, message: "Chat temporarily disabled."); }),
+
+        // Friend Action Button
+        if (isFriend)
+          _ActionButton(icon: Icons.check_circle_outline, label: 'Friend', onTap: () {}) // Is already a friend
+        else if (requestSent)
+          _ActionButton(icon: Icons.hourglass_top_rounded, label: 'Requested', onTap: () {}) // Request already sent
+        else if (requestReceived)
+          // Show "Accept" button
+            _ActionButton(
+                icon: Icons.mark_email_read_outlined,
+                label: 'Accept',
+                isLoading: _isLoadingFriend, // Use friend loading state
+                onTap: () async {
+                  setState(() => _isLoadingFriend = true);
+                  context.read<FriendsBloc>().add(AcceptFriendRequest(widget.targetUser.id));
+                  await Future.delayed(const Duration(milliseconds: 500)); // Wait for action
+                  if(mounted) Navigator.pop(widget.modalContext);
+                }
+            )
+          else
+          // Show "Add Friend" button
+            _ActionButton(
+              icon: Icons.person_add_alt_1, // Corrected icon
+              label: 'Add Friend',
+              isLoading: _isLoadingFriend,
+              onTap: _handleAddFriend,
             ),
-          ),
-        _ActionButton(
-          icon: Icons.sports_esports_outlined,
-          label: 'Invite',
-          onTap: () {
-            Navigator.pop(widget.modalContext);
-            showIslandPopup(context: context, message: "Game invites coming soon!");
-          },
-        ),
+
+        _ActionButton( icon: Icons.sports_esports_outlined, label: 'Invite', onTap: _handleInvite),
       ],
     );
   }
 }
 
+// **FIXED:** Full implementation of _ActionButton
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -415,33 +498,43 @@ class _ActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: isLoading ? null : onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Theme.of(context).dividerColor.withOpacity(0.5),
-              shape: BoxShape.circle,
+      child: Opacity(
+        opacity: isLoading ? 0.5 : 1.0,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 54, // Ensure consistent size
+              height: 54, // Ensure consistent size
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).dividerColor.withOpacity(0.5),
+                shape: BoxShape.circle,
+              ),
+              child: isLoading
+                  ? Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.primary)))
+                  : Icon(icon, color: Theme.of(context).textTheme.bodyLarge?.color, size: 28), // Slightly larger icon
             ),
-            child: isLoading
-                ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.primary))
-                : Icon(icon, color: Theme.of(context).textTheme.bodyLarge?.color),
-          ),
-          const SizedBox(height: 4),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-        ],
+            const SizedBox(height: 4),
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
       ),
     );
   }
 }
 
+// **FIXED:** Full implementation of _InfoSection
 class _InfoSection extends StatelessWidget {
   final IconData icon;
   final String title;
   final Widget child;
 
-  const _InfoSection({required this.icon, required this.title, required this.child});
+  const _InfoSection({
+    required this.icon,
+    required this.title,
+    required this.child
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -457,13 +550,14 @@ class _InfoSection extends StatelessWidget {
               Text(
                 title,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: Theme.of(context).textTheme.bodySmall?.color,
+                    color: Theme.of(context).textTheme.bodySmall?.color,
+                    fontWeight: FontWeight.w600
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          child,
+          child, // The content (e.g., Wrap of chips or Text)
         ],
       ),
     );

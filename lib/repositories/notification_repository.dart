@@ -18,6 +18,7 @@ class NotificationRepository {
     String? postId,
     String? postImageUrl,
     String? commentText,
+    String? message,
   }) {
     final data = <String, dynamic>{
       'type': type,

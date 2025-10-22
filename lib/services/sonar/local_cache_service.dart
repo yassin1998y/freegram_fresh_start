@@ -3,31 +3,31 @@ import 'package:flutter/foundation.dart';
 import 'package:freegram/models/hive/nearby_user.dart';
 import 'package:freegram/models/hive/user_profile.dart';
 import 'package:freegram/models/hive/wave_record.dart';
-import 'package:freegram/models/hive/friend_request_record.dart'; // Import the new model
+import 'package:freegram/models/hive/friend_request_record.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
+// Import collection package for firstWhereOrNull
+import 'package:collection/collection.dart';
+
 
 class LocalCacheService {
   late final Box<NearbyUser> _nearbyUsersBox;
   late final Box<UserProfile> _userProfilesBox;
   late final Box<WaveRecord> _pendingWavesBox;
-  late final Box<FriendRequestRecord> _pendingFriendRequestsBox; // Box for friend requests
+  late final Box<FriendRequestRecord> _pendingFriendRequestsBox;
 
-  // Constants for stale data cleanup
-  final Duration _staleUserDuration = const Duration(minutes: 1); // Remove users not seen for 1 minute
+  // Cleanup duration for users not seen in BLE scans
+  final Duration _staleUserDuration = const Duration(minutes: 1);
 
   LocalCacheService() {
-    // Boxes are assumed to be opened in main.dart
+    // Ensure boxes are opened in main.dart before this is instantiated
     _nearbyUsersBox = Hive.box<NearbyUser>('nearbyUsers');
     _userProfilesBox = Hive.box<UserProfile>('userProfiles');
     _pendingWavesBox = Hive.box<WaveRecord>('pendingWaves');
-    _pendingFriendRequestsBox = Hive.box<FriendRequestRecord>('pendingFriendRequests'); // Initialize the box
+    _pendingFriendRequestsBox = Hive.box<FriendRequestRecord>('pendingFriendRequests');
   }
 
   // --- Nearby User Management ---
-
-  /// Stores or updates a discovered user in the Hive box.
-  /// Uses uidShort as the key.
   Future<void> storeOrUpdateNearby(String uidShort, int gender, double distance) async {
     final now = DateTime.now();
     final existingUser = _nearbyUsersBox.get(uidShort);
@@ -36,9 +36,9 @@ class LocalCacheService {
       // Update existing user
       existingUser.distance = distance;
       existingUser.lastSeen = now;
-      // Profile ID remains unchanged here, sync manager updates it
+      // Don't overwrite profileId
       await existingUser.save();
-      debugPrint("LocalCacheService: Updated NearbyUser $uidShort");
+      // debugPrint("LocalCacheService: Updated NearbyUser $uidShort");
     } else {
       // Create new user entry
       final newUser = NearbyUser(
@@ -46,40 +46,38 @@ class LocalCacheService {
         gender: gender,
         distance: distance,
         lastSeen: now,
-        // profileId starts as null
+        profileId: null, // Starts as null
       );
       await _nearbyUsersBox.put(uidShort, newUser);
       debugPrint("LocalCacheService: Stored new NearbyUser $uidShort");
     }
   }
 
-  /// Returns a ValueListenable for the nearbyUsers box, suitable for UI updates.
   ValueListenable<Box<NearbyUser>> getNearbyUsersListenable() {
     return _nearbyUsersBox.listenable();
   }
 
-  /// Removes users who haven't been seen recently.
   Future<void> pruneStaleNearbyUsers() async {
     final now = DateTime.now();
-    final List<String> keysToDelete = [];
-    for (var key in _nearbyUsersBox.keys) {
+    final keysToDelete = _nearbyUsersBox.keys.where((key) {
       final user = _nearbyUsersBox.get(key);
-      if (user != null && now.difference(user.lastSeen) > _staleUserDuration) {
-        keysToDelete.add(key as String);
-      }
-    }
+      return user != null && now.difference(user.lastSeen) > _staleUserDuration;
+    }).toList();
     if (keysToDelete.isNotEmpty) {
       await _nearbyUsersBox.deleteAll(keysToDelete);
       debugPrint("LocalCacheService: Pruned ${keysToDelete.length} stale users.");
     }
   }
 
-  /// Gets a specific nearby user by their short ID.
+  Future<void> pruneSpecificUser(String uidShort) async {
+    await _nearbyUsersBox.delete(uidShort);
+    debugPrint("LocalCacheService: Pruned specific user $uidShort");
+  }
+
   NearbyUser? getNearbyUser(String uidShort) {
     return _nearbyUsersBox.get(uidShort);
   }
 
-  /// Updates the profile ID for a nearby user after successful sync.
   Future<void> markNearbyUserSynced(String uidShort, String profileId) async {
     final user = _nearbyUsersBox.get(uidShort);
     if (user != null) {
@@ -91,91 +89,72 @@ class LocalCacheService {
     }
   }
 
-
-  Future<void> pruneSpecificUser(String uidShort) async {
-    await _nearbyUsersBox.delete(uidShort);
-    debugPrint("LocalCacheService: Pruned specific user $uidShort");
+  // *** HELPER: Find user by full profile ID ***
+  NearbyUser? getNearbyUserByProfileId(String profileId) {
+    if (profileId.isEmpty) return null;
+    // Use firstWhereOrNull for cleaner handling of not found case
+    return _nearbyUsersBox.values.firstWhereOrNull(
+          (user) => user.profileId == profileId,
+    );
   }
+
+  // *** HELPER: Get all users that haven't been synced ***
+  List<NearbyUser> getUnsyncedNearbyUsers() {
+    return _nearbyUsersBox.values.where((user) => user.profileId == null).toList();
+  }
+  // *** END HELPERS ***
 
 
   // --- User Profile Management ---
-
-  /// Stores or updates a full user profile fetched from the server.
-  /// Uses the full profileId (UUID) as the key.
   Future<void> storeUserProfile(UserProfile profile) async {
     await _userProfilesBox.put(profile.profileId, profile);
     debugPrint("LocalCacheService: Stored/Updated UserProfile ${profile.profileId}");
   }
 
-  /// Returns a ValueListenable for the userProfiles box.
   ValueListenable<Box<UserProfile>> getUserProfilesListenable() {
     return _userProfilesBox.listenable();
   }
 
-  /// Gets a specific user profile by their full ID.
   UserProfile? getUserProfile(String profileId) {
     return _userProfilesBox.get(profileId);
   }
 
   // --- Wave Management ---
-
-  /// Records a wave sent by the current user (queued for sync).
-  /// Generates a unique key for the record.
   Future<void> recordSentWave({required String fromUidFull, required String toUidShort}) async {
-    final wave = WaveRecord(
-      fromUidFull: fromUidFull,
-      toUidShort: toUidShort,
-      timestamp: DateTime.now(),
-    );
-    // Use a unique key for each pending wave
+    final wave = WaveRecord(fromUidFull: fromUidFull, toUidShort: toUidShort, timestamp: DateTime.now());
     await _pendingWavesBox.put(const Uuid().v4(), wave);
     debugPrint("LocalCacheService: Queued outgoing wave to $toUidShort");
   }
 
-  /// Records that a wave was received from a nearby user.
-  /// This might be used for local history or rate limiting notifications.
-  Future<void> recordReceivedWave(String fromUidShort) async {
-    // We aren't storing incoming waves for sync, but could add to a separate
-    // 'wave_history' box if needed. For now, just log.
+  Future<void> recordReceivedWave(String fromUidShort) {
     debugPrint("LocalCacheService: Logged received wave from $fromUidShort");
-    // Here you might trigger vibration or sound directly, or pass to NotificationService
+    // This is where you might add to a *different* box, e.g., 'wave_history'
+    // For now, we only queue outgoing waves, so this does nothing to boxes.
+    return Future.value();
   }
 
-
-  /// Retrieves all pending outgoing waves for the sync manager.
   Map<dynamic, WaveRecord> getPendingWaves() {
-    return _pendingWavesBox.toMap().cast<dynamic, WaveRecord>();
+    return Map<dynamic, WaveRecord>.from(_pendingWavesBox.toMap());
   }
 
-  /// Removes a successfully synced wave record from the queue.
   Future<void> removeSentWave(dynamic key) async {
     await _pendingWavesBox.delete(key);
     debugPrint("LocalCacheService: Removed synced wave record $key");
   }
 
-  // --- Friend Request Management (NEW) ---
-
-  /// Queues an outgoing friend request for sync.
+  // --- Friend Request Management ---
   Future<void> queueFriendRequest({required String fromUserId, required String toUserId}) async {
-    final request = FriendRequestRecord(
-      fromUserId: fromUserId,
-      toUserId: toUserId,
-      timestamp: DateTime.now(),
-    );
-    // Use a unique key for each pending request
+    final request = FriendRequestRecord(fromUserId: fromUserId, toUserId: toUserId, timestamp: DateTime.now());
     await _pendingFriendRequestsBox.put(const Uuid().v4(), request);
     debugPrint("LocalCacheService: Queued friend request from $fromUserId to $toUserId");
   }
 
-  /// Retrieves all pending friend requests for the sync manager.
   Map<dynamic, FriendRequestRecord> getPendingFriendRequests() {
-    return _pendingFriendRequestsBox.toMap().cast<dynamic, FriendRequestRecord>();
+    return Map<dynamic, FriendRequestRecord>.from(_pendingFriendRequestsBox.toMap());
   }
 
-  /// Removes a successfully synced friend request record from the queue.
   Future<void> removeFriendRequest(dynamic key) async {
     await _pendingFriendRequestsBox.delete(key);
     debugPrint("LocalCacheService: Removed synced friend request record $key");
   }
-
 }

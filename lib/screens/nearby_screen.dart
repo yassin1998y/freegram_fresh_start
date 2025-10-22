@@ -9,34 +9,44 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:freegram/blocs/nearby_bloc.dart'; // BLoC import for status
+import 'package:freegram/blocs/nearby_bloc.dart';
+import 'package:freegram/blocs/friends_bloc/friends_bloc.dart';
 import 'package:freegram/locator.dart';
-// Import Hive models needed for UI display
 import 'package:freegram/models/hive/nearby_user.dart';
 import 'package:freegram/models/hive/user_profile.dart';
-import 'package:freegram/models/user_model.dart' as ServerUserModel; // Alias to avoid name clash
-import 'package:freegram/repositories/user_repository.dart'; // Still needed for current user photo
-import 'package:freegram/screens/local_leaderboard_screen.dart'; // Keep if used
-import 'package:freegram/screens/nearby_chat_list_screen.dart'; // Keep if used
-// Import Sonar services
+import 'package:freegram/models/user_model.dart' as ServerUserModel;
+import 'package:freegram/repositories/user_repository.dart';
+import 'package:freegram/screens/local_leaderboard_screen.dart';
+import 'package:freegram/screens/nearby_chat_list_screen.dart';
 import 'package:freegram/services/sonar/local_cache_service.dart';
 import 'package:freegram/services/sonar/sonar_controller.dart';
-import 'package:freegram/services/sonar/bluetooth_service.dart'; // For status enum
+import 'package:freegram/services/sonar/bluetooth_service.dart';
 import 'package:freegram/screens/profile_screen.dart';
 import 'package:freegram/widgets/sonar_view.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:freegram/widgets/nearby_user_card.dart'; // Keep this widget
+import 'package:freegram/widgets/nearby_user_card.dart';
 import 'package:freegram/screens/main_screen.dart'; // For RouteObserver
+// Import collection package for firstWhereOrNull
+import 'package:collection/collection.dart';
+
 
 class NearbyScreen extends StatelessWidget {
   const NearbyScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // NearbyBloc reflects the *status* (Idle, Active, Error)
-    return BlocProvider(
-      create: (context) => NearbyBloc(), // Bloc uses SonarController internally
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) => NearbyBloc(),
+        ),
+        BlocProvider(
+          create: (context) => FriendsBloc(
+            userRepository: locator<UserRepository>(),
+          )..add(LoadFriends()),
+        ),
+      ],
       child: const _NearbyScreenView(),
     );
   }
@@ -51,23 +61,16 @@ class _NearbyScreenView extends StatefulWidget {
 
 class _NearbyScreenViewState extends State<_NearbyScreenView>
     with TickerProviderStateMixin, WidgetsBindingObserver, RouteAware {
-  // Get services from locator
+
   final SonarController _sonarController = locator<SonarController>();
   final LocalCacheService _localCacheService = locator<LocalCacheService>();
-  final UserRepository _userRepository = locator<UserRepository>(); // Keep for photo
-
-  // Hive boxes (accessed via LocalCacheService now)
+  final UserRepository _userRepository = locator<UserRepository>();
   final Box<UserProfile> _profileBox = Hive.box<UserProfile>('userProfiles');
   final Box _settingsBox = Hive.box('settings');
-
-  // Hardware state variables (updated via status listener)
   bool _isBluetoothEnabled = false;
-
-  // Animation controllers
   late AnimationController _unleashController;
   late AnimationController _discoveryController;
   String? _currentUserPhotoUrl;
-
   final bool _isWeb = kIsWeb;
   StreamSubscription? _statusSubscription;
 
@@ -79,17 +82,14 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
       _unleashController = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
       _discoveryController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
 
-      // Initialize user data in SonarController (important after login)
       _sonarController.initializeUser().then((initialized) {
-        if (initialized && mounted) { // Check mounted
-          _fetchCurrentUserPhoto(); // Fetch photo after initialization
+        if (initialized && mounted) {
+          _fetchCurrentUserPhoto();
         }
-        // else: Handle error if user couldn't be initialized
       });
 
-      // Listen to status for updating local _isBluetoothEnabled etc.
       _statusSubscription = BluetoothStatusService().statusStream.listen(_handleStatusUpdate);
-      _handleStatusUpdate(BluetoothStatusService().currentStatus); // Handle initial status
+      _handleStatusUpdate(BluetoothStatusService().currentStatus);
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _checkAndShowBatteryOptimizationDialog();
@@ -97,16 +97,12 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
     }
   }
 
-  // Handle status updates to refresh UI elements if needed
   void _handleStatusUpdate(NearbyStatus status) {
     if (mounted) {
       setState(() {
-        // Update Bluetooth toggle based on status
         _isBluetoothEnabled = status != NearbyStatus.adapterOff &&
-            status != NearbyStatus.permissionsDenied && // Assume off if permissions denied
+            status != NearbyStatus.permissionsDenied &&
             status != NearbyStatus.permissionsPermanentlyDenied;
-
-        // Trigger discovery ripple animation
         if(status == NearbyStatus.userFound) {
           _discoveryController.forward(from: 0.0);
         }
@@ -118,7 +114,6 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_isWeb) {
-      // Subscribe RouteAware in didChangeDependencies
       routeObserver.subscribe(this, ModalRoute.of(context) as PageRoute);
     }
   }
@@ -126,9 +121,9 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
   @override
   void dispose() {
     if (!_isWeb) {
-      routeObserver.unsubscribe(this); // Unsubscribe RouteAware
+      routeObserver.unsubscribe(this);
       WidgetsBinding.instance.removeObserver(this);
-      _sonarController.stopSonar(); // Ensure sonar stops when screen is disposed
+      _sonarController.stopSonar();
       _unleashController.dispose();
       _discoveryController.dispose();
       _statusSubscription?.cancel();
@@ -136,60 +131,35 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
     super.dispose();
   }
 
-  // --- RouteAware Methods ---
   @override
-  void didPushNext() { // Navigating away from this screen
-    if (!_isWeb) _sonarController.stopSonar();
-  }
-
+  void didPushNext() { if (!_isWeb) _sonarController.stopSonar(); }
   @override
-  void didPop() { // Popping this screen itself
-    if (!_isWeb) _sonarController.stopSonar();
-  }
-
+  void didPop() { if (!_isWeb) _sonarController.stopSonar(); }
   @override
-  void didPush() { // Navigating *to* this screen (initial push)
-    // Start check or sync on entering
-    if (!_isWeb) _syncPermissionsAndHardwareState(); // Check permissions/hardware
-  }
-
+  void didPush() { if (!_isWeb) _syncPermissionsAndHardwareState(); }
   @override
-  void didPopNext() { // Returning *to* this screen from another
-    // Optionally auto-restart sonar when returning
-    // if (!_isWeb) _sonarController.startSonar();
-    if (!_isWeb) _syncPermissionsAndHardwareState(); // Re-check state
-  }
-  // --- End RouteAware ---
-
-
-  // --- AppLifecycleState ---
+  void didPopNext() { if (!_isWeb) _syncPermissionsAndHardwareState(); }
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (_isWeb) return;
-    // SonarController should ideally handle pause/resume internally based on service lifecycle
-    // This check is mainly to refresh the permission/hardware state display
     if (state == AppLifecycleState.resumed) {
       _syncPermissionsAndHardwareState();
     }
   }
-  // --- End AppLifecycleState ---
 
   Future<void> _checkAndShowBatteryOptimizationDialog() async {
     if (!mounted || !Platform.isAndroid || _settingsBox.get('hasSeenBatteryDialog', defaultValue: false)) {
       return;
     }
-    // Only show for specific manufacturers known to cause issues
     DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
     AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-    // Example: Check for Xiaomi, add others if needed (e.g., 'huawei', 'oppo')
-    List<String> problematicManufacturers = ['xiaomi', 'huawei', 'oppo', 'vivo']; // Add more as needed
-
+    List<String> problematicManufacturers = ['xiaomi', 'huawei', 'oppo', 'vivo'];
     if (problematicManufacturers.contains(androidInfo.manufacturer.toLowerCase())) {
       if (mounted) {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: Text('Important Setting for ${androidInfo.manufacturer}'), // Dynamic title
+            title: Text('Important Setting for ${androidInfo.manufacturer}'),
             content: const Text(
                 'For the Nearby feature to work correctly, please set the Battery saver for Freegram to "No restrictions". This prevents the system from stopping the Bluetooth scan.'),
             actions: [
@@ -197,7 +167,6 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
               ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).pop();
-                  // Use AppSettings to open battery optimization settings
                   AppSettings.openAppSettings(type: AppSettingsType.batteryOptimization);
                 },
                 child: const Text('Open Settings'),
@@ -207,20 +176,15 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
         );
       }
     }
-    // Mark as seen regardless of manufacturer to avoid asking again
     await _settingsBox.put('hasSeenBatteryDialog', true);
   }
 
-  // Check hardware state
   Future<void> _syncPermissionsAndHardwareState() async {
     if (_isWeb) return;
-    // Refresh the status via the service, triggers _handleStatusUpdate
     _handleStatusUpdate(BluetoothStatusService().currentStatus);
   }
 
-  // Request permissions by attempting to start sonar
   Future<void> _handlePermissionRequest() async {
-    // Dispatch event to BLoC which calls SonarController
     context.read<NearbyBloc>().add(StartNearbyServices());
   }
 
@@ -236,22 +200,22 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
         }
       } catch (e) {
         debugPrint("NearbyScreen: Error fetching current user photo: $e");
+        if(mounted) setState(() { _currentUserPhotoUrl = ''; });
       }
+    } else {
+      if(mounted) setState(() { _currentUserPhotoUrl = ''; });
     }
   }
 
-  // Get status message based on BLoC state
   String _getStatusMessage(NearbyState state) {
     if (state is NearbyError) return state.message;
     if (state is NearbyActive) {
       if(state.status == NearbyStatus.scanning) return "Actively searching...";
       if(state.status == NearbyStatus.userFound) return "Discovery active...";
     }
-    // If Idle or Initial
     if (_isBluetoothEnabled) {
       return "Ready to scan! Tap your picture to begin.";
     }
-    // Check specific error messages if possible
     final currentServiceStatus = BluetoothStatusService().currentStatus;
     if(currentServiceStatus == NearbyStatus.permissionsDenied ||
         currentServiceStatus == NearbyStatus.permissionsPermanentlyDenied) {
@@ -260,17 +224,15 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
     if(currentServiceStatus == NearbyStatus.adapterOff) {
       return "Enable Bluetooth to start.";
     }
-    return "Tap your picture to begin."; // Default idle message
+    return "Tap your picture to begin.";
   }
 
   void _deleteFoundUser(String uidShort) {
-    // Get profileId first if available, to show correct name in dialog
     String? profileId = _localCacheService.getNearbyUser(uidShort)?.profileId;
-    String username = "User (${uidShort.substring(0, 4)})"; // Default
+    String username = "User (${uidShort.substring(0, 4)})";
     if (profileId != null) {
       username = _localCacheService.getUserProfile(profileId)?.name ?? username;
     }
-
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -280,7 +242,6 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
           TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text("Cancel")),
           TextButton(
             onPressed: () {
-              // Use LocalCacheService to delete
               _localCacheService.pruneSpecificUser(uidShort);
               Navigator.of(ctx).pop();
             },
@@ -295,51 +256,37 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
   Widget build(BuildContext context) {
     if (_isWeb) return const _WebPlaceholder();
 
-    // Use BlocConsumer to listen for state changes AND build UI based on state
     return Scaffold(
       body: BlocConsumer<NearbyBloc, NearbyState>(
-        listener: (context, state) {
-          // Status listener (_handleStatusUpdate) now handles discovery animation trigger
-        },
+        listener: (context, state) {},
         builder: (context, state) {
-          // Handle specific error states for permissions/errors
           if (state is NearbyError) {
-            if (state.message.contains("permanently")) {
-              return _PermissionDeniedState(isPermanentlyDenied: true);
-            }
-            if (state.message.contains("Permissions")) {
-              return _PermissionDeniedState(onRetry: _handlePermissionRequest);
-            }
-            return _ErrorState(message: state.message, onRetry: () {
-              context.read<NearbyBloc>().add(StartNearbyServices());
-            });
+            if (state.message.contains("permanently")) return _PermissionDeniedState(isPermanentlyDenied: true);
+            if (state.message.contains("Permissions")) return _PermissionDeniedState(onRetry: _handlePermissionRequest);
+            return _ErrorState(message: state.message, onRetry: () => context.read<NearbyBloc>().add(StartNearbyServices()));
           }
 
-          // Main UI structure
           return Column(
             children: [
-              // Wrap Control Section in SafeArea to avoid notch/status bar overlap
               SafeArea(
-                bottom: false, // Only apply padding to the top
-                child: _buildControlSection(context, state), // Pass BLoC state
+                bottom: false,
+                child: _buildControlSection(context, state),
               ),
-              const Divider(height: 1, thickness: 1), // Make divider visible
+              const Divider(height: 1, thickness: 1),
               Expanded(
-                // Listen directly to Hive for the user list
                 child: ValueListenableBuilder<Box<NearbyUser>>(
-                  // Use the method from LocalCacheService
                   valueListenable: _localCacheService.getNearbyUsersListenable(),
                   builder: (context, box, _) {
                     final nearbyUsers = box.values.toList();
-                    nearbyUsers.sort((a, b) => b.lastSeen.compareTo(a.lastSeen)); // Sort by most recent
+                    nearbyUsers.sort((a, b) => b.lastSeen.compareTo(a.lastSeen));
 
-                    if (nearbyUsers.isEmpty && state is NearbyActive) {
-                      return const _SearchingState(); // Show searching if active but no users yet
-                    }
-                    if (nearbyUsers.isEmpty) {
-                      return const _EmptyState(); // Show empty state if idle/initial and no users
-                    }
-                    return _buildFoundUsersGrid(nearbyUsers); // Pass NearbyUser list
+                    if (nearbyUsers.isEmpty && state is NearbyActive) return const _SearchingState();
+                    if (nearbyUsers.isEmpty) return const _EmptyState();
+
+                    return BlocProvider.value(
+                      value: BlocProvider.of<FriendsBloc>(context),
+                      child: _buildFoundUsersGrid(nearbyUsers),
+                    );
                   },
                 ),
               ),
@@ -352,13 +299,11 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
 
   Widget _buildControlSection(BuildContext context, NearbyState state) {
     bool isScanning = state is NearbyActive;
-
     return Container(
-      // Removed fixed height constraint, let Column size itself
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0), // Keep padding
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Column(
         children: [
-          Padding( // Keep padding for top controls
+          Padding(
             padding: const EdgeInsets.only(bottom: 16.0),
             child: Row(
               children: [
@@ -366,13 +311,13 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                   child: _buildToggleChip(
                     label: "Bluetooth",
                     icon: Icons.bluetooth,
-                    isEnabled: _isBluetoothEnabled, // Use state variable
+                    isEnabled: _isBluetoothEnabled,
                     onChanged: () => AppSettings.openAppSettings(type: AppSettingsType.bluetooth),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _buildActionChip( // Keep Chat chip
+                  child: _buildActionChip(
                     label: "Chats",
                     icon: Icons.forum_outlined,
                     onPressed: () => Navigator.of(context).push(MaterialPageRoute(
@@ -381,14 +326,12 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  // Listen directly to the box for enabling Rankings
                   child: ValueListenableBuilder<Box<NearbyUser>>(
                       valueListenable: _localCacheService.getNearbyUsersListenable(),
                       builder: (context, box, _) {
                         return _buildActionChip(
                           label: "Rankings",
                           icon: Icons.leaderboard_outlined,
-                          // Disable if no users found
                           onPressed: box.isEmpty ? null : () => Navigator.of(context).push(MaterialPageRoute(
                               builder: (_) => const LocalLeaderboardScreen())),
                         );
@@ -398,24 +341,22 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
               ],
             ),
           ),
-          // Status Message below controls, above Sonar
           Padding(
             padding: const EdgeInsets.only(bottom: 16.0),
             child: Text(
-              _getStatusMessage(state), // Get message based on BLoC state
+              _getStatusMessage(state),
               style: TextStyle(color: Colors.grey[700], fontSize: 16),
               textAlign: TextAlign.center,
             ),
           ),
-          // Give SonarView a specific size or let AspectRatio handle it
           SizedBox(
-            height: 200, // Explicit height for Sonar area
+            height: 200,
             child: SonarView(
-              isScanning: isScanning, // Controlled by BLoC state
+              isScanning: isScanning,
               unleashController: _unleashController,
               discoveryController: _discoveryController,
-              centerAvatar: _buildCenterAvatar(isScanning), // Pass BLoC state
-              foundUserAvatars: const [], // Grid handles users
+              centerAvatar: _buildCenterAvatar(isScanning),
+              foundUserAvatars: const [],
             ),
           ),
         ],
@@ -423,10 +364,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
     );
   }
 
-  // --- Helper Widgets ---
-
   Widget _buildToggleChip({ required String label, required IconData icon, required bool isEnabled, required VoidCallback onChanged}) {
-    // Using InkWell for better layout control than FilterChip sometimes
     return InkWell(
       onTap: onChanged,
       borderRadius: BorderRadius.circular(20),
@@ -441,7 +379,12 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
           children: [
             Icon(icon, color: isEnabled ? Colors.white : Colors.grey[600], size: 18),
             const SizedBox(width: 4),
-            Text(label, style: TextStyle(color: isEnabled ? Colors.white : Colors.black87, fontSize: 12)),
+            Flexible(
+              child: Text(label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: isEnabled ? Colors.white : Colors.black87, fontSize: 12)
+              ),
+            ),
           ],
         ),
       ),
@@ -449,7 +392,6 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
   }
 
   Widget _buildActionChip({required String label, required IconData icon, required VoidCallback? onPressed}) {
-    // Using InkWell for consistency
     return InkWell(
       onTap: onPressed,
       borderRadius: BorderRadius.circular(20),
@@ -464,7 +406,12 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
           children: [
             Icon(icon, color: onPressed == null ? Colors.grey[400] : Colors.grey[800], size: 18),
             const SizedBox(width: 4),
-            Text(label, style: TextStyle(color: onPressed == null ? Colors.grey[400] : Colors.grey[800], fontSize: 12)),
+            Flexible(
+              child: Text(label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: onPressed == null ? Colors.grey[400] : Colors.grey[800], fontSize: 12)
+              ),
+            ),
           ],
         ),
       ),
@@ -485,7 +432,6 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
       child: CircleAvatar(
         radius: 30,
         backgroundColor: Colors.grey[300],
-        // Use CachedNetworkImageProvider here
         backgroundImage: _currentUserPhotoUrl != null && _currentUserPhotoUrl!.isNotEmpty
             ? CachedNetworkImageProvider(_currentUserPhotoUrl!)
             : null,
@@ -497,10 +443,12 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
   }
 
   Widget _buildFoundUsersGrid(List<NearbyUser> users) {
+    final friendsBloc = BlocProvider.of<FriendsBloc>(context); // Get bloc once
+
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 500),
       child: GridView.builder(
-        key: ValueKey('nearby_grid_${users.length}'), // Key for animation
+        key: ValueKey('nearby_grid_${users.length}'),
         padding: const EdgeInsets.all(8.0),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 4, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 0.8,
@@ -509,45 +457,68 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
         itemBuilder: (context, index) {
           final nearbyUser = users[index];
 
-          // Listen directly to profileBox for reactive updates
           return ValueListenableBuilder<Box<UserProfile>>(
             valueListenable: _profileBox.listenable(), // Listen to the whole box
             builder: (context, profileBoxListenable, _) {
-              // Get profile using profileId stored in nearbyUser
               final userProfile = nearbyUser.profileId != null
                   ? profileBoxListenable.get(nearbyUser.profileId!)
                   : null;
 
-              // Construct a ServerUserModel for the card
+              // Construct ServerUserModel for the card
+              // *** ALL FIELDS ARE NOW POPULATED FROM UserProfile CACHE ***
               final displayUser = ServerUserModel.UserModel(
-                id: nearbyUser.profileId ?? nearbyUser.uidShort,
-                username: userProfile?.name ?? "User ${nearbyUser.uidShort.substring(0, 4)}",
-                email: '',
-                photoUrl: userProfile?.photoUrl ?? '',
-                lastSeen: nearbyUser.lastSeen,
-                createdAt: DateTime.fromMillisecondsSinceEpoch(0), // Placeholder
-                lastFreeSuperLike: DateTime.fromMillisecondsSinceEpoch(0), // Placeholder
-                lastNearbyDiscoveryDate: DateTime.fromMillisecondsSinceEpoch(0), // Placeholder
-                gender: nearbyUser.gender == 1 ? 'Male' : nearbyUser.gender == 2 ? 'Female' : '',
-                // Add other fields with default values if NearbyUserCard needs them
-                age: 0, // Placeholder
-                level: 1, // Placeholder - You might want to fetch this if needed
-                xp: 0, // Placeholder
+                  id: userProfile?.profileId ?? nearbyUser.uidShort, // Use full ID if synced
+                  username: userProfile?.name ?? "User ${nearbyUser.uidShort.substring(0, 4)}",
+                  photoUrl: userProfile?.photoUrl ?? '',
+                  lastSeen: nearbyUser.lastSeen, // Use nearbyUser.lastSeen for accurate proximity
+                  gender: userProfile?.gender ?? (nearbyUser.gender == 1 ? 'Male' : nearbyUser.gender == 2 ? 'Female' : ''),
+                  level: userProfile?.level ?? 1,
+                  xp: userProfile?.xp ?? 0,
+                  interests: userProfile?.interests ?? [],
+                  friends: userProfile?.friends ?? [],
+                  friendRequestsSent: userProfile?.friendRequestsSent ?? [],
+                  friendRequestsReceived: userProfile?.friendRequestsReceived ?? [],
+                  blockedUsers: userProfile?.blockedUsers ?? [],
+                  nearbyStatusMessage: userProfile?.nearbyStatusMessage ?? '',
+                  nearbyStatusEmoji: userProfile?.nearbyStatusEmoji ?? '',
 
+                  // Placeholders for fields not in UserProfile
+                  email: '',
+                  createdAt: DateTime.fromMillisecondsSinceEpoch(0),
+                  lastFreeSuperLike: DateTime.fromMillisecondsSinceEpoch(0),
+                  lastNearbyDiscoveryDate: DateTime.fromMillisecondsSinceEpoch(0),
+                  age: 0,
+                  currentSeasonId: '',
+                  seasonLevel: 0,
+                  seasonXp: 0,
+                  claimedSeasonRewards: [],
+                  pictureVersion: 0,
+                  bio: '',
+                  fcmToken: '',
+                  presence: false, // Note: presence isn't part of this model
+                  coins: 0,
+                  superLikes: 0,
+                  equippedBadgeId: null,
+                  equippedProfileFrameId: null,
+                  sharedMusicTrack: null,
+                  nearbyDataVersion: 0
               );
 
-              // Estimate RSSI
-              int estimatedRssi = -59 - (nearbyUser.distance * 10).toInt().clamp(-40, 0); // Clamp range
+              int estimatedRssi = -59 - (nearbyUser.distance * 10).toInt().clamp(-40, 0);
 
-
-              return NearbyUserCard(
-                key: ValueKey(nearbyUser.uidShort), // Use stable key
-                user: displayUser,
-                rssi: estimatedRssi,
-                lastSeen: nearbyUser.lastSeen,
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => ProfileScreen(userId: displayUser.id))), // Use displayUser.id
-                onDelete: () => _deleteFoundUser(nearbyUser.uidShort),
+              // Provide FriendsBloc to the NearbyUserCard instance
+              return BlocProvider.value(
+                value: friendsBloc, // Provide existing FriendsBloc
+                child: NearbyUserCard(
+                  key: ValueKey(nearbyUser.uidShort),
+                  user: displayUser,
+                  genderValue: nearbyUser.gender, // Pass raw gender for placeholder
+                  rssi: estimatedRssi,
+                  lastSeen: nearbyUser.lastSeen,
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => ProfileScreen(userId: displayUser.id))),
+                  onDelete: () => _deleteFoundUser(nearbyUser.uidShort),
+                ),
               );
             },
           );
@@ -557,14 +528,13 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
   }
 }
 
-// --- Helper Widgets for States ---
-
+// --- Helper Widgets for States (Full Implementation) ---
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: Padding( // Added padding for better spacing
+      child: Padding(
         padding: EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -677,5 +647,22 @@ class _WebPlaceholder extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// Helper extension for LocalCacheService (fixes 'firstWhereOrNull' error)
+extension LocalCacheServiceHelper on LocalCacheService {
+  NearbyUser? getNearbyUserByProfileId(String profileId) {
+    if (profileId.isEmpty) return null;
+    final box = Hive.box<NearbyUser>('nearbyUsers');
+    try {
+      // Use firstWhereOrNull from the collection package
+      return box.values.firstWhereOrNull(
+            (user) => user.profileId == profileId,
+      );
+    } catch (e) {
+      debugPrint("getNearbyUserByProfileId Error: $e");
+      return null;
+    }
   }
 }
