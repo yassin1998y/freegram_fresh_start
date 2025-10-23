@@ -70,10 +70,10 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "users", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "unreadCount.69u1YJwilBYVNZYIL4eAbyRRTQI2", "order": "ASCENDING" }
+        { "fieldPath": "`unreadCount.69u1YJwilBYVNZYIL4eAbyRRTQI2`", "order": "ASCENDING" }
       ]
     }
+
   ],
   "fieldOverrides": []
 }
-

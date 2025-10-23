@@ -1,9 +1,11 @@
+// lib/blocs/auth_bloc.dart
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/repositories/auth_repository.dart';
 import 'package:meta/meta.dart';
+import 'package:flutter/foundation.dart'; // Import for debugPrint
 
 part 'auth_event.dart';
 part 'auth_state.dart';
@@ -21,13 +23,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         super(AuthInitial()) {
     _authStateSubscription =
         _firebaseAuth.authStateChanges().listen((user) {
-          // This stream is the single source of truth. When Firebase's auth
-          // state changes (login, logout, token refresh), we re-check.
+          // --- DEBUG ---
+          debugPrint("AuthBloc: authStateChanges listener fired. User: ${user?.uid ?? 'null'}");
+          // --- END DEBUG ---
           add(CheckAuthentication());
         });
 
     on<CheckAuthentication>((event, emit) {
       final user = _firebaseAuth.currentUser;
+      // --- DEBUG ---
+      debugPrint("AuthBloc: Handling CheckAuthentication. Current Firebase User: ${user?.uid ?? 'null'}");
+      // --- END DEBUG ---
       if (user != null) {
         emit(Authenticated(user));
       } else {
@@ -36,48 +42,60 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     });
 
     on<SignOut>((event, emit) async {
+      debugPrint("AuthBloc: Handling SignOut event."); // --- DEBUG ---
       await _authRepository.signOut();
+      // authStateChanges listener will trigger Unauthenticated state
     });
 
     on<SignInWithGoogle>((event, emit) async {
+      debugPrint("AuthBloc: Handling SignInWithGoogle event."); // --- DEBUG ---
       try {
         await _authRepository.signInWithGoogle();
+        // authStateChanges listener will trigger Authenticated state
       } catch (e) {
+        debugPrint("AuthBloc: Error during SignInWithGoogle: $e"); // --- DEBUG ---
         emit(AuthError(e.toString()));
-        emit(Unauthenticated());
+        emit(Unauthenticated()); // Ensure state is Unauthenticated on error
       }
     });
 
     on<SignInWithFacebook>((event, emit) async {
+      debugPrint("AuthBloc: Handling SignInWithFacebook event."); // --- DEBUG ---
       try {
         await _authRepository.signInWithFacebook();
+        // authStateChanges listener will trigger Authenticated state
       } catch (e) {
+        debugPrint("AuthBloc: Error during SignInWithFacebook: $e"); // --- DEBUG ---
         emit(AuthError(e.toString()));
-        emit(Unauthenticated());
+        emit(Unauthenticated()); // Ensure state is Unauthenticated on error
       }
     });
 
-    // FIX: Added handler for the new sign-up event.
     on<SignUpRequested>((event, emit) async {
+      debugPrint("AuthBloc: Handling SignUpRequested event for email: ${event.email}"); // --- DEBUG ---
+      // ** ADDED: Emit a loading state maybe? (Optional) **
+      // emit(AuthLoading()); // You'd need to define AuthLoading state
       try {
-        // The BLoC now tells the repository to handle the entire flow.
         await _authRepository.signUp(
           email: event.email,
           password: event.password,
           username: event.username,
         );
-        // We don't need to emit a new state here. The `authStateChanges`
-        // stream will automatically detect the new user and trigger
-        // a `CheckAuthentication` event, which will emit `Authenticated`.
+        debugPrint("AuthBloc: SignUpRequested - AuthRepository.signUp completed."); // --- DEBUG ---
+        // authStateChanges listener will trigger Authenticated state
       } catch (e) {
+        // --- DEBUG: Log the specific error during sign up ---
+        debugPrint("AuthBloc: Error during SignUpRequested: $e");
+        // --- END DEBUG ---
         emit(AuthError(e.toString()));
-        emit(Unauthenticated());
+        emit(Unauthenticated()); // Ensure state is Unauthenticated on error
       }
     });
   }
 
   @override
   Future<void> close() {
+    debugPrint("AuthBloc: Closing."); // --- DEBUG ---
     _authStateSubscription?.cancel();
     return super.close();
   }

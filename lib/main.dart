@@ -3,16 +3,15 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:freegram/blocs/auth_bloc.dart';
 import 'package:freegram/blocs/connectivity_bloc.dart';
 import 'package:freegram/firebase_options.dart';
 import 'package:freegram/locator.dart';
-// Import Hive models
 import 'package:freegram/models/hive/nearby_user.dart';
 import 'package:freegram/models/hive/user_profile.dart';
 import 'package:freegram/models/hive/wave_record.dart';
 import 'package:freegram/models/hive/friend_request_record.dart';
-// Regular models
 import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/auth_repository.dart';
 import 'package:freegram/repositories/user_repository.dart';
@@ -21,64 +20,39 @@ import 'package:freegram/screens/login_screen.dart';
 import 'package:freegram/screens/main_screen.dart';
 import 'package:freegram/screens/onboarding_screen.dart';
 import 'package:freegram/services/cache_manager_service.dart';
-// Import NotificationService
 import 'package:freegram/services/sonar/notification_service.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:freegram/theme/app_theme.dart';
 
 void main() async {
-  // Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
-  // Initialize Mobile Ads (if not web)
   if (!kIsWeb) {
     MobileAds.instance.initialize();
   }
-
-  // **Initialize Notification Service**
   await NotificationService().initialize();
-
-  // --- Hive Initialization ---
   await Hive.initFlutter();
-
-  // Register all Hive adapters
   Hive.registerAdapter(NearbyUserAdapter());
   Hive.registerAdapter(UserProfileAdapter());
   Hive.registerAdapter(WaveRecordAdapter());
   Hive.registerAdapter(FriendRequestRecordAdapter());
-
-  // Open all Hive boxes
-  await Hive.openBox('settings'); // Keep settings box
+  await Hive.openBox('settings');
   await Hive.openBox<NearbyUser>('nearbyUsers');
   await Hive.openBox<UserProfile>('userProfiles');
   await Hive.openBox<WaveRecord>('pendingWaves');
   await Hive.openBox<FriendRequestRecord>('pendingFriendRequests');
   await Hive.openBox('action_queue');
-
-  // --- End Hive Initialization ---
-
-  // Initialize Connectivity Bloc
   final connectivityBloc = ConnectivityBloc()..add(CheckConnectivity());
-
-  // Setup Dependency Injection (GetIt)
   setupLocator(connectivityBloc: connectivityBloc);
-
-  // Manage Cache (if not web)
   if (!kIsWeb) {
     await locator<CacheManagerService>().manageCache();
   }
-
-  // Run the App
   runApp(MyApp(connectivityBloc: connectivityBloc));
 }
 
-// MyApp remains the same
 class MyApp extends StatelessWidget {
   final ConnectivityBloc connectivityBloc;
   const MyApp({super.key, required this.connectivityBloc});
@@ -99,14 +73,14 @@ class MyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: SonarPulseTheme.light,
         darkTheme: SonarPulseTheme.dark,
-        themeMode: ThemeMode.system, // Or load from settings
+        themeMode: ThemeMode.system,
         home: const AuthWrapper(),
       ),
     );
   }
 }
 
-// AuthWrapper remains the same
+// AuthWrapper - Simplified StreamBuilder Handling + Final Return Log
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
@@ -114,38 +88,61 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
+        debugPrint("AuthWrapper: Received AuthState -> ${state.runtimeType}");
+
         if (state is Authenticated) {
+          debugPrint("AuthWrapper: State is Authenticated for user ${state.user.uid}. Getting UserModel stream...");
           return StreamBuilder<UserModel>(
             stream: locator<UserRepository>().getUserStream(state.user.uid),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Scaffold(
-                    body: Center(
-                        child: CircularProgressIndicator(
-                          color: Theme.of(context).colorScheme.primary,
-                        )));
-              }
-              if (!snapshot.hasData || snapshot.hasError) {
-                print("AuthWrapper Error: ${snapshot.error}");
+              debugPrint("AuthWrapper StreamBuilder: State=${snapshot.connectionState}, HasData=${snapshot.hasData}, Error=${snapshot.error}");
+
+              if (snapshot.hasData) {
+                final user = snapshot.data!;
+                debugPrint("AuthWrapper StreamBuilder: Received UserModel for ${user.username}. Checking profile completeness...");
+
+                final bool isProfileComplete = user.age > 0 &&
+                    user.country.isNotEmpty &&
+                    user.gender.isNotEmpty;
+
+                if (isProfileComplete) {
+                  debugPrint("AuthWrapper: ---> RETURNING MainScreenWrapper <---"); // Final return log
+                  return MainScreenWrapper(key: ValueKey(user.id));
+                } else {
+                  debugPrint("AuthWrapper: ---> RETURNING EditProfileScreen <---"); // Final return log
+                  return EditProfileScreen(
+                    currentUserData: user.toMap(),
+                    isCompletingProfile: true,
+                  );
+                }
+              } else if (snapshot.hasError) {
+                debugPrint("AuthWrapper StreamBuilder Error fetching UserModel: ${snapshot.error}");
+                SchedulerBinding.instance.addPostFrameCallback((_) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error loading user profile: ${snapshot.error}. Please try logging in again.'),
+                          backgroundColor: Colors.red,
+                        )
+                    );
+                  }
+                });
+                debugPrint("AuthWrapper: ---> RETURNING LoginScreen (due to error) <---"); // Final return log
                 return const LoginScreen();
-              }
-
-              final user = snapshot.data!;
-              final bool isProfileComplete = user.age > 0 &&
-                  user.country.isNotEmpty &&
-                  user.gender.isNotEmpty;
-
-              if (isProfileComplete) {
-                return MainScreenWrapper(key: ValueKey(user.id));
               } else {
-                return EditProfileScreen(
-                  currentUserData: user.toMap(),
-                  isCompletingProfile: true,
-                );
+                debugPrint("AuthWrapper StreamBuilder: Waiting for initial UserModel data...");
+                // *** ADDED LOG ***
+                debugPrint("AuthWrapper: ---> RETURNING Loading Indicator <---");
+                // *** END LOG ***
+                return const Scaffold(
+                    body: Center(child: CircularProgressIndicator()));
               }
             },
           );
         }
+        // Unauthenticated or Initial state
+        debugPrint("AuthWrapper: State is ${state.runtimeType}. Showing LoginScreen.");
+        debugPrint("AuthWrapper: ---> RETURNING LoginScreen (Unauthenticated/Initial) <---"); // Final return log
         return const LoginScreen();
       },
     );
@@ -174,7 +171,10 @@ class _MainScreenWrapperState extends State<MainScreenWrapper> {
     final bool hasSeenOnboarding =
     settingsBox.get('hasSeenOnboarding', defaultValue: false);
 
+    debugPrint("MainScreenWrapper: Checking onboarding. Seen: $hasSeenOnboarding");
+
     if (!hasSeenOnboarding && mounted) {
+      debugPrint("MainScreenWrapper: Showing OnboardingScreen.");
       Navigator.of(context).push(
         MaterialPageRoute(
           fullscreenDialog: true,
@@ -186,6 +186,7 @@ class _MainScreenWrapperState extends State<MainScreenWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint("MainScreenWrapper: Building MainScreen.");
     return const MainScreen();
   }
 }

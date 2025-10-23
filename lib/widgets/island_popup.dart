@@ -1,14 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
-// Helper function to show the popup from anywhere in the app.
+// === Entry Function (same usage) ===
 void showIslandPopup({
   required BuildContext context,
   required String message,
   IconData? icon,
-  Color? iconColor,
 }) {
-  // Overlay allows us to display this widget on top of everything else.
   final overlay = Overlay.of(context);
   late OverlayEntry overlayEntry;
 
@@ -16,27 +14,23 @@ void showIslandPopup({
     builder: (context) => IslandPopup(
       message: message,
       icon: icon,
-      iconColor: iconColor,
-      onDismiss: () {
-        overlayEntry.remove();
-      },
+      onDismiss: () => overlayEntry.remove(),
     ),
   );
 
   overlay.insert(overlayEntry);
 }
 
+// === THEME-AWARE ISLAND POPUP (Width-only Expansion) ===
 class IslandPopup extends StatefulWidget {
   final String message;
   final IconData? icon;
-  final Color? iconColor;
   final VoidCallback onDismiss;
 
   const IslandPopup({
     super.key,
     required this.message,
     this.icon,
-    this.iconColor,
     required this.onDismiss,
   });
 
@@ -47,32 +41,39 @@ class IslandPopup extends StatefulWidget {
 class _IslandPopupState extends State<IslandPopup>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<Offset> _offsetAnimation;
+  late Animation<double> _fadeAnimation;
   Timer? _dismissTimer;
+  bool _expanded = false;
 
   @override
   void initState() {
     super.initState();
+
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 350), // Faster animation
+      duration: const Duration(milliseconds: 350),
     );
 
-    _offsetAnimation = Tween<Offset>(
-      begin: const Offset(0, -2.0), // Start above the screen
-      end: const Offset(0, 0.5),   // Settle just below the status bar
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    ));
+    _fadeAnimation =
+        CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
 
-    // Animate in, wait, and then animate out.
-    _controller.forward().then((_) {
-      _dismissTimer = Timer(const Duration(seconds: 3), () {
-        if (mounted) {
-          _controller.reverse().then((_) => widget.onDismiss());
-        }
-      });
+    _controller.forward();
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) setState(() => _expanded = true);
+    });
+
+    _dismissTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) _closeIsland();
+    });
+  }
+
+  void _closeIsland() {
+    setState(() => _expanded = false);
+    Future.delayed(const Duration(milliseconds: 300), () async {
+      if (mounted) {
+        await _controller.reverse();
+        widget.onDismiss();
+      }
     });
   }
 
@@ -85,47 +86,84 @@ class _IslandPopupState extends State<IslandPopup>
 
   @override
   Widget build(BuildContext context) {
-    // SafeArea ensures the popup doesn't get hidden by the status bar/notch.
-    return SafeArea(
-      child: SlideTransition(
-        position: _offsetAnimation,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  spreadRadius: 2,
-                ),
-              ],
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    final backgroundColor = colorScheme.surface.withOpacity(0.95);
+    final textColor = colorScheme.onSurface;
+    final primaryAccent = colorScheme.primary;
+
+    final screenWidth = MediaQuery.of(context).size.width;
+    final collapsedWidth = 120.0;
+    final expandedWidth = screenWidth * 0.85;
+
+    return Positioned(
+      top: 50,
+      left: 0,
+      right: 0,
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOutCubic,
+          width: _expanded ? expandedWidth : collapsedWidth,
+          height: 55, // Slimmer height
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(40),
+            boxShadow: [
+              BoxShadow(
+                color: theme.brightness == Brightness.dark
+                    ? Colors.black.withOpacity(0.6)
+                    : Colors.grey.withOpacity(0.25),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
+              ),
+            ],
+            border: Border.all(
+              color: primaryAccent.withOpacity(0.25),
+              width: 1,
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (widget.icon != null)
-                  Icon(
-                    widget.icon,
-                    color: widget.iconColor ?? Theme.of(context).colorScheme.primary,
-                    size: 20,
-                  ),
-                if (widget.icon != null) const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    widget.message,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+          ),
+          child: Center(
+            child: AnimatedOpacity(
+              opacity: _expanded ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 250),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (widget.icon != null) ...[
+                      Container(
+                        decoration: BoxDecoration(
+                          color: primaryAccent.withOpacity(0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        padding: const EdgeInsets.all(5),
+                        child: Icon(
+                          widget.icon,
+                          color: primaryAccent,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Flexible(
+                      child: Text(
+                        widget.message,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: textColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),

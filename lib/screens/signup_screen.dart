@@ -1,8 +1,10 @@
+// lib/screens/signup_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/auth_bloc.dart';
 import 'package:freegram/widgets/gradient_button.dart';
 import 'package:freegram/widgets/gradient_spinner.dart';
+import 'package:flutter/foundation.dart'; // Import for debugPrint
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -16,6 +18,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  bool _isSigningUp = false;
 
   @override
   void dispose() {
@@ -27,6 +30,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   void _signUp() {
     if (!_formKey.currentState!.validate()) return;
+    if (_isSigningUp) return;
+
+    debugPrint("SignUpScreen: SignUp button pressed for email: ${_emailController.text}");
+    setState(() {
+      _isSigningUp = true;
+    });
 
     context.read<AuthBloc>().add(
       SignUpRequested(
@@ -35,13 +44,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
         username: _usernameController.text.trim(),
       ),
     );
+    debugPrint("SignUpScreen: Dispatched SignUpRequested event. WAITING FOR AuthWrapper navigation...");
   }
 
   @override
   Widget build(BuildContext context) {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
+        debugPrint("SignUpScreen: BlocListener received state: ${state.runtimeType}");
         if (state is AuthError) {
+          if (mounted) {
+            setState(() {
+              _isSigningUp = false; // Reset loading on error
+            });
+          }
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
@@ -49,11 +65,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           );
         }
+        // --- MODIFICATION START ---
+        // If authenticated AND we were the ones signing up, pop this screen
+        if (state is Authenticated && _isSigningUp) {
+          debugPrint("SignUpScreen: BlocListener received Authenticated state WHILE signing up. Popping screen.");
+          // Reset the flag *before* popping
+          if (mounted) {
+            setState(() {
+              _isSigningUp = false;
+            });
+          }
+          // Pop the SignUpScreen - AuthWrapper will then build EditProfileScreen
+          Navigator.of(context).pop();
+        }
+        // --- MODIFICATION END ---
       },
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
+          // Ensure back button works correctly even if AppBar is transparent
+          leading: BackButton(color: Theme.of(context).iconTheme.color),
         ),
         body: Center(
           child: SingleChildScrollView(
@@ -77,6 +109,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Username',
                     ),
+                    enabled: !_isSigningUp,
                     validator: (value) => (value == null || value.trim().isEmpty)
                         ? 'Please enter a username'
                         : null,
@@ -89,6 +122,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Email',
                     ),
+                    enabled: !_isSigningUp,
                     validator: (value) =>
                     (value == null || !value.contains('@'))
                         ? 'Please enter a valid email'
@@ -102,21 +136,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Password',
                     ),
+                    enabled: !_isSigningUp,
                     validator: (value) => (value == null || value.length < 6)
                         ? 'Password must be at least 6 characters'
                         : null,
                   ),
                   const SizedBox(height: 24.0),
-                  BlocBuilder<AuthBloc, AuthState>(
-                    builder: (context, state) {
-                      // We can check for AuthInitial or add a dedicated AuthLoading state.
-                      bool isLoading = state is AuthInitial;
-                      return GradientButton(
-                        onPressed: isLoading ? null : _signUp,
-                        text: 'Sign Up',
-                        isLoading: isLoading,
-                      );
-                    },
+                  GradientButton(
+                    onPressed: _isSigningUp ? null : _signUp,
+                    text: 'Sign Up',
+                    isLoading: _isSigningUp,
                   ),
                 ],
               ),

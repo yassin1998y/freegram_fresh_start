@@ -5,7 +5,7 @@ import 'package:app_settings/app_settings.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -27,7 +27,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:freegram/widgets/nearby_user_card.dart';
 import 'package:freegram/screens/main_screen.dart'; // For RouteObserver
-// Import collection package for firstWhereOrNull
 import 'package:collection/collection.dart';
 
 
@@ -65,7 +64,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
   final SonarController _sonarController = locator<SonarController>();
   final LocalCacheService _localCacheService = locator<LocalCacheService>();
   final UserRepository _userRepository = locator<UserRepository>();
-  final Box<UserProfile> _profileBox = Hive.box<UserProfile>('userProfiles');
+  // Removed direct reference to _profileBox here, will access via localCacheService
   final Box _settingsBox = Hive.box('settings');
   bool _isBluetoothEnabled = false;
   late AnimationController _unleashController;
@@ -74,6 +73,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
   final bool _isWeb = kIsWeb;
   StreamSubscription? _statusSubscription;
 
+  // --- initState, dispose, lifecycle methods remain the same ---
   @override
   void initState() {
     super.initState();
@@ -132,21 +132,29 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
   }
 
   @override
-  void didPushNext() { if (!_isWeb) _sonarController.stopSonar(); }
+  void didPushNext() { if (!_isWeb) _sonarController.stopSonar(); debugPrint("NearbyScreen: didPushNext - Stopping Sonar"); }
   @override
-  void didPop() { if (!_isWeb) _sonarController.stopSonar(); }
+  void didPop() { if (!_isWeb) _sonarController.stopSonar(); debugPrint("NearbyScreen: didPop - Stopping Sonar"); }
   @override
-  void didPush() { if (!_isWeb) _syncPermissionsAndHardwareState(); }
+  void didPush() { if (!_isWeb) _syncPermissionsAndHardwareState(); debugPrint("NearbyScreen: didPush - Syncing State"); }
   @override
-  void didPopNext() { if (!_isWeb) _syncPermissionsAndHardwareState(); }
+  void didPopNext() { if (!_isWeb) _syncPermissionsAndHardwareState(); debugPrint("NearbyScreen: didPopNext - Syncing State"); }
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    debugPrint("NearbyScreen: AppLifecycleState changed to $state");
     if (_isWeb) return;
     if (state == AppLifecycleState.resumed) {
       _syncPermissionsAndHardwareState();
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive || state == AppLifecycleState.detached) {
+      if (BluetoothStatusService().currentStatus == NearbyStatus.scanning ||
+          BluetoothStatusService().currentStatus == NearbyStatus.userFound) {
+        debugPrint("NearbyScreen: App Paused/Inactive/Detached - Stopping Sonar");
+        _sonarController.stopSonar();
+      }
     }
   }
 
+  // --- Other methods (_checkAndShowBatteryOptimizationDialog, _syncPermissionsAndHardwareState, etc.) remain the same ---
   Future<void> _checkAndShowBatteryOptimizationDialog() async {
     if (!mounted || !Platform.isAndroid || _settingsBox.get('hasSeenBatteryDialog', defaultValue: false)) {
       return;
@@ -181,12 +189,48 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
 
   Future<void> _syncPermissionsAndHardwareState() async {
     if (_isWeb) return;
-    _handleStatusUpdate(BluetoothStatusService().currentStatus);
+    debugPrint("NearbyScreen: _syncPermissionsAndHardwareState called");
+    bool granted = await _checkPermissionsStatusOnly();
+    final adapterState = BluetoothStatusService().currentStatus;
+    debugPrint("NearbyScreen: Post-Sync - Permissions Granted: $granted, Adapter Status: $adapterState");
+
+    _handleStatusUpdate(adapterState);
   }
 
+  Future<bool> _checkPermissionsStatusOnly() async {
+    debugPrint("NearbyScreen: Checking permission status...");
+    Map<Permission, PermissionStatus> statuses = {};
+    statuses[Permission.locationWhenInUse] = await Permission.locationWhenInUse.status;
+    statuses[Permission.bluetoothScan] = await Permission.bluetoothScan.status;
+    statuses[Permission.bluetoothConnect] = await Permission.bluetoothConnect.status;
+    statuses[Permission.bluetoothAdvertise] = await Permission.bluetoothAdvertise.status;
+
+    bool allGranted = statuses.values.every((status) => status.isGranted);
+    debugPrint("NearbyScreen: Permission Statuses - $statuses, All Granted: $allGranted");
+
+    if(!allGranted) {
+      if (statuses.values.any((s) => s.isPermanentlyDenied)) {
+        debugPrint("NearbyScreen: Permissions permanently denied detected.");
+        BluetoothStatusService().updateStatus(NearbyStatus.permissionsPermanentlyDenied);
+        return false;
+      }
+      debugPrint("NearbyScreen: Permissions denied detected.");
+      BluetoothStatusService().updateStatus(NearbyStatus.permissionsDenied);
+    } else {
+      final currentStatus = BluetoothStatusService().currentStatus;
+      if(currentStatus == NearbyStatus.permissionsDenied || currentStatus == NearbyStatus.permissionsPermanentlyDenied) {
+        debugPrint("NearbyScreen: Permissions seem granted now, resetting status from denied.");
+      }
+    }
+    return allGranted;
+  }
+
+
   Future<void> _handlePermissionRequest() async {
+    debugPrint("NearbyScreen: Handling permission request via BLoC.");
     context.read<NearbyBloc>().add(StartNearbyServices());
   }
+
 
   Future<void> _fetchCurrentUserPhoto() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -208,23 +252,24 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
   }
 
   String _getStatusMessage(NearbyState state) {
+    final currentServiceStatus = BluetoothStatusService().currentStatus;
+    if (currentServiceStatus == NearbyStatus.permissionsPermanentlyDenied) {
+      return "Enable Permissions in Settings.";
+    }
+    if (currentServiceStatus == NearbyStatus.permissionsDenied) {
+      return "Enable Permissions to start.";
+    }
+    if (currentServiceStatus == NearbyStatus.adapterOff) {
+      return "Enable Bluetooth to start.";
+    }
+
     if (state is NearbyError) return state.message;
     if (state is NearbyActive) {
       if(state.status == NearbyStatus.scanning) return "Actively searching...";
       if(state.status == NearbyStatus.userFound) return "Discovery active...";
     }
-    if (_isBluetoothEnabled) {
-      return "Ready to scan! Tap your picture to begin.";
-    }
-    final currentServiceStatus = BluetoothStatusService().currentStatus;
-    if(currentServiceStatus == NearbyStatus.permissionsDenied ||
-        currentServiceStatus == NearbyStatus.permissionsPermanentlyDenied) {
-      return "Enable Permissions to start.";
-    }
-    if(currentServiceStatus == NearbyStatus.adapterOff) {
-      return "Enable Bluetooth to start.";
-    }
-    return "Tap your picture to begin.";
+
+    return "Ready to scan! Tap your picture to begin.";
   }
 
   void _deleteFoundUser(String uidShort) {
@@ -252,6 +297,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
     );
   }
 
+  // --- build Method ---
   @override
   Widget build(BuildContext context) {
     if (_isWeb) return const _WebPlaceholder();
@@ -260,45 +306,85 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
       body: BlocConsumer<NearbyBloc, NearbyState>(
         listener: (context, state) {},
         builder: (context, state) {
-          if (state is NearbyError) {
-            if (state.message.contains("permanently")) return _PermissionDeniedState(isPermanentlyDenied: true);
-            if (state.message.contains("Permissions")) return _PermissionDeniedState(onRetry: _handlePermissionRequest);
-            return _ErrorState(message: state.message, onRetry: () => context.read<NearbyBloc>().add(StartNearbyServices()));
-          }
+          final currentServiceStatus = BluetoothStatusService().currentStatus;
+          Widget bodyContent;
 
-          return Column(
-            children: [
-              SafeArea(
-                bottom: false,
-                child: _buildControlSection(context, state),
-              ),
-              const Divider(height: 1, thickness: 1),
-              Expanded(
-                child: ValueListenableBuilder<Box<NearbyUser>>(
-                  valueListenable: _localCacheService.getNearbyUsersListenable(),
-                  builder: (context, box, _) {
-                    final nearbyUsers = box.values.toList();
-                    nearbyUsers.sort((a, b) => b.lastSeen.compareTo(a.lastSeen));
-
-                    if (nearbyUsers.isEmpty && state is NearbyActive) return const _SearchingState();
-                    if (nearbyUsers.isEmpty) return const _EmptyState();
-
-                    return BlocProvider.value(
-                      value: BlocProvider.of<FriendsBloc>(context),
-                      child: _buildFoundUsersGrid(nearbyUsers),
-                    );
-                  },
+          if (currentServiceStatus == NearbyStatus.permissionsPermanentlyDenied) {
+            bodyContent = _PermissionDeniedState(isPermanentlyDenied: true);
+          } else if (currentServiceStatus == NearbyStatus.permissionsDenied) {
+            bodyContent = _PermissionDeniedState(onRetry: _handlePermissionRequest);
+          } else if (state is NearbyError) {
+            bodyContent = _ErrorState(message: state.message, onRetry: () => context.read<NearbyBloc>().add(StartNearbyServices()));
+          } else {
+            // Main UI
+            bodyContent = Column(
+              children: [
+                SafeArea(
+                  bottom: false,
+                  child: _buildControlSection(context, state),
                 ),
-              ),
-            ],
+                const Divider(height: 1, thickness: 1),
+                Expanded(
+                  // --- MODIFICATION START ---
+                  // Listen to the NearbyUser box directly here
+                  child: ValueListenableBuilder<Box<NearbyUser>>(
+                    valueListenable: _localCacheService.getNearbyUsersListenable(),
+                    builder: (context, nearbyBox, _) {
+                      // --- DEBUG ---
+                      debugPrint("NearbyScreen: NearbyUserBox ValueListenableBuilder triggered. Box size: ${nearbyBox.length}");
+                      // --- END DEBUG ---
+                      final nearbyUsers = nearbyBox.values.toList();
+                      nearbyUsers.sort((a, b) => b.lastSeen.compareTo(a.lastSeen));
+
+                      // --- DEBUG ---
+                      if (nearbyUsers.isNotEmpty) {
+                        debugPrint("NearbyScreen: First user uidShort: ${nearbyUsers.first.uidShort}, profileId: ${nearbyUsers.first.profileId}");
+                      }
+                      // --- END DEBUG ---
+
+                      if (nearbyUsers.isEmpty && state is NearbyActive && currentServiceStatus == NearbyStatus.scanning) {
+                        return const _SearchingState();
+                      }
+                      if (nearbyUsers.isEmpty) {
+                        return const _EmptyState();
+                      }
+
+                      // Ensure FriendsBloc is available
+                      return BlocProvider.value(
+                        value: BlocProvider.of<FriendsBloc>(context),
+                        // Pass the list of NearbyUsers to the grid builder
+                        child: _buildFoundUsersGrid(nearbyUsers),
+                      );
+                    },
+                  ),
+                  // --- MODIFICATION END ---
+                ),
+              ],
+            );
+          }
+          return AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: bodyContent,
           );
         },
       ),
     );
   }
 
+
+  // --- _buildControlSection and other helper methods remain the same ---
   Widget _buildControlSection(BuildContext context, NearbyState state) {
-    bool isScanning = state is NearbyActive;
+    bool isScanning = state is NearbyActive &&
+        state.status != NearbyStatus.idle &&
+        state.status != NearbyStatus.error;
+
+    final currentServiceStatus = BluetoothStatusService().currentStatus;
+    _isBluetoothEnabled = currentServiceStatus != NearbyStatus.adapterOff &&
+        currentServiceStatus != NearbyStatus.permissionsDenied &&
+        currentServiceStatus != NearbyStatus.permissionsPermanentlyDenied &&
+        currentServiceStatus != NearbyStatus.error;
+
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Column(
@@ -442,8 +528,10 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
     );
   }
 
+
+  // --- MODIFIED: _buildFoundUsersGrid now takes List<NearbyUser> ---
   Widget _buildFoundUsersGrid(List<NearbyUser> users) {
-    final friendsBloc = BlocProvider.of<FriendsBloc>(context); // Get bloc once
+    final friendsBloc = BlocProvider.of<FriendsBloc>(context);
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 500),
@@ -457,70 +545,60 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
         itemBuilder: (context, index) {
           final nearbyUser = users[index];
 
+          // Fetch the profile directly using the profileId from nearbyUser
+          // Use ValueListenableBuilder scoped to this item for efficient updates
           return ValueListenableBuilder<Box<UserProfile>>(
-            valueListenable: _profileBox.listenable(), // Listen to the whole box
-            builder: (context, profileBoxListenable, _) {
-              final userProfile = nearbyUser.profileId != null
-                  ? profileBoxListenable.get(nearbyUser.profileId!)
-                  : null;
+              valueListenable: Hive.box<UserProfile>('userProfiles').listenable(keys: nearbyUser.profileId != null ? [nearbyUser.profileId!] : null),
+              builder: (context, profileBox, _) {
+                final userProfile = nearbyUser.profileId != null
+                    ? _localCacheService.getUserProfile(nearbyUser.profileId!) // Use service getter
+                    : null;
 
-              // Construct ServerUserModel for the card
-              // *** ALL FIELDS ARE NOW POPULATED FROM UserProfile CACHE ***
-              final displayUser = ServerUserModel.UserModel(
-                  id: userProfile?.profileId ?? nearbyUser.uidShort, // Use full ID if synced
-                  username: userProfile?.name ?? "User ${nearbyUser.uidShort.substring(0, 4)}",
-                  photoUrl: userProfile?.photoUrl ?? '',
-                  lastSeen: nearbyUser.lastSeen, // Use nearbyUser.lastSeen for accurate proximity
-                  gender: userProfile?.gender ?? (nearbyUser.gender == 1 ? 'Male' : nearbyUser.gender == 2 ? 'Female' : ''),
-                  level: userProfile?.level ?? 1,
-                  xp: userProfile?.xp ?? 0,
-                  interests: userProfile?.interests ?? [],
-                  friends: userProfile?.friends ?? [],
-                  friendRequestsSent: userProfile?.friendRequestsSent ?? [],
-                  friendRequestsReceived: userProfile?.friendRequestsReceived ?? [],
-                  blockedUsers: userProfile?.blockedUsers ?? [],
-                  nearbyStatusMessage: userProfile?.nearbyStatusMessage ?? '',
-                  nearbyStatusEmoji: userProfile?.nearbyStatusEmoji ?? '',
+                // --- DEBUG ---
+                debugPrint("NearbyScreen GridItemBuilder: User ${nearbyUser.uidShort}, Profile ID: ${nearbyUser.profileId}, Profile Found: ${userProfile != null}, Profile Name: ${userProfile?.name}");
+                // --- END DEBUG ---
 
-                  // Placeholders for fields not in UserProfile
-                  email: '',
-                  createdAt: DateTime.fromMillisecondsSinceEpoch(0),
-                  lastFreeSuperLike: DateTime.fromMillisecondsSinceEpoch(0),
-                  lastNearbyDiscoveryDate: DateTime.fromMillisecondsSinceEpoch(0),
-                  age: 0,
-                  currentSeasonId: '',
-                  seasonLevel: 0,
-                  seasonXp: 0,
-                  claimedSeasonRewards: [],
-                  pictureVersion: 0,
-                  bio: '',
-                  fcmToken: '',
-                  presence: false, // Note: presence isn't part of this model
-                  coins: 0,
-                  superLikes: 0,
-                  equippedBadgeId: null,
-                  equippedProfileFrameId: null,
-                  sharedMusicTrack: null,
-                  nearbyDataVersion: 0
-              );
+                final displayUser = ServerUserModel.UserModel(
+                    id: userProfile?.profileId ?? nearbyUser.uidShort,
+                    username: userProfile?.name ?? "User ${nearbyUser.uidShort.substring(0, 4)}",
+                    photoUrl: userProfile?.photoUrl ?? '',
+                    lastSeen: nearbyUser.lastSeen,
+                    gender: userProfile?.gender ?? (nearbyUser.gender == 1 ? 'Male' : nearbyUser.gender == 2 ? 'Female' : ''),
+                    level: userProfile?.level ?? 1,
+                    xp: userProfile?.xp ?? 0,
+                    interests: userProfile?.interests ?? [],
+                    friends: userProfile?.friends ?? [],
+                    friendRequestsSent: userProfile?.friendRequestsSent ?? [],
+                    friendRequestsReceived: userProfile?.friendRequestsReceived ?? [],
+                    blockedUsers: userProfile?.blockedUsers ?? [],
+                    nearbyStatusMessage: userProfile?.nearbyStatusMessage ?? '',
+                    nearbyStatusEmoji: userProfile?.nearbyStatusEmoji ?? '',
+                    // Placeholders...
+                    email: '', createdAt: DateTime.fromMillisecondsSinceEpoch(0),
+                    lastFreeSuperLike: DateTime.fromMillisecondsSinceEpoch(0),
+                    lastNearbyDiscoveryDate: DateTime.fromMillisecondsSinceEpoch(0), age: 0,
+                    currentSeasonId: '', seasonLevel: 0, seasonXp: 0,
+                    claimedSeasonRewards: [], pictureVersion: 0, bio: '', fcmToken: '',
+                    presence: false, coins: 0, superLikes: 0, equippedBadgeId: null,
+                    equippedProfileFrameId: null, sharedMusicTrack: null, nearbyDataVersion: 0
+                );
 
-              int estimatedRssi = -59 - (nearbyUser.distance * 10).toInt().clamp(-40, 0);
+                int estimatedRssi = -59 - (nearbyUser.distance * 10).toInt().clamp(-40, 0);
 
-              // Provide FriendsBloc to the NearbyUserCard instance
-              return BlocProvider.value(
-                value: friendsBloc, // Provide existing FriendsBloc
-                child: NearbyUserCard(
-                  key: ValueKey(nearbyUser.uidShort),
-                  user: displayUser,
-                  genderValue: nearbyUser.gender, // Pass raw gender for placeholder
-                  rssi: estimatedRssi,
-                  lastSeen: nearbyUser.lastSeen,
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => ProfileScreen(userId: displayUser.id))),
-                  onDelete: () => _deleteFoundUser(nearbyUser.uidShort),
-                ),
-              );
-            },
+                return BlocProvider.value(
+                  value: friendsBloc,
+                  child: NearbyUserCard(
+                    key: ValueKey(nearbyUser.uidShort),
+                    user: displayUser,
+                    genderValue: nearbyUser.gender,
+                    rssi: estimatedRssi,
+                    lastSeen: nearbyUser.lastSeen,
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => ProfileScreen(userId: displayUser.id))),
+                    onDelete: () => _deleteFoundUser(nearbyUser.uidShort),
+                  ),
+                );
+              }
           );
         },
       ),
@@ -528,7 +606,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
   }
 }
 
-// --- Helper Widgets for States (Full Implementation) ---
+// --- Helper Widgets (_EmptyState, _SearchingState, etc.) remain the same ---
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
   @override
@@ -650,19 +728,6 @@ class _WebPlaceholder extends StatelessWidget {
   }
 }
 
-// Helper extension for LocalCacheService (fixes 'firstWhereOrNull' error)
-extension LocalCacheServiceHelper on LocalCacheService {
-  NearbyUser? getNearbyUserByProfileId(String profileId) {
-    if (profileId.isEmpty) return null;
-    final box = Hive.box<NearbyUser>('nearbyUsers');
-    try {
-      // Use firstWhereOrNull from the collection package
-      return box.values.firstWhereOrNull(
-            (user) => user.profileId == profileId,
-      );
-    } catch (e) {
-      debugPrint("getNearbyUserByProfileId Error: $e");
-      return null;
-    }
-  }
-}
+
+// Extension moved to sync_manager.dart where it's used
+// extension LocalCacheServiceHelper on LocalCacheService { ... }

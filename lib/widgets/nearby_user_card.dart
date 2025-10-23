@@ -1,5 +1,6 @@
 // lib/widgets/nearby_user_card.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // Ensure debugPrint is available
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/friends_bloc/friends_bloc.dart';
 import 'package:freegram/locator.dart';
@@ -147,9 +148,10 @@ class NearbyUserCard extends StatelessWidget {
                                 const Divider(height: 24),
 
                               // Action Buttons
+                              // Pass the ServerUserModel.UserModel 'user' to _ActionButtons
                               _ActionButtons(
                                   currentUser: currentUser,
-                                  targetUser: user,
+                                  targetUser: user, // Pass the correct user object
                                   modalContext: modalContext
                               ),
                               const SizedBox(height: 16),
@@ -192,7 +194,7 @@ class NearbyUserCard extends StatelessWidget {
     );
   }
 
-  /// **FIXED:** Added return type `Widget`
+  /// Added return type `Widget`
   Widget _buildGenderPlaceholderIcon({double size = 40}) {
     IconData iconData = Icons.person_outline;
     Color iconColor = Colors.grey.shade700;
@@ -206,7 +208,7 @@ class NearbyUserCard extends StatelessWidget {
     return Icon(iconData, size: size, color: iconColor);
   }
 
-  /// **FIXED:** Added return type `Color` and default return
+  /// Added return type `Color` and default return
   Color _getGenderPlaceholderColor() {
     if (genderValue == 1) return Colors.blue.shade100;
     if (genderValue == 2) return Colors.pink.shade100;
@@ -369,8 +371,8 @@ class _ActionButtonsState extends State<_ActionButtons> {
     if (nearbyUser != null) {
       return nearbyUser.uidShort;
     }
-    // Fallback check
-    if (widget.targetUser.id.length <= 8) { // Check if ID *is* short ID
+    // Fallback check: Check if the passed ID might already be the short one
+    if (widget.targetUser.id.length <= 8) { // Assuming uidShort is 8 chars
       final directCheck = locator<LocalCacheService>().getNearbyUser(widget.targetUser.id);
       if (directCheck != null) return directCheck.uidShort;
     }
@@ -398,25 +400,67 @@ class _ActionButtonsState extends State<_ActionButtons> {
   }
 
   Future<void> _handleAddFriend() async {
+    // --- BUG FIX #2 ---
+    // Check if the targetUser.id is a full UUID before sending
+    // Assuming full UUIDs are significantly longer than 8 characters (our uidShort length)
+    bool isFullId = widget.targetUser.id.length > 10; // Adjust length check if needed (e.g., > 20 for Firebase UUIDs)
+
+    // --- DEBUG ---
+    debugPrint("_handleAddFriend: Target ID: ${widget.targetUser.id}, Is Full ID: $isFullId");
+    // --- END DEBUG ---
+
+    if (!isFullId) {
+      // If it's a short ID, queue the request locally instead of sending directly
+      debugPrint("Queuing friend request locally for short ID: ${widget.targetUser.id}");
+      if (_isLoadingFriend) return; // Prevent multiple queues
+      setState(() => _isLoadingFriend = true);
+      try {
+        await locator<LocalCacheService>().queueFriendRequest(
+            fromUserId: widget.currentUser.id,
+            toUserId: widget.targetUser.id // Pass the short ID for queuing
+        );
+        if (mounted) {
+          Navigator.pop(widget.modalContext);
+          showIslandPopup(context: context, message: "Friend request queued!", icon: Icons.person_add_alt_1);
+        }
+      } catch (e) {
+        if (mounted) {
+          showIslandPopup(context: context, message: "Failed to queue request: $e", icon: Icons.error_outline);
+        }
+      } finally {
+        // Only reset loading if still mounted and queuing failed
+        if (mounted && !Navigator.canPop(widget.modalContext)) { // Check if modal is still open
+          setState(() => _isLoadingFriend = false);
+        }
+      }
+      return; // Stop here, don't proceed with direct BLoC call
+    }
+    // --- END BUG FIX #2 ---
+
+
+    // --- Original Logic (for when it IS a full ID) ---
     if (_isLoadingFriend) return;
     setState(() => _isLoadingFriend = true);
     try {
+      // Dispatch the event ONLY if it's a full ID
+      debugPrint("Dispatching SendFriendRequest event for full ID: ${widget.targetUser.id}");
       context.read<FriendsBloc>().add(SendFriendRequest(widget.targetUser.id));
-      // Give Bloc time to optimistically update state
+
+      // Give Bloc time to process (optimistic update might happen)
       await Future.delayed(const Duration(milliseconds: 300));
       if (mounted) {
         Navigator.pop(widget.modalContext);
-        // Corrected Icon Name
+        // Show success only if the request was actually sent via BLoC
         showIslandPopup(context: context, message: "Friend request sent!", icon: Icons.person_add_alt_1);
       }
     } catch (e) {
       if (mounted) {
         showIslandPopup(context: context, message: "Failed to send request: $e", icon: Icons.error_outline);
       }
-      // Reset state on error
+      // Reset loading only on error for BLoC call
       if (mounted) setState(() => _isLoadingFriend = false);
     }
-    // Don't reset loading state on success, as Bloc state change will rebuild
+    // Don't reset loading state on success for BLoC call, let state handle it
   }
 
   void _handleInvite() {
@@ -441,6 +485,12 @@ class _ActionButtonsState extends State<_ActionButtons> {
     bool requestSent = currentUserData.friendRequestsSent.contains(widget.targetUser.id);
     bool requestReceived = currentUserData.friendRequestsReceived.contains(widget.targetUser.id);
 
+    // --- BUG FIX #2 Condition ---
+    // Check if the profile is synced (targetUser.id is a full UUID)
+    bool profileSynced = widget.targetUser.id.length > 10; // Adjust if needed
+    // --- END BUG FIX #2 Condition ---
+
+
     return Wrap(
       spacing: 10, runSpacing: 10, alignment: WrapAlignment.center,
       children: [
@@ -449,16 +499,18 @@ class _ActionButtonsState extends State<_ActionButtons> {
 
         // Friend Action Button
         if (isFriend)
-          _ActionButton(icon: Icons.check_circle_outline, label: 'Friend', onTap: () {}) // Is already a friend
+          const _ActionButton(icon: Icons.check_circle_outline, label: 'Friend', onTap: null) // Already friends, disable
         else if (requestSent)
-          _ActionButton(icon: Icons.hourglass_top_rounded, label: 'Requested', onTap: () {}) // Request already sent
+        // Check if request was sent TO the full ID (if synced) or the short ID (if not yet synced)
+          const _ActionButton(icon: Icons.hourglass_top_rounded, label: 'Requested', onTap: null) // Request sent, disable
         else if (requestReceived)
-          // Show "Accept" button
+          // Show "Accept" button - Requires profile to be synced to accept
             _ActionButton(
                 icon: Icons.mark_email_read_outlined,
                 label: 'Accept',
-                isLoading: _isLoadingFriend, // Use friend loading state
-                onTap: () async {
+                isLoading: _isLoadingFriend,
+                // Disable accept if profile not synced
+                onTap: !profileSynced ? null : () async {
                   setState(() => _isLoadingFriend = true);
                   context.read<FriendsBloc>().add(AcceptFriendRequest(widget.targetUser.id));
                   await Future.delayed(const Duration(milliseconds: 500)); // Wait for action
@@ -466,12 +518,12 @@ class _ActionButtonsState extends State<_ActionButtons> {
                 }
             )
           else
-          // Show "Add Friend" button
+          // Show "Add Friend" or "Syncing..."
             _ActionButton(
-              icon: Icons.person_add_alt_1, // Corrected icon
-              label: 'Add Friend',
+              icon: Icons.person_add_alt_1,
+              label: profileSynced ? 'Add Friend' : 'Add Friend', // Keep "Add Friend", let onTap handle logic
               isLoading: _isLoadingFriend,
-              onTap: _handleAddFriend,
+              onTap: _handleAddFriend, // Let _handleAddFriend handle the logic
             ),
 
         _ActionButton( icon: Icons.sports_esports_outlined, label: 'Invite', onTap: _handleInvite),
@@ -484,7 +536,7 @@ class _ActionButtonsState extends State<_ActionButtons> {
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap; // Changed to allow null
   final bool isLoading;
 
   const _ActionButton({
@@ -496,10 +548,13 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    bool isDisabled = onTap == null; // Check if onTap is null
     return GestureDetector(
-      onTap: isLoading ? null : onTap,
+      // Use isDisabled flag
+      onTap: isLoading || isDisabled ? null : onTap,
       child: Opacity(
-        opacity: isLoading ? 0.5 : 1.0,
+        // Adjust opacity based on isDisabled
+        opacity: isLoading || isDisabled ? 0.5 : 1.0,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -508,15 +563,20 @@ class _ActionButton extends StatelessWidget {
               height: 54, // Ensure consistent size
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Theme.of(context).dividerColor.withOpacity(0.5),
+                // Dim color if disabled
+                color: isDisabled
+                    ? Theme.of(context).dividerColor.withOpacity(0.3)
+                    : Theme.of(context).dividerColor.withOpacity(0.5),
                 shape: BoxShape.circle,
               ),
               child: isLoading
                   ? Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.primary)))
-                  : Icon(icon, color: Theme.of(context).textTheme.bodyLarge?.color, size: 28), // Slightly larger icon
+              // Dim icon if disabled
+                  : Icon(icon, color: isDisabled ? Colors.grey[500] : Theme.of(context).textTheme.bodyLarge?.color, size: 28),
             ),
             const SizedBox(height: 4),
-            Text(label, style: Theme.of(context).textTheme.bodySmall),
+            // Dim label if disabled
+            Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: isDisabled ? Colors.grey[500] : null)),
           ],
         ),
       ),

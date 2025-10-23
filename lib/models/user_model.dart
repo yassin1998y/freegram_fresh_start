@@ -2,13 +2,28 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
+// ** NEW IMPORT **
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
+
+// ** NEW HELPER FUNCTION **
+String _uidShortFromFull(String fullId) {
+  if (fullId.isEmpty) return '';
+  final bytes = utf8.encode(fullId);
+  final digest = sha256.convert(bytes);
+  // Return the first 8 characters (4 bytes) of the hex digest
+  return digest.toString().substring(0, 8);
+}
+
 
 class UserModel extends Equatable {
   final String id;
+  // ** NEW FIELD **
+  final String uidShort; // Derived from id
   final String username;
   final String email;
   final String photoUrl;
-  final int pictureVersion; // NEW: For cache validation
+  final int pictureVersion;
   final String bio;
   final String fcmToken;
   final bool presence;
@@ -40,12 +55,12 @@ class UserModel extends Equatable {
   final Map<String, String>? sharedMusicTrack;
   final int nearbyDataVersion;
 
-  const UserModel({
+  UserModel({
     required this.id,
     required this.username,
     required this.email,
     this.photoUrl = '',
-    this.pictureVersion = 0, // NEW
+    this.pictureVersion = 0,
     this.bio = '',
     this.fcmToken = '',
     this.presence = false,
@@ -76,15 +91,28 @@ class UserModel extends Equatable {
     required this.lastNearbyDiscoveryDate,
     this.sharedMusicTrack,
     this.nearbyDataVersion = 0,
-  });
+  }) : uidShort = _uidShortFromFull(id); // Calculate uidShort in constructor
 
-  // Helper functions remain the same
+
   static DateTime _toDateTime(dynamic timestamp) {
     if (timestamp is Timestamp) return timestamp.toDate();
     if (timestamp is String) return DateTime.tryParse(timestamp) ?? DateTime.now();
-    if (timestamp is int) return DateTime.fromMillisecondsSinceEpoch(timestamp);
+    // Handle milliseconds or seconds since epoch
+    if (timestamp is int) {
+      if (timestamp > 1000000000000) { // Likely milliseconds
+        return DateTime.fromMillisecondsSinceEpoch(timestamp);
+      } else { // Likely seconds
+        return DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+      }
+    }
+    // Fallback or handle based on Map representation if needed
+    if (timestamp is Map && timestamp.containsKey('_seconds')) {
+      return Timestamp(timestamp['_seconds'], timestamp['_nanoseconds'] ?? 0).toDate();
+    }
+    print("UserModel WARNING: Unhandled timestamp type: ${timestamp?.runtimeType}");
     return DateTime.fromMillisecondsSinceEpoch(0);
   }
+
   static List<String> _getList(Map<String, dynamic> data, String key) {
     final value = data[key];
     if (value is List) return List<String>.from(value.map((item) => item.toString()));
@@ -107,7 +135,7 @@ class UserModel extends Equatable {
       username: data['username'] ?? 'Anonymous',
       email: data['email'] ?? '',
       photoUrl: data['photoUrl'] ?? '',
-      pictureVersion: data['pictureVersion'] ?? 0, // NEW
+      pictureVersion: data['pictureVersion'] ?? 0,
       bio: data['bio'] ?? '',
       fcmToken: data['fcmToken'] ?? '',
       presence: data['presence'] ?? false,
@@ -138,18 +166,22 @@ class UserModel extends Equatable {
       lastNearbyDiscoveryDate: _toDateTime(data['lastNearbyDiscoveryDate']),
       sharedMusicTrack: data['sharedMusicTrack'] != null ? Map<String, String>.from(data['sharedMusicTrack']) : null,
       nearbyDataVersion: data['nearbyDataVersion'] ?? 0,
+      // uidShort is calculated by the constructor
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
+      // ** NEW FIELD ADDED **
+      'uidShort': uidShort,
       'username': username,
       'email': email,
       'photoUrl': photoUrl,
-      'pictureVersion': pictureVersion, // NEW
+      'pictureVersion': pictureVersion,
       'bio': bio,
       'fcmToken': fcmToken,
       'presence': presence,
+      // Store timestamps as milliseconds for consistency
       'lastSeen': lastSeen.millisecondsSinceEpoch,
       'country': country,
       'age': age,
@@ -180,6 +212,7 @@ class UserModel extends Equatable {
     };
   }
 
+  // Adjusted props to include uidShort
   @override
-  List<Object?> get props => [id, username, email, photoUrl, pictureVersion, bio, presence, lastSeen, country, age, gender, interests, createdAt, friends, level, nearbyStatusMessage];
+  List<Object?> get props => [id, uidShort, username, email, photoUrl, pictureVersion, bio, presence, lastSeen, country, age, gender, interests, createdAt, friends, level, nearbyStatusMessage];
 }

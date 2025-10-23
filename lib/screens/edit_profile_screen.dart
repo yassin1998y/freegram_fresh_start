@@ -1,8 +1,9 @@
+// lib/screens/edit_profile_screen.dart
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint; // Import debugPrint
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/profile_bloc.dart';
@@ -76,6 +77,10 @@ class _EditProfileViewState extends State<_EditProfileView> {
   @override
   void initState() {
     super.initState();
+    // *** ADD LOG ***
+    debugPrint("EditProfileScreen: initState CALLED for user: ${widget.currentUserData['username']}");
+    // *** END LOG ***
+
     _usernameController =
         TextEditingController(text: widget.currentUserData['username']);
     _bioController = TextEditingController(text: widget.currentUserData['bio']);
@@ -161,7 +166,6 @@ class _EditProfileViewState extends State<_EditProfileView> {
       'nearbyStatusEmoji': _nearbyStatusEmojiController.text.trim(),
     };
 
-    // If any Nearby-specific data changed, increment the version number
     if (updatedData['nearbyStatusMessage'] !=
         widget.currentUserData['nearbyStatusMessage'] ||
         updatedData['nearbyStatusEmoji'] !=
@@ -178,6 +182,9 @@ class _EditProfileViewState extends State<_EditProfileView> {
 
   @override
   Widget build(BuildContext context) {
+    // *** ADD LOG ***
+    debugPrint("EditProfileScreen: build CALLED for user: ${widget.currentUserData['username']}");
+    // *** END LOG ***
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.isCompletingProfile

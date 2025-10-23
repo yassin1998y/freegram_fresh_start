@@ -1,3 +1,4 @@
+// lib/screens/login_screen.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -5,6 +6,7 @@ import 'package:freegram/blocs/auth_bloc.dart';
 import 'package:freegram/screens/signup_screen.dart';
 import 'package:freegram/theme/app_theme.dart';
 import 'package:freegram/widgets/gradient_button.dart';
+import 'package:flutter/foundation.dart'; // Import for debugPrint
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,17 +24,24 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
+    debugPrint("LoginScreen: Login button pressed for email: ${_emailController.text}");
+
     setState(() {
       _isLoading = true;
     });
 
     try {
+      debugPrint("LoginScreen: Attempting Firebase sign in...");
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      // On success, the AuthWrapper will handle navigation.
+      // *** ADDED LOG ***
+      debugPrint("LoginScreen: Firebase signIn successful. WAITING FOR AuthWrapper navigation...");
+      // *** END LOG ***
+      // DO NOT set isLoading = false here.
     } on FirebaseAuthException catch (e) {
+      debugPrint("LoginScreen: Firebase sign in failed: ${e.message}");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -40,9 +49,19 @@ class _LoginScreenState extends State<LoginScreen> {
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
+        setState(() {
+          _isLoading = false;
+        });
       }
-    } finally {
+    } catch (e) {
+      debugPrint("LoginScreen: Unexpected error during login: $e");
       if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An unexpected error occurred: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
         setState(() {
           _isLoading = false;
         });
@@ -62,6 +81,10 @@ class _LoginScreenState extends State<LoginScreen> {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthError) {
+          if (_isLoading) {
+            debugPrint("LoginScreen: BlocListener received AuthError while _isLoading=true. Resetting.");
+            setState(() => _isLoading = false);
+          }
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
@@ -69,6 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
         }
+        debugPrint("LoginScreen: BlocListener received state: ${state.runtimeType}");
       },
       child: Scaffold(
         body: Center(
@@ -117,11 +141,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 16.0),
                   TextButton(
-                    onPressed: () => Navigator.of(context).push(
+                    onPressed: _isLoading ? null : () => Navigator.of(context).push(
                         MaterialPageRoute(
                             builder: (context) => const SignUpScreen())),
                     child: Text("Don't have an account? Sign Up",
-                        style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+                        style: TextStyle(color: _isLoading ? Colors.grey : Theme.of(context).colorScheme.primary)),
                   ),
                   const SizedBox(height: 24.0),
                   Row(
@@ -139,19 +163,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   _SocialLoginButton(
                     text: 'Sign in with Google',
                     assetName: 'assets/google_logo.png',
-                    onPressed: () =>
+                    onPressed: _isLoading ? (){} : () =>
                         context.read<AuthBloc>().add(SignInWithGoogle()),
                     backgroundColor: SonarPulseTheme.lightSurface,
                     textColor: SonarPulseTheme.lightTextPrimary,
+                    disabled: _isLoading,
                   ),
                   const SizedBox(height: 12.0),
                   _SocialLoginButton(
                     text: 'Sign in with Facebook',
                     icon: Icons.facebook,
-                    onPressed: () =>
+                    onPressed: _isLoading ? (){} : () =>
                         context.read<AuthBloc>().add(SignInWithFacebook()),
                     backgroundColor: const Color(0xFF1877F2),
                     textColor: Colors.white,
+                    disabled: _isLoading,
                   ),
                 ],
               ),
@@ -170,6 +196,7 @@ class _SocialLoginButton extends StatelessWidget {
   final VoidCallback onPressed;
   final Color backgroundColor;
   final Color textColor;
+  final bool disabled;
 
   const _SocialLoginButton({
     required this.text,
@@ -178,14 +205,15 @@ class _SocialLoginButton extends StatelessWidget {
     required this.onPressed,
     required this.backgroundColor,
     required this.textColor,
+    this.disabled = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
-      onPressed: onPressed,
+      onPressed: disabled ? null : onPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: backgroundColor,
+        backgroundColor: disabled ? backgroundColor.withOpacity(0.5) : backgroundColor,
         padding: const EdgeInsets.symmetric(vertical: 12.0),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
@@ -197,14 +225,14 @@ class _SocialLoginButton extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (assetName != null)
-            Image.asset(assetName!, height: 24.0)
+            Image.asset(assetName!, height: 24.0, color: disabled ? Colors.grey : null)
           else if (icon != null)
-            Icon(icon, color: textColor, size: 24.0),
+            Icon(icon, color: disabled ? Colors.grey : textColor, size: 24.0),
           const SizedBox(width: 12),
           Text(
             text,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: textColor,
+              color: disabled ? Colors.grey : textColor,
               fontWeight: FontWeight.w600,
             ),
           ),

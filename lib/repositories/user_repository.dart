@@ -7,10 +7,7 @@ import 'package:freegram/locator.dart';
 import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/gamification_repository.dart';
 import 'package:freegram/repositories/notification_repository.dart';
-// Import the new cache service for queuing
 import 'package:freegram/services/sonar/local_cache_service.dart';
-// Import the old action queue for now, as ChatRepository depends on it
-// We can migrate this later if needed.
 import 'package:freegram/repositories/action_queue_repository.dart';
 
 
@@ -19,9 +16,7 @@ class UserRepository {
   final rtdb.FirebaseDatabase _rtdb;
   final NotificationRepository _notificationRepository;
   final GamificationRepository _gamificationRepository;
-  // Use LocalCacheService for queuing friend requests
   final LocalCacheService _localCacheService;
-  // Keep ActionQueueRepository for ChatRepository dependency
   final ActionQueueRepository _actionQueueRepository;
 
   UserRepository({
@@ -34,7 +29,7 @@ class UserRepository {
         _notificationRepository = notificationRepository,
         _gamificationRepository = gamificationRepository,
         _localCacheService = locator<LocalCacheService>(),
-        _actionQueueRepository = locator<ActionQueueRepository>(); // Keep this for now
+        _actionQueueRepository = locator<ActionQueueRepository>();
 
   // --- User Profile Methods ---
   Future<UserModel> getUser(String uid) async {
@@ -53,7 +48,6 @@ class UserRepository {
         .map((doc) {
       if (!doc.exists) {
         debugPrint('User stream warning: User not found for ID: $userId');
-        // Throwing an error in a stream builder is usually better handled by the builder
         throw Exception('User stream error: User not found for ID: $userId');
       }
       return UserModel.fromDoc(doc);
@@ -61,9 +55,51 @@ class UserRepository {
   }
 
   Future<void> updateUser(String uid, Map<String, dynamic> data) {
-    debugPrint("UserRepository: Updating user $uid");
+    // Ensure uidShort is not accidentally overwritten if not provided
+    data.remove('uidShort');
+    // Ensure id is not accidentally overwritten
+    data.remove('id');
+    debugPrint("UserRepository: Updating user $uid with data: $data");
     return _db.collection('users').doc(uid).update(data);
   }
+
+  // ** NEW METHOD **
+  /// Fetches user data for multiple uidShorts.
+  Future<Map<String, UserModel>> getUsersByUidShorts(List<String> uidShorts) async {
+    if (uidShorts.isEmpty) {
+      return {};
+    }
+    debugPrint("UserRepository: Fetching users for uidShorts: $uidShorts");
+    try {
+      // Firestore 'whereIn' query is limited to 30 items per query.
+      // We need to batch the requests if uidShorts.length > 30.
+      Map<String, UserModel> results = {};
+      List<List<String>> batches = [];
+      for (var i = 0; i < uidShorts.length; i += 30) {
+        batches.add(uidShorts.sublist(i, i + 30 > uidShorts.length ? uidShorts.length : i + 30));
+      }
+
+      for (var batch in batches) {
+        final querySnapshot = await _db
+            .collection('users')
+            .where('uidShort', whereIn: batch)
+            .get();
+
+        for (var doc in querySnapshot.docs) {
+          final user = UserModel.fromDoc(doc);
+          results[user.uidShort] = user; // Map by uidShort for easy lookup
+        }
+        debugPrint("UserRepository: Fetched batch for ${batch.length} uidShorts, found ${querySnapshot.docs.length} users.");
+      }
+
+      debugPrint("UserRepository: Finished fetching for uidShorts. Total found: ${results.length}");
+      return results;
+    } catch (e) {
+      debugPrint("UserRepository Error: Failed to fetch users by uidShorts: $e");
+      return {}; // Return empty map on error
+    }
+  }
+
 
   // --- Presence ---
   Future<void> updateUserPresence(String uid, bool isOnline) async {
@@ -75,7 +111,6 @@ class UserRepository {
     };
     try {
       await userStatusDatabaseRef.set(status);
-      // Set onDisconnect to update presence when user closes app abruptly
       await userStatusDatabaseRef.onDisconnect().set({
         'presence': false,
         'lastSeen': rtdb.ServerValue.timestamp,
@@ -88,29 +123,31 @@ class UserRepository {
       debugPrint("UserRepository: Updated presence for $uid to $isOnline");
     } catch (e) {
       debugPrint("UserRepository: Error updating presence for $uid: $e");
-      // Don't throw, presence update isn't critical
     }
   }
 
-  // --- Nearby Feature Methods (Full Implementations) ---
-
-  // This is for sending a *server-side* notification wave, distinct from the *local BLE* wave
+  // --- Nearby Feature Methods ---
   Future<void> sendWave(String fromUserId, String toUserId) async {
+    // This method now correctly sends a *server-side* notification
     debugPrint("UserRepository: Sending server-side wave from $fromUserId to $toUserId");
     try {
       final fromUser = await getUser(fromUserId);
       await _notificationRepository.addNotification(
         userId: toUserId,
-        type: 'nearbyWave', // Use the specific notification type
+        type: 'nearbyWave',
         fromUserId: fromUserId,
         fromUsername: fromUser.username,
         fromUserPhotoUrl: fromUser.photoUrl,
-        message: 'Waved at you!', // Optional message
+        message: 'Waved at you!',
       );
+      debugPrint("UserRepository: Server-side wave notification sent successfully.");
     } catch (e) {
-      debugPrint("UserRepository: Error sending server-side wave: $e");
+      debugPrint("UserRepository Error: Failed sending server-side wave: $e");
+      // Optionally rethrow if SyncManager needs to know about the failure
+      // rethrow;
     }
   }
+
 
   Future<void> updateNearbyStatus(String userId, String message, String emoji) {
     debugPrint("UserRepository: Updating nearby status for $userId");
@@ -124,7 +161,7 @@ class UserRepository {
   Future<void> updateSharedMusic(String userId, Map<String, String>? musicData) {
     debugPrint("UserRepository: Updating shared music for $userId");
     return _db.collection('users').doc(userId).update({
-      'sharedMusicTrack': musicData ?? FieldValue.delete(), // Delete field if null
+      'sharedMusicTrack': musicData ?? FieldValue.delete(),
       'nearbyDataVersion': FieldValue.increment(1),
     });
   }
@@ -132,32 +169,32 @@ class UserRepository {
 
   // --- Friendship Methods ---
   Future<void> sendFriendRequest(String fromUserId, String toUserId, {bool isSync = false}) async {
+    // CRITICAL: Ensure 'toUserId' passed here is the FULL UUID, not the short one.
+    // The SyncManager is now responsible for resolving the ID before calling this.
     if (fromUserId == toUserId) {
       debugPrint("UserRepository Warning: Attempted to send friend request to self.");
-      return; // Don't throw, just ignore
+      return;
     }
 
-    if (!isSync) {
-      final connectivityResult = await Connectivity().checkConnectivity();
-      if (connectivityResult == ConnectivityResult.none) {
-        debugPrint("UserRepository: Offline. Queuing friend request to $toUserId.");
-        // We return a completed Future, queuing is fire-and-forget
-        return _localCacheService.queueFriendRequest(
-          fromUserId: fromUserId,
-          toUserId: toUserId,
-        );
-      }
-    }
+    // Removed offline queuing logic - it's handled before calling this now.
 
-    debugPrint("UserRepository: Online. Sending friend request from $fromUserId to $toUserId via Firebase.");
+    debugPrint("UserRepository: Sending friend request from $fromUserId to $toUserId via Firebase.");
     final batch = _db.batch();
     final fromUserRef = _db.collection('users').doc(fromUserId);
-    final toUserRef = _db.collection('users').doc(toUserId);
+    final toUserRef = _db.collection('users').doc(toUserId); // Use the full ID
 
     try {
+      // Fetch documents using the full IDs
       final fromUserDoc = await fromUserRef.get();
       final toUserDoc = await toUserRef.get();
-      if (!fromUserDoc.exists || !toUserDoc.exists) throw Exception("One or both users not found.");
+
+      // Check if documents exist using the full IDs
+      if (!fromUserDoc.exists || !toUserDoc.exists) {
+        // Log which user was not found
+        if (!fromUserDoc.exists) debugPrint("UserRepository Error: Sender user $fromUserId not found.");
+        if (!toUserDoc.exists) debugPrint("UserRepository Error: Target user $toUserId not found.");
+        throw Exception("One or both users not found.");
+      }
 
       final fromUserData = fromUserDoc.data() as Map<String, dynamic>;
       final toUserData = toUserDoc.data() as Map<String, dynamic>;
@@ -168,18 +205,17 @@ class UserRepository {
       List<String> fromBlocked = List<String>.from(fromUserData['blockedUsers'] ?? []);
       List<String> toBlocked = List<String>.from(toUserData['blockedUsers'] ?? []);
 
+      // Checks remain the same (using full IDs now)
       if (fromFriends.contains(toUserId)) throw Exception("Already friends.");
       if (fromSent.contains(toUserId)) throw Exception("Request already sent.");
       if (fromReceived.contains(toUserId)) {
-        // If request already received, just accept it instead
         debugPrint("UserRepository: Request already received from $toUserId. Accepting instead.");
-        // We call acceptFriendRequest but need to be careful of sync loops
-        // For simplicity, let's just throw for now. Client can show "Accept request"
         throw Exception("User has already sent you a request. Check your requests list.");
       }
       if (fromBlocked.contains(toUserId)) throw Exception("You have blocked this user.");
       if (toBlocked.contains(fromUserId)) throw Exception("This user has blocked you.");
 
+      // Updates use the full IDs
       batch.update(fromUserRef, {'friendRequestsSent': FieldValue.arrayUnion([toUserId])});
       batch.update(toUserRef, {'friendRequestsReceived': FieldValue.arrayUnion([fromUserId])});
 
@@ -193,19 +229,19 @@ class UserRepository {
       debugPrint("UserRepository: Friend request sent and notification triggered.");
 
     } catch (e) {
-      debugPrint("UserRepository Error: Failed to send friend request: $e");
-      rethrow; // Re-throw to SyncManager
+      // Log the error with full IDs for clarity
+      debugPrint("UserRepository Error: Failed to send friend request from $fromUserId to $toUserId: $e");
+      rethrow;
     }
   }
 
+
+  // --- Other friendship methods (accept, decline, remove, block, unblock) remain the same ---
   Future<void> acceptFriendRequest(String currentUserId, String requestingUserId, {bool isSync = false}) async {
-    // `isSync` param is kept for compatibility with SyncManager, though we don't use it here yet
     if (!isSync) {
       final connectivityResult = await Connectivity().checkConnectivity();
       if (connectivityResult == ConnectivityResult.none) {
         debugPrint("UserRepository: Offline. Queuing accept friend request.");
-        // We are currently using the *old* ActionQueueRepository for this
-        // This should be migrated to LocalCacheService if we want offline accepts
         return _actionQueueRepository.addAction(
           type: 'accept_friend_request',
           payload: {'currentUserId': currentUserId, 'requestingUserId': requestingUserId},
@@ -247,7 +283,11 @@ class UserRepository {
     final ids = [currentUserId, requestingUserId]..sort();
     final chatId = ids.join('_');
     final chatRef = _db.collection('chats').doc(chatId);
-    batch.delete(chatRef);
+    // Optional: Delete chat if it was only a request chat?
+    // final chatDoc = await chatRef.get();
+    // if (chatDoc.exists && chatDoc.data()?['chatType'] == 'contact_request') {
+    //    batch.delete(chatRef);
+    // }
     await batch.commit();
     debugPrint("UserRepository: Friend request declined.");
   }
@@ -265,16 +305,24 @@ class UserRepository {
 
   Future<void> blockUser(String currentUserId, String userToBlockId) async {
     debugPrint("UserRepository: Blocking user $userToBlockId for $currentUserId.");
+    // Attempt to remove friend first, ignore error if they weren't friends
     await removeFriend(currentUserId, userToBlockId).catchError((e) {
       debugPrint("UserRepository: Note - Error removing friend during block (might not be friends): $e");
     });
+    // Add to blocker's list
     await _db.collection('users').doc(currentUserId).update({
       'blockedUsers': FieldValue.arrayUnion([userToBlockId])
     });
+    // Remove any pending requests between them
     await _db.collection('users').doc(userToBlockId).update({
       'friendRequestsReceived': FieldValue.arrayRemove([currentUserId]),
       'friendRequestsSent': FieldValue.arrayRemove([currentUserId]),
     });
+    await _db.collection('users').doc(currentUserId).update({
+      'friendRequestsReceived': FieldValue.arrayRemove([userToBlockId]),
+      'friendRequestsSent': FieldValue.arrayRemove([userToBlockId]),
+    });
+    // Delete chat between them
     final ids = [currentUserId, userToBlockId]..sort();
     final chatId = ids.join('_');
     await _db.collection('chats').doc(chatId).delete().catchError((e){
@@ -290,8 +338,10 @@ class UserRepository {
     });
   }
 
+
   // --- Match / Swipe Methods ---
   Future<List<DocumentSnapshot>> getPotentialMatches(String currentUserId) async {
+    // ... (remains the same) ...
     debugPrint("UserRepository: Getting potential matches for $currentUserId.");
     try {
       final userDoc = await _db.collection('users').doc(currentUserId).get();
@@ -312,6 +362,7 @@ class UserRepository {
   }
 
   Future<void> recordSwipe(String currentUserId, String otherUserId, String action) async {
+    // ... (remains the same) ...
     debugPrint("UserRepository: Recording swipe ($action) from $currentUserId to $otherUserId.");
     final userRef = _db.collection('users').doc(currentUserId);
     if (action == 'super_like') {
@@ -337,6 +388,7 @@ class UserRepository {
   }
 
   Future<bool> checkForMatch(String currentUserId, String otherUserId) async {
+    // ... (remains the same) ...
     debugPrint("UserRepository: Checking for match between $currentUserId and $otherUserId.");
     final otherUserSwipeDoc = await _db
         .collection('users')
@@ -352,6 +404,7 @@ class UserRepository {
   }
 
   Future<void> createMatch(String userId1, String userId2) async {
+    // ... (remains the same) ...
     debugPrint("UserRepository: Creating match between $userId1 and $userId2.");
     final ids = [userId1, userId2]..sort();
     final chatId = ids.join('_');
@@ -382,6 +435,7 @@ class UserRepository {
 
   // --- User Discovery Methods ---
   Future<QuerySnapshot> getPaginatedUsers({required int limit, DocumentSnapshot? lastDocument}) {
+    // ... (remains the same) ...
     debugPrint("UserRepository: Fetching paginated users (limit: $limit).");
     Query query = _db.collection('users').orderBy('username').limit(limit);
     if (lastDocument != null) {
@@ -391,6 +445,7 @@ class UserRepository {
   }
 
   Future<List<DocumentSnapshot>> getRecommendedUsers(List<String> interests, String currentUserId) async {
+    // ... (remains the same) ...
     debugPrint("UserRepository: Fetching recommended users for $currentUserId.");
     if (interests.isEmpty) return [];
     try {
@@ -421,6 +476,7 @@ class UserRepository {
   }
 
   Stream<QuerySnapshot> searchUsers(String query) {
+    // ... (remains the same) ...
     debugPrint("UserRepository: Searching users with query '$query'.");
     if (query.isEmpty) return Stream.empty();
     return _db

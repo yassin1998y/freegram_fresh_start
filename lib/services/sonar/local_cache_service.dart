@@ -36,9 +36,10 @@ class LocalCacheService {
       // Update existing user
       existingUser.distance = distance;
       existingUser.lastSeen = now;
-      // Don't overwrite profileId
       await existingUser.save();
-      // debugPrint("LocalCacheService: Updated NearbyUser $uidShort");
+      // --- DEBUG ---
+      debugPrint("LocalCacheService: Updated NearbyUser $uidShort (save complete)");
+      // --- END DEBUG ---
     } else {
       // Create new user entry
       final newUser = NearbyUser(
@@ -49,7 +50,7 @@ class LocalCacheService {
         profileId: null, // Starts as null
       );
       await _nearbyUsersBox.put(uidShort, newUser);
-      debugPrint("LocalCacheService: Stored new NearbyUser $uidShort");
+      debugPrint("LocalCacheService: Stored new NearbyUser $uidShort (put complete)"); // Updated log
     }
   }
 
@@ -83,7 +84,9 @@ class LocalCacheService {
     if (user != null) {
       user.profileId = profileId;
       await user.save();
-      debugPrint("LocalCacheService: Marked NearbyUser $uidShort as synced with profileId $profileId");
+      // --- DEBUG ---
+      debugPrint("LocalCacheService: Marked NearbyUser $uidShort as synced with profileId $profileId (save complete)"); // Updated log
+      // --- END DEBUG ---
     } else {
       debugPrint("LocalCacheService Warning: Tried to mark non-existent user $uidShort as synced.");
     }
@@ -98,17 +101,18 @@ class LocalCacheService {
     );
   }
 
-  // *** HELPER: Get all users that haven't been synced ***
-  List<NearbyUser> getUnsyncedNearbyUsers() {
-    return _nearbyUsersBox.values.where((user) => user.profileId == null).toList();
-  }
+  // *** HELPER: Get all users that haven't been synced (Defined in sync_manager.dart now) ***
+  // List<NearbyUser> getUnsyncedNearbyUsers() { ... moved ... }
   // *** END HELPERS ***
 
 
   // --- User Profile Management ---
   Future<void> storeUserProfile(UserProfile profile) async {
+    // --- DEBUG ---
+    debugPrint("LocalCacheService: Storing UserProfile for profileId: ${profile.profileId}, Name: ${profile.name}");
+    // --- END DEBUG ---
     await _userProfilesBox.put(profile.profileId, profile);
-    debugPrint("LocalCacheService: Stored/Updated UserProfile ${profile.profileId}");
+    debugPrint("LocalCacheService: Stored UserProfile for ${profile.profileId} (put complete)"); // Added log
   }
 
   ValueListenable<Box<UserProfile>> getUserProfilesListenable() {
@@ -128,8 +132,6 @@ class LocalCacheService {
 
   Future<void> recordReceivedWave(String fromUidShort) {
     debugPrint("LocalCacheService: Logged received wave from $fromUidShort");
-    // This is where you might add to a *different* box, e.g., 'wave_history'
-    // For now, we only queue outgoing waves, so this does nothing to boxes.
     return Future.value();
   }
 
@@ -144,13 +146,16 @@ class LocalCacheService {
 
   // --- Friend Request Management ---
   Future<void> queueFriendRequest({required String fromUserId, required String toUserId}) async {
+    debugPrint("LocalCacheService: Queuing friend request - From: $fromUserId, To: $toUserId (Type: ${toUserId.runtimeType})");
     final request = FriendRequestRecord(fromUserId: fromUserId, toUserId: toUserId, timestamp: DateTime.now());
     await _pendingFriendRequestsBox.put(const Uuid().v4(), request);
-    debugPrint("LocalCacheService: Queued friend request from $fromUserId to $toUserId");
+    debugPrint("LocalCacheService: Queued friend request successfully.");
   }
 
   Map<dynamic, FriendRequestRecord> getPendingFriendRequests() {
-    return Map<dynamic, FriendRequestRecord>.from(_pendingFriendRequestsBox.toMap());
+    final requests = Map<dynamic, FriendRequestRecord>.from(_pendingFriendRequestsBox.toMap());
+    debugPrint("LocalCacheService: Retrieved ${requests.length} pending friend requests.");
+    return requests;
   }
 
   Future<void> removeFriendRequest(dynamic key) async {
