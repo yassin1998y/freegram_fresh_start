@@ -1,9 +1,9 @@
 # Flutter specific rules
 -keep class io.flutter.app.** { *; }
--keep class io.flutter.plugin.**  { *; }
--keep class io.flutter.util.**  { *; }
--keep class io.flutter.view.**  { *; }
--keep class io.flutter.plugins.**  { *; }
+-keep class io.flutter.plugin.** { *; }
+-keep class io.flutter.util.** { *; }
+-keep class io.flutter.view.** { *; }
+-keep class io.flutter.plugins.** { *; }
 -dontwarn io.flutter.embedding.**
 -keepattributes Signature
 -keepattributes Exceptions
@@ -34,10 +34,10 @@
 # Firebase Firestore
 -keepnames class com.google.firebase.firestore.** { *; }
 
-# Firebase Storage
+# Firebase Storage (Keep if you still use it for profile pictures etc.)
 -keepnames class com.google.firebase.storage.** { *; }
 
-# Firebase Crashlytics
+# Firebase Crashlytics (Keep if used)
 -keep class com.google.firebase.crashlytics.** { *; }
 -keep class com.google.firebase.abt.** { *; }
 
@@ -47,18 +47,19 @@
 }
 -keepclassmembers class ** { @com.google.android.gms.common.util.RetainForClient *; }
 
-# video_player plugin
--keep class com.google.android.exoplayer2.** { *; }
--dontwarn com.google.android.exoplayer2.**
+# --- REMOVED: video_player plugin rules ---
+# -keep class com.google.android.exoplayer2.** { *; }
+# -dontwarn com.google.android.exoplayer2.**
 
-# ffmpeg_kit_flutter
--keep class com.arthenica.ffmpegkit.** { *; }
--dontwarn com.arthenica.ffmpegkit.**
+# --- REMOVED: ffmpeg_kit_flutter rules ---
+# -keep class com.arthenica.ffmpegkit.** { *; }
+# -dontwarn com.arthenica.ffmpegkit.**
 
-# image_picker
+# image_picker (Keep for profile pictures)
 -keep public class androidx.core.content.FileProvider { *; }
 
-# For Hive
+# For Hive (Keep)
+# Note: Newer Hive versions might not need these explicit rules if setup correctly
 -keep class * extends io.flutter.plugins.hive.HiveObject { *; }
 -keep class * implements io.flutter.plugins.hive.adapters.TypeAdapter { *; }
 -keepclassmembers class * {
@@ -76,10 +77,7 @@
     @android.webkit.JavascriptInterface <methods>;
 }
 
-# Keep all classes and their members (added as per user request)
--keep class ** { *; }
-
-# Rules for gRPC/OkHttp
+# Rules for gRPC/OkHttp (Used by Firestore/Firebase)
 -keep class com.squareup.okhttp.CipherSuite { *; }
 -keep class com.squareup.okhttp.ConnectionSpec { *; }
 -keep class com.squareup.okhttp.TlsVersion { *; }
@@ -87,3 +85,23 @@
 -dontwarn com.squareup.okhttp.CipherSuite
 -dontwarn com.squareup.okhttp.ConnectionSpec
 -dontwarn com.squareup.okhttp.TlsVersion
+
+# Keep Guava classes (often uses reflection)
+-keep class com.google.common.** { *; }
+-dontwarn com.google.common.**
+
+# --- ADDED: Keep rules for R8 error fix ---
+# Keep AnnotatedType needed by Guava/reflection used in Firebase/Google libs
+
+-keep class java.lang.reflect.AnnotatedType
+-keep class * extends java.lang.reflect.AnnotatedType
+-keep interface java.lang.reflect.AnnotatedType
+-keep interface * extends java.lang.reflect.AnnotatedType
+# --- END ADDED RULES ---
+
+
+# --- WARNING: The following rule disables most shrinking and obfuscation ---
+# Keep all classes and their members (added as per user request)
+# Consider removing this for smaller release builds if possible after testing
+-keep class ** { *; }
+# --- END WARNING ---
