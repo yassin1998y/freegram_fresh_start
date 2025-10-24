@@ -28,11 +28,14 @@ class SyncManager {
     _connectivitySubscription = _connectivityBloc.stream.listen((state) {
       if (state is Online) {
         _syncDebounceTimer?.cancel();
+        // Debounce sync to avoid rapid triggers on flaky connections
         _syncDebounceTimer = Timer(const Duration(seconds: 3), processQueue);
       } else {
+        // Cancel any pending sync if connection drops
         _syncDebounceTimer?.cancel();
       }
     });
+    // Initial sync check if already online
     if (_connectivityBloc.state is Online) {
       Future.delayed(const Duration(seconds: 5), processQueue);
     }
@@ -45,6 +48,7 @@ class SyncManager {
       debugPrint("SyncManager: Sync already in progress. Skipping.");
       return;
     }
+    // Double-check connectivity state before starting
     if (_connectivityBloc.state is! Online) {
       debugPrint("SyncManager: Skipping sync, connection lost before starting.");
       return;
@@ -54,19 +58,27 @@ class SyncManager {
     debugPrint("SyncManager: Starting sync process...");
 
     try {
+      // Prioritize syncing profiles as other actions might depend on resolved IDs
       await _syncProfiles();
+      // Sync friend requests (needs resolved IDs from _syncProfiles)
       await _syncFriendRequests();
-      await _syncWaves(); // Waves depend on profile sync to resolve target ID
+      // Sync waves (needs resolved IDs from _syncProfiles)
+      await _syncWaves();
+      // Add other sync actions here if needed in the future
     } catch (e) {
       debugPrint("SyncManager: Error during sync process: $e");
     } finally {
       _isSyncing = false;
       debugPrint("SyncManager: Sync process finished.");
+      // Check if more work remains and schedule another attempt if online
       if (_connectivityBloc.state is Online) {
         if (_localCacheService.getPendingFriendRequests().isNotEmpty ||
             _localCacheService.getPendingWaves().isNotEmpty ||
             _localCacheService.getUnsyncedNearbyUsers().isNotEmpty) {
           debugPrint("SyncManager: Some items failed to sync or new items appeared. Will retry later.");
+          // Optionally schedule another check after a delay:
+          // _syncDebounceTimer?.cancel();
+          // _syncDebounceTimer = Timer(const Duration(seconds: 30), processQueue);
         }
       }
     }
@@ -76,6 +88,7 @@ class SyncManager {
   Future<void> _syncProfiles() async {
     debugPrint("SyncManager: _syncProfiles started.");
     final List<NearbyUser> unsyncedUsers = _localCacheService.getUnsyncedNearbyUsers();
+    // Get unique short IDs that need syncing
     final List<String> uidShortsToSync = unsyncedUsers.map((user) => user.uidShort).toSet().toList();
 
     if (uidShortsToSync.isEmpty) {
@@ -86,11 +99,8 @@ class SyncManager {
     debugPrint("SyncManager: Found ${uidShortsToSync.length} profiles to sync: $uidShortsToSync");
 
     try {
-      // --- REAL FIRESTORE CALL ---
-      // Call the new method in UserRepository
+      // Fetch user data from Firestore using UserRepository
       final Map<String, UserModel> fetchedProfiles = await _userRepository.getUsersByUidShorts(uidShortsToSync);
-      // --- END REAL FIRESTORE CALL ---
-
       debugPrint("SyncManager: Received profile data from Firestore: ${fetchedProfiles.length} entries.");
 
       if (fetchedProfiles.isEmpty) {
@@ -99,22 +109,23 @@ class SyncManager {
         return;
       }
 
-      // 3. Process the response
+      // Process the fetched profiles
       for (var entry in fetchedProfiles.entries) {
-        // Here, entry.key is uidShort, entry.value is the UserModel
         final uidShort = entry.key;
         final userModel = entry.value;
 
         debugPrint("SyncManager: Processing profile for uidShort: $uidShort, UserID: ${userModel.id}");
 
-        // Create UserProfile based on the fetched UserModel
+        // Create UserProfile Hive object
         final userProfile = UserProfile(
-          profileId: userModel.id, // Use the full ID from UserModel
+          profileId: userModel.id, // Full UUID from server
           name: userModel.username,
           photoUrl: userModel.photoUrl,
-          updatedAt: DateTime.now(), // Or use a timestamp from UserModel if available/relevant
-          level: userModel.level,
-          xp: userModel.xp,
+          updatedAt: DateTime.now(), // Use current time as update time
+          // Map other relevant fields from UserModel
+          // Note: Level and XP are removed from UserModel, use defaults or 0 if needed in UserProfile
+          level: 0, // Default or remove if not needed in UserProfile
+          xp: 0, // Default or remove if not needed in UserProfile
           interests: userModel.interests,
           friends: userModel.friends,
           gender: userModel.gender,
@@ -125,14 +136,15 @@ class SyncManager {
           blockedUsers: userModel.blockedUsers,
         );
 
-        // 5. Store UserProfile in Hive
+        // Store UserProfile in Hive
         await _localCacheService.storeUserProfile(userProfile);
 
-        // 6. Update NearbyUser in Hive to link it
-        await _localCacheService.markNearbyUserSynced(uidShort, userModel.id); // Use the full ID
+        // Update the corresponding NearbyUser in Hive to link it via profileId
+        await _localCacheService.markNearbyUserSynced(uidShort, userModel.id);
 
-        // 7. Pre-cache the image
+        // Pre-cache the profile image
         if (userProfile.photoUrl.isNotEmpty) {
+          // Assuming CacheManagerService is accessible via locator
           locator<CacheManagerService>().preCacheImage(userProfile.photoUrl);
         }
       }
@@ -140,12 +152,12 @@ class SyncManager {
 
     } catch (e) {
       debugPrint("SyncManager Error: Failed to sync profiles: $e");
+      // Errors here mean profiles remain unsynced and will be retried
     }
   }
 
 
   Future<void> _syncFriendRequests() async {
-    // ... (This method remains the same as the previous version with the fix for resolving uidShort) ...
     debugPrint("SyncManager: Syncing Friend Requests...");
     final pendingRequests = _localCacheService.getPendingFriendRequests();
 
@@ -156,48 +168,57 @@ class SyncManager {
 
     debugPrint("SyncManager: Found ${pendingRequests.length} friend requests to sync.");
 
-    final requestKeys = pendingRequests.keys.toList();
+    final requestKeys = pendingRequests.keys.toList(); // Get keys to iterate safely
 
     for (final key in requestKeys) {
+      // Check connection before processing each item
       if (_connectivityBloc.state is! Online) {
         debugPrint("SyncManager: Connection lost during friend request sync. Aborting.");
         return;
       }
 
       final request = pendingRequests[key]!;
-      final String fromUserId = request.fromUserId;
-      final String targetIdFromQueue = request.toUserId;
+      final String fromUserId = request.fromUserId; // Sender's full UUID
+      final String targetIdFromQueue = request.toUserId; // Could be short ID or full UUID
 
       try {
         String targetFullUuid;
 
-        if (targetIdFromQueue.length > 10) {
+        // Check if the stored ID is already a full UUID (basic length check)
+        if (targetIdFromQueue.length > 10) { // Adjust length threshold if needed
           targetFullUuid = targetIdFromQueue;
           debugPrint("SyncManager: Friend request target ID $targetFullUuid seems to be a full UUID already.");
         } else {
+          // Assume it's a short ID and resolve it
           final String targetUidShort = targetIdFromQueue;
           debugPrint("SyncManager: Friend request target ID $targetUidShort is a short ID. Resolving...");
+          // Find the NearbyUser record using the short ID
           final nearbyUser = _localCacheService.getNearbyUser(targetUidShort);
+          // Check if the profile has been synced (profileId is the full UUID)
           if (nearbyUser?.profileId == null) {
             debugPrint("SyncManager Warning: Profile for target uidShort $targetUidShort not synced yet. Skipping friend request (Key: $key). Will retry later.");
-            continue;
+            continue; // Skip this request for now, wait for profile sync
           }
-          targetFullUuid = nearbyUser!.profileId!;
+          targetFullUuid = nearbyUser!.profileId!; // Use the resolved full UUID
           debugPrint("SyncManager: Resolved uidShort $targetUidShort to full UUID $targetFullUuid.");
         }
 
         debugPrint("SyncManager: Attempting to sync friend request via repo - From: $fromUserId, To (Resolved): $targetFullUuid");
 
+        // Call UserRepository to send the request using full UUIDs
         await _userRepository.sendFriendRequest(
           fromUserId,
-          targetFullUuid,
-          isSync: true,
+          targetFullUuid, // Pass the resolved full UUID
+          isSync: true, // Indicate this is from the sync manager
         );
+        // If successful, remove from the local queue
         await _localCacheService.removeFriendRequest(key);
         debugPrint("SyncManager: Successfully synced friend request (Key: $key).");
 
       } catch (e) {
+        // Log the error but keep the item in the queue for the next sync attempt
         debugPrint("SyncManager Error: Failed to sync friend request (Key: $key). Repo Error: $e. It will be retried on next connection.");
+        // Consider specific error handling (e.g., if user doesn't exist, remove from queue?)
       }
     }
     debugPrint("SyncManager: Friend request sync completed.");
@@ -216,43 +237,41 @@ class SyncManager {
 
     debugPrint("SyncManager: Found ${pendingWaves.length} waves to sync.");
 
-    final waveKeys = pendingWaves.keys.toList();
+    final waveKeys = pendingWaves.keys.toList(); // Get keys for safe iteration
 
     for (final key in waveKeys) {
+      // Check connection status before processing each wave
       if (_connectivityBloc.state is! Online) {
         debugPrint("SyncManager: Connection lost during wave sync. Aborting.");
         return;
       }
       final wave = pendingWaves[key]!;
-      final String fromUserId = wave.fromUidFull;
-      final String targetUidShort = wave.toUidShort;
+      final String fromUserId = wave.fromUidFull; // Sender's full UUID
+      final String targetUidShort = wave.toUidShort; // Target's short ID
 
       try {
-        // --- RESOLVE TARGET ID ---
+        // Resolve the target's short ID to a full UUID
         debugPrint("SyncManager: Wave target ID $targetUidShort is a short ID. Resolving...");
         final nearbyUser = _localCacheService.getNearbyUser(targetUidShort);
+        // Check if the profile is synced (has profileId/full UUID)
         if (nearbyUser?.profileId == null) {
           debugPrint("SyncManager Warning: Profile for target uidShort $targetUidShort not synced yet. Skipping wave (Key: $key). Will retry later.");
-          continue; // Skip this wave for now
+          continue; // Skip this wave, wait for profile sync
         }
-        final targetFullUuid = nearbyUser!.profileId!;
+        final targetFullUuid = nearbyUser!.profileId!; // Use the resolved full UUID
         debugPrint("SyncManager: Resolved uidShort $targetUidShort to full UUID $targetFullUuid for wave.");
-        // --- END RESOLVE ---
-
 
         debugPrint("SyncManager: Syncing wave via repo from $fromUserId to $targetFullUuid");
-        // --- CALL USER REPOSITORY'S sendWave ---
+        // Call UserRepository's sendWave which now handles server notification
         await _userRepository.sendWave(fromUserId, targetFullUuid);
-        // --- END CALL ---
 
-
-        // If successful, remove from local queue
+        // If successful, remove the wave from the local pending queue
         await _localCacheService.removeSentWave(key);
         debugPrint("SyncManager: Successfully synced wave (Key: $key).");
 
       } catch (e) {
+        // Log error, keep wave in queue for retry
         debugPrint("SyncManager Error: Failed to sync wave (Key: $key). Error: $e");
-        // Keep in queue for retry
       }
     }
     debugPrint("SyncManager: Wave sync completed.");
@@ -262,47 +281,48 @@ class SyncManager {
   void dispose() {
     _connectivitySubscription?.cancel();
     _syncDebounceTimer?.cancel();
+    debugPrint("SyncManager: Disposed.");
   }
 }
 
-// Helper extensions remain the same
+// Helper extensions
 extension CacheManagerExt on CacheManagerService {
   Future<void> preCacheImage(String url) async {
     if (url.isEmpty) return;
     try {
+      // Use the configured manager from CacheManagerService
       await manager.downloadFile(url);
+      // debugPrint("CacheManagerService: Pre-cached image $url"); // Optional success log
     } catch (e) {
       debugPrint("CacheManagerService: Error pre-caching image $url: $e");
     }
   }
 }
 
+// Keep this extension with LocalCacheService methods
 extension LocalCacheServiceHelper on LocalCacheService {
+  // Find a NearbyUser based on their full profile ID (server UUID)
   NearbyUser? getNearbyUserByProfileId(String profileId) {
     if (profileId.isEmpty) return null;
     final box = Hive.box<NearbyUser>('nearbyUsers');
     try {
+      // Use collection package's firstWhereOrNull for safety
       return box.values.firstWhereOrNull(
             (user) => user.profileId == profileId,
       );
     } catch (e) {
+      // Catch potential Hive errors during access
       debugPrint("LocalCacheServiceHelper Error (getNearbyUserByProfileId): $e");
       return null;
     }
   }
 
+  // Get a list of NearbyUser entries that haven't been linked to a server profile yet
   List<NearbyUser> getUnsyncedNearbyUsers() {
     final box = Hive.box<NearbyUser>('nearbyUsers');
-    debugPrint("LocalCacheServiceHelper: Checking for unsynced users. Box size: ${box.values.length}");
-    final users = box.values.toList();
-    final unsynced = <NearbyUser>[];
-    for(var user in users) {
-      debugPrint("LocalCacheServiceHelper: Checking user ${user.uidShort}, profileId: ${user.profileId}");
-      if(user.profileId == null) {
-        unsynced.add(user);
-      }
-    }
-    debugPrint("LocalCacheServiceHelper: Found ${unsynced.length} unsynced users.");
+    // Filter users where profileId is null or empty
+    final unsynced = box.values.where((user) => user.profileId == null || user.profileId!.isEmpty).toList();
+    debugPrint("LocalCacheServiceHelper: Found ${unsynced.length} unsynced users out of ${box.length}.");
     return unsynced;
   }
 }

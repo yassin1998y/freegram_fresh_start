@@ -86,21 +86,7 @@ class NotificationTile extends StatelessWidget {
     final bool isUnread = !notification.isRead;
 
     switch (notification.type) {
-      case NotificationType.like:
-        leadingIcon = Icons.favorite;
-        leadingIconColor = Colors.red;
-        notificationActionText = ' liked your post.';
-        break;
-      case NotificationType.comment:
-        leadingIcon = Icons.comment;
-        leadingIconColor = Colors.blue;
-        notificationActionText = ' commented on your post.';
-        break;
-      case NotificationType.follow:
-        leadingIcon = Icons.person_add;
-        leadingIconColor = Colors.green;
-        notificationActionText = ' started following you.';
-        break;
+
       case NotificationType.friendRequest:
         leadingIcon = Icons.person_add_alt_1;
         leadingIconColor = Colors.blueAccent;
@@ -121,11 +107,7 @@ class NotificationTile extends StatelessWidget {
         leadingIconColor = Colors.deepPurpleAccent;
         notificationActionText = ' waved at you from nearby!';
         break;
-      case NotificationType.gameInvite:
-        leadingIcon = Icons.sports_esports;
-        leadingIconColor = Colors.orange;
-        notificationActionText = ' invited you to a game!';
-        break;
+
     }
 
     return Container(

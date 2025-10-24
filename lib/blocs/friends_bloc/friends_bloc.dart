@@ -92,14 +92,7 @@ class FriendsBloc extends Bloc<FriendsEvent, FriendsState> {
         nearbyStatusEmoji: currentState.user.nearbyStatusEmoji,
         nearbyStatusMessage: currentState.user.nearbyStatusMessage,
         sharedMusicTrack: currentState.user.sharedMusicTrack,
-        xp: currentState.user.xp,
-        level: currentState.user.level,
-        currentSeasonId: currentState.user.currentSeasonId,
-        seasonXp: currentState.user.seasonXp,
-        seasonLevel: currentState.user.seasonLevel,
-        claimedSeasonRewards: currentState.user.claimedSeasonRewards,
-        equippedBadgeId: currentState.user.equippedBadgeId,
-        equippedProfileFrameId: currentState.user.equippedProfileFrameId,
+
       );
 
       emit(FriendsRequestSent(user: optimisticUser));

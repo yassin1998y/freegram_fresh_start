@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/auth_bloc.dart';
-import 'package:freegram/routes.dart';
+import 'package:freegram/routes.dart'; // Keep routes import
 
 class MenuScreen extends StatelessWidget {
   const MenuScreen({super.key});
@@ -9,10 +9,15 @@ class MenuScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Get the NavigatorState from the main shell's Navigator.
-    // We use RootNavigator=false to ensure we push within our nested navigator.
+    // Use RootNavigator=false to push within the nested navigator.
     final shellNavigator = Navigator.of(context, rootNavigator: false);
 
     return Scaffold(
+      // Keep AppBar for consistency, or remove if not desired in menu
+      appBar: AppBar(
+        title: const Text('Menu'),
+        automaticallyImplyLeading: false, // No back button needed here
+      ),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 24.0),
         children: [
@@ -24,6 +29,13 @@ class MenuScreen extends StatelessWidget {
               shellNavigator.pushNamed(profileRoute);
             },
           ),
+          // Remove Tiles for deleted features:
+          // _MenuTile(icon: Icons.inventory_2_outlined, title: 'Inventory', onTap: () {/* Navigate to InventoryScreen */}),
+          // _MenuTile(icon: Icons.leaderboard_outlined, title: 'Leaderboard', onTap: () {/* Navigate to LeaderboardScreen */}),
+          // _MenuTile(icon: Icons.task_alt_outlined, title: 'Tasks', onTap: () {/* Navigate to TasksScreen */}),
+          // _MenuTile(icon: Icons.military_tech_outlined, title: 'Season Pass', onTap: () {/* Navigate to LevelPassScreen */}),
+          _MenuTile(icon: Icons.storefront_outlined, title: 'Store', onTap: () {/* Navigate to StoreScreen */}),
+          // Keep Settings
           _MenuTile(
             icon: Icons.settings_outlined,
             title: 'Settings',
@@ -33,12 +45,13 @@ class MenuScreen extends StatelessWidget {
             },
           ),
           const Divider(height: 32),
+          // Keep Logout
           _MenuTile(
             icon: Icons.logout,
             title: 'Logout',
             color: Theme.of(context).colorScheme.error,
             onTap: () {
-              // Show a confirmation dialog before logging out
+              // Show confirmation dialog before logging out
               showDialog(
                 context: context,
                 builder: (dialogContext) => AlertDialog(
@@ -54,6 +67,7 @@ class MenuScreen extends StatelessWidget {
                         // Dismiss the dialog
                         Navigator.of(dialogContext).pop();
                         // Trigger the AuthBloc's SignOut event
+                        // Use read for context available actions
                         context.read<AuthBloc>().add(SignOut());
                       },
                       child: Text(
@@ -72,6 +86,7 @@ class MenuScreen extends StatelessWidget {
   }
 }
 
+// _MenuTile widget remains the same
 class _MenuTile extends StatelessWidget {
   final IconData icon;
   final String title;

@@ -2,23 +2,20 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
-// ** NEW IMPORT **
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
-// ** NEW HELPER FUNCTION **
+// Helper function remains the same
 String _uidShortFromFull(String fullId) {
   if (fullId.isEmpty) return '';
   final bytes = utf8.encode(fullId);
   final digest = sha256.convert(bytes);
-  // Return the first 8 characters (4 bytes) of the hex digest
   return digest.toString().substring(0, 8);
 }
 
 
 class UserModel extends Equatable {
   final String id;
-  // ** NEW FIELD **
   final String uidShort; // Derived from id
   final String username;
   final String email;
@@ -38,16 +35,16 @@ class UserModel extends Equatable {
   final List<String> friendRequestsReceived;
   final List<String> blockedUsers;
   final int coins;
-  final int superLikes;
+  final int superLikes; // Keep this field
   final DateTime lastFreeSuperLike;
-  final String? equippedProfileFrameId;
-  final String? equippedBadgeId;
-  final int xp;
-  final int level;
-  final String currentSeasonId;
-  final int seasonXp;
-  final int seasonLevel;
-  final List<int> claimedSeasonRewards;
+  // Removed equippedProfileFrameId
+  // Removed equippedBadgeId
+  // Removed xp
+  // Removed level
+  // Removed currentSeasonId
+  // Removed seasonXp
+  // Removed seasonLevel
+  // Removed claimedSeasonRewards
   final String nearbyStatusMessage;
   final String nearbyStatusEmoji;
   final int nearbyDiscoveryStreak;
@@ -75,42 +72,34 @@ class UserModel extends Equatable {
     this.friendRequestsReceived = const [],
     this.blockedUsers = const [],
     this.coins = 0,
-    this.superLikes = 1,
+    this.superLikes = 1, // Keep
     required this.lastFreeSuperLike,
-    this.xp = 0,
-    this.level = 1,
-    this.currentSeasonId = '',
-    this.seasonXp = 0,
-    this.seasonLevel = 0,
-    this.claimedSeasonRewards = const [],
-    this.equippedProfileFrameId,
-    this.equippedBadgeId,
+    // Remove fields from constructor
     this.nearbyStatusMessage = '',
     this.nearbyStatusEmoji = '',
     this.nearbyDiscoveryStreak = 0,
     required this.lastNearbyDiscoveryDate,
     this.sharedMusicTrack,
     this.nearbyDataVersion = 0,
-  }) : uidShort = _uidShortFromFull(id); // Calculate uidShort in constructor
+  }) : uidShort = _uidShortFromFull(id);
 
 
+  // _toDateTime, _getList, _getIntList remain the same
   static DateTime _toDateTime(dynamic timestamp) {
     if (timestamp is Timestamp) return timestamp.toDate();
-    if (timestamp is String) return DateTime.tryParse(timestamp) ?? DateTime.now();
-    // Handle milliseconds or seconds since epoch
+    if (timestamp is String) return DateTime.tryParse(timestamp) ?? DateTime.fromMillisecondsSinceEpoch(0); // Safer fallback
     if (timestamp is int) {
-      if (timestamp > 1000000000000) { // Likely milliseconds
+      if (timestamp > 1000000000000) { // Milliseconds
         return DateTime.fromMillisecondsSinceEpoch(timestamp);
-      } else { // Likely seconds
+      } else { // Seconds
         return DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
       }
     }
-    // Fallback or handle based on Map representation if needed
     if (timestamp is Map && timestamp.containsKey('_seconds')) {
       return Timestamp(timestamp['_seconds'], timestamp['_nanoseconds'] ?? 0).toDate();
     }
     print("UserModel WARNING: Unhandled timestamp type: ${timestamp?.runtimeType}");
-    return DateTime.fromMillisecondsSinceEpoch(0);
+    return DateTime.fromMillisecondsSinceEpoch(0); // Consistent safe fallback
   }
 
   static List<String> _getList(Map<String, dynamic> data, String key) {
@@ -124,11 +113,13 @@ class UserModel extends Equatable {
     return [];
   }
 
+  // fromDoc remains the same, relies on fromMap
   factory UserModel.fromDoc(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
     return UserModel.fromMap(doc.id, data);
   }
 
+  // fromMap updated to remove deleted fields
   factory UserModel.fromMap(String id, Map<String, dynamic> data) {
     return UserModel(
       id: id,
@@ -150,16 +141,16 @@ class UserModel extends Equatable {
       friendRequestsReceived: _getList(data, 'friendRequestsReceived'),
       blockedUsers: _getList(data, 'blockedUsers'),
       coins: data['coins'] ?? 0,
-      superLikes: data['superLikes'] ?? 1,
+      superLikes: data['superLikes'] ?? 1, // Keep
       lastFreeSuperLike: _toDateTime(data['lastFreeSuperLike']),
-      xp: data['xp'] ?? 0,
-      level: data['level'] ?? 1,
-      currentSeasonId: data['currentSeasonId'] ?? '',
-      seasonXp: data['seasonXp'] ?? 0,
-      seasonLevel: data['seasonLevel'] ?? 0,
-      claimedSeasonRewards: _getIntList(data, 'claimedSeasonRewards'),
-      equippedProfileFrameId: data['equippedProfileFrameId'],
-      equippedBadgeId: data['equippedBadgeId'],
+      // xp: data['xp'] ?? 0, // Removed
+      // level: data['level'] ?? 1, // Removed
+      // currentSeasonId: data['currentSeasonId'] ?? '', // Removed
+      // seasonXp: data['seasonXp'] ?? 0, // Removed
+      // seasonLevel: data['seasonLevel'] ?? 0, // Removed
+      // claimedSeasonRewards: _getIntList(data, 'claimedSeasonRewards'), // Removed
+      // equippedProfileFrameId: data['equippedProfileFrameId'], // Removed
+      // equippedBadgeId: data['equippedBadgeId'], // Removed
       nearbyStatusMessage: data['nearbyStatusMessage'] ?? '',
       nearbyStatusEmoji: data['nearbyStatusEmoji'] ?? '',
       nearbyDiscoveryStreak: data['nearbyDiscoveryStreak'] ?? 0,
@@ -170,9 +161,9 @@ class UserModel extends Equatable {
     );
   }
 
+  // toMap updated to remove deleted fields
   Map<String, dynamic> toMap() {
     return {
-      // ** NEW FIELD ADDED **
       'uidShort': uidShort,
       'username': username,
       'email': email,
@@ -181,7 +172,6 @@ class UserModel extends Equatable {
       'bio': bio,
       'fcmToken': fcmToken,
       'presence': presence,
-      // Store timestamps as milliseconds for consistency
       'lastSeen': lastSeen.millisecondsSinceEpoch,
       'country': country,
       'age': age,
@@ -193,16 +183,16 @@ class UserModel extends Equatable {
       'friendRequestsReceived': friendRequestsReceived,
       'blockedUsers': blockedUsers,
       'coins': coins,
-      'superLikes': superLikes,
+      'superLikes': superLikes, // Keep
       'lastFreeSuperLike': lastFreeSuperLike.millisecondsSinceEpoch,
-      'xp': xp,
-      'level': level,
-      'currentSeasonId': currentSeasonId,
-      'seasonXp': seasonXp,
-      'seasonLevel': seasonLevel,
-      'claimedSeasonRewards': claimedSeasonRewards,
-      'equippedProfileFrameId': equippedProfileFrameId,
-      'equippedBadgeId': equippedBadgeId,
+      // 'xp': xp, // Removed
+      // 'level': level, // Removed
+      // 'currentSeasonId': currentSeasonId, // Removed
+      // 'seasonXp': seasonXp, // Removed
+      // 'seasonLevel': seasonLevel, // Removed
+      // 'claimedSeasonRewards': claimedSeasonRewards, // Removed
+      // 'equippedProfileFrameId': equippedProfileFrameId, // Removed
+      // 'equippedBadgeId': equippedBadgeId, // Removed
       'nearbyStatusMessage': nearbyStatusMessage,
       'nearbyStatusEmoji': nearbyStatusEmoji,
       'nearbyDiscoveryStreak': nearbyDiscoveryStreak,
@@ -212,7 +202,13 @@ class UserModel extends Equatable {
     };
   }
 
-  // Adjusted props to include uidShort
+  // props updated to remove deleted fields, but kept a selection for Equatable comparison
   @override
-  List<Object?> get props => [id, uidShort, username, email, photoUrl, pictureVersion, bio, presence, lastSeen, country, age, gender, interests, createdAt, friends, level, nearbyStatusMessage];
+  List<Object?> get props => [
+    id, uidShort, username, email, photoUrl, pictureVersion, bio, presence, lastSeen,
+    country, age, gender, interests, createdAt, friends, superLikes, // Keep superLikes here if important for equality checks
+    nearbyStatusMessage, nearbyStatusEmoji, nearbyDiscoveryStreak, lastNearbyDiscoveryDate,
+    sharedMusicTrack, nearbyDataVersion, coins, // Added coins
+    // Removed: level
+  ];
 }

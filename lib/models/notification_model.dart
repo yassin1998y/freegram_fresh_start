@@ -1,15 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum NotificationType {
-  like,
-  comment,
-  follow,
+  // like, // Removed
+  // comment, // Removed
+  // follow, // Removed
   friendRequest,
   requestAccepted,
-  superLike,
-  // New types for Nearby interactions
+  superLike, // Keep
   nearbyWave,
-  gameInvite,
+  // gameInvite, // Removed
 }
 
 class NotificationModel {
@@ -18,9 +17,9 @@ class NotificationModel {
   final String fromUserId;
   final String fromUsername;
   final String? fromUserPhotoUrl;
-  final String? postId; // For like/comment on post
-  final String? commentId; // For specific comment context
-  final String? message; // Optional: for custom messages
+  final String? postId; // Keep for potential future use or context? Or remove if truly unused.
+  final String? commentId; // Keep for potential future use or context? Or remove if truly unused.
+  final String? message; // Optional: for custom messages like waves
   final Timestamp timestamp;
   final bool isRead;
 
@@ -45,8 +44,8 @@ class NotificationModel {
       fromUserId: data['fromUserId'] ?? '',
       fromUsername: data['fromUsername'] ?? '',
       fromUserPhotoUrl: data['fromUserPhotoUrl'],
-      postId: data['postId'],
-      commentId: data['commentId'],
+      postId: data['postId'], // Keep parsing if field might still exist
+      commentId: data['commentId'], // Keep parsing if field might still exist
       message: data['message'],
       timestamp: data['timestamp'] ?? Timestamp.now(),
       isRead: data['isRead'] ?? false,
@@ -55,7 +54,7 @@ class NotificationModel {
 
   Map<String, dynamic> toFirestore() {
     return {
-      'type': type.toString().split('.').last,
+      'type': type.toString().split('.').last, // Convert enum to string
       'fromUserId': fromUserId,
       'fromUsername': fromUsername,
       'fromUserPhotoUrl': fromUserPhotoUrl,
@@ -67,30 +66,28 @@ class NotificationModel {
     };
   }
 
+  // Updated to remove deleted types
   static NotificationType _stringToNotificationType(String typeStr) {
     switch (typeStr) {
-      case 'like':
-        return NotificationType.like;
-      case 'comment':
-        return NotificationType.comment;
-      case 'follow':
-        return NotificationType.follow;
-      case 'friend_request_received':
-      case 'friendRequest': // Allow for both for robustness
+    // case 'like': return NotificationType.like; // Removed
+    // case 'comment': return NotificationType.comment; // Removed
+    // case 'follow': return NotificationType.follow; // Removed
+      case 'friend_request_received': // Allow legacy string
+      case 'friendRequest':
         return NotificationType.friendRequest;
-      case 'request_accepted':
+      case 'request_accepted': // Allow legacy string
       case 'requestAccepted':
         return NotificationType.requestAccepted;
-      case 'super_like':
+      case 'super_like': // Allow legacy string
       case 'superLike':
-        return NotificationType.superLike;
+        return NotificationType.superLike; // Keep
       case 'nearbyWave':
         return NotificationType.nearbyWave;
-      case 'gameInvite':
-        return NotificationType.gameInvite;
+    // case 'gameInvite': return NotificationType.gameInvite; // Removed
       default:
-        print('Unknown notification type: $typeStr, defaulting to follow.');
-        return NotificationType.follow;
+      // Default to friendRequest or throw an error if unknown type is critical
+        print('Unknown notification type: $typeStr, defaulting to friendRequest.');
+        return NotificationType.friendRequest;
     }
   }
 }

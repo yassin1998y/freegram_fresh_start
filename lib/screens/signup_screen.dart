@@ -2,8 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/auth_bloc.dart';
-import 'package:freegram/widgets/gradient_button.dart';
-import 'package:freegram/widgets/gradient_spinner.dart';
+// import 'package:freegram/widgets/gradient_button.dart'; // Removed
+// import 'package:freegram/widgets/gradient_spinner.dart'; // Removed
 import 'package:flutter/foundation.dart'; // Import for debugPrint
 
 class SignUpScreen extends StatefulWidget {
@@ -45,6 +45,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       ),
     );
     debugPrint("SignUpScreen: Dispatched SignUpRequested event. WAITING FOR AuthWrapper navigation...");
+    // Let the BlocListener handle navigation and state changes
   }
 
   @override
@@ -53,7 +54,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       listener: (context, state) {
         debugPrint("SignUpScreen: BlocListener received state: ${state.runtimeType}");
         if (state is AuthError) {
-          if (mounted) {
+          // Only reset loading state if it was triggered by this screen
+          if (mounted && _isSigningUp) {
             setState(() {
               _isSigningUp = false; // Reset loading on error
             });
@@ -65,8 +67,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           );
         }
-        // --- MODIFICATION START ---
-        // If authenticated AND we were the ones signing up, pop this screen
+        // If authenticated state occurs WHILE this screen initiated the signup,
+        // it means success. AuthWrapper will handle navigation, but we might pop
+        // this screen off the stack if desired (or let AuthWrapper replace it).
+        // Popping here makes sense as the signup flow is done.
         if (state is Authenticated && _isSigningUp) {
           debugPrint("SignUpScreen: BlocListener received Authenticated state WHILE signing up. Popping screen.");
           // Reset the flag *before* popping
@@ -75,10 +79,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
               _isSigningUp = false;
             });
           }
-          // Pop the SignUpScreen - AuthWrapper will then build EditProfileScreen
-          Navigator.of(context).pop();
+          // Pop the SignUpScreen - AuthWrapper will then likely build EditProfileScreen
+          if (Navigator.canPop(context)) {
+            Navigator.of(context).pop();
+          }
         }
-        // --- MODIFICATION END ---
       },
       child: Scaffold(
         appBar: AppBar(
@@ -109,7 +114,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Username',
                     ),
-                    enabled: !_isSigningUp,
+                    enabled: !_isSigningUp, // Disable when loading
                     validator: (value) => (value == null || value.trim().isEmpty)
                         ? 'Please enter a username'
                         : null,
@@ -122,7 +127,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Email',
                     ),
-                    enabled: !_isSigningUp,
+                    enabled: !_isSigningUp, // Disable when loading
                     validator: (value) =>
                     (value == null || !value.contains('@'))
                         ? 'Please enter a valid email'
@@ -136,16 +141,31 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Password',
                     ),
-                    enabled: !_isSigningUp,
+                    enabled: !_isSigningUp, // Disable when loading
                     validator: (value) => (value == null || value.length < 6)
                         ? 'Password must be at least 6 characters'
                         : null,
                   ),
                   const SizedBox(height: 24.0),
-                  GradientButton(
+                  // Replace GradientButton with ElevatedButton
+                  ElevatedButton(
                     onPressed: _isSigningUp ? null : _signUp,
-                    text: 'Sign Up',
-                    isLoading: _isSigningUp,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      // Use theme's primary color
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                    child: _isSigningUp
+                        ? const SizedBox( // Use standard CircularProgressIndicator
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white, // Spinner color
+                      ),
+                    )
+                        : const Text('Sign Up'),
                   ),
                 ],
               ),

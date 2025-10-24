@@ -1,14 +1,6 @@
 {
   "indexes": [
     {
-      "collectionGroup": "posts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
-        { "fieldPath": "timestamp", "order": "DESCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "chats",
       "queryScope": "COLLECTION",
       "fields": [
@@ -25,51 +17,11 @@
       ]
     },
     {
-      "collectionGroup": "users",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "interests", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "level", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "rankings",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "level", "order": "DESCENDING" },
-        { "fieldPath": "xp", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "rankings",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "country", "order": "ASCENDING" },
-        { "fieldPath": "level", "order": "DESCENDING" },
-        { "fieldPath": "xp", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "posts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "postType", "order": "ASCENDING" },
-        { "fieldPath": "timestamp", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "stories",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
-        { "fieldPath": "timestamp", "order": "DESCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "chats",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "users", "arrayConfig": "CONTAINS" },
+
         { "fieldPath": "`unreadCount.69u1YJwilBYVNZYIL4eAbyRRTQI2`", "order": "ASCENDING" }
       ]
     }

@@ -1,7 +1,8 @@
+// lib/routes.dart
 
 const String nearbyRoute = '/';
-const String feedRoute = '/feed';
-const String matchRoute = '/match';
+const String feedRoute = '/feed'; // keep
+const String matchRoute = '/match'; // Keep
 const String profileRoute = '/profile';
 const String friendsRoute = '/friends';
 const String settingsRoute = '/settings';

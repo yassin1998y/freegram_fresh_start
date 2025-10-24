@@ -1,23 +1,23 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Keep for QuerySnapshot if needed elsewhere, though maybe not directly here anymore
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/friends_bloc/friends_bloc.dart';
 import 'package:freegram/locator.dart';
-import 'package:freegram/models/item_definition.dart';
+// import 'package:freegram/models/item_definition.dart'; // Remove
 import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/chat_repository.dart';
-import 'package:freegram/repositories/inventory_repository.dart';
-import 'package:freegram/repositories/post_repository.dart';
+// import 'package:freegram/repositories/inventory_repository.dart'; // Remove
+// import 'package:freegram/repositories/post_repository.dart'; // Remove
 import 'package:freegram/repositories/user_repository.dart';
 import 'package:freegram/screens/chat_screen.dart';
 import 'package:freegram/screens/edit_profile_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:freegram/screens/inventory_screen.dart';
+// import 'package:freegram/screens/inventory_screen.dart'; // Remove
 import 'package:freegram/screens/qr_display_screen.dart';
-import 'package:freegram/widgets/gradient_button.dart';
-import 'package:freegram/widgets/gradient_outlined_button.dart';
-import 'post_detail_screen.dart';
+// import 'package:freegram/widgets/gradient_button.dart'; // Remove
+// import 'package:freegram/widgets/gradient_outlined_button.dart'; // Remove
+// import 'post_detail_screen.dart'; // Remove
 
 class ProfileScreen extends StatelessWidget {
   final String userId;
@@ -25,6 +25,7 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Keep FriendsBloc for friend status actions
     return BlocProvider(
       create: (context) => FriendsBloc(
         userRepository: locator<UserRepository>(),
@@ -42,21 +43,9 @@ class _ProfileScreenView extends StatefulWidget {
   State<_ProfileScreenView> createState() => _ProfileScreenViewState();
 }
 
-class _ProfileScreenViewState extends State<_ProfileScreenView>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
+// Removed SingleTickerProviderStateMixin as TabController is removed
+class _ProfileScreenViewState extends State<_ProfileScreenView> {
+  // Removed TabController initialization and disposal
 
   Future<void> _startChat(BuildContext context, UserModel user) async {
     final chatId = await locator<ChatRepository>().startOrGetChat(
@@ -76,7 +65,7 @@ class _ProfileScreenViewState extends State<_ProfileScreenView>
   @override
   Widget build(BuildContext context) {
     final userRepository = locator<UserRepository>();
-    final postRepository = locator<PostRepository>();
+    // final postRepository = locator<PostRepository>(); // Remove PostRepository instance
     final isCurrentUserProfile =
         FirebaseAuth.instance.currentUser?.uid == widget.userId;
 
@@ -96,131 +85,53 @@ class _ProfileScreenViewState extends State<_ProfileScreenView>
 
           final user = userSnapshot.data!;
 
-          return NestedScrollView(
-            headerSliverBuilder: (context, innerBoxIsScrolled) {
-              return [
-                SliverAppBar(
-                  title: Text(user.username),
-                  centerTitle: true,
-                  floating: true,
-                  pinned: true,
-                  actions: [
-                    if (isCurrentUserProfile)
-                      IconButton(
-                        icon: const Icon(Icons.qr_code_2_outlined),
-                        tooltip: 'My QR Code',
-                        onPressed: () {
-                          Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => QrDisplayScreen(user: user),
-                          ));
-                        },
-                      ),
-                  ],
-                  bottom: TabBar(
-                    controller: _tabController,
-                    indicatorColor: Theme.of(context).colorScheme.primary,
-                    labelColor: Theme.of(context).colorScheme.primary,
-                    unselectedLabelColor: Theme.of(context).iconTheme.color,
-                    tabs: const [
-                      Tab(icon: Icon(Icons.grid_on)),
-                      Tab(icon: Icon(Icons.bookmark_border)),
-                    ],
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: _ProfileHeader(
-                    user: user,
-                    isCurrentUserProfile: isCurrentUserProfile,
-                    onStartChat: () => _startChat(context, user),
-                  ),
-                ),
-              ];
-            },
-            body: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildPostsGrid(postRepository, widget.userId),
-                const Center(child: Text('Saved posts will appear here.')),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildPostsGrid(PostRepository repository, String userId) {
-    return RefreshIndicator(
-      onRefresh: () async {
-        setState(() {});
-        return Future.value();
-      },
-      child: StreamBuilder<QuerySnapshot>(
-        stream: repository.getUserPostsStream(userId),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Text('No posts yet.',
-                    style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color)),
-              ),
-            );
-          }
-
-          final posts = snapshot.data!.docs;
-
-          return GridView.builder(
-            padding: const EdgeInsets.all(2.0),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 2,
-              mainAxisSpacing: 2,
-            ),
-            itemCount: posts.length,
-            itemBuilder: (context, index) {
-              final post = posts[index];
-              final postData = post.data() as Map<String, dynamic>;
-              final isReel = postData['postType'] == 'reel';
-              final imageUrl =
-                  postData['thumbnailUrl'] ?? postData['imageUrl'] ?? '';
-
-              return GestureDetector(
-                onTap: () {
-                  Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => PostDetailScreen(postSnapshot: post),
-                  ));
-                },
-                child: Stack(
-                  fit: StackFit.expand,
-                  alignment: Alignment.center,
-                  children: [
-                    CachedNetworkImage(
-                      imageUrl: imageUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(color: Theme.of(context).dividerColor),
-                      errorWidget: (context, url, error) =>
-                      const Icon(Icons.error),
+          // Use CustomScrollView instead of NestedScrollView as tabs are removed
+          return CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                title: Text(user.username),
+                centerTitle: true,
+                floating: true, // Keep floating for better UX
+                pinned: true, // Keep pinned
+                actions: [
+                  if (isCurrentUserProfile)
+                    IconButton(
+                      icon: const Icon(Icons.qr_code_2_outlined),
+                      tooltip: 'My QR Code',
+                      onPressed: () {
+                        Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => QrDisplayScreen(user: user),
+                        ));
+                      },
                     ),
-                    if (isReel)
-                      const Positioned(
-                        top: 8,
-                        right: 8,
-                        child: Icon(Icons.play_circle_filled,
-                            color: Colors.white, size: 24),
-                      ),
-                  ],
+                  // Removed TabBar from bottom
+                ],
+              ),
+              SliverToBoxAdapter(
+                child: _ProfileHeader(
+                  user: user,
+                  isCurrentUserProfile: isCurrentUserProfile,
+                  onStartChat: () => _startChat(context, user),
                 ),
-              );
-            },
+              ),
+              // Removed TabBarView and _buildPostsGrid
+              const SliverFillRemaining( // Placeholder if needed, or remove if header fills screen
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24.0),
+                    // Optionally add a message if profile seems empty
+                    // child: Text('User posts will appear here.'),
+                  ),
+                ),
+              ),
+            ],
           );
         },
       ),
     );
   }
+
+// Removed _buildPostsGrid method
 }
 
 class _ProfileHeader extends StatelessWidget {
@@ -243,22 +154,19 @@ class _ProfileHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              _buildProfileAvatar(),
+              _buildProfileAvatar(), // Keep avatar logic (removed frame logic)
               Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                    stream:
-                    locator<PostRepository>().getUserPostsStream(user.id),
-                    builder: (context, snapshot) {
-                      final postCount = snapshot.data?.docs.length ?? 0;
-                      return Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _StatItem(label: 'Posts', count: postCount),
-                          _StatItem(label: 'Friends', count: user.friends.length),
-                          _StatItem(label: 'Level', count: user.level),
-                        ],
-                      );
-                    }),
+                // Removed StreamBuilder for post count
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // _StatItem(label: 'Posts', count: postCount), // Remove Posts stat
+                    _StatItem(label: 'Friends', count: user.friends.length), // Keep Friends
+                    // _StatItem(label: 'Level', count: user.level), // Remove Level stat
+                    // Optionally add another stat if desired (e.g., join date)
+                    _StatItem(label: 'Age', count: user.age), // Example: Add Age
+                  ],
+                ),
               ),
             ],
           ),
@@ -275,80 +183,44 @@ class _ProfileHeader extends StatelessWidget {
     );
   }
 
+  // _buildProfileAvatar updated to remove frame logic
   Widget _buildProfileAvatar() {
-    if (user.equippedProfileFrameId == null) {
-      return CircleAvatar(
-        radius: 45,
-        backgroundColor: Colors.grey.shade300,
-        backgroundImage: user.photoUrl.isNotEmpty
-            ? CachedNetworkImageProvider(user.photoUrl)
-            : null,
-        child: user.photoUrl.isEmpty
-            ? Text(
-          user.username.isNotEmpty ? user.username[0].toUpperCase() : '?',
-          style: const TextStyle(fontSize: 40),
-        )
-            : null,
-      );
-    }
-    return FutureBuilder<ItemDefinition>(
-      future: locator<InventoryRepository>()
-          .getItemDefinition(user.equippedProfileFrameId!),
-      builder: (context, snapshot) {
-        final frameUrl = snapshot.data?.imageUrl;
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            CircleAvatar(
-              radius: 45,
-              backgroundColor: Colors.grey.shade300,
-              backgroundImage: user.photoUrl.isNotEmpty
-                  ? CachedNetworkImageProvider(user.photoUrl)
-                  : null,
-              child: user.photoUrl.isEmpty
-                  ? Text(
-                user.username.isNotEmpty
-                    ? user.username[0].toUpperCase()
-                    : '?',
-                style: const TextStyle(fontSize: 40),
-              )
-                  : null,
-            ),
-            if (frameUrl != null)
-              Image.network(
-                frameUrl,
-                width: 110,
-                height: 110,
-              ),
-          ],
-        );
-      },
+    // Simplified: Always return the basic CircleAvatar
+    return CircleAvatar(
+      radius: 45,
+      backgroundColor: Colors.grey.shade300,
+      backgroundImage: user.photoUrl.isNotEmpty
+          ? CachedNetworkImageProvider(user.photoUrl)
+          : null,
+      child: user.photoUrl.isEmpty
+          ? Text(
+        user.username.isNotEmpty ? user.username[0].toUpperCase() : '?',
+        style: const TextStyle(fontSize: 40),
+      )
+          : null,
     );
+    // Removed FutureBuilder for equippedProfileFrameId
   }
 
+
+  // _buildCurrentUserActionButtons updated to remove Inventory button and Gradient widgets
   Widget _buildCurrentUserActionButtons(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: GradientOutlinedButton(
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) =>
-                    EditProfileScreen(currentUserData: user.toMap()))),
-            text: 'Edit Profile',
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: GradientOutlinedButton(
-            onPressed: () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const InventoryScreen())),
-            text: 'Inventory',
-          ),
-        ),
-      ],
+    // Use standard OutlinedButton
+    return SizedBox(
+      width: double.infinity, // Make button take full width
+      child: OutlinedButton(
+        onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) =>
+                EditProfileScreen(currentUserData: user.toMap()))),
+        child: const Text('Edit Profile'),
+        // Add styling if needed
+        // style: OutlinedButton.styleFrom(...)
+      ),
     );
+    // Removed Row and second button (Inventory)
   }
 
+  // _buildOtherUserActionButtons updated to use standard buttons
   Widget _buildOtherUserActionButtons(BuildContext context) {
     return BlocBuilder<FriendsBloc, FriendsState>(
       builder: (context, state) {
@@ -363,20 +235,26 @@ class _ProfileHeader extends StatelessWidget {
           if (isBlocked) {
             return SizedBox(
               width: double.infinity,
-              child: GradientOutlinedButton(
+              child: OutlinedButton( // Use OutlinedButton
                 onPressed: () =>
                     context.read<FriendsBloc>().add(UnblockUser(user.id)),
-                text: 'Unblock',
+                child: const Text('Unblock'),
+                style: OutlinedButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.error),
               ),
             );
           }
 
           if (requestReceived) {
-            return GradientButton(
-              onPressed: () => context
-                  .read<FriendsBloc>()
-                  .add(AcceptFriendRequest(user.id)),
-              text: 'Accept Request',
+            return SizedBox(
+              width: double.infinity,
+              child: ElevatedButton( // Use ElevatedButton
+                onPressed: () => context
+                    .read<FriendsBloc>()
+                    .add(AcceptFriendRequest(user.id)),
+                child: const Text('Accept Request'),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              ),
             );
           }
 
@@ -384,33 +262,36 @@ class _ProfileHeader extends StatelessWidget {
             children: [
               Expanded(
                 child: isFriend || requestSent
-                    ? GradientOutlinedButton(
+                    ? OutlinedButton( // Use OutlinedButton
                   onPressed:
-                  isFriend ? () => _confirmRemoveFriend(context) : null,
-                  text: isFriend ? 'Friends' : 'Request Sent',
+                  isFriend ? () => _confirmRemoveFriend(context) : null, // Disable if requestSent
+                  child: Text(isFriend ? 'Friends' : 'Request Sent'),
                 )
-                    : GradientButton(
+                    : ElevatedButton( // Use ElevatedButton
                   onPressed: () => context
                       .read<FriendsBloc>()
                       .add(SendFriendRequest(user.id)),
-                  text: 'Add Friend',
+                  child: const Text('Add Friend'),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: GradientOutlinedButton(
+                child: OutlinedButton( // Use OutlinedButton
                   onPressed: onStartChat,
-                  text: 'Message',
+                  child: const Text('Message'),
                 ),
               ),
             ],
           );
         }
-        return const Center(child: CircularProgressIndicator());
+        // Show loading or placeholder while FriendsBloc loads
+        return const Center(child: CircularProgressIndicator(strokeWidth: 2));
       },
     );
   }
 
+
+  // _confirmRemoveFriend remains the same
   Future<void> _confirmRemoveFriend(BuildContext context) async {
     final bool? shouldRemove = await showDialog<bool>(
       context: context,
@@ -434,11 +315,13 @@ class _ProfileHeader extends StatelessWidget {
     );
 
     if (shouldRemove == true) {
+      // Use read to access bloc if context is available
       context.read<FriendsBloc>().add(RemoveFriend(user.id));
     }
   }
 }
 
+// _StatItem remains the same
 class _StatItem extends StatelessWidget {
   final String label;
   final int count;
