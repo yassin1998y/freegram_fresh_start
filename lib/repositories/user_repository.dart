@@ -45,12 +45,16 @@ class UserRepository {
         .collection('users')
         .doc(userId)
         .snapshots()
-        .map((doc) {
+        .asyncMap((doc) async {
       if (!doc.exists) {
         debugPrint('User stream warning: User not found for ID: $userId');
-        // Return a default/empty UserModel or throw? Throwing might break stream builders.
-        // Let's throw for now, but this might need adjustment based on UI handling.
-        throw Exception('User stream error: User not found for ID: $userId');
+        // Wait a bit and retry once for new users
+        await Future.delayed(const Duration(milliseconds: 1000));
+        final retryDoc = await _db.collection('users').doc(userId).get();
+        if (!retryDoc.exists) {
+          throw Exception('User stream error: User not found for ID: $userId');
+        }
+        return UserModel.fromDoc(retryDoc);
       }
       return UserModel.fromDoc(doc);
     });

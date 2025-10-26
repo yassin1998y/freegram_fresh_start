@@ -1,23 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/blocs/auth_bloc.dart';
-import 'package:freegram/routes.dart'; // Keep routes import
+import 'package:freegram/screens/profile_screen.dart';
+import 'package:freegram/screens/settings_screen.dart';
 
 class MenuScreen extends StatelessWidget {
   const MenuScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Get the NavigatorState from the main shell's Navigator.
-    // Use RootNavigator=false to push within the nested navigator.
-    final shellNavigator = Navigator.of(context, rootNavigator: false);
-
     return Scaffold(
-      // Keep AppBar for consistency, or remove if not desired in menu
-      appBar: AppBar(
-        title: const Text('Menu'),
-        automaticallyImplyLeading: false, // No back button needed here
-      ),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 24.0),
         children: [
@@ -25,23 +18,27 @@ class MenuScreen extends StatelessWidget {
             icon: Icons.person_outline,
             title: 'My Profile',
             onTap: () {
-              // Navigate to the Profile screen within the main shell
-              shellNavigator.pushNamed(profileRoute);
+              // Navigate to Profile screen using root navigator
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => ProfileScreen(
+                    userId: FirebaseAuth.instance.currentUser!.uid,
+                  ),
+                ),
+              );
             },
           ),
-          // Remove Tiles for deleted features:
-          // _MenuTile(icon: Icons.inventory_2_outlined, title: 'Inventory', onTap: () {/* Navigate to InventoryScreen */}),
-          // _MenuTile(icon: Icons.leaderboard_outlined, title: 'Leaderboard', onTap: () {/* Navigate to LeaderboardScreen */}),
-          // _MenuTile(icon: Icons.task_alt_outlined, title: 'Tasks', onTap: () {/* Navigate to TasksScreen */}),
-          // _MenuTile(icon: Icons.military_tech_outlined, title: 'Season Pass', onTap: () {/* Navigate to LevelPassScreen */}),
           _MenuTile(icon: Icons.storefront_outlined, title: 'Store', onTap: () {/* Navigate to StoreScreen */}),
-          // Keep Settings
           _MenuTile(
             icon: Icons.settings_outlined,
             title: 'Settings',
             onTap: () {
-              // Navigate to the Settings screen within the main shell
-              shellNavigator.pushNamed(settingsRoute);
+              // Navigate to Settings screen using root navigator
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
+              );
             },
           ),
           const Divider(height: 32),
@@ -51,6 +48,9 @@ class MenuScreen extends StatelessWidget {
             title: 'Logout',
             color: Theme.of(context).colorScheme.error,
             onTap: () {
+              // Store a reference to the AuthBloc before showing the dialog
+              final authBloc = context.read<AuthBloc>();
+              
               // Show confirmation dialog before logging out
               showDialog(
                 context: context,
@@ -66,9 +66,9 @@ class MenuScreen extends StatelessWidget {
                       onPressed: () {
                         // Dismiss the dialog
                         Navigator.of(dialogContext).pop();
-                        // Trigger the AuthBloc's SignOut event
-                        // Use read for context available actions
-                        context.read<AuthBloc>().add(SignOut());
+                        // Trigger the AuthBloc's SignOut event using the stored reference
+                        // The AuthWrapper will automatically show LoginScreen when state becomes Unauthenticated
+                        authBloc.add(SignOut());
                       },
                       child: Text(
                         'Logout',

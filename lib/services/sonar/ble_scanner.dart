@@ -70,6 +70,8 @@ class BleScanner {
             _statusService.updateStatus(NearbyStatus.idle);
             debugPrint("BLE Scanner: Scan stopped unexpectedly or completed.");
           }
+          // Always reset the scanning flag when scan stops
+          _isScanning = false;
         }
       });
 
@@ -83,10 +85,12 @@ class BleScanner {
           });
 
       debugPrint("BLE Scanner: Attempting to start scan...");
-      // Start the scan using flutter_blue_plus
+      // Start the scan using flutter_blue_plus with more aggressive settings
       await fbp.FlutterBluePlus.startScan(
         withServices: [BluetoothDiscoveryService.DISCOVERY_SERVICE_UUID],
         androidScanMode: fbp.AndroidScanMode.lowLatency,
+        // Add timeout for more aggressive scanning
+        timeout: const Duration(seconds: 30),
       );
       // Status update is handled by the isScanning listener now
 
@@ -105,13 +109,17 @@ class BleScanner {
   }
 
   void _handleScanResult(List<fbp.ScanResult> results) {
-    // ... (implementation remains the same) ...
-    // It correctly updates status to userFound via _statusService.updateStatus
     DateTime now = DateTime.now();
+    debugPrint("BLE Scanner: Processing ${results.length} scan results");
+    
     for (fbp.ScanResult r in results) {
       final manufData = r.advertisementData.manufacturerData;
+      debugPrint("BLE Scanner: Processing device ${r.device.remoteId} with manufacturer data: $manufData");
+      
+      // Process discovery advertisements (both standard and Xiaomi alternative)
       if (manufData.containsKey(BleAdvertiser.MANUFACTURER_ID_DISCOVERY)) {
         final payload = manufData[BleAdvertiser.MANUFACTURER_ID_DISCOVERY]!;
+        debugPrint("BLE Scanner: Found discovery advertisement with payload length: ${payload.length}");
         if (payload.length == 5) {
           try {
             String uidShort = _bytesToUidShort(payload);
@@ -121,12 +129,42 @@ class BleScanner {
               _lastDiscoveryTime[uidShort] = now;
               onUserDetected?.call(uidShort, gender, distance);
               _statusService.updateStatus(NearbyStatus.userFound);
+              debugPrint("BLE Scanner: User detected: $uidShort");
             }
-          } catch (e) { /* Log error */ }
+          } catch (e) { 
+            debugPrint("BLE Scanner: Error processing discovery advertisement: $e"); 
+          }
         }
       }
-      else if (manufData.containsKey(BleAdvertiser.MANUFACTURER_ID_WAVE)) {
+      
+      // Process Xiaomi alternative advertisements (minimal data)
+      const int ALTERNATIVE_MANUFACTURER_ID = 0xFFFC;
+      if (manufData.containsKey(ALTERNATIVE_MANUFACTURER_ID)) {
+        final payload = manufData[ALTERNATIVE_MANUFACTURER_ID]!;
+        debugPrint("BLE Scanner: Found Xiaomi alternative advertisement with payload length: ${payload.length}");
+        if (payload.length >= 3) { // Minimal payload: 2 bytes UID + 1 byte gender
+          try {
+            // Reconstruct full UID from minimal data (pad with zeros)
+            String shortUid = payload.sublist(0, 2).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+            String uidShort = shortUid.padRight(8, '0'); // Pad to 8 characters
+            int gender = payload[2];
+            double distance = estimateDistance(r.rssi);
+            if (_lastDiscoveryTime[uidShort] == null || now.difference(_lastDiscoveryTime[uidShort]!) > _debounceDuration) {
+              _lastDiscoveryTime[uidShort] = now;
+              onUserDetected?.call(uidShort, gender, distance);
+              _statusService.updateStatus(NearbyStatus.userFound);
+              debugPrint("BLE Scanner: Xiaomi user detected: $uidShort");
+            }
+          } catch (e) { 
+            debugPrint("BLE Scanner: Error processing Xiaomi alternative advertisement: $e"); 
+          }
+        }
+      }
+      
+      // Process wave advertisements - CHANGED: Use 'if' instead of 'else if'
+      if (manufData.containsKey(BleAdvertiser.MANUFACTURER_ID_WAVE)) {
         final payload = manufData[BleAdvertiser.MANUFACTURER_ID_WAVE]!;
+        debugPrint("BLE Scanner: Found wave advertisement with payload length: ${payload.length}");
         if (payload.length == 4) {
           try {
             String uidShort = _bytesToUidShort(payload);
@@ -134,10 +172,16 @@ class BleScanner {
               _lastWaveTime[uidShort] = now;
               if (!_waveReceivedController.isClosed) {
                 _waveReceivedController.add(uidShort);
+                debugPrint("BLE Scanner: Wave detected and sent to stream from $uidShort");
+              } else {
+                debugPrint("BLE Scanner: Wave detected but stream is closed from $uidShort");
               }
-              debugPrint("BLE Scanner: Detected Wave from $uidShort");
+            } else {
+              debugPrint("BLE Scanner: Wave from $uidShort ignored due to debounce");
             }
-          } catch (e) { /* Log error */ }
+          } catch (e) { 
+            debugPrint("BLE Scanner: Error processing wave advertisement: $e"); 
+          }
         }
       }
     }
@@ -168,6 +212,17 @@ class BleScanner {
       }
       _isScanning = false; // Ensure internal flag is reset
     }
+  }
+
+  // Force reset scanner state (useful for restarting after issues)
+  void forceReset() {
+    debugPrint("BLE Scanner: Force resetting scanner state...");
+    _isScanning = false;
+    _scanSubscription?.cancel();
+    _scanSubscription = null;
+    _scanningStateSubscription?.cancel();
+    _scanningStateSubscription = null;
+    debugPrint("BLE Scanner: Scanner state reset complete.");
   }
 
   void dispose() {

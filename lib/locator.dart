@@ -26,6 +26,9 @@ import 'package:get_it/get_it.dart';
 final GetIt locator = GetIt.instance;
 
 void setupLocator({required ConnectivityBloc connectivityBloc}) {
+  // --- Register ConnectivityBloc first ---
+  locator.registerLazySingleton<ConnectivityBloc>(() => connectivityBloc);
+  
   // --- Register Core Repositories ---
   locator.registerLazySingleton(() => AuthRepository());
   locator.registerLazySingleton(() => NotificationRepository()); // Keep

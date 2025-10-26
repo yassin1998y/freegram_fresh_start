@@ -87,10 +87,127 @@ class BleAdvertiser {
 
     } catch (e) {
       debugPrint("BLE Advertiser: Error starting discovery advertising: $e");
-      _statusService.updateStatus(NearbyStatus.error);
+      
+      // Handle specific error codes for Xiaomi devices
+      if (e.toString().contains('18')) {
+        debugPrint("BLE Advertiser: Error 18 - Too many advertisers (Xiaomi device detected). Implementing retry strategy...");
+        await _handleXiaomiAdvertisingError(uidShort, gender);
+        
+        // If all retry attempts failed, enter scan-only mode
+        if (!_isAdvertising) {
+          debugPrint("BLE Advertiser: All advertising attempts failed. Entering scan-only mode for Xiaomi device.");
+          // Don't set error status - allow scanning to continue
+        }
+      } else {
+        _statusService.updateStatus(NearbyStatus.error);
+        _isAdvertising = false;
+      }
+    }
+  }
+
+  // Special handling for Xiaomi devices with advertising limitations
+  Future<void> _handleXiaomiAdvertisingError(String uidShort, int gender) async {
+    debugPrint("BLE Advertiser: Implementing Xiaomi-specific advertising strategy...");
+    
+    // Strategy 1: Try with minimal data first
+    await _tryMinimalAdvertising(uidShort, gender);
+    if (_isAdvertising) return;
+    
+    // Strategy 2: Wait and retry with exponential backoff
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      final delay = Duration(seconds: attempt * 3); // 3s, 6s, 9s - longer delays
+      debugPrint("BLE Advertiser: Xiaomi retry attempt $attempt after ${delay.inSeconds}s delay...");
+      
+      await Future.delayed(delay);
+      
+      try {
+        // Ensure we're not advertising before retry
+        if (_isAdvertising) {
+          await stopAdvertising();
+          await Future.delayed(const Duration(milliseconds: 1000)); // Longer wait
+        }
+        
+        // Try minimal advertising again
+        await _tryMinimalAdvertising(uidShort, gender);
+        if (_isAdvertising) {
+          debugPrint("BLE Advertiser: Xiaomi retry successful on attempt $attempt");
+          return;
+        }
+        
+      } catch (retryError) {
+        debugPrint("BLE Advertiser: Xiaomi retry attempt $attempt failed: $retryError");
+        if (attempt == 3) {
+          // Final attempt failed, try alternative approach
+          await _tryAlternativeAdvertising(uidShort, gender);
+        }
+      }
+    }
+  }
+
+  // Try minimal advertising data for Xiaomi devices
+  Future<void> _tryMinimalAdvertising(String uidShort, int gender) async {
+    debugPrint("BLE Advertiser: Trying minimal advertising for Xiaomi device...");
+    
+    try {
+      // Use only the first 4 bytes of UID to reduce payload size
+      String shortUid = uidShort.substring(0, 4);
+      Uint8List uidBytes = Uint8List.fromList([
+        int.parse(shortUid.substring(0, 2), radix: 16),
+        int.parse(shortUid.substring(2, 4), radix: 16),
+      ]);
+      Uint8List payload = Uint8List.fromList([...uidBytes, gender & 0xFF]);
+
+      final advData = AdvertiseData(
+        serviceUuid: BluetoothDiscoveryService.DISCOVERY_SERVICE_UUID.toString(),
+        manufacturerId: MANUFACTURER_ID_DISCOVERY,
+        manufacturerData: payload,
+      );
+
+      await _peripheral.start(advertiseData: advData);
+      _isAdvertising = true;
+      debugPrint("BLE Advertiser: Minimal advertising successful");
+      
+    } catch (e) {
+      debugPrint("BLE Advertiser: Minimal advertising failed: $e");
       _isAdvertising = false;
     }
   }
+
+  // Alternative advertising approach for problematic devices
+  Future<void> _tryAlternativeAdvertising(String uidShort, int gender) async {
+    debugPrint("BLE Advertiser: Trying alternative advertising approach...");
+    
+    try {
+      // Use a different manufacturer ID to avoid conflicts
+      const int ALTERNATIVE_MANUFACTURER_ID = 0xFFFC;
+      
+      // Try with even more minimal data
+      String shortUid = uidShort.substring(0, 2); // Only 2 characters
+      Uint8List uidBytes = Uint8List.fromList([
+        int.parse(shortUid, radix: 16),
+      ]);
+      Uint8List payload = Uint8List.fromList([...uidBytes, gender & 0xFF]);
+
+      final advData = AdvertiseData(
+        serviceUuid: BluetoothDiscoveryService.DISCOVERY_SERVICE_UUID.toString(),
+        manufacturerId: ALTERNATIVE_MANUFACTURER_ID,
+        manufacturerData: payload,
+      );
+
+      await _peripheral.start(advertiseData: advData);
+      _isAdvertising = true;
+      debugPrint("BLE Advertiser: Alternative advertising approach successful");
+      
+    } catch (e) {
+      debugPrint("BLE Advertiser: Alternative advertising also failed: $e");
+      // Don't set error status - allow scanning-only mode
+      _isAdvertising = false;
+      debugPrint("BLE Advertiser: Entering scan-only mode for Xiaomi device");
+    }
+  }
+
+  // Check if device is in scan-only mode (can't advertise)
+  bool get isScanOnlyMode => !_isAdvertising;
 
   Future<void> sendWaveBroadcast(String senderUidShort) async {
     bool isAdapterOn = await _isAdapterEnabled();

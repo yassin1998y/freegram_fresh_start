@@ -66,10 +66,6 @@ class _FriendsListScreenState extends State<FriendsListScreen>
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: appBarTitle,
-        bottom: tabs,
-      ),
       body: BlocBuilder<FriendsBloc, FriendsState>(
         builder: (context, state) {
           if (state is FriendsLoading || state is FriendsInitial) {
@@ -79,15 +75,19 @@ class _FriendsListScreenState extends State<FriendsListScreen>
             return Center(child: Text('Error: ${state.message}'));
           }
           if (state is FriendsLoaded) {
-            if (_isSelectionMode) {
-              return _buildFriendsList(state.user.friends);
-            }
-            return TabBarView(
-              controller: _tabController,
+            return Column(
               children: [
-                _buildFriendsList(state.user.friends),
-                _buildRequestsTab(state.user.friendRequestsReceived),
-                _buildBlockedTab(state.user.blockedUsers),
+                if (tabs != null) tabs,
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildFriendsList(state.user.friends),
+                      _buildRequestsTab(state.user.friendRequestsReceived),
+                      _buildBlockedTab(state.user.blockedUsers),
+                    ],
+                  ),
+                ),
               ],
             );
           }

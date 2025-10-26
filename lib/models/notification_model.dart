@@ -48,7 +48,7 @@ class NotificationModel {
       commentId: data['commentId'], // Keep parsing if field might still exist
       message: data['message'],
       timestamp: data['timestamp'] ?? Timestamp.now(),
-      isRead: data['isRead'] ?? false,
+      isRead: data['read'] ?? false, // Field is stored as 'read' in Firestore
     );
   }
 
@@ -62,7 +62,7 @@ class NotificationModel {
       'commentId': commentId,
       'message': message,
       'timestamp': timestamp,
-      'isRead': isRead,
+      'read': isRead, // Field is stored as 'read' in Firestore
     };
   }
 

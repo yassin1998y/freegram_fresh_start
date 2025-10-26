@@ -17,11 +17,15 @@ class NearbyUser extends HiveObject {
   @HiveField(3)
   DateTime lastSeen;
 
-  // No longer needed per final plan review - profileId covers sync status
-  // @HiveField(4)
-  // bool synced; // profile synced?
+  @HiveField(4)
+  DateTime get foundAt => _foundAt ?? lastSeen; // Use lastSeen if not provided (for old data migration)
+  
+  // Internal field to check if foundAt was set
+  DateTime? get internalFoundAt => _foundAt;
+  
+  DateTime? _foundAt; // when the user was first discovered (for 24h retention)
 
-  @HiveField(4) // Adjusted index due to removal above
+  @HiveField(5)
   String? profileId; // full user id from server (if known)
 
   NearbyUser({
@@ -29,6 +33,12 @@ class NearbyUser extends HiveObject {
     required this.gender,
     required this.distance,
     required this.lastSeen,
+    DateTime? foundAt,
     this.profileId,
-  });
+  }) : _foundAt = foundAt;
+  
+  // Setter for foundAt to allow updates
+  set foundAt(DateTime value) {
+    _foundAt = value;
+  }
 }

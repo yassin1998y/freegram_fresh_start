@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fbp;
 import 'package:freegram/locator.dart'; // <<<--- ADD locator import
+import 'package:freegram/repositories/user_repository.dart';
 import 'ble_advertiser.dart';
 import 'ble_scanner.dart';
 import 'local_cache_service.dart';
@@ -43,15 +44,20 @@ class BluetoothDiscoveryService {
       _waveStreamSubscription?.cancel();
       _waveStreamSubscription = _scanner.waveReceivedStream.listen(
         (senderUidShort) {
+          debugPrint("BluetoothDiscoveryService: Received wave from $senderUidShort");
           // *** GET WaveService from LOCATOR HERE ***
           try {
              locator<WaveService>().handleReceivedWave(senderUidShort);
+             debugPrint("BluetoothDiscoveryService: Successfully processed wave from $senderUidShort");
           } catch (e) {
              debugPrint("BluetoothDiscoveryService: Error getting/calling WaveService handler: $e");
           }
         },
         onError: (error) {
            debugPrint("BluetoothDiscoveryService: Error on wave stream: $error");
+        },
+        onDone: () {
+           debugPrint("BluetoothDiscoveryService: Wave stream closed");
         }
       );
       debugPrint("BluetoothDiscoveryService: Subscribed to wave stream.");
@@ -76,19 +82,38 @@ class BluetoothDiscoveryService {
     }
     if (_isRunning) {
        debugPrint("BluetoothDiscoveryService: Already running.");
-       return;
+       // If already running but status is idle, force restart
+       if (_statusService.currentStatus == NearbyStatus.idle) {
+         debugPrint("BluetoothDiscoveryService: Force restarting due to idle status while running.");
+         await stop();
+         // Wait a bit before restarting
+         await Future.delayed(const Duration(milliseconds: 100));
+       } else {
+         return;
+       }
     }
 
     _isRunning = true;
     debugPrint("BluetoothDiscoveryService: Starting...");
-    _listenForWaves(); // Ensure subscription is active
+    
+    // Force reset scanner state before starting (helps with restart issues)
+    _scanner.forceReset();
+    
+    // Ensure wave stream subscription is active BEFORE starting scan
+    _listenForWaves();
+    debugPrint("BluetoothDiscoveryService: Wave stream subscription ensured");
+    
     await _scanner.startScan();
+    debugPrint("BluetoothDiscoveryService: Scanner started");
+    
     if (_statusService.currentStatus != NearbyStatus.error &&
         _statusService.currentStatus != NearbyStatus.adapterOff) {
       await _advertiser.startAdvertising(_currentUserShortId!, _currentUserGender!);
+      debugPrint("BluetoothDiscoveryService: Advertiser started");
     } else {
         debugPrint("BluetoothDiscoveryService: Skipping advertising due to scanner/adapter state: ${_statusService.currentStatus}");
-        _isRunning = false;
+        // Don't set _isRunning = false, allow scanning-only mode
+        debugPrint("BluetoothDiscoveryService: Running in scan-only mode");
     }
      debugPrint("BluetoothDiscoveryService: Start sequence complete. Running: $_isRunning");
   }
@@ -121,8 +146,36 @@ class BluetoothDiscoveryService {
     }
 
      debugPrint("BluetoothDiscoveryService: Sending wave to $toUidShort from $fromUidFull");
-    _cacheService.recordSentWave(fromUidFull: fromUidFull, toUidShort: toUidShort);
+    
+    // Send BLE broadcast immediately
     await _advertiser.sendWaveBroadcast(_currentUserShortId!);
+    
+    // Try to send server notification immediately if online, don't queue it
+    try {
+      final nearbyUser = _cacheService.getNearbyUser(toUidShort);
+      if (nearbyUser?.profileId != null && nearbyUser!.profileId!.isNotEmpty) {
+        // We have the full profile ID, send server notification immediately
+        await _sendWaveNotificationImmediately(fromUidFull, nearbyUser.profileId!);
+      } else {
+        // Profile not synced yet, queue for later sync
+        _cacheService.recordSentWave(fromUidFull: fromUidFull, toUidShort: toUidShort);
+      }
+    } catch (e) {
+      debugPrint("BluetoothDiscoveryService: Error sending immediate wave notification: $e");
+      // Fallback: queue for later sync
+      _cacheService.recordSentWave(fromUidFull: fromUidFull, toUidShort: toUidShort);
+    }
+  }
+
+  Future<void> _sendWaveNotificationImmediately(String fromUserId, String toUserId) async {
+    try {
+      final userRepository = locator<UserRepository>();
+      await userRepository.sendWave(fromUserId, toUserId);
+      debugPrint("BluetoothDiscoveryService: Server wave notification sent immediately");
+    } catch (e) {
+      debugPrint("BluetoothDiscoveryService: Failed to send immediate wave notification: $e");
+      rethrow; // Let caller handle the error
+    }
   }
 
   void dispose() {

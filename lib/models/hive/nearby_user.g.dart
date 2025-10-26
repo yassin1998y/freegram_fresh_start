@@ -21,14 +21,15 @@ class NearbyUserAdapter extends TypeAdapter<NearbyUser> {
       gender: fields[1] as int,
       distance: fields[2] as double,
       lastSeen: fields[3] as DateTime,
-      profileId: fields[4] as String?,
+      foundAt: fields[4] as DateTime?,
+      profileId: fields[5] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, NearbyUser obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.uidShort)
       ..writeByte(1)
@@ -37,8 +38,10 @@ class NearbyUserAdapter extends TypeAdapter<NearbyUser> {
       ..write(obj.distance)
       ..writeByte(3)
       ..write(obj.lastSeen)
+      ..writeByte(5)
+      ..write(obj.profileId)
       ..writeByte(4)
-      ..write(obj.profileId);
+      ..write(obj.foundAt);
   }
 
   @override

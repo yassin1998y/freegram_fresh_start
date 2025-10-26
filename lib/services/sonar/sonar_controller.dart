@@ -226,6 +226,17 @@ class SonarController {
           if (_isRunning) { _cacheService.pruneStaleNearbyUsers(); }
         });
       }
+      
+      // Handle the specific case where we're stuck in a loop
+      if (status == NearbyStatus.idle && _isRunning) {
+        debugPrint("SonarController: Mismatch detected. _isRunning=true but status is $status. Attempting restart.");
+        _isRunning = false;
+        _cleanupTimer?.cancel();
+        // Force restart the discovery service
+        Future.delayed(const Duration(milliseconds: 500), () {
+          startSonar();
+        });
+      }
     });
   }
 

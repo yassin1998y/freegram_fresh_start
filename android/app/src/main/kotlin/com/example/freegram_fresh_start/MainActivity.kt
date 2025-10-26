@@ -9,6 +9,8 @@ import android.bluetooth.le.BluetoothLeAdvertiser
 import android.content.Context
 import android.os.ParcelUuid
 import android.util.Log
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -22,21 +24,36 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        advertiserManager = AdvertiserManager(applicationContext)
+        
+        // Check Google Play Services availability
+        checkGooglePlayServices()
+        
+        // Wrap initialization in try-catch to prevent crashes during startup
+        try {
+            advertiserManager = AdvertiserManager(applicationContext)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error initializing AdvertiserManager: ${e.message}", e)
+            // Continue without advertiser - it will be created later when needed
+        }
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                // Renamed for clarity
-                "startAdvertising" -> {
-                    val uid = call.argument<String>("uid") ?: ""
-                    val success = advertiserManager?.startAdvertising(uid) ?: false
-                    result.success(success)
+            try {
+                when (call.method) {
+                    // Renamed for clarity
+                    "startAdvertising" -> {
+                        val uid = call.argument<String>("uid") ?: ""
+                        val success = advertiserManager?.startAdvertising(uid) ?: false
+                        result.success(success)
+                    }
+                    "stopAdvertising" -> {
+                        advertiserManager?.stopAdvertising()
+                        result.success(true)
+                    }
+                    else -> result.notImplemented()
                 }
-                "stopAdvertising" -> {
-                    advertiserManager?.stopAdvertising()
-                    result.success(true)
-                }
-                else -> result.notImplemented()
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error in method channel: ${e.message}", e)
+                result.error("ERROR", e.message, null)
             }
         }
     }
@@ -44,6 +61,32 @@ class MainActivity : FlutterActivity() {
     override fun onDestroy() {
         advertiserManager?.stopAdvertising()
         super.onDestroy()
+    }
+    
+    private fun checkGooglePlayServices() {
+        val googleApiAvailability = GoogleApiAvailability.getInstance()
+        val resultCode = googleApiAvailability.isGooglePlayServicesAvailable(this)
+        
+        when (resultCode) {
+            ConnectionResult.SUCCESS -> {
+                Log.i("MainActivity", "Google Play Services is available")
+            }
+            ConnectionResult.SERVICE_MISSING -> {
+                Log.w("MainActivity", "Google Play Services is missing")
+            }
+            ConnectionResult.SERVICE_VERSION_UPDATE_REQUIRED -> {
+                Log.w("MainActivity", "Google Play Services needs to be updated")
+            }
+            ConnectionResult.SERVICE_DISABLED -> {
+                Log.w("MainActivity", "Google Play Services is disabled")
+            }
+            ConnectionResult.SERVICE_INVALID -> {
+                Log.w("MainActivity", "Google Play Services is invalid")
+            }
+            else -> {
+                Log.w("MainActivity", "Google Play Services error: $resultCode")
+            }
+        }
     }
 }
 
@@ -62,6 +105,12 @@ class AdvertiserManager(private val context: Context) {
     fun startAdvertising(uid: String): Boolean {
         stopAdvertising() // Ensure a clean state
         try {
+            // Check if context is valid
+            if (context == null) {
+                Log.e(tag, "Context is null")
+                return false
+            }
+            
             bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
             bluetoothAdapter = bluetoothManager?.adapter
             if (bluetoothAdapter == null || !bluetoothAdapter!!.isEnabled) {

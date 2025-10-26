@@ -15,6 +15,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import 'package:path/path.dart' as path;
 import 'profile_screen.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class ChatScreen extends StatefulWidget {
   final String chatId;
@@ -214,45 +215,87 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sendImage() async {
-    final source = await showModalBottomSheet<ImageSource>(
-        context: context,
-        builder: (context) => SafeArea(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text('Camera'),
-                onTap: () => Navigator.of(context).pop(ImageSource.camera)),
-            ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Gallery'),
-                onTap: () =>
-                    Navigator.of(context).pop(ImageSource.gallery)),
-          ]),
-        ));
-    if (source == null) return;
-    final pickedFile = await _picker.pickImage(source: source, imageQuality: 70);
-    if (pickedFile == null) return;
-    setState(() => _isUploading = true);
     try {
-      final imageUrl = await _uploadToCloudinary(File(pickedFile.path));
-      if (imageUrl == null) throw Exception('Image upload failed');
-      final currentUser = FirebaseAuth.instance.currentUser!;
-      await _chatRepository.sendMessage(
-          chatId: widget.chatId,
-          senderId: currentUser.uid,
-          imageUrl: imageUrl,
-          replyToMessageId: _replyingToMessageId,
-          replyToMessageText: _replyingToMessageText,
-          replyToImageUrl: _replyingToImageUrl,
-          replyToSender: _replyingToSender);
-      _cancelReply();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Failed to send image: $e')));
+      final source = await showModalBottomSheet<ImageSource>(
+          context: context,
+          builder: (context) => SafeArea(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              ListTile(
+                  leading: const Icon(Icons.camera_alt),
+                  title: const Text('Camera'),
+                  onTap: () => Navigator.of(context).pop(ImageSource.camera)),
+              ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('Gallery'),
+                  onTap: () =>
+                      Navigator.of(context).pop(ImageSource.gallery)),
+            ]),
+          ));
+      if (source == null) return;
+      
+      // Check permissions before picking image
+      if (source == ImageSource.camera) {
+        // Check if camera permission is already granted to avoid unnecessary requests
+        final permissionStatus = await Permission.camera.status;
+        if (!permissionStatus.isGranted) {
+          final permission = await Permission.camera.request();
+          if (!permission.isGranted) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Camera permission is required to take photos'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+            return;
+          }
+        }
       }
-    } finally {
-      if (mounted) setState(() => _isUploading = false);
+      
+      final pickedFile = await _picker.pickImage(
+        source: source, 
+        imageQuality: 70,
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          debugPrint('Image picker timed out');
+          return null;
+        },
+      );
+      if (pickedFile == null) return;
+      setState(() => _isUploading = true);
+      try {
+        final imageUrl = await _uploadToCloudinary(File(pickedFile.path));
+        if (imageUrl == null) throw Exception('Image upload failed');
+        final currentUser = FirebaseAuth.instance.currentUser!;
+        await _chatRepository.sendMessage(
+            chatId: widget.chatId,
+            senderId: currentUser.uid,
+            imageUrl: imageUrl,
+            replyToMessageId: _replyingToMessageId,
+            replyToMessageText: _replyingToMessageText,
+            replyToImageUrl: _replyingToImageUrl,
+            replyToSender: _replyingToSender);
+        _cancelReply();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Failed to send image: $e')));
+        }
+      } finally {
+        if (mounted) setState(() => _isUploading = false);
+      }
+    } catch (e) {
+      debugPrint('Error in _sendImage: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -393,7 +436,13 @@ class _ChatScreenState extends State<ChatScreen> {
       builder: (context, chatSnapshot) {
         if (!chatSnapshot.hasData || !chatSnapshot.data!.exists) {
           return Scaffold(
-              appBar: AppBar(title: Text(widget.otherUsername)),
+              appBar: AppBar(
+                title: Text(widget.otherUsername),
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
               body: const Center(
                   child: Text(
                       "This chat is no longer available.")));
@@ -403,7 +452,13 @@ class _ChatScreenState extends State<ChatScreen> {
         final List<dynamic> users = chatData['users'] ?? [];
         if (users.isEmpty) {
           return Scaffold(
-              appBar: AppBar(title: Text(widget.otherUsername)),
+              appBar: AppBar(
+                title: Text(widget.otherUsername),
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
               body: const Center(child: Text("Chat data is unavailable.")));
         }
         final otherUserId =
@@ -420,7 +475,13 @@ class _ChatScreenState extends State<ChatScreen> {
           builder: (context, userSnapshot) {
             if (!userSnapshot.hasData) {
               return Scaffold(
-                  appBar: AppBar(title: Text(widget.otherUsername)),
+                  appBar: AppBar(
+                    title: Text(widget.otherUsername),
+                    leading: IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ),
                   body: const Center(child: CircularProgressIndicator()));
             }
             final user = userSnapshot.data!;
@@ -438,6 +499,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 titleSpacing: 0,
                 backgroundColor: Colors.white,
                 elevation: 1,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.black),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
                 title: GestureDetector(
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
                       builder: (_) => ProfileScreen(userId: otherUserId))),

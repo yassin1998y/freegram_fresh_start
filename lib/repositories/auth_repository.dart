@@ -26,7 +26,10 @@ class AuthRepository {
     GoogleSignIn? googleSignIn,
   })  : _db = firestore ?? FirebaseFirestore.instance,
         _auth = firebaseAuth ?? FirebaseAuth.instance,
-        _googleSignIn = googleSignIn ?? GoogleSignIn();
+        _googleSignIn = googleSignIn ?? GoogleSignIn(
+          serverClientId: '60183775527-mifomgjm2uvpt3esk1so8580asto7vk6.apps.googleusercontent.com', // Web client ID
+          scopes: ['email', 'profile'],
+        );
 
   Future<void> createUser({
     required String uid,
@@ -97,22 +100,33 @@ class AuthRepository {
 
   Future<UserCredential> signInWithGoogle() async {
     debugPrint("AuthRepository: Attempting Google Sign In..."); // --- DEBUG ---
-    final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-    if (googleUser == null) {
-      debugPrint("AuthRepository: Google Sign In aborted by user."); // --- DEBUG ---
-      throw FirebaseAuthException(
-          code: 'ERROR_ABORTED_BY_USER', message: 'Sign in aborted by user');
-    }
-    debugPrint("AuthRepository: Google Sign In successful, getting auth..."); // --- DEBUG ---
-    final GoogleSignInAuthentication googleAuth =
-    await googleUser.authentication;
-    final AuthCredential credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
-    debugPrint("AuthRepository: Signing in with Firebase credential..."); // --- DEBUG ---
-    final userCredential = await _auth.signInWithCredential(credential);
-    final user = userCredential.user;
+    
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        debugPrint("AuthRepository: Google Sign In aborted by user."); // --- DEBUG ---
+        throw FirebaseAuthException(
+            code: 'ERROR_ABORTED_BY_USER', message: 'Sign in aborted by user');
+      }
+      
+      debugPrint("AuthRepository: Google Sign In successful, getting auth..."); // --- DEBUG ---
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      
+      if (googleAuth.accessToken == null || googleAuth.idToken == null) {
+        debugPrint("AuthRepository: Missing access token or ID token from Google");
+        throw FirebaseAuthException(
+            code: 'ERROR_MISSING_TOKENS', 
+            message: 'Failed to get authentication tokens from Google');
+      }
+      
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      
+      debugPrint("AuthRepository: Signing in with Firebase credential..."); // --- DEBUG ---
+      final userCredential = await _auth.signInWithCredential(credential);
+      final user = userCredential.user;
 
     if (user != null) {
       debugPrint("AuthRepository: Firebase sign in successful. UID: ${user.uid}. Checking Firestore doc..."); // --- DEBUG ---
@@ -126,6 +140,10 @@ class AuthRepository {
           photoUrl: user.photoURL,
         );
         debugPrint("AuthRepository: Firestore doc created for ${user.uid}."); // --- DEBUG ---
+        
+        // Wait a moment to ensure the document is fully written
+        await Future.delayed(const Duration(milliseconds: 500));
+        debugPrint("AuthRepository: Waiting for Firestore document to be fully written...");
       } else {
         debugPrint("AuthRepository: Firestore doc found for ${user.uid}. Checking uidShort..."); // --- DEBUG ---
         if (!userDoc.data()!.containsKey('uidShort')) {
@@ -138,6 +156,19 @@ class AuthRepository {
       debugPrint("AuthRepository: Firebase sign in returned null user."); // --- DEBUG ---
     }
     return userCredential;
+    
+    } catch (e) {
+      debugPrint("AuthRepository: Error during Google Sign In: $e");
+      if (e is FirebaseAuthException) {
+        rethrow; // Re-throw Firebase auth exceptions as-is
+      } else {
+        // Wrap other exceptions in FirebaseAuthException
+        throw FirebaseAuthException(
+          code: 'ERROR_GOOGLE_SIGNIN_FAILED',
+          message: 'Google Sign-In failed: ${e.toString()}',
+        );
+      }
+    }
   }
 
   Future<UserCredential> signInWithFacebook() async {

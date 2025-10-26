@@ -11,6 +11,7 @@ import 'package:freegram/locator.dart';
 import 'package:freegram/repositories/user_repository.dart'; // Keep UserRepository
 import 'package:freegram/screens/main_screen.dart'; // Keep for navigation on completion
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 // Possible interests list remains the same
 const List<String> _possibleInterests = [
@@ -105,35 +106,77 @@ class _EditProfileViewState extends State<_EditProfileView> {
     super.dispose();
   }
 
-  // _pickImage remains the same
+  // _pickImage with proper error handling
   Future<void> _pickImage() async {
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Camera'),
-              onTap: () => Navigator.of(context).pop(ImageSource.camera),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Gallery'),
-              onTap: () => Navigator.of(context).pop(ImageSource.gallery),
-            ),
-          ],
+    try {
+      final source = await showModalBottomSheet<ImageSource>(
+        context: context,
+        builder: (context) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Camera'),
+                onTap: () => Navigator.of(context).pop(ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Gallery'),
+                onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
 
-    if (source != null) {
-      final XFile? pickedFile = await _picker.pickImage(source: source, imageQuality: 80);
-      if (pickedFile != null && mounted) {
-        setState(() {
-          _imageFile = pickedFile;
-        });
+      if (source != null) {
+        // Check permissions before picking image
+        if (source == ImageSource.camera) {
+          // Check if camera permission is already granted to avoid unnecessary requests
+          final permissionStatus = await Permission.camera.status;
+          if (!permissionStatus.isGranted) {
+            final permission = await Permission.camera.request();
+            if (!permission.isGranted) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Camera permission is required to take photos'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              }
+              return;
+            }
+          }
+        }
+
+        final XFile? pickedFile = await _picker.pickImage(
+          source: source, 
+          imageQuality: 80,
+        ).timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {
+            debugPrint('Image picker timed out');
+            return null;
+          },
+        );
+        
+        if (pickedFile != null && mounted) {
+          setState(() {
+            _imageFile = pickedFile;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -187,31 +230,6 @@ class _EditProfileViewState extends State<_EditProfileView> {
   Widget build(BuildContext context) {
     debugPrint("EditProfileScreen: build CALLED for user: ${widget.currentUserData['username']}");
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.isCompletingProfile ? 'Complete Your Profile' : 'Edit Profile'),
-        automaticallyImplyLeading: !widget.isCompletingProfile, // Hide back button if completing profile
-        actions: [
-          BlocBuilder<ProfileBloc, ProfileState>( // Show loading indicator in AppBar
-            builder: (context, state) {
-              if (state is ProfileLoading) {
-                return const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: SizedBox(
-                    width: 20, height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blue),
-                  ),
-                );
-              }
-              // Save button
-              return IconButton(
-                icon: const Icon(Icons.check, color: Colors.blue),
-                onPressed: _updateProfile,
-                tooltip: 'Save Changes',
-              );
-            },
-          ),
-        ],
-      ),
       // Listen for Bloc state changes (success/error)
       body: BlocListener<ProfileBloc, ProfileState>(
         listener: (context, state) {
@@ -236,13 +254,53 @@ class _EditProfileViewState extends State<_EditProfileView> {
             );
           }
         },
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  Expanded(
+                    child: Text(
+                      widget.isCompletingProfile ? 'Complete Your Profile' : 'Edit Profile',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                  ),
+                  BlocBuilder<ProfileBloc, ProfileState>(
+                    builder: (context, state) {
+                      if (state is ProfileLoading) {
+                        return const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: SizedBox(
+                            width: 20, height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blue),
+                          ),
+                        );
+                      }
+                      return IconButton(
+                        icon: const Icon(Icons.check, color: Colors.blue),
+                        onPressed: _updateProfile,
+                        tooltip: 'Save Changes',
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            // Form content
+            Expanded(
+              child: Form(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                 // Welcome message if completing profile
                 if (widget.isCompletingProfile)
                   Padding(
@@ -381,9 +439,12 @@ class _EditProfileViewState extends State<_EditProfileView> {
                   ],
                 ),
                 const SizedBox(height: 32), // Add padding at the bottom
-              ],
+                    ],
+                  ),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

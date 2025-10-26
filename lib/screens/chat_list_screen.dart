@@ -44,22 +44,18 @@ class _ChatListScreenState extends State<ChatListScreen> {
     final chatRepository = locator<ChatRepository>();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Messages"),
-        backgroundColor: Colors.white,
-        elevation: 1,
-        toolbarHeight: 70,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(50.0),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      body: Column(
+        children: [
+          // Search bar moved to body
+          Padding(
+            padding: const EdgeInsets.all(16.0),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search chats or users...',
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
-                fillColor: Colors.grey[200],
+                fillColor: Theme.of(context).colorScheme.surfaceVariant,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30.0),
                   borderSide: BorderSide.none,
@@ -67,11 +63,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
               ),
             ),
           ),
-        ),
+          Expanded(
+            child: _searchQuery.isEmpty
+              ? _buildChatList(chatRepository, currentUser.uid)
+              : _buildSearchResults(locator<UserRepository>(), locator<ChatRepository>(), currentUser.uid),
+          ),
+        ],
       ),
-      body: _searchQuery.isEmpty
-          ? _buildChatList(chatRepository, currentUser.uid)
-          : _buildSearchResults(locator<UserRepository>(), locator<ChatRepository>(), currentUser.uid),
     );
   }
 

@@ -61,12 +61,38 @@ flutter {
     source = "../.."
 }
 
-// *** ADD THIS ENTIRE BLOCK (or add the coreLibraryDesugaring line if dependencies exist) ***
 dependencies {
-    implementation(platform("org.jetbrains.kotlin:kotlin-bom:1.8.0")) // Example Kotlin BOM, adjust if needed
-
-    // *** ADD THIS LINE FOR DESUGARING ***
+    implementation(platform("org.jetbrains.kotlin:kotlin-bom:1.8.0"))
+    
+    // Core Library Desugaring
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
-
-    // Add other dependencies if you have them here
+    
+    // Google Play Services - Use consistent versions
+    implementation("com.google.android.gms:play-services-base:18.2.0")
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
+    implementation("com.google.android.gms:play-services-ads:22.6.0")
+    
+    // Force consistent Google Play Services versions
+    implementation("com.google.android.gms:play-services-measurement-api:21.6.1")
+    
+    // Firebase BOM (Bill of Materials) - manages all Firebase library versions
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    
+    // Firebase Analytics
+    implementation("com.google.firebase:firebase-analytics")
+    
+    // Firebase Messaging
+    implementation("com.google.firebase:firebase-messaging")
+    
+    // Firebase Auth
+    implementation("com.google.firebase:firebase-auth")
+    
+    // Firebase Firestore
+    implementation("com.google.firebase:firebase-firestore")
+    
+    // Firebase Storage
+    implementation("com.google.firebase:firebase-storage")
+    
+    // Multidex support
+    implementation("androidx.multidex:multidex:2.0.1")
 }

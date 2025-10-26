@@ -83,9 +83,6 @@ class _NearbyChatViewState extends State<_NearbyChatView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.targetUser.username),
-      ),
       body: Column(
         children: [
           Expanded(

@@ -249,11 +249,6 @@ class _MatchScreenState extends State<MatchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Find a Match'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
       body: BlocBuilder<ConnectivityBloc, ConnectivityState>(
         builder: (context, connectivityState) {
           return Stack(

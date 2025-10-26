@@ -15,7 +15,6 @@ class NearbyChatListScreen extends StatelessWidget {
     final myId = FirebaseAuth.instance.currentUser?.uid;
     if (myId == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text("Nearby Chats")),
         body: const Center(child: Text("Authentication error.")),
       );
     }
@@ -24,9 +23,6 @@ class NearbyChatListScreen extends StatelessWidget {
     final profileBox = Hive.box('user_profiles');
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Nearby Chats"),
-      ),
       body: ValueListenableBuilder<Box<List<dynamic>>>(
         valueListenable: chatBox.listenable(),
         builder: (context, box, _) {

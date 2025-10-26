@@ -105,3 +105,20 @@
 # Consider removing this for smaller release builds if possible after testing
 -keep class ** { *; }
 # --- END WARNING ---
+
+# Keep MainActivity, AdvertiserManager, and MainApplication to prevent crashes
+-keep class com.example.freegram_fresh_start.MainActivity { *; }
+-keep class com.example.freegram_fresh_start.AdvertiserManager { *; }
+-keep class com.example.freegram_fresh_start.MainApplication { *; }
+-keep class com.example.freegram_fresh_start.** { *; }
+
+# Google Play Services specific rules
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.android.gms.**
+-keep class com.google.android.gms.common.** { *; }
+-keep class com.google.android.gms.auth.** { *; }
+-keep class com.google.android.gms.ads.** { *; }
+
+# Keep Google API classes
+-keep class com.google.api.** { *; }
+-keep class com.google.protobuf.** { *; }

@@ -76,14 +76,18 @@ class _SonarViewState extends State<SonarView> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return AspectRatio(
       aspectRatio: 1.0,
       child: CustomPaint(
         painter: SonarPainter(
           sonarAnimation: _sonarAnimation,
           unleashAnimation: _unleashAnimation,
-          // **NEW**: Pass the discovery animation to the painter.
           discoveryAnimation: _discoveryAnimation,
+          primaryColor: theme.colorScheme.primary,
+          secondaryColor: theme.colorScheme.secondary,
+          discoveryColor: theme.colorScheme.tertiary ?? theme.colorScheme.primary,
         ),
         child: Stack(
           children: [
@@ -102,13 +106,19 @@ class SonarPainter extends CustomPainter {
   // **NEW**: The discovery animation is now a parameter.
   final Animation<double> discoveryAnimation;
   final Paint _sonarPaint;
+  final Color primaryColor;
+  final Color secondaryColor;
+  final Color discoveryColor;
 
   SonarPainter({
     required this.sonarAnimation,
     required this.unleashAnimation,
     required this.discoveryAnimation,
+    required this.primaryColor,
+    required this.secondaryColor,
+    required this.discoveryColor,
   })  : _sonarPaint = Paint()
-    ..color = Colors.blue.withOpacity(0.5)
+    ..color = primaryColor.withOpacity(0.5)
     ..style = PaintingStyle.stroke,
         super(repaint: Listenable.merge([sonarAnimation, unleashAnimation, discoveryAnimation]));
 
@@ -117,28 +127,31 @@ class SonarPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final maxRadius = min(size.width, size.height) / 2;
 
+    // Draw static circles
     for (int i = 1; i <= 3; i++) {
       _sonarPaint.strokeWidth = 1.0;
-      _sonarPaint.color = Colors.blue.withOpacity(0.3);
+      _sonarPaint.color = primaryColor.withOpacity(0.3);
       canvas.drawCircle(center, maxRadius * (i / 3), _sonarPaint);
     }
 
+    // Draw scanning pulse
     if (sonarAnimation.value > 0) {
       _sonarPaint.strokeWidth = 2.5;
-      _sonarPaint.color = Colors.blue.withOpacity(1.0 - sonarAnimation.value);
+      _sonarPaint.color = primaryColor.withOpacity(1.0 - sonarAnimation.value);
       canvas.drawCircle(center, maxRadius * sonarAnimation.value, _sonarPaint);
     }
 
+    // Draw unleash pulse
     if (unleashAnimation.value > 0) {
       _sonarPaint.strokeWidth = 4.0;
-      _sonarPaint.color = Colors.lightBlueAccent.withOpacity(1.0 - unleashAnimation.value);
+      _sonarPaint.color = secondaryColor.withOpacity(1.0 - unleashAnimation.value);
       canvas.drawCircle(center, maxRadius * unleashAnimation.value, _sonarPaint);
     }
 
-    // **NEW**: Draw the bright discovery ripple when it's active.
+    // Draw discovery pulse
     if (discoveryAnimation.value > 0) {
-      _sonarPaint.strokeWidth = 5.0; // Make it the most prominent wave
-      _sonarPaint.color = Colors.tealAccent.withOpacity(1.0 - discoveryAnimation.value);
+      _sonarPaint.strokeWidth = 5.0;
+      _sonarPaint.color = discoveryColor.withOpacity(1.0 - discoveryAnimation.value);
       canvas.drawCircle(center, maxRadius * discoveryAnimation.value, _sonarPaint);
     }
   }

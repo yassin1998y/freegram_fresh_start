@@ -78,14 +78,47 @@ class BluetoothStatusService {
 
 
   void updateStatus(NearbyStatus newStatus) {
-    if (_currentStatus == newStatus && newStatus != NearbyStatus.userFound) return;
-    debugPrint("BluetoothStatusService: Status changing from $_currentStatus -> $newStatus");
+    // Prevent unnecessary state changes and reduce log spam
+    if (_currentStatus == newStatus) return;
+    
+    // Only log significant state changes, not rapid transitions
+    final bool isSignificantChange = _isSignificantStatusChange(_currentStatus, newStatus);
+    if (isSignificantChange) {
+      debugPrint("BluetoothStatusService: Status changing from $_currentStatus -> $newStatus");
+    }
+    
     _currentStatus = newStatus;
     if (!_statusController.isClosed) {
       _statusController.add(newStatus);
     } else {
       debugPrint("BluetoothStatusService Warning: Tried to update status on a closed controller.");
     }
+  }
+
+  // Helper method to determine if a status change is significant enough to log
+  bool _isSignificantStatusChange(NearbyStatus from, NearbyStatus to) {
+    // Always log transitions to/from error states
+    if (from == NearbyStatus.error || to == NearbyStatus.error) return true;
+    
+    // Always log permission-related changes
+    if (from == NearbyStatus.permissionsDenied || from == NearbyStatus.permissionsPermanentlyDenied ||
+        to == NearbyStatus.permissionsDenied || to == NearbyStatus.permissionsPermanentlyDenied) return true;
+    
+    // Always log adapter on/off changes
+    if (from == NearbyStatus.adapterOff || to == NearbyStatus.adapterOff) return true;
+    
+    // Always log scanning state changes
+    if (from == NearbyStatus.scanning || to == NearbyStatus.scanning) return true;
+    
+    // Always log user found state
+    if (to == NearbyStatus.userFound) return true;
+    
+    // Don't log idle transitions unless coming from a significant state
+    if (to == NearbyStatus.idle && from != NearbyStatus.scanning && from != NearbyStatus.userFound) {
+      return false;
+    }
+    
+    return true; // Default to logging other changes
   }
 
   void dispose() {

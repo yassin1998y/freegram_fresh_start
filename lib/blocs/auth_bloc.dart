@@ -43,8 +43,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     on<SignOut>((event, emit) async {
       debugPrint("AuthBloc: Handling SignOut event."); // --- DEBUG ---
-      await _authRepository.signOut();
-      // authStateChanges listener will trigger Unauthenticated state
+      try {
+        await _authRepository.signOut();
+        debugPrint("AuthBloc: Sign out successful, emitting Unauthenticated state.");
+        emit(Unauthenticated()); // Explicitly emit Unauthenticated state
+        // authStateChanges listener will also trigger Unauthenticated state
+      } catch (e) {
+        debugPrint("AuthBloc: Error during sign out: $e");
+        emit(AuthError("Sign out failed: $e"));
+        // Still emit Unauthenticated to ensure user is logged out
+        emit(Unauthenticated());
+      }
     });
 
     on<SignInWithGoogle>((event, emit) async {

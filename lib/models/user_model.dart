@@ -202,6 +202,14 @@ class UserModel extends Equatable {
     };
   }
 
+  // Getter to convert gender string to int (0=unknown, 1=male, 2=female)
+  int get genderValue {
+    final genderLower = gender.toLowerCase();
+    if (genderLower == 'male' || genderLower == 'm') return 1;
+    if (genderLower == 'female' || genderLower == 'f') return 2;
+    return 0;
+  }
+
   // props updated to remove deleted fields, but kept a selection for Equatable comparison
   @override
   List<Object?> get props => [

@@ -26,25 +26,39 @@ class StoreScreen extends StatelessWidget {
     return DefaultTabController(
       length: 2, // "Get Items" and "Get Coins"
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text("Store"),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: "Get Items"),
-              Tab(text: "Get Coins"),
-            ],
-          ),
-        ),
         body: Column(
           children: [
-            // Keep the wallet display
-            _buildUserWallet(context, currentUser.uid),
-            // Keep the TabBarView
+            // Header
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  Expanded(
+                    child: Text(
+                      "Store",
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Tabs
+            const TabBar(
+              tabs: [
+                Tab(text: "Get Items"),
+                Tab(text: "Get Coins"),
+              ],
+            ),
+            // Content
             Expanded(
               child: TabBarView(
                 children: [
-                  _GetItemsTab(userId: currentUser.uid), // Pass userId
-                  _GetCoinsTab(userId: currentUser.uid),   // Pass userId
+                  _GetItemsTab(userId: currentUser.uid),
+                  _GetCoinsTab(userId: currentUser.uid),
                 ],
               ),
             ),
