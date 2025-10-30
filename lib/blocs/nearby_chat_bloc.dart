@@ -2,7 +2,6 @@
 
 import 'dart:async';
 import 'package:equatable/equatable.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/models/nearby_message.dart';
@@ -38,7 +37,8 @@ class NearbyChatBloc extends Bloc<NearbyChatEvent, NearbyChatState> {
     emit(NearbyChatLoaded(messages: _messageNotifier.value));
   }
 
-  Future<void> _onSendMessage(SendMessage event, Emitter<NearbyChatState> emit) async {
+  Future<void> _onSendMessage(
+      SendMessage event, Emitter<NearbyChatState> emit) async {
     // For now, this logic is disabled. We can still save locally if we want.
     // final myId = FirebaseAuth.instance.currentUser!.uid;
     // final recipientId = chatId.replaceAll(myId, '').replaceAll('_', '');
@@ -46,7 +46,8 @@ class NearbyChatBloc extends Bloc<NearbyChatEvent, NearbyChatState> {
     debugPrint("Sending messages is temporarily disabled.");
   }
 
-  void _onMessagesUpdated(_MessagesUpdated event, Emitter<NearbyChatState> emit) {
+  void _onMessagesUpdated(
+      _MessagesUpdated event, Emitter<NearbyChatState> emit) {
     emit(NearbyChatLoaded(messages: event.messages));
   }
 

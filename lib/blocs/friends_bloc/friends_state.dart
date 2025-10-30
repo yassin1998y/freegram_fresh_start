@@ -39,3 +39,23 @@ class FriendsError extends FriendsState {
   @override
   List<Object> get props => [message];
 }
+
+/// The state when a friend action (send/accept/decline/remove/block/unblock) succeeds.
+/// This is a transient state to trigger UI feedback (snackbar, toast, etc.)
+class FriendsActionSuccess extends FriendsState {
+  final String message;
+  const FriendsActionSuccess(this.message);
+
+  @override
+  List<Object> get props => [message];
+}
+
+/// The state when a friend action fails.
+/// This is a transient state to trigger error UI feedback.
+class FriendsActionError extends FriendsState {
+  final String message;
+  const FriendsActionError(this.message);
+
+  @override
+  List<Object> get props => [message];
+}

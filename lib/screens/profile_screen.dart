@@ -1,23 +1,20 @@
-import 'package:cloud_firestore/cloud_firestore.dart'; // Keep for QuerySnapshot if needed elsewhere, though maybe not directly here anymore
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/friends_bloc/friends_bloc.dart';
 import 'package:freegram/locator.dart';
-// import 'package:freegram/models/item_definition.dart'; // Remove
+import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/chat_repository.dart';
-// import 'package:freegram/repositories/inventory_repository.dart'; // Remove
-// import 'package:freegram/repositories/post_repository.dart'; // Remove
 import 'package:freegram/repositories/user_repository.dart';
-import 'package:freegram/screens/chat_screen.dart';
+import 'package:freegram/screens/improved_chat_screen.dart';
 import 'package:freegram/screens/edit_profile_screen.dart';
+import 'package:freegram/theme/app_theme.dart';
+import 'package:freegram/theme/design_tokens.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-// import 'package:freegram/screens/inventory_screen.dart'; // Remove
 import 'package:freegram/screens/qr_display_screen.dart';
-// import 'package:freegram/widgets/gradient_button.dart'; // Remove
-// import 'package:freegram/widgets/gradient_outlined_button.dart'; // Remove
-// import 'post_detail_screen.dart'; // Remove
+import 'package:freegram/utils/mutual_friends_helper.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String userId;
@@ -53,12 +50,151 @@ class _ProfileScreenViewState extends State<_ProfileScreenView> {
       user.username,
     );
     if (mounted) {
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => ChatScreen(
+      locator<NavigationService>().navigateTo(
+        ImprovedChatScreen(
           chatId: chatId,
           otherUsername: user.username,
         ),
-      ));
+        transition: PageTransition.slide,
+      );
+    }
+  }
+
+  void _showProfileOptions(BuildContext context, UserModel user) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetContext) {
+        final theme = Theme.of(context);
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.onSurface.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ListTile(
+                  leading: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.block_outlined,
+                      color: theme.colorScheme.error,
+                      size: 22,
+                    ),
+                  ),
+                  title: Text(
+                    'Block User',
+                    style: TextStyle(
+                      color: theme.colorScheme.error,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.pop(bottomSheetContext);
+                    _confirmBlockUser(context, user);
+                  },
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmBlockUser(BuildContext context, UserModel user) async {
+    final bool? shouldBlock = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Block User?'),
+          content: Text(
+            'Are you sure you want to block ${user.username}? They won\'t be able to message you or see your profile.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(
+                'Block',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldBlock == true && mounted) {
+      HapticFeedback.mediumImpact();
+
+      // Block user
+      context.read<FriendsBloc>().add(BlockUser(user.id));
+
+      // Listen for success/error
+      final subscription = context.read<FriendsBloc>().stream.listen((state) {
+        if (state is FriendsActionSuccess) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${user.username} has been blocked.'),
+                backgroundColor: Theme.of(context).colorScheme.error,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+
+            // Reload friends data to reflect changes
+            context.read<FriendsBloc>().add(LoadFriends());
+
+            // Navigate back after a short delay
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted) {
+                Navigator.of(context).pop();
+              }
+            });
+          }
+        } else if (state is FriendsActionError) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Theme.of(context).colorScheme.error,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+            // Don't navigate back on error
+          }
+        }
+      });
+
+      // Cancel subscription after handling one event
+      Future.delayed(const Duration(seconds: 5), () {
+        subscription.cancel();
+      });
     }
   }
 
@@ -85,43 +221,78 @@ class _ProfileScreenViewState extends State<_ProfileScreenView> {
 
           final user = userSnapshot.data!;
 
-          // Use CustomScrollView instead of NestedScrollView as tabs are removed
+          // Modern CustomScrollView with professional design
           return CustomScrollView(
             slivers: [
               SliverAppBar(
-                title: Text(user.username),
+                // Match FreegramAppBar branding style
+                title: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Full "Freegram" branding
+                    Text(
+                      'Freegram',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: SonarPulseTheme.primaryAccent,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      width: 2,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(1),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Profile',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
                 centerTitle: true,
-                floating: true, // Keep floating for better UX
-                pinned: true, // Keep pinned
+                floating: true,
+                pinned: true,
+                expandedHeight: 0, // No extra height
                 actions: [
                   if (isCurrentUserProfile)
                     IconButton(
                       icon: const Icon(Icons.qr_code_2_outlined),
                       tooltip: 'My QR Code',
                       onPressed: () {
-                        Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => QrDisplayScreen(user: user),
-                        ));
+                        HapticFeedback.lightImpact();
+                        locator<NavigationService>().navigateTo(
+                          QrDisplayScreen(user: user),
+                          transition: PageTransition.scale,
+                        );
+                      },
+                    )
+                  else
+                    // Options menu for other users
+                    IconButton(
+                      icon: const Icon(Icons.more_vert_rounded),
+                      tooltip: 'More options',
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        _showProfileOptions(context, user);
                       },
                     ),
-                  // Removed TabBar from bottom
+                  const SizedBox(width: 4),
                 ],
               ),
               SliverToBoxAdapter(
-                child: _ProfileHeader(
+                child: _ModernProfileHeader(
                   user: user,
                   isCurrentUserProfile: isCurrentUserProfile,
                   onStartChat: () => _startChat(context, user),
-                ),
-              ),
-              // Removed TabBarView and _buildPostsGrid
-              const SliverFillRemaining( // Placeholder if needed, or remove if header fills screen
-                child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24.0),
-                    // Optionally add a message if profile seems empty
-                    // child: Text('User posts will appear here.'),
-                  ),
                 ),
               ),
             ],
@@ -134,12 +305,13 @@ class _ProfileScreenViewState extends State<_ProfileScreenView> {
 // Removed _buildPostsGrid method
 }
 
-class _ProfileHeader extends StatelessWidget {
+/// Modern profile header with professional UX and card-based layout
+class _ModernProfileHeader extends StatelessWidget {
   final UserModel user;
   final bool isCurrentUserProfile;
   final VoidCallback onStartChat;
 
-  const _ProfileHeader({
+  const _ModernProfileHeader({
     required this.user,
     required this.isCurrentUserProfile,
     required this.onStartChat,
@@ -147,113 +319,249 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              _buildProfileAvatar(), // Keep avatar logic (removed frame logic)
-              Expanded(
-                // Removed StreamBuilder for post count
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // _StatItem(label: 'Posts', count: postCount), // Remove Posts stat
-                    _StatItem(label: 'Friends', count: user.friends.length), // Keep Friends
-                    // _StatItem(label: 'Level', count: user.level), // Remove Level stat
-                    // Optionally add another stat if desired (e.g., join date)
-                    _StatItem(label: 'Age', count: user.age), // Example: Add Age
-                  ],
-                ),
-              ),
-            ],
+    return Column(
+      children: [
+        // Hero Section - Avatar and Name
+        _buildHeroSection(context),
+
+        SizedBox(height: DesignTokens.spaceXL),
+
+        // Action Buttons
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
+          child: isCurrentUserProfile
+              ? _buildCurrentUserActions(context)
+              : _buildOtherUserActions(context),
+        ),
+
+        SizedBox(height: DesignTokens.spaceXL),
+
+        // Stats Card
+        _buildStatsCard(context),
+
+        SizedBox(height: DesignTokens.spaceMD),
+
+        // Mutual Friends/Interests Card (for other users)
+        if (!isCurrentUserProfile)
+          BlocBuilder<FriendsBloc, FriendsState>(
+            builder: (context, state) {
+              if (state is FriendsLoaded) {
+                return _buildMutualConnectionsCard(context, state.user);
+              }
+              return const SizedBox.shrink();
+            },
           ),
-          const SizedBox(height: 16),
-          if (user.bio.isNotEmpty)
-            Text(user.bio, style: Theme.of(context).textTheme.bodyLarge),
-          const SizedBox(height: 24),
-          if (isCurrentUserProfile)
-            _buildCurrentUserActionButtons(context)
-          else
-            _buildOtherUserActionButtons(context),
+
+        if (!isCurrentUserProfile) SizedBox(height: DesignTokens.spaceMD),
+
+        // Bio Card (if available)
+        if (user.bio.isNotEmpty) ...[
+          _buildBioCard(context),
+          SizedBox(height: DesignTokens.spaceMD),
+        ],
+
+        // Info Card
+        _buildInfoCard(context),
+
+        SizedBox(height: DesignTokens.spaceMD),
+
+        // Interests Card (if available)
+        if (user.interests.isNotEmpty) ...[
+          _buildInterestsCard(context),
+          SizedBox(height: DesignTokens.spaceMD),
+        ],
+
+        SizedBox(height: DesignTokens.spaceXL),
+      ],
+    );
+  }
+
+  /// Hero section with centered avatar and username
+  Widget _buildHeroSection(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(DesignTokens.spaceXL),
+      child: Column(
+        children: [
+          // Profile Avatar
+          Hero(
+            tag: 'profile_${user.id}',
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: SonarPulseTheme.primaryAccent.withOpacity(0.3),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: CircleAvatar(
+                radius: 60,
+                backgroundColor: Colors.grey.shade300,
+                backgroundImage: user.photoUrl.isNotEmpty
+                    ? CachedNetworkImageProvider(user.photoUrl)
+                    : null,
+                child: user.photoUrl.isEmpty
+                    ? Text(
+                        user.username.isNotEmpty
+                            ? user.username[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          fontSize: 48,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                    : null,
+              ),
+            ),
+          ),
+
+          SizedBox(height: DesignTokens.spaceMD),
+
+          // Username
+          Text(
+            user.username,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+            textAlign: TextAlign.center,
+          ),
+
+          if (user.country.isNotEmpty) ...[
+            SizedBox(height: DesignTokens.spaceSM),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 16,
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                ),
+                SizedBox(width: DesignTokens.spaceXS),
+                Text(
+                  user.country,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.6),
+                      ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 
-  // _buildProfileAvatar updated to remove frame logic
-  Widget _buildProfileAvatar() {
-    // Simplified: Always return the basic CircleAvatar
-    return CircleAvatar(
-      radius: 45,
-      backgroundColor: Colors.grey.shade300,
-      backgroundImage: user.photoUrl.isNotEmpty
-          ? CachedNetworkImageProvider(user.photoUrl)
-          : null,
-      child: user.photoUrl.isEmpty
-          ? Text(
-        user.username.isNotEmpty ? user.username[0].toUpperCase() : '?',
-        style: const TextStyle(fontSize: 40),
-      )
-          : null,
-    );
-    // Removed FutureBuilder for equippedProfileFrameId
-  }
-
-
-  // _buildCurrentUserActionButtons updated to remove Inventory button and Gradient widgets
-  Widget _buildCurrentUserActionButtons(BuildContext context) {
-    // Use standard OutlinedButton
-    return SizedBox(
-      width: double.infinity, // Make button take full width
-      child: OutlinedButton(
-        onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) =>
-                EditProfileScreen(currentUserData: user.toMap()))),
-        child: const Text('Edit Profile'),
-        // Add styling if needed
-        // style: OutlinedButton.styleFrom(...)
+  /// Action buttons for current user (Edit Profile)
+  Widget _buildCurrentUserActions(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: () {
+        HapticFeedback.lightImpact();
+        locator<NavigationService>().navigateTo(
+          EditProfileScreen(currentUserData: user.toMap()),
+          transition: PageTransition.slide,
+        );
+      },
+      icon: const Icon(Icons.edit_outlined, size: 20),
+      label: const Text('Edit Profile'),
+      style: ElevatedButton.styleFrom(
+        padding: EdgeInsets.symmetric(
+          horizontal: DesignTokens.spaceLG,
+          vertical: DesignTokens.spaceMD,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+        ),
       ),
     );
-    // Removed Row and second button (Inventory)
   }
 
-  // _buildOtherUserActionButtons updated to use standard buttons
-  Widget _buildOtherUserActionButtons(BuildContext context) {
-    return BlocBuilder<FriendsBloc, FriendsState>(
+  /// Action buttons for other users (Add Friend, Message, etc.)
+  Widget _buildOtherUserActions(BuildContext context) {
+    // ⭐ FIX: Use BlocConsumer to handle transient states without showing spinner
+    return BlocConsumer<FriendsBloc, FriendsState>(
+      listener: (context, state) {
+        // Handle transient success/error states with snackbars
+        if (state is FriendsActionSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        } else if (state is FriendsActionError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      },
+      buildWhen: (previous, current) {
+        // Only rebuild for loaded states, ignore transient states
+        return current is FriendsLoaded ||
+            current is FriendsInitial ||
+            current is FriendsLoading ||
+            current is FriendsError;
+      },
       builder: (context, state) {
         if (state is FriendsLoaded) {
           final currentUser = state.user;
           bool isFriend = currentUser.friends.contains(user.id);
           bool requestSent = currentUser.friendRequestsSent.contains(user.id);
           bool requestReceived =
-          currentUser.friendRequestsReceived.contains(user.id);
+              currentUser.friendRequestsReceived.contains(user.id);
           bool isBlocked = currentUser.blockedUsers.contains(user.id);
 
           if (isBlocked) {
-            return SizedBox(
-              width: double.infinity,
-              child: OutlinedButton( // Use OutlinedButton
-                onPressed: () =>
-                    context.read<FriendsBloc>().add(UnblockUser(user.id)),
-                child: const Text('Unblock'),
-                style: OutlinedButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.error),
+            return OutlinedButton.icon(
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                context.read<FriendsBloc>().add(UnblockUser(user.id));
+              },
+              icon: const Icon(Icons.block_outlined, size: 20),
+              label: const Text('Unblock'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+                padding: EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spaceLG,
+                  vertical: DesignTokens.spaceMD,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                ),
               ),
             );
           }
 
           if (requestReceived) {
-            return SizedBox(
-              width: double.infinity,
-              child: ElevatedButton( // Use ElevatedButton
-                onPressed: () => context
-                    .read<FriendsBloc>()
-                    .add(AcceptFriendRequest(user.id)),
-                child: const Text('Accept Request'),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            return ElevatedButton.icon(
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                context.read<FriendsBloc>().add(AcceptFriendRequest(user.id));
+              },
+              icon: const Icon(Icons.check_circle_outline, size: 20),
+              label: const Text('Accept Friend Request'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding: EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spaceLG,
+                  vertical: DesignTokens.spaceMD,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                ),
               ),
             );
           }
@@ -262,34 +570,98 @@ class _ProfileHeader extends StatelessWidget {
             children: [
               Expanded(
                 child: isFriend || requestSent
-                    ? OutlinedButton( // Use OutlinedButton
-                  onPressed:
-                  isFriend ? () => _confirmRemoveFriend(context) : null, // Disable if requestSent
-                  child: Text(isFriend ? 'Friends' : 'Request Sent'),
-                )
-                    : ElevatedButton( // Use ElevatedButton
-                  onPressed: () => context
-                      .read<FriendsBloc>()
-                      .add(SendFriendRequest(user.id)),
-                  child: const Text('Add Friend'),
-                ),
+                    ? OutlinedButton.icon(
+                        onPressed: isFriend
+                            ? () {
+                                HapticFeedback.lightImpact();
+                                _confirmRemoveFriend(context);
+                              }
+                            : null,
+                        icon: Icon(
+                          isFriend ? Icons.check : Icons.schedule,
+                          size: 20,
+                        ),
+                        label: Text(isFriend ? 'Friends' : 'Pending'),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: DesignTokens.spaceMD,
+                            vertical: DesignTokens.spaceMD,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(DesignTokens.radiusMD),
+                          ),
+                        ),
+                      )
+                    : ElevatedButton.icon(
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          context
+                              .read<FriendsBloc>()
+                              .add(SendFriendRequest(user.id));
+                        },
+                        icon: const Icon(Icons.person_add_outlined, size: 20),
+                        label: const Text('Add Friend'),
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: DesignTokens.spaceMD,
+                            vertical: DesignTokens.spaceMD,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(DesignTokens.radiusMD),
+                          ),
+                        ),
+                      ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: DesignTokens.spaceMD),
               Expanded(
-                child: OutlinedButton( // Use OutlinedButton
-                  onPressed: onStartChat,
-                  child: const Text('Message'),
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    onStartChat();
+                  },
+                  icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                  label: const Text('Message'),
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: DesignTokens.spaceMD,
+                      vertical: DesignTokens.spaceMD,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusMD),
+                    ),
+                  ),
                 ),
               ),
             ],
           );
         }
-        // Show loading or placeholder while FriendsBloc loads
-        return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+
+        // Only show loading spinner for initial load or actual loading state
+        if (state is FriendsLoading || state is FriendsInitial) {
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        }
+
+        // For error state, show a simplified button layout
+        return ElevatedButton.icon(
+          onPressed: null, // Disabled
+          icon: const Icon(Icons.error_outline, size: 20),
+          label: const Text('Unable to load'),
+          style: ElevatedButton.styleFrom(
+            padding: EdgeInsets.symmetric(
+              horizontal: DesignTokens.spaceLG,
+              vertical: DesignTokens.spaceMD,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+            ),
+          ),
+        );
       },
     );
   }
-
 
   // _confirmRemoveFriend remains the same
   Future<void> _confirmRemoveFriend(BuildContext context) async {
@@ -315,37 +687,467 @@ class _ProfileHeader extends StatelessWidget {
     );
 
     if (shouldRemove == true) {
-      // Use read to access bloc if context is available
       context.read<FriendsBloc>().add(RemoveFriend(user.id));
     }
   }
-}
 
-// _StatItem remains the same
-class _StatItem extends StatelessWidget {
-  final String label;
-  final int count;
+  /// Stats card with friends count
+  Widget _buildStatsCard(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
+      padding: EdgeInsets.all(DesignTokens.spaceLG),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildStatItem(
+            context,
+            icon: Icons.people_outline,
+            label: 'Friends',
+            value: user.friends.length.toString(),
+          ),
+          Container(
+            width: 1,
+            height: 40,
+            color: Theme.of(context).dividerColor,
+          ),
+          _buildStatItem(
+            context,
+            icon: Icons.cake_outlined,
+            label: 'Age',
+            value: user.age > 0 ? user.age.toString() : 'N/A',
+          ),
+          Container(
+            width: 1,
+            height: 40,
+            color: Theme.of(context).dividerColor,
+          ),
+          _buildStatItem(
+            context,
+            icon: user.gender.toLowerCase() == 'male'
+                ? Icons.man_outlined
+                : user.gender.toLowerCase() == 'female'
+                    ? Icons.woman_outlined
+                    : Icons.person_outline,
+            label: 'Gender',
+            value: user.gender.isNotEmpty ? user.gender : 'N/A',
+          ),
+        ],
+      ),
+    );
+  }
 
-  const _StatItem({required this.label, required this.count});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildStatItem(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
     return Column(
-      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          count.toString(),
-          style: Theme.of(context)
-              .textTheme
-              .titleLarge
-              ?.copyWith(fontWeight: FontWeight.bold),
+        Icon(
+          icon,
+          size: 28,
+          color: SonarPulseTheme.primaryAccent,
         ),
-        const SizedBox(height: 2),
+        SizedBox(height: DesignTokens.spaceXS),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        SizedBox(height: DesignTokens.spaceXS),
         Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              ),
         ),
       ],
+    );
+  }
+
+  /// Bio card
+  Widget _buildBioCard(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
+      padding: EdgeInsets.all(DesignTokens.spaceLG),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                size: 20,
+                color: SonarPulseTheme.primaryAccent,
+              ),
+              SizedBox(width: DesignTokens.spaceSM),
+              Text(
+                'About',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            ],
+          ),
+          SizedBox(height: DesignTokens.spaceMD),
+          Text(
+            user.bio,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Info card with personal details
+  Widget _buildInfoCard(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
+      padding: EdgeInsets.all(DesignTokens.spaceLG),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.badge_outlined,
+                size: 20,
+                color: SonarPulseTheme.primaryAccent,
+              ),
+              SizedBox(width: DesignTokens.spaceSM),
+              Text(
+                'Information',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            ],
+          ),
+          SizedBox(height: DesignTokens.spaceMD),
+          _buildInfoRow(
+            context,
+            icon: Icons.person_outline,
+            label: 'Username',
+            value: user.username,
+          ),
+          if (user.age > 0) ...[
+            SizedBox(height: DesignTokens.spaceSM),
+            _buildInfoRow(
+              context,
+              icon: Icons.cake_outlined,
+              label: 'Age',
+              value: user.age.toString(),
+            ),
+          ],
+          if (user.gender.isNotEmpty) ...[
+            SizedBox(height: DesignTokens.spaceSM),
+            _buildInfoRow(
+              context,
+              icon: user.gender.toLowerCase() == 'male'
+                  ? Icons.man_outlined
+                  : user.gender.toLowerCase() == 'female'
+                      ? Icons.woman_outlined
+                      : Icons.person_outline,
+              label: 'Gender',
+              value: user.gender,
+            ),
+          ],
+          if (user.country.isNotEmpty) ...[
+            SizedBox(height: DesignTokens.spaceSM),
+            _buildInfoRow(
+              context,
+              icon: Icons.location_on_outlined,
+              label: 'Country',
+              value: user.country,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 18,
+          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+        ),
+        SizedBox(width: DesignTokens.spaceSM),
+        Text(
+          '$label:',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              ),
+        ),
+        SizedBox(width: DesignTokens.spaceXS),
+        Expanded(
+          child: Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Mutual friends and interests card
+  Widget _buildMutualConnectionsCard(
+      BuildContext context, UserModel currentUser) {
+    final mutualFriendsCount = MutualFriendsHelper.getMutualFriendsCount(
+        currentUser.friends, user.friends);
+    final mutualInterests = MutualFriendsHelper.getMutualInterests(
+        currentUser.interests, user.interests);
+
+    if (mutualFriendsCount == 0 && mutualInterests.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
+      padding: EdgeInsets.all(DesignTokens.spaceLG),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            SonarPulseTheme.primaryAccent.withOpacity(0.1),
+            SonarPulseTheme.primaryAccent.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
+        border: Border.all(
+          color: SonarPulseTheme.primaryAccent.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.favorite,
+                size: 20,
+                color: SonarPulseTheme.primaryAccent,
+              ),
+              SizedBox(width: DesignTokens.spaceSM),
+              Text(
+                'You Have in Common',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: SonarPulseTheme.primaryAccent,
+                    ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: DesignTokens.spaceMD),
+
+          // Mutual friends
+          if (mutualFriendsCount > 0) ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.people,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+                SizedBox(width: DesignTokens.spaceSM),
+                Text(
+                  MutualFriendsHelper.formatMutualFriendsText(
+                      mutualFriendsCount),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
+            ),
+          ],
+
+          // Mutual interests
+          if (mutualInterests.isNotEmpty) ...[
+            if (mutualFriendsCount > 0) SizedBox(height: DesignTokens.spaceMD),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.interests,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+                SizedBox(width: DesignTokens.spaceSM),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        MutualFriendsHelper.formatMutualInterestsText(
+                            mutualInterests),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                      SizedBox(height: DesignTokens.spaceSM),
+                      Wrap(
+                        spacing: DesignTokens.spaceSM,
+                        runSpacing: DesignTokens.spaceSM,
+                        children: mutualInterests.take(5).map((interest) {
+                          return Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: DesignTokens.spaceMD,
+                              vertical: DesignTokens.spaceXS,
+                            ),
+                            decoration: BoxDecoration(
+                              color: SonarPulseTheme.primaryAccent
+                                  .withOpacity(0.2),
+                              borderRadius:
+                                  BorderRadius.circular(DesignTokens.radiusSM),
+                            ),
+                            child: Text(
+                              interest,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: SonarPulseTheme.primaryAccent,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      if (mutualInterests.length > 5) ...[
+                        SizedBox(height: DesignTokens.spaceXS),
+                        Text(
+                          '+${mutualInterests.length - 5} more',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withOpacity(0.6),
+                                  ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Interests card
+  Widget _buildInterestsCard(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
+      padding: EdgeInsets.all(DesignTokens.spaceLG),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.favorite_outline,
+                size: 20,
+                color: SonarPulseTheme.primaryAccent,
+              ),
+              SizedBox(width: DesignTokens.spaceSM),
+              Text(
+                'Interests',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            ],
+          ),
+          SizedBox(height: DesignTokens.spaceMD),
+          Wrap(
+            spacing: DesignTokens.spaceSM,
+            runSpacing: DesignTokens.spaceSM,
+            children: user.interests.map((interest) {
+              return Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spaceMD,
+                  vertical: DesignTokens.spaceSM,
+                ),
+                decoration: BoxDecoration(
+                  color: SonarPulseTheme.primaryAccent.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+                  border: Border.all(
+                    color: SonarPulseTheme.primaryAccent.withOpacity(0.3),
+                  ),
+                ),
+                child: Text(
+                  interest,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: SonarPulseTheme.primaryAccent,
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
 }

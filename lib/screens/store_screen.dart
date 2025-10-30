@@ -2,11 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart'; // Keep for FieldValue if
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:freegram/locator.dart';
-import 'package:freegram/models/user_model.dart'; // Keep UserModel
 import 'package:freegram/repositories/store_repository.dart'; // Keep
 import 'package:freegram/repositories/user_repository.dart'; // Keep
 import 'package:freegram/services/ad_helper.dart'; // Keep
 import 'package:freegram/services/in_app_purchase_service.dart'; // Keep
+import 'package:freegram/widgets/freegram_app_bar.dart';
 
 class StoreScreen extends StatelessWidget {
   const StoreScreen({super.key});
@@ -26,84 +26,23 @@ class StoreScreen extends StatelessWidget {
     return DefaultTabController(
       length: 2, // "Get Items" and "Get Coins"
       child: Scaffold(
-        body: Column(
+        appBar: FreegramAppBar(
+          title: 'Store',
+          showBackButton: true,
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: "Get Items"),
+              Tab(text: "Get Coins"),
+            ],
+          ),
+        ),
+        body: TabBarView(
           children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                  Expanded(
-                    child: Text(
-                      "Store",
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Tabs
-            const TabBar(
-              tabs: [
-                Tab(text: "Get Items"),
-                Tab(text: "Get Coins"),
-              ],
-            ),
-            // Content
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _GetItemsTab(userId: currentUser.uid),
-                  _GetCoinsTab(userId: currentUser.uid),
-                ],
-              ),
-            ),
+            _GetItemsTab(userId: currentUser.uid),
+            _GetCoinsTab(userId: currentUser.uid),
           ],
         ),
       ),
-    );
-  }
-
-  // _buildUserWallet remains the same, reads kept fields from UserModel
-  Widget _buildUserWallet(BuildContext context, String uid) {
-    return StreamBuilder<UserModel>(
-      stream: locator<UserRepository>().getUserStream(uid), // Uses UserRepository
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          // Show loading state for wallet info
-          return const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-          );
-        }
-        final user = snapshot.data!;
-        // Display superLikes and coins (kept fields)
-        return Container(
-          padding: const EdgeInsets.all(16.0),
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.1), // Use theme color
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _WalletItem(
-                icon: Icons.star,
-                label: "Super Likes",
-                value: user.superLikes.toString(),
-                color: Colors.blue, // Keep specific color or use theme
-              ),
-              _WalletItem(
-                icon: Icons.monetization_on,
-                label: "Coins",
-                value: user.coins.toString(),
-                color: Colors.amber, // Keep specific color or use theme
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }
@@ -161,20 +100,19 @@ class _GetItemsTabState extends State<_GetItemsTab> {
       if (mounted) {
         // Add a small delay to allow ad overlay to dismiss if needed
         Future.delayed(const Duration(milliseconds: 500), () {
-          if(mounted) setState(() => _isAdButtonLoading = false);
+          if (mounted) setState(() => _isAdButtonLoading = false);
         });
       }
     }
   }
-
 
   // _purchaseWithCoins remains the same (uses StoreRepository.purchaseWithCoins)
   void _purchaseWithCoins() async {
     setState(() => _isCoinButtonLoading = true);
     try {
       // Use StoreRepository to handle coin purchase logic
-      await locator<StoreRepository>()
-          .purchaseWithCoins(widget.userId, coinCost: 50, superLikeAmount: 5); // Example values
+      await locator<StoreRepository>().purchaseWithCoins(widget.userId,
+          coinCost: 50, superLikeAmount: 5); // Example values
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -203,12 +141,14 @@ class _GetItemsTabState extends State<_GetItemsTab> {
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
-        Text( // Keep "Earn for Free" section
+        Text(
+          // Keep "Earn for Free" section
           "Earn for Free",
           style: Theme.of(context).textTheme.titleLarge, // Use theme
         ),
         const SizedBox(height: 8),
-        _StoreItemCard( // Keep Free Super Like card
+        _StoreItemCard(
+          // Keep Free Super Like card
           title: "Free Super Like",
           subtitle: "Watch a short ad to get one free Super Like.",
           icon: Icons.star,
@@ -218,12 +158,14 @@ class _GetItemsTabState extends State<_GetItemsTab> {
           onPressed: _showAd,
         ),
         const Divider(height: 32),
-        Text( // Keep "Spend Coins" section
+        Text(
+          // Keep "Spend Coins" section
           "Spend Coins",
           style: Theme.of(context).textTheme.titleLarge, // Use theme
         ),
         const SizedBox(height: 8),
-        _StoreItemCard( // Keep Super Like purchase card
+        _StoreItemCard(
+          // Keep Super Like purchase card
           title: "5 Super Likes",
           subtitle: "Get a pack of five Super Likes to stand out.",
           icon: Icons.star,
@@ -289,7 +231,8 @@ class _GetCoinsTabState extends State<_GetCoinsTab> {
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
-        _StoreItemCard( // Keep 100 Coins card
+        _StoreItemCard(
+          // Keep 100 Coins card
           title: "100 Coins",
           subtitle: "A starter pack of coins.",
           icon: Icons.monetization_on,
@@ -300,7 +243,8 @@ class _GetCoinsTabState extends State<_GetCoinsTab> {
           },
         ),
         const SizedBox(height: 12),
-        _StoreItemCard( // Keep 550 Coins card
+        _StoreItemCard(
+          // Keep 550 Coins card
           title: "550 Coins",
           subtitle: "Best value pack!",
           icon: Icons.monetization_on,
@@ -315,7 +259,6 @@ class _GetCoinsTabState extends State<_GetCoinsTab> {
     );
   }
 }
-
 
 // _StoreItemCard remains the same
 class _StoreItemCard extends StatelessWidget {
@@ -362,53 +305,21 @@ class _StoreItemCard extends StatelessWidget {
             ElevatedButton(
               onPressed: isLoading ? null : onPressed,
               style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
               child: isLoading
-                  ? const SizedBox( // Show spinner inside button
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-              )
+                  ? const SizedBox(
+                      // Show spinner inside button
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
                   : Text(buttonText),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-// _WalletItem remains the same
-class _WalletItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-
-  const _WalletItem({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Icon(icon, color: color, size: 20), // Slightly smaller icon
-            const SizedBox(width: 8),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
-      ],
     );
   }
 }

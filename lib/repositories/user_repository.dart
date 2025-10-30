@@ -1,34 +1,26 @@
 // lib/repositories/user_repository.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:firebase_database/firebase_database.dart' as rtdb;
 import 'package:flutter/foundation.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/models/user_model.dart';
-// import 'package:freegram/repositories/gamification_repository.dart'; // Removed
-import 'package:freegram/repositories/notification_repository.dart'; // Keep
-import 'package:freegram/services/sonar/local_cache_service.dart';
+import 'package:freegram/repositories/notification_repository.dart';
 import 'package:freegram/repositories/action_queue_repository.dart';
-
+import 'package:freegram/services/friend_cache_service.dart';
 
 class UserRepository {
   final FirebaseFirestore _db;
-  final rtdb.FirebaseDatabase _rtdb;
   final NotificationRepository _notificationRepository; // Keep
   // final GamificationRepository _gamificationRepository; // Removed
-  final LocalCacheService _localCacheService;
   final ActionQueueRepository _actionQueueRepository;
 
   UserRepository({
     FirebaseFirestore? firestore,
-    rtdb.FirebaseDatabase? rtdbInstance,
     required NotificationRepository notificationRepository, // Keep
     // required GamificationRepository gamificationRepository, // Removed
   })  : _db = firestore ?? FirebaseFirestore.instance,
-        _rtdb = rtdbInstance ?? rtdb.FirebaseDatabase.instance,
         _notificationRepository = notificationRepository, // Keep
-  // _gamificationRepository = gamificationRepository, // Removed
-        _localCacheService = locator<LocalCacheService>(),
+        // _gamificationRepository = gamificationRepository, // Removed
         _actionQueueRepository = locator<ActionQueueRepository>();
 
   // --- User Profile Methods ---
@@ -47,12 +39,20 @@ class UserRepository {
         .snapshots()
         .asyncMap((doc) async {
       if (!doc.exists) {
-        debugPrint('User stream warning: User not found for ID: $userId');
-        // Wait a bit and retry once for new users
+        if (kDebugMode) {
+          debugPrint(
+              '[UserRepository] User stream warning: User not found for ID: $userId');
+        }
         await Future.delayed(const Duration(milliseconds: 1000));
         final retryDoc = await _db.collection('users').doc(userId).get();
+        // Bug #8 fix: Handle null case properly after retry
         if (!retryDoc.exists) {
-          throw Exception('User stream error: User not found for ID: $userId');
+          throw Exception(
+              'User stream error: User $userId not found after retry');
+        }
+        final retryData = retryDoc.data();
+        if (retryData == null) {
+          throw Exception('User stream error: User $userId has null data');
         }
         return UserModel.fromDoc(retryDoc);
       }
@@ -60,12 +60,9 @@ class UserRepository {
     });
   }
 
-  Future<void> updateUser(String uid, Map<String, dynamic> data) {
-    // Ensure uidShort is not accidentally overwritten if not provided
+  Future<void> updateUser(String uid, Map<String, dynamic> data) async {
     data.remove('uidShort');
-    // Ensure id is not accidentally overwritten
     data.remove('id');
-    // Remove deleted fields from update data if they happen to be passed
     data.remove('xp');
     data.remove('level');
     data.remove('currentSeasonId');
@@ -75,12 +72,27 @@ class UserRepository {
     data.remove('equippedProfileFrameId');
     data.remove('equippedBadgeId');
 
-    debugPrint("UserRepository: Updating user $uid with data: $data");
-    return _db.collection('users').doc(uid).update(data);
+    if (kDebugMode) {
+      debugPrint("[UserRepository] Updating user $uid with data: $data");
+    }
+
+    await _db.collection('users').doc(uid).update(data);
+
+    // Bug #14 fix: Invalidate cache when user profile is updated
+    try {
+      final cacheService = locator<FriendCacheService>();
+      await cacheService.invalidateUser(uid);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+            "[UserRepository] Cache invalidation failed (non-critical): $e");
+      }
+    }
   }
 
   // getUsersByUidShorts remains the same
-  Future<Map<String, UserModel>> getUsersByUidShorts(List<String> uidShorts) async {
+  Future<Map<String, UserModel>> getUsersByUidShorts(
+      List<String> uidShorts) async {
     if (uidShorts.isEmpty) {
       return {};
     }
@@ -89,7 +101,8 @@ class UserRepository {
       Map<String, UserModel> results = {};
       List<List<String>> batches = [];
       for (var i = 0; i < uidShorts.length; i += 30) {
-        batches.add(uidShorts.sublist(i, i + 30 > uidShorts.length ? uidShorts.length : i + 30));
+        batches.add(uidShorts.sublist(
+            i, i + 30 > uidShorts.length ? uidShorts.length : i + 30));
       }
 
       for (var batch in batches) {
@@ -100,61 +113,59 @@ class UserRepository {
 
         for (var doc in querySnapshot.docs) {
           final user = UserModel.fromDoc(doc);
+
+          // CRITICAL FIX: Detect duplicate uidShort values in Firestore!
+          if (results.containsKey(user.uidShort)) {
+            debugPrint(
+                "❌ [CRITICAL BUG] DUPLICATE uidShort detected in Firestore!");
+            debugPrint("   uidShort: ${user.uidShort}");
+            debugPrint(
+                "   Previous user: ${results[user.uidShort]!.id} (${results[user.uidShort]!.username})");
+            debugPrint("   Current user:  ${user.id} (${user.username})");
+            debugPrint(
+                "   ⚠️  This will cause WRONG WAVE TARGETS! Only ONE user should have this uidShort!");
+            // Keep the first one found, log the duplicate
+            continue; // Skip the duplicate
+          }
+
           results[user.uidShort] = user;
         }
-        debugPrint("UserRepository: Fetched batch for ${batch.length} uidShorts, found ${querySnapshot.docs.length} users.");
+        debugPrint(
+            "UserRepository: Fetched batch for ${batch.length} uidShorts, found ${querySnapshot.docs.length} users.");
       }
 
-      debugPrint("UserRepository: Finished fetching for uidShorts. Total found: ${results.length}");
+      debugPrint(
+          "UserRepository: Finished fetching for uidShorts. Total found: ${results.length}");
       return results;
     } catch (e) {
-      debugPrint("UserRepository Error: Failed to fetch users by uidShorts: $e");
+      debugPrint(
+          "UserRepository Error: Failed to fetch users by uidShorts: $e");
       return {};
     }
   }
 
   // --- Presence ---
-  // updateUserPresence remains the same
-  Future<void> updateUserPresence(String uid, bool isOnline) async {
-    final userStatusFirestoreRef = _db.collection('users').doc(uid);
-    final userStatusDatabaseRef = _rtdb.ref('status/$uid');
-    final status = {
-      'presence': isOnline,
-      'lastSeen': rtdb.ServerValue.timestamp,
-    };
-    try {
-      await userStatusDatabaseRef.set(status);
-      await userStatusDatabaseRef.onDisconnect().set({
-        'presence': false,
-        'lastSeen': rtdb.ServerValue.timestamp,
-      });
-
-      await userStatusFirestoreRef.update({
-        'presence': isOnline,
-        'lastSeen': FieldValue.serverTimestamp(),
-      });
-      debugPrint("UserRepository: Updated presence for $uid to $isOnline");
-    } catch (e) {
-      debugPrint("UserRepository: Error updating presence for $uid: $e");
-    }
-  }
-
+  // NOTE: Presence is now handled by PresenceManager service
+  // Old updateUserPresence method removed to avoid conflicts
 
   // --- Nearby Feature Methods ---
   // sendWave remains the same (uses NotificationRepository)
   Future<void> sendWave(String fromUserId, String toUserId) async {
-    debugPrint("UserRepository: Sending server-side wave from $fromUserId to $toUserId");
+    debugPrint(
+        "UserRepository: Sending server-side wave from $fromUserId to $toUserId");
     try {
       final fromUser = await getUser(fromUserId);
       await _notificationRepository.addNotification(
         userId: toUserId,
-        type: 'nearbyWave', // Ensure this matches enum string if using string based type
+        type:
+            'nearbyWave', // Ensure this matches enum string if using string based type
         fromUserId: fromUserId,
         fromUsername: fromUser.username,
         fromUserPhotoUrl: fromUser.photoUrl,
         message: 'Waved at you!',
       );
-      debugPrint("UserRepository: Server-side wave notification sent successfully.");
+      debugPrint(
+          "UserRepository: Server-side wave notification sent successfully.");
     } catch (e) {
       debugPrint("UserRepository Error: Failed sending server-side wave: $e");
     }
@@ -171,7 +182,8 @@ class UserRepository {
   }
 
   // updateSharedMusic remains the same
-  Future<void> updateSharedMusic(String userId, Map<String, String>? musicData) {
+  Future<void> updateSharedMusic(
+      String userId, Map<String, String>? musicData) {
     debugPrint("UserRepository: Updating shared music for $userId");
     return _db.collection('users').doc(userId).update({
       'sharedMusicTrack': musicData ?? FieldValue.delete(),
@@ -179,16 +191,145 @@ class UserRepository {
     });
   }
 
-
   // --- Friendship Methods ---
-  // sendFriendRequest - Remove gamification calls
-  Future<void> sendFriendRequest(String fromUserId, String toUserId, {bool isSync = false}) async {
+  // ⭐ PHASE 5: TRANSACTION SAFETY - Using Firestore transaction for atomic operations
+  Future<void> sendFriendRequest(String fromUserId, String toUserId,
+      {bool isSync = false, String? message}) async {
     if (fromUserId == toUserId) {
-      debugPrint("UserRepository Warning: Attempted to send friend request to self.");
+      if (kDebugMode) {
+        debugPrint(
+            "[UserRepository] Warning: Attempted to send friend request to self.");
+      }
       return;
     }
 
-    debugPrint("UserRepository: Sending friend request from $fromUserId to $toUserId via Firebase.");
+    if (kDebugMode) {
+      debugPrint(
+          "[UserRepository] Sending friend request from $fromUserId to $toUserId");
+    }
+
+    final fromUserRef = _db.collection('users').doc(fromUserId);
+    final toUserRef = _db.collection('users').doc(toUserId);
+
+    try {
+      UserModel? fromUser;
+
+      // Bug #13 fix: Check blocks BEFORE starting transaction for better performance
+      final fromUserPreCheck = await fromUserRef.get();
+      if (!fromUserPreCheck.exists) {
+        throw Exception("Sender user not found.");
+      }
+      final fromBlocked =
+          List<String>.from(fromUserPreCheck.get('blockedUsers') ?? []);
+      if (fromBlocked.contains(toUserId)) {
+        throw Exception("You have blocked this user.");
+      }
+
+      await _db.runTransaction((transaction) async {
+        final fromUserDoc = await transaction.get(fromUserRef);
+        final toUserDoc = await transaction.get(toUserRef);
+
+        // Bug #1 fix: Re-verify documents exist after transaction read
+        if (!fromUserDoc.exists || !toUserDoc.exists) {
+          if (kDebugMode) {
+            if (!fromUserDoc.exists)
+              debugPrint(
+                  "[UserRepository] Error: Sender $fromUserId not found.");
+            if (!toUserDoc.exists)
+              debugPrint("[UserRepository] Error: Target $toUserId not found.");
+          }
+          throw Exception("One or both users not found.");
+        }
+
+        final fromUserData = fromUserDoc.data() as Map<String, dynamic>;
+        final toUserData = toUserDoc.data() as Map<String, dynamic>;
+
+        List<String> fromFriends =
+            List<String>.from(fromUserData['friends'] ?? []);
+        List<String> fromSent =
+            List<String>.from(fromUserData['friendRequestsSent'] ?? []);
+        List<String> fromReceived =
+            List<String>.from(fromUserData['friendRequestsReceived'] ?? []);
+        List<String> fromBlocked =
+            List<String>.from(fromUserData['blockedUsers'] ?? []);
+        List<String> toBlocked =
+            List<String>.from(toUserData['blockedUsers'] ?? []);
+
+        // Bug #4 fix: Strict idempotency check
+        if (fromFriends.contains(toUserId)) throw Exception("Already friends.");
+        if (fromSent.contains(toUserId))
+          throw Exception("Request already sent - idempotency check.");
+        if (fromReceived.contains(toUserId)) {
+          throw Exception(
+              "User has already sent you a request. Check your requests list.");
+        }
+        if (fromBlocked.contains(toUserId))
+          throw Exception("You have blocked this user.");
+        if (toBlocked.contains(fromUserId))
+          throw Exception("This user has blocked you.");
+
+        transaction.update(fromUserRef, {
+          'friendRequestsSent': FieldValue.arrayUnion([toUserId])
+        });
+        transaction.update(toUserRef, {
+          'friendRequestsReceived': FieldValue.arrayUnion([fromUserId])
+        });
+
+        fromUser = UserModel.fromDoc(fromUserDoc);
+      });
+
+      // Bug #11 fix: Store message AFTER transaction succeeds
+      if (message != null && message.isNotEmpty && fromUser != null) {
+        await _db
+            .collection('friendRequestMessages')
+            .doc('${fromUserId}_$toUserId')
+            .set({
+          'fromUserId': fromUserId,
+          'toUserId': toUserId,
+          'message': message,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+        if (kDebugMode) {
+          debugPrint("[UserRepository] Friend request message stored.");
+        }
+      }
+
+      // Bug #10 fix: Verify recipient still exists before sending notification
+      if (fromUser != null) {
+        final toUserVerify = await toUserRef.get();
+        if (toUserVerify.exists) {
+          await _notificationRepository.addNotification(
+            userId: toUserId,
+            type: 'friendRequest',
+            fromUserId: fromUserId,
+            fromUsername: fromUser!.username,
+            fromUserPhotoUrl: fromUser!.photoUrl,
+          );
+          if (kDebugMode) {
+            debugPrint(
+                "[UserRepository] Friend request sent and notification triggered.");
+          }
+        } else {
+          if (kDebugMode) {
+            debugPrint(
+                "[UserRepository] Recipient deleted, skipping notification.");
+          }
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+            "[UserRepository] Error: Failed to send friend request from $fromUserId to $toUserId: $e");
+      }
+      rethrow;
+    }
+  }
+
+  // cancelFriendRequest - New method to cancel a sent friend request
+  Future<void> cancelFriendRequest(String fromUserId, String toUserId) async {
+    debugPrint(
+        "UserRepository: Canceling friend request from $fromUserId to $toUserId.");
+
     final batch = _db.batch();
     final fromUserRef = _db.collection('users').doc(fromUserId);
     final toUserRef = _db.collection('users').doc(toUserId);
@@ -198,77 +339,157 @@ class UserRepository {
       final toUserDoc = await toUserRef.get();
 
       if (!fromUserDoc.exists || !toUserDoc.exists) {
-        if (!fromUserDoc.exists) debugPrint("UserRepository Error: Sender user $fromUserId not found.");
-        if (!toUserDoc.exists) debugPrint("UserRepository Error: Target user $toUserId not found.");
+        debugPrint("UserRepository Error: One or both users not found.");
         throw Exception("One or both users not found.");
       }
 
       final fromUserData = fromUserDoc.data() as Map<String, dynamic>;
-      final toUserData = toUserDoc.data() as Map<String, dynamic>;
 
-      List<String> fromFriends = List<String>.from(fromUserData['friends'] ?? []);
-      List<String> fromSent = List<String>.from(fromUserData['friendRequestsSent'] ?? []);
-      List<String> fromReceived = List<String>.from(fromUserData['friendRequestsReceived'] ?? []);
-      List<String> fromBlocked = List<String>.from(fromUserData['blockedUsers'] ?? []);
-      List<String> toBlocked = List<String>.from(toUserData['blockedUsers'] ?? []);
+      List<String> fromSent =
+          List<String>.from(fromUserData['friendRequestsSent'] ?? []);
 
-      if (fromFriends.contains(toUserId)) throw Exception("Already friends.");
-      if (fromSent.contains(toUserId)) throw Exception("Request already sent.");
-      if (fromReceived.contains(toUserId)) {
-        throw Exception("User has already sent you a request. Check your requests list.");
+      if (!fromSent.contains(toUserId)) {
+        throw Exception("No pending friend request found.");
       }
-      if (fromBlocked.contains(toUserId)) throw Exception("You have blocked this user.");
-      if (toBlocked.contains(fromUserId)) throw Exception("This user has blocked you.");
 
-      batch.update(fromUserRef, {'friendRequestsSent': FieldValue.arrayUnion([toUserId])});
-      batch.update(toUserRef, {'friendRequestsReceived': FieldValue.arrayUnion([fromUserId])});
+      // Remove from both users' arrays
+      batch.update(fromUserRef, {
+        'friendRequestsSent': FieldValue.arrayRemove([toUserId])
+      });
+      batch.update(toUserRef, {
+        'friendRequestsReceived': FieldValue.arrayRemove([fromUserId])
+      });
 
       await batch.commit();
 
-      final fromUser = UserModel.fromDoc(fromUserDoc);
-      await _notificationRepository.addNotification(
-        userId: toUserId,
-        type: 'friendRequest', // Ensure this matches enum string
-        fromUserId: fromUserId,
-        fromUsername: fromUser.username,
-        fromUserPhotoUrl: fromUser.photoUrl,
-      );
-      debugPrint("UserRepository: Friend request sent and notification triggered.");
+      // Delete friend request message if it exists
+      try {
+        await _db
+            .collection('friendRequestMessages')
+            .doc('${fromUserId}_$toUserId')
+            .delete();
+        debugPrint("UserRepository: Friend request message deleted.");
+      } catch (e) {
+        debugPrint("UserRepository: No message to delete (this is OK): $e");
+      }
 
+      debugPrint("UserRepository: Friend request canceled successfully.");
     } catch (e) {
-      debugPrint("UserRepository Error: Failed to send friend request from $fromUserId to $toUserId: $e");
+      debugPrint(
+          "UserRepository Error: Failed to cancel friend request from $fromUserId to $toUserId: $e");
       rethrow;
     }
   }
 
+  // Get friend request message if exists
+  Future<String?> getFriendRequestMessage(
+      String fromUserId, String toUserId) async {
+    try {
+      final doc = await _db
+          .collection('friendRequestMessages')
+          .doc('${fromUserId}_$toUserId')
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data();
+        return data?['message'] as String?;
+      }
+      return null;
+    } catch (e) {
+      debugPrint("UserRepository: Error getting friend request message: $e");
+      return null;
+    }
+  }
+
   // acceptFriendRequest - Remove gamification calls
-  Future<void> acceptFriendRequest(String currentUserId, String requestingUserId, {bool isSync = false}) async {
+  Future<void> acceptFriendRequest(
+      String currentUserId, String requestingUserId,
+      {bool isSync = false}) async {
     if (!isSync) {
       final connectivityResult = await Connectivity().checkConnectivity();
       if (connectivityResult == ConnectivityResult.none) {
         debugPrint("UserRepository: Offline. Queuing accept friend request.");
         return _actionQueueRepository.addAction(
           type: 'accept_friend_request',
-          payload: {'currentUserId': currentUserId, 'requestingUserId': requestingUserId},
+          payload: {
+            'currentUserId': currentUserId,
+            'requestingUserId': requestingUserId
+          },
         );
       }
     }
 
-    debugPrint("UserRepository: Accepting friend request from $requestingUserId for $currentUserId.");
-    final batch = _db.batch();
+    debugPrint(
+        "UserRepository: Accepting friend request from $requestingUserId for $currentUserId (using transaction).");
+
     final currentUserRef = _db.collection('users').doc(currentUserId);
     final requestingUserRef = _db.collection('users').doc(requestingUserId);
-
-    batch.update(currentUserRef, {'friendRequestsReceived': FieldValue.arrayRemove([requestingUserId]), 'friends': FieldValue.arrayUnion([requestingUserId])});
-    batch.update(requestingUserRef, {'friendRequestsSent': FieldValue.arrayRemove([currentUserId]), 'friends': FieldValue.arrayUnion([currentUserId])});
-
     final ids = [currentUserId, requestingUserId]..sort();
     final chatId = ids.join('_');
     final chatRef = _db.collection('chats').doc(chatId);
-    // Ensure chat type is updated to allow free messaging
-    batch.set(chatRef, {'chatType': 'friend_chat'}, SetOptions(merge: true));
 
-    await batch.commit();
+    // ⭐ PHASE 5: TRANSACTION SAFETY - Use transaction for atomic friend acceptance
+    await _db.runTransaction((transaction) async {
+      final currentUserDoc = await transaction.get(currentUserRef);
+      final requestingUserDoc = await transaction.get(requestingUserRef);
+
+      if (!currentUserDoc.exists || !requestingUserDoc.exists) {
+        throw Exception("One or both users not found.");
+      }
+
+      // Verify the request exists
+      final currentUserData = currentUserDoc.data() as Map<String, dynamic>;
+      final requestsReceived =
+          List<String>.from(currentUserData['friendRequestsReceived'] ?? []);
+
+      if (!requestsReceived.contains(requestingUserId)) {
+        throw Exception("Friend request not found.");
+      }
+
+      // Atomically update both users
+      transaction.update(currentUserRef, {
+        'friendRequestsReceived': FieldValue.arrayRemove([requestingUserId]),
+        'friends': FieldValue.arrayUnion([requestingUserId])
+      });
+      transaction.update(requestingUserRef, {
+        'friendRequestsSent': FieldValue.arrayRemove([currentUserId]),
+        'friends': FieldValue.arrayUnion([currentUserId])
+      });
+
+      // Get requesting user data for usernames
+      final requestingUserData =
+          requestingUserDoc.data() as Map<String, dynamic>;
+
+      // Ensure chat document exists with all required fields
+      transaction.set(
+        chatRef,
+        {
+          'users': [currentUserId, requestingUserId],
+          'usernames': {
+            currentUserId: currentUserData['username'] ?? 'User',
+            requestingUserId: requestingUserData['username'] ?? 'User',
+          },
+          'chatType': 'friend_chat',
+          'lastMessage': '',
+          'lastMessageTimestamp': FieldValue.serverTimestamp(),
+          'unreadFor': [],
+        },
+        SetOptions(merge: true),
+      );
+    });
+
+    // Delete friend request message after accepting
+    try {
+      await _db
+          .collection('friendRequestMessages')
+          .doc('${requestingUserId}_$currentUserId')
+          .delete();
+      debugPrint(
+          "UserRepository: Friend request message deleted after accept.");
+    } catch (e) {
+      debugPrint("UserRepository: No message to delete (this is OK): $e");
+    }
+
     // await _gamificationRepository.addXp(currentUserId, 50, isSeasonal: true); // Removed
     // await _gamificationRepository.addXp(requestingUserId, 50, isSeasonal: true); // Removed
     final currentUser = await getUser(currentUserId);
@@ -283,14 +504,33 @@ class UserRepository {
   }
 
   // declineFriendRequest remains the same
-  Future<void> declineFriendRequest(String currentUserId, String requestingUserId) async {
-    debugPrint("UserRepository: Declining friend request from $requestingUserId for $currentUserId.");
+  Future<void> declineFriendRequest(
+      String currentUserId, String requestingUserId) async {
+    debugPrint(
+        "UserRepository: Declining friend request from $requestingUserId for $currentUserId.");
     final batch = _db.batch();
     final currentUserRef = _db.collection('users').doc(currentUserId);
     final requestingUserRef = _db.collection('users').doc(requestingUserId);
-    batch.update(currentUserRef, {'friendRequestsReceived': FieldValue.arrayRemove([requestingUserId])});
-    batch.update(requestingUserRef, {'friendRequestsSent': FieldValue.arrayRemove([currentUserId])});
+    batch.update(currentUserRef, {
+      'friendRequestsReceived': FieldValue.arrayRemove([requestingUserId])
+    });
+    batch.update(requestingUserRef, {
+      'friendRequestsSent': FieldValue.arrayRemove([currentUserId])
+    });
     await batch.commit();
+
+    // Delete friend request message after declining
+    try {
+      await _db
+          .collection('friendRequestMessages')
+          .doc('${requestingUserId}_$currentUserId')
+          .delete();
+      debugPrint(
+          "UserRepository: Friend request message deleted after decline.");
+    } catch (e) {
+      debugPrint("UserRepository: No message to delete (this is OK): $e");
+    }
+
     debugPrint("UserRepository: Friend request declined.");
   }
 
@@ -300,18 +540,30 @@ class UserRepository {
     final batch = _db.batch();
     final currentUserRef = _db.collection('users').doc(currentUserId);
     final friendUserRef = _db.collection('users').doc(friendId);
-    batch.update(currentUserRef, {'friends': FieldValue.arrayRemove([friendId])});
-    batch.update(friendUserRef, {'friends': FieldValue.arrayRemove([currentUserId])});
+    batch.update(currentUserRef, {
+      'friends': FieldValue.arrayRemove([friendId])
+    });
+    batch.update(friendUserRef, {
+      'friends': FieldValue.arrayRemove([currentUserId])
+    });
     await batch.commit();
     debugPrint("UserRepository: Friend removed.");
   }
 
   // blockUser remains the same
   Future<void> blockUser(String currentUserId, String userToBlockId) async {
-    debugPrint("UserRepository: Blocking user $userToBlockId for $currentUserId.");
+    if (kDebugMode) {
+      debugPrint(
+          "[UserRepository] Blocking user $userToBlockId for $currentUserId");
+    }
+
     await removeFriend(currentUserId, userToBlockId).catchError((e) {
-      debugPrint("UserRepository: Note - Error removing friend during block (might not be friends): $e");
+      if (kDebugMode) {
+        debugPrint(
+            "[UserRepository] Note - Error removing friend during block (might not be friends): $e");
+      }
     });
+
     await _db.collection('users').doc(currentUserId).update({
       'blockedUsers': FieldValue.arrayUnion([userToBlockId])
     });
@@ -323,56 +575,110 @@ class UserRepository {
       'friendRequestsReceived': FieldValue.arrayRemove([userToBlockId]),
       'friendRequestsSent': FieldValue.arrayRemove([userToBlockId]),
     });
+
     final ids = [currentUserId, userToBlockId]..sort();
     final chatId = ids.join('_');
-    await _db.collection('chats').doc(chatId).delete().catchError((e){
-      debugPrint("UserRepository: Note - Error deleting chat during block: $e");
-    });
-    debugPrint("UserRepository: User blocked.");
+
+    // Bug #5 fix: Properly handle chat deletion failure
+    try {
+      await _db.collection('chats').doc(chatId).delete();
+      if (kDebugMode) {
+        debugPrint("[UserRepository] Chat deleted successfully");
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint("[UserRepository] Error deleting chat during block: $e");
+      }
+      // Don't silently fail - user should know chat might still exist
+      throw Exception("Failed to delete chat. Please try again.");
+    }
+
+    if (kDebugMode) {
+      debugPrint("[UserRepository] User blocked successfully");
+    }
   }
 
   // unblockUser remains the same
   Future<void> unblockUser(String currentUserId, String userToUnblockId) {
-    debugPrint("UserRepository: Unblocking user $userToUnblockId for $currentUserId.");
+    debugPrint(
+        "UserRepository: Unblocking user $userToUnblockId for $currentUserId.");
     return _db.collection('users').doc(currentUserId).update({
       'blockedUsers': FieldValue.arrayRemove([userToUnblockId])
     });
   }
 
-
   // --- Match / Swipe Methods ---
   // getPotentialMatches remains the same
-  Future<List<DocumentSnapshot>> getPotentialMatches(String currentUserId) async {
+  Future<List<DocumentSnapshot>> getPotentialMatches(
+      String currentUserId) async {
     debugPrint("UserRepository: Getting potential matches for $currentUserId.");
     try {
       final userDoc = await _db.collection('users').doc(currentUserId).get();
       if (!userDoc.exists) return [];
       final userData = userDoc.data() as Map<String, dynamic>;
-      List<String> blockedUsers = List<String>.from(userData['blockedUsers'] ?? []);
+      List<String> blockedUsers =
+          List<String>.from(userData['blockedUsers'] ?? []);
       List<String> friends = List<String>.from(userData['friends'] ?? []);
-      final swipesSnapshot = await _db.collection('users').doc(currentUserId).collection('swipes').get();
+      final swipesSnapshot = await _db
+          .collection('users')
+          .doc(currentUserId)
+          .collection('swipes')
+          .get();
       final swipedUserIds = swipesSnapshot.docs.map((doc) => doc.id).toList();
-      final excludedIds = {currentUserId, ...blockedUsers, ...friends, ...swipedUserIds};
+      final excludedIds = {
+        currentUserId,
+        ...blockedUsers,
+        ...friends,
+        ...swipedUserIds
+      };
 
-      // Simple query for now, can be refined later
-      final querySnapshot = await _db.collection('users').limit(50).get();
-      return querySnapshot.docs.where((doc) => !excludedIds.contains(doc.id)).toList();
+      // OPTIMIZED: Reduced from 50 to 20 documents
+      // For best performance, create Firestore composite index:
+      // Collection: users, Fields: gender (Ascending), age (Ascending)
+      Query query = _db.collection('users').limit(20);
+
+      // Gender filtering can be added here if UserModel has interestedIn field
+      // For now, just limit results to improve performance
+
+      final querySnapshot = await query.get();
+
+      // Client-side filtering for excluded users
+      return querySnapshot.docs
+          .where((doc) => !excludedIds.contains(doc.id))
+          .toList();
     } catch (e) {
       debugPrint("UserRepository Error: Failed to get potential matches: $e");
-      return [];
+      // Fallback to simple query if filtering fails
+      try {
+        final querySnapshot = await _db.collection('users').limit(20).get();
+        final currentUser =
+            await _db.collection('users').doc(currentUserId).get();
+        final friends = List<String>.from(currentUser.data()?['friends'] ?? []);
+        final excludedIds = {currentUserId, ...friends};
+        return querySnapshot.docs
+            .where((doc) => !excludedIds.contains(doc.id))
+            .toList();
+      } catch (fallbackError) {
+        debugPrint(
+            "UserRepository Error: Fallback query also failed: $fallbackError");
+        return [];
+      }
     }
   }
 
   // recordSwipe - Keep notification logic for super_like
-  Future<void> recordSwipe(String currentUserId, String otherUserId, String action) async {
-    debugPrint("UserRepository: Recording swipe ($action) from $currentUserId to $otherUserId.");
+  Future<void> recordSwipe(
+      String currentUserId, String otherUserId, String action) async {
+    debugPrint(
+        "UserRepository: Recording swipe ($action) from $currentUserId to $otherUserId.");
     final userRef = _db.collection('users').doc(currentUserId);
     if (action == 'super_like') {
       await _db.runTransaction((transaction) async {
         final userDoc = await transaction.get(userRef);
         if (!userDoc.exists) throw Exception("Current user not found.");
         final user = UserModel.fromDoc(userDoc);
-        if (user.superLikes < 1) throw Exception("You have no Super Likes left.");
+        if (user.superLikes < 1)
+          throw Exception("You have no Super Likes left.");
         transaction.update(userRef, {'superLikes': FieldValue.increment(-1)});
       });
     }
@@ -395,7 +701,8 @@ class UserRepository {
 
   // checkForMatch remains the same
   Future<bool> checkForMatch(String currentUserId, String otherUserId) async {
-    debugPrint("UserRepository: Checking for match between $currentUserId and $otherUserId.");
+    debugPrint(
+        "UserRepository: Checking for match between $currentUserId and $otherUserId.");
     final otherUserSwipeDoc = await _db
         .collection('users')
         .doc(otherUserId)
@@ -411,40 +718,77 @@ class UserRepository {
 
   // createMatch - Remove gamification calls
   Future<void> createMatch(String userId1, String userId2) async {
-    debugPrint("UserRepository: Creating match between $userId1 and $userId2.");
+    if (kDebugMode) {
+      debugPrint(
+          "[UserRepository] Creating match between $userId1 and $userId2");
+    }
+
     final ids = [userId1, userId2]..sort();
     final chatId = ids.join('_');
-    final user1Doc = await getUser(userId1); // Fetch user data
-    final user2Doc = await getUser(userId2); // Fetch user data
-    final batch = _db.batch();
-    final chatRef = _db.collection('chats').doc(chatId);
-    batch.set(chatRef, {
-      'users': ids,
-      'usernames': { userId1: user1Doc.username, userId2: user2Doc.username }, // Store usernames
-      'lastMessage': 'You matched! Say hello.', // Initial message
-      'lastMessageTimestamp': FieldValue.serverTimestamp(),
-      'chatType': 'friend_chat', // Mark as friend chat
-      'matchTimestamp': FieldValue.serverTimestamp(), // Record match time
-      'unreadFor': [], // Initially no unread messages
-    }, SetOptions(merge: true)); // Merge in case chat existed (e.g., from request)
-    final user1Ref = _db.collection('users').doc(userId1);
-    final user2Ref = _db.collection('users').doc(userId2);
-    // Add each other as friends
-    batch.update(user1Ref, {'friends': FieldValue.arrayUnion([userId2])});
-    batch.update(user2Ref, {'friends': FieldValue.arrayUnion([userId1])});
-    // Remove any pending friend requests between them
-    batch.update(user1Ref, {'friendRequestsReceived': FieldValue.arrayRemove([userId2]), 'friendRequestsSent': FieldValue.arrayRemove([userId2])});
-    batch.update(user2Ref, {'friendRequestsReceived': FieldValue.arrayRemove([userId1]), 'friendRequestsSent': FieldValue.arrayRemove([userId1])});
-    await batch.commit();
-    // await _gamificationRepository.addXp(userId1, 100, isSeasonal: true); // Removed
-    // await _gamificationRepository.addXp(userId2, 100, isSeasonal: true); // Removed
-    debugPrint("UserRepository: Match created successfully.");
-  }
+    final user1Doc = await getUser(userId1);
+    final user2Doc = await getUser(userId2);
 
+    // Bug #12 fix: Use transaction to prevent duplicate friends on retry
+    await _db.runTransaction((transaction) async {
+      final user1Ref = _db.collection('users').doc(userId1);
+      final user2Ref = _db.collection('users').doc(userId2);
+      final chatRef = _db.collection('chats').doc(chatId);
+
+      final user1Snapshot = await transaction.get(user1Ref);
+      final user2Snapshot = await transaction.get(user2Ref);
+
+      if (!user1Snapshot.exists || !user2Snapshot.exists) {
+        throw Exception("One or both users not found");
+      }
+
+      final user1Friends =
+          List<String>.from(user1Snapshot.get('friends') ?? []);
+      final user2Friends =
+          List<String>.from(user2Snapshot.get('friends') ?? []);
+
+      // Only add if not already friends (idempotency)
+      if (!user1Friends.contains(userId2)) {
+        transaction.update(user1Ref, {
+          'friends': FieldValue.arrayUnion([userId2]),
+          'friendRequestsReceived': FieldValue.arrayRemove([userId2]),
+          'friendRequestsSent': FieldValue.arrayRemove([userId2])
+        });
+      }
+
+      if (!user2Friends.contains(userId1)) {
+        transaction.update(user2Ref, {
+          'friends': FieldValue.arrayUnion([userId1]),
+          'friendRequestsReceived': FieldValue.arrayRemove([userId1]),
+          'friendRequestsSent': FieldValue.arrayRemove([userId1])
+        });
+      }
+
+      transaction.set(
+          chatRef,
+          {
+            'users': ids,
+            'usernames': {
+              userId1: user1Doc.username,
+              userId2: user2Doc.username
+            },
+            'lastMessage': 'You matched! Say hello.',
+            'lastMessageTimestamp': FieldValue.serverTimestamp(),
+            'chatType': 'friend_chat',
+            'matchTimestamp': FieldValue.serverTimestamp(),
+            'unreadFor': [],
+          },
+          SetOptions(merge: true));
+    });
+
+    if (kDebugMode) {
+      debugPrint("[UserRepository] Match created successfully");
+    }
+  }
 
   // --- User Discovery Methods ---
   // getPaginatedUsers remains the same
-  Future<QuerySnapshot> getPaginatedUsers({required int limit, DocumentSnapshot? lastDocument}) {
+  Future<QuerySnapshot> getPaginatedUsers(
+      {required int limit, DocumentSnapshot? lastDocument}) {
     debugPrint("UserRepository: Fetching paginated users (limit: $limit).");
     Query query = _db.collection('users').orderBy('username').limit(limit);
     if (lastDocument != null) {
@@ -454,8 +798,10 @@ class UserRepository {
   }
 
   // getRecommendedUsers - Remove sorting by level
-  Future<List<DocumentSnapshot>> getRecommendedUsers(List<String> interests, String currentUserId) async {
-    debugPrint("UserRepository: Fetching recommended users for $currentUserId.");
+  Future<List<DocumentSnapshot>> getRecommendedUsers(
+      List<String> interests, String currentUserId) async {
+    debugPrint(
+        "UserRepository: Fetching recommended users for $currentUserId.");
     if (interests.isEmpty) return [];
     try {
       // Query based on interests
@@ -473,8 +819,10 @@ class UserRepository {
 
       // Sort primarily by number of shared interests (descending)
       candidates.sort((a, b) {
-        final aSharedInterests = a.interests.where((i) => interests.contains(i)).length;
-        final bSharedInterests = b.interests.where((i) => interests.contains(i)).length;
+        final aSharedInterests =
+            a.interests.where((i) => interests.contains(i)).length;
+        final bSharedInterests =
+            b.interests.where((i) => interests.contains(i)).length;
         // Primary sort: shared interests (descending)
         int interestComparison = bSharedInterests.compareTo(aSharedInterests);
         if (interestComparison != 0) return interestComparison;
@@ -487,8 +835,10 @@ class UserRepository {
       final sortedIds = candidates.map((u) => u.id).toList();
 
       // Re-sort the original DocumentSnapshots based on the sorted IDs
-      final originalDocs = querySnapshot.docs.where((doc) => doc.id != currentUserId).toList();
-      originalDocs.sort((a, b) => sortedIds.indexOf(a.id).compareTo(sortedIds.indexOf(b.id)));
+      final originalDocs =
+          querySnapshot.docs.where((doc) => doc.id != currentUserId).toList();
+      originalDocs.sort(
+          (a, b) => sortedIds.indexOf(a.id).compareTo(sortedIds.indexOf(b.id)));
 
       // Return the top N recommendations
       return originalDocs.take(30).toList();
@@ -498,16 +848,20 @@ class UserRepository {
     }
   }
 
-
-  // searchUsers remains the same
   Stream<QuerySnapshot> searchUsers(String query) {
-    debugPrint("UserRepository: Searching users with query '$query'.");
+    if (kDebugMode) {
+      debugPrint("[UserRepository] Searching users with query '$query'");
+    }
     if (query.isEmpty) return Stream.empty();
-    // Simple prefix search
+
+    // Bug #16 fix: Sanitize search query to prevent injection and handle special chars
+    final sanitizedQuery = query.trim().replaceAll(RegExp(r'[^\w\s]'), '');
+    if (sanitizedQuery.isEmpty) return Stream.empty();
+
     return _db
         .collection('users')
-        .where('username', isGreaterThanOrEqualTo: query)
-        .where('username', isLessThanOrEqualTo: '$query\uf8ff') // Standard trick for prefix search
+        .where('username', isGreaterThanOrEqualTo: sanitizedQuery)
+        .where('username', isLessThanOrEqualTo: '$sanitizedQuery\uf8ff')
         .limit(20)
         .snapshots();
   }

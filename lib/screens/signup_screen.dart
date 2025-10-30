@@ -2,9 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/auth_bloc.dart';
-// import 'package:freegram/widgets/gradient_button.dart'; // Removed
-// import 'package:freegram/widgets/gradient_spinner.dart'; // Removed
-import 'package:flutter/foundation.dart'; // Import for debugPrint
+import 'package:freegram/widgets/freegram_app_bar.dart';
+import 'package:flutter/foundation.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -32,19 +31,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (_isSigningUp) return;
 
-    debugPrint("SignUpScreen: SignUp button pressed for email: ${_emailController.text}");
+    debugPrint(
+        "SignUpScreen: SignUp button pressed for email: ${_emailController.text}");
     setState(() {
       _isSigningUp = true;
     });
 
     context.read<AuthBloc>().add(
-      SignUpRequested(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-        username: _usernameController.text.trim(),
-      ),
-    );
-    debugPrint("SignUpScreen: Dispatched SignUpRequested event. WAITING FOR AuthWrapper navigation...");
+          SignUpRequested(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+            username: _usernameController.text.trim(),
+          ),
+        );
+    debugPrint(
+        "SignUpScreen: Dispatched SignUpRequested event. WAITING FOR AuthWrapper navigation...");
     // Let the BlocListener handle navigation and state changes
   }
 
@@ -52,7 +53,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Widget build(BuildContext context) {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
-        debugPrint("SignUpScreen: BlocListener received state: ${state.runtimeType}");
+        debugPrint(
+            "SignUpScreen: BlocListener received state: ${state.runtimeType}");
         if (state is AuthError) {
           // Only reset loading state if it was triggered by this screen
           if (mounted && _isSigningUp) {
@@ -72,7 +74,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
         // this screen off the stack if desired (or let AuthWrapper replace it).
         // Popping here makes sense as the signup flow is done.
         if (state is Authenticated && _isSigningUp) {
-          debugPrint("SignUpScreen: BlocListener received Authenticated state WHILE signing up. Popping screen.");
+          debugPrint(
+              "SignUpScreen: BlocListener received Authenticated state WHILE signing up. Popping screen.");
           // Reset the flag *before* popping
           if (mounted) {
             setState(() {
@@ -86,11 +89,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
         }
       },
       child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          // Ensure back button works correctly even if AppBar is transparent
-          leading: BackButton(color: Theme.of(context).iconTheme.color),
+        appBar: FreegramAppBar(
+          showBackButton: true,
         ),
         body: Center(
           child: SingleChildScrollView(
@@ -105,8 +105,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     'Create Account',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                   ),
                   const SizedBox(height: 48.0),
                   TextFormField(
@@ -115,9 +115,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       labelText: 'Username',
                     ),
                     enabled: !_isSigningUp, // Disable when loading
-                    validator: (value) => (value == null || value.trim().isEmpty)
-                        ? 'Please enter a username'
-                        : null,
+                    validator: (value) =>
+                        (value == null || value.trim().isEmpty)
+                            ? 'Please enter a username'
+                            : null,
                   ),
                   const SizedBox(height: 16.0),
                   TextFormField(
@@ -129,9 +130,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     enabled: !_isSigningUp, // Disable when loading
                     validator: (value) =>
-                    (value == null || !value.contains('@'))
-                        ? 'Please enter a valid email'
-                        : null,
+                        (value == null || !value.contains('@'))
+                            ? 'Please enter a valid email'
+                            : null,
                   ),
                   const SizedBox(height: 16.0),
                   TextFormField(
@@ -157,14 +158,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       foregroundColor: Theme.of(context).colorScheme.onPrimary,
                     ),
                     child: _isSigningUp
-                        ? const SizedBox( // Use standard CircularProgressIndicator
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: Colors.white, // Spinner color
-                      ),
-                    )
+                        ? const SizedBox(
+                            // Use standard CircularProgressIndicator
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white, // Spinner color
+                            ),
+                          )
                         : const Text('Sign Up'),
                   ),
                 ],

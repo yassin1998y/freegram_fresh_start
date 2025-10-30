@@ -1306,8 +1306,22 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
     if (widget.isProfileSynced) {
       final nearbyUser = locator<LocalCacheService>()
           .getNearbyUserByProfileId(widget.targetUser.id);
+
+      // CRITICAL FIX: Log the mapping to detect wrong targets
+      debugPrint(
+          "🎯 [WAVE TARGET] Looking up uidShort for profileId: ${widget.targetUser.id}");
+      if (nearbyUser != null) {
+        debugPrint(
+            "   ✅ Found: uidShort='${nearbyUser.uidShort}' (gender=${nearbyUser.gender}, lastSeen=${nearbyUser.lastSeen})");
+      } else {
+        debugPrint(
+            "   ❌ NOT FOUND! No nearby user has profileId='${widget.targetUser.id}'");
+      }
+
       return nearbyUser?.uidShort;
     } else {
+      debugPrint(
+          "🎯 [WAVE TARGET] Profile not synced, using short ID directly: ${widget.targetUser.id}");
       return widget.targetUser.id.length == 8 ? widget.targetUser.id : null;
     }
   }
@@ -1330,6 +1344,14 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
 
     try {
       final sonarController = locator<SonarController>();
+
+      // CRITICAL FIX: Log full wave context
+      debugPrint("👋 [SEND WAVE] Sending wave to:");
+      debugPrint("   Target uidShort: $targetUidShort");
+      debugPrint("   Display name: ${widget.targetUser.username}");
+      debugPrint("   Display ID: ${widget.targetUser.id}");
+      debugPrint("   Is synced: ${widget.isProfileSynced}");
+
       await sonarController.sendWave(targetUidShort);
 
       if (!mounted) return;

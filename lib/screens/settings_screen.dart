@@ -1,5 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:freegram/locator.dart';
+import 'package:freegram/services/navigation_service.dart';
+import 'package:freegram/widgets/freegram_app_bar.dart';
+import 'package:freegram/screens/notification_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -68,6 +72,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: FreegramAppBar(
+        title: 'Settings',
+        showBackButton: true,
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
@@ -123,10 +131,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       child: _isLoading
                           ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
                           : const Text('Update Password'),
                     ),
                   ],
@@ -139,10 +147,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _SettingsTile(
             icon: Icons.notifications_outlined,
             title: 'Manage Notifications',
+            subtitle: 'Control push notification preferences',
             onTap: () {
-              // Placeholder for future implementation
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notification settings coming soon!')),
+              locator<NavigationService>().navigateTo(
+                const NotificationSettingsScreen(),
+                transition: PageTransition.slide,
               );
             },
           ),

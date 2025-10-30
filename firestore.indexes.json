@@ -17,15 +17,14 @@
       ]
     },
     {
-      "collectionGroup": "chats",
+      "collectionGroup": "messages",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "users", "arrayConfig": "CONTAINS" },
-
-        { "fieldPath": "`unreadCount.69u1YJwilBYVNZYIL4eAbyRRTQI2`", "order": "ASCENDING" }
+        { "fieldPath": "senderId", "order": "ASCENDING" },
+        { "fieldPath": "isSeen", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
       ]
     }
-
   ],
   "fieldOverrides": []
 }

@@ -23,3 +23,13 @@ class ProfileUpdateEvent extends ProfileEvent {
   @override
   List<Object?> get props => [userId, updatedData, imageFile];
 }
+
+/// Event to track image upload progress.
+class ProfileImageUploadProgressEvent extends ProfileEvent {
+  final double progress;
+
+  const ProfileImageUploadProgressEvent({required this.progress});
+
+  @override
+  List<Object?> get props => [progress];
+}

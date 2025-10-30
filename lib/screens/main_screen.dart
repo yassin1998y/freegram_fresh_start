@@ -13,7 +13,7 @@ import 'package:freegram/repositories/chat_repository.dart';
 import 'package:freegram/repositories/notification_repository.dart';
 import 'package:freegram/repositories/user_repository.dart';
 // Import Screens
-import 'package:freegram/screens/chat_list_screen.dart';
+import 'package:freegram/screens/improved_chat_list_screen.dart';
 import 'package:freegram/screens/friends_list_screen.dart';
 import 'package:freegram/screens/match_screen.dart';
 import 'package:freegram/screens/menu_screen.dart';
@@ -56,9 +56,9 @@ class _MainScreenState extends State<MainScreen> {
   void _onItemTapped(int index) {
     debugPrint(
         'MainScreen: _onItemTapped called with index: $index, current _selectedIndex: $_selectedIndex');
-    
+
     if (index < 0 || index > 4) return;
-    
+
     setState(() {
       _selectedIndex = index;
       switch (index) {
@@ -88,43 +88,33 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, authState) {
+        // No need for inline loading - LoadingOverlay handles this
         if (authState is Unauthenticated) {
-          // Show loading state while AuthWrapper handles the transition
-          return const Scaffold(
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text("Signing out..."),
-                ],
-              ),
-            ),
-          );
+          // Return empty scaffold while AuthWrapper handles transition
+          return const Scaffold(body: SizedBox.shrink());
         }
-        
+
         if (authState is! Authenticated) {
-          return const Scaffold(body: Center(child: Text("Authenticating...")));
+          return const Scaffold(body: SizedBox.shrink());
         }
-        
+
         final currentUser = authState.user;
 
-    // Simplified Scaffold structure
-    return Scaffold(
-        extendBody: true, // Body behind bottom bar
-        appBar: AppBar(
-          // No back button - use device hardware back button
-          automaticallyImplyLeading: false,
-          backgroundColor: Colors.transparent, // For blur effect
-          elevation: 0,
+        // Simplified Scaffold structure
+        return Scaffold(
+          extendBody: true, // Body behind bottom bar
+          appBar: AppBar(
+            // No back button - use device hardware back button
+            automaticallyImplyLeading: false,
+            backgroundColor: Colors.transparent, // For blur effect
+            elevation: 0,
             flexibleSpace:
                 _buildBlurredAppBarBackground(context), // Blurred background
             title: Column(
               // Title/Subtitle structure
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text('Freegram',
                     style: Theme.of(context).textTheme.displayMedium?.copyWith(
                         color: SonarPulseTheme.primaryAccent,
@@ -132,9 +122,9 @@ class _MainScreenState extends State<MainScreen> {
                         height: 1.0)),
                 BlocBuilder<ConnectivityBloc, ConnectivityState>(
                   // Connectivity/Screen Name subtitle
-              builder: (context, state) {
-                Widget subtitle;
-                if (state is Offline) {
+                  builder: (context, state) {
+                    Widget subtitle;
+                    if (state is Offline) {
                       subtitle = Text("Bluetooth Only Mode",
                           key: const ValueKey('offline_mode'),
                           style: Theme.of(context)
@@ -142,7 +132,7 @@ class _MainScreenState extends State<MainScreen> {
                               .bodySmall
                               ?.copyWith(
                                   height: 1.0, color: Colors.blueAccent));
-                } else {
+                    } else {
                       subtitle = Text(_currentScreenName,
                           key: ValueKey(_currentScreenName),
                           style: Theme.of(context)
@@ -155,88 +145,103 @@ class _MainScreenState extends State<MainScreen> {
                         transitionBuilder: (child, animation) =>
                             FadeTransition(opacity: animation, child: child),
                         child: subtitle);
-              },
+                  },
+                ),
+              ],
             ),
-          ],
-        ),
             actions: [
               // AppBar actions
               _AppBarAction(
                 // Chat action
-            icon: Icons.chat_bubble_outline,
+                icon: Icons.chat_bubble_outline,
                 stream: locator<ChatRepository>()
                     .getUnreadChatCountStream(currentUser.uid),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const ChatListScreen(),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ImprovedChatListScreen(),
+                  ),
+                ),
               ),
-            ),
-          ),
               _AppBarAction(
                   // Add action (placeholder)
-              icon: Icons.add_box_outlined,
+                  icon: Icons.add_box_outlined,
                   onPressed: () => showIslandPopup(
                       context: context,
                       message: "Create feature coming soon!",
                       icon: Icons.add_box_outlined)),
-          // --- START: Notification Action Update (Fix #5) ---
+              // --- START: Notification Action Update (Fix #5) ---
               _AppBarAction(
                 // Notification action
-            icon: Icons.notifications_outlined,
+                icon: Icons.notifications_outlined,
                 stream: locator<NotificationRepository>()
                     .getUnreadNotificationCountStream(currentUser.uid),
-            onPressed: () {
-              // --- Use showModalBottomSheet ---
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Theme.of(context).colorScheme.surface,
-                shape: const RoundedRectangleBorder(
+                onPressed: () {
+                  // --- Use showModalBottomSheet ---
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Theme.of(context).colorScheme.surface,
+                    shape: const RoundedRectangleBorder(
                       borderRadius:
                           BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                builder: (modalContext) {
-                  return DraggableScrollableSheet(
-                    initialChildSize: 0.75, // Start at 75% height
+                    ),
+                    builder: (modalContext) {
+                      return DraggableScrollableSheet(
+                        initialChildSize: 0.75, // Start at 75% height
                         minChildSize: 0.5, // Allow shrinking to 50%
                         maxChildSize: 0.95, // Allow expanding to 95%
-                    expand: false,
-                    builder: (_, scrollController) {
-                      return NotificationsScreen(
-                        isModal: true,
-                        scrollController: scrollController,
+                        expand: false,
+                        builder: (_, scrollController) {
+                          return NotificationsScreen(
+                            isModal: true,
+                            scrollController: scrollController,
+                          );
+                        },
                       );
                     },
                   );
+                  // --- Old Navigation (Removed): ---
+                  // _navigatorKey.currentState?.pushNamed(notificationsRoute);
                 },
-              );
-              // --- Old Navigation (Removed): ---
-              // _navigatorKey.currentState?.pushNamed(notificationsRoute);
-            },
+              ),
+              // --- END: Notification Action Update ---
+              const SizedBox(width: 8), // Padding
+            ],
           ),
-          // --- END: Notification Action Update ---
-          const SizedBox(width: 8), // Padding
-        ],
-      ),
-      // Simplified content area using IndexedStack
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: [
-          const NearbyScreen(),
-          const SimplifiedFeedWidget(),
-          const MatchScreen(),
-          BlocProvider(
-                create: (_) =>
-                    FriendsBloc(userRepository: locator<UserRepository>())
-                      ..add(LoadFriends()),
-            child: const FriendsListScreen(),
+          // Optimized content area using IndexedStack with visibility management
+          body: IndexedStack(
+            index: _selectedIndex,
+            children: [
+              _VisibilityWrapper(
+                isVisible: _selectedIndex == 0,
+                child: const NearbyScreen(),
+              ),
+              _VisibilityWrapper(
+                isVisible: _selectedIndex == 1,
+                child: const SimplifiedFeedWidget(),
+              ),
+              _VisibilityWrapper(
+                isVisible: _selectedIndex == 2,
+                child: const MatchScreen(),
+              ),
+              _VisibilityWrapper(
+                isVisible: _selectedIndex == 3,
+                child: BlocProvider(
+                  create: (_) =>
+                      FriendsBloc(userRepository: locator<UserRepository>())
+                        ..add(LoadFriends()),
+                  child: const FriendsListScreen(),
+                ),
+              ),
+              _VisibilityWrapper(
+                isVisible: _selectedIndex == 4,
+                child: const MenuScreen(),
+              ),
+            ],
           ),
-          const MenuScreen(),
-        ],
-      ),
           // Bottom Navigation Bar - Flat design with 5 buttons
           bottomNavigationBar: _buildFlatBottomNavBar(context, currentUser),
-    );
+        );
       },
     );
   }
@@ -618,5 +623,51 @@ class SimplifiedFeedWidget extends StatelessWidget {
         if (state is Offline) const OfflineOverlay()
       ]);
     });
+  }
+}
+
+// Visibility Wrapper to manage screen lifecycle
+class _VisibilityWrapper extends StatefulWidget {
+  final bool isVisible;
+  final Widget child;
+
+  const _VisibilityWrapper({
+    required this.isVisible,
+    required this.child,
+  });
+
+  @override
+  State<_VisibilityWrapper> createState() => _VisibilityWrapperState();
+}
+
+class _VisibilityWrapperState extends State<_VisibilityWrapper>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => widget.isVisible;
+
+  @override
+  void didUpdateWidget(_VisibilityWrapper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isVisible != widget.isVisible) {
+      // Update keep alive state when visibility changes
+      updateKeepAlive();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+
+    // Only build child when visible or being kept alive
+    if (widget.isVisible || wantKeepAlive) {
+      return Visibility(
+        visible: widget.isVisible,
+        maintainState: true,
+        child: widget.child,
+      );
+    }
+
+    // Return empty container for completely inactive screens
+    return const SizedBox.shrink();
   }
 }

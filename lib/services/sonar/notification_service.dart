@@ -2,12 +2,14 @@
 import 'package:flutter/foundation.dart'; // Needed for debugPrint
 import 'package:flutter/material.dart'; // Needed for @pragma('vm:entry-point')
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:freegram/services/fcm_navigation_service.dart';
 
 // Define top-level or static function for background notification tap handling
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse notificationResponse) {
   // Handle notification tap when app is in background or terminated
-  debugPrint('Notification tapped in background/terminated: ${notificationResponse.payload}');
+  debugPrint(
+      'Notification tapped in background/terminated: ${notificationResponse.payload}');
   // TODO: Add logic here to navigate or handle the payload,
   // potentially using shared preferences or another mechanism
   // to communicate with the main app isolate upon startup.
@@ -19,27 +21,28 @@ class NotificationService {
   NotificationService._internal();
 
   final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
-  FlutterLocalNotificationsPlugin();
+      FlutterLocalNotificationsPlugin();
 
   // Define channel IDs
   static const String waveChannelId = 'waves_channel';
   static const String waveChannelName = 'Nearby Waves';
-  static const String waveChannelDescription = 'Notifications for received waves';
+  static const String waveChannelDescription =
+      'Notifications for received waves';
 
   static const String discoveryChannelId = 'discovery_channel';
   static const String discoveryChannelName = 'Nearby Discovery';
-  static const String discoveryChannelDescription = 'Notifications for new users nearby';
-
+  static const String discoveryChannelDescription =
+      'Notifications for new users nearby';
 
   /// Initializes the notification plugin and sets up channels.
   Future<void> initialize() async {
     // Android Initialization Settings
     const AndroidInitializationSettings initializationSettingsAndroid =
-    AndroidInitializationSettings('@mipmap/ic_launcher'); // Use app icon
+        AndroidInitializationSettings('@mipmap/ic_launcher'); // Use app icon
 
     // iOS Initialization Settings (requesting permissions)
     final DarwinInitializationSettings initializationSettingsIOS =
-    DarwinInitializationSettings(
+        DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
@@ -47,7 +50,8 @@ class NotificationService {
     );
 
     // General Initialization Settings
-    final InitializationSettings initializationSettings = InitializationSettings(
+    final InitializationSettings initializationSettings =
+        InitializationSettings(
       android: initializationSettingsAndroid,
       iOS: initializationSettingsIOS,
     );
@@ -71,17 +75,20 @@ class NotificationService {
       waveChannelId,
       waveChannelName,
       description: waveChannelDescription,
-      importance: Importance.max, // High importance for waves (implicitly sets priority)
+      importance: Importance
+          .max, // High importance for waves (implicitly sets priority)
       // priority: Priority.high, // REMOVED
       playSound: true,
       enableVibration: true,
     );
 
-    const AndroidNotificationChannel discoveryChannel = AndroidNotificationChannel(
+    const AndroidNotificationChannel discoveryChannel =
+        AndroidNotificationChannel(
       discoveryChannelId,
       discoveryChannelName,
       description: discoveryChannelDescription,
-      importance: Importance.defaultImportance, // Lower importance (implicitly sets priority)
+      importance: Importance
+          .defaultImportance, // Lower importance (implicitly sets priority)
       // priority: Priority.defaultPriority, // REMOVED
       playSound: false, // Optional: No sound for discovery
       enableVibration: false, // Optional: No vibration for discovery
@@ -89,8 +96,8 @@ class NotificationService {
 
     // Get platform implementation and create channels
     final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
-    _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+        _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
 
     await androidImplementation?.createNotificationChannel(waveChannel);
     await androidImplementation?.createNotificationChannel(discoveryChannel);
@@ -107,7 +114,8 @@ class NotificationService {
     String? payload, // Optional: e.g., sender's profileId or uidShort
   }) async {
     // Define Android details (without priority)
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
       waveChannelId,
       waveChannelName,
       channelDescription: waveChannelDescription,
@@ -135,7 +143,8 @@ class NotificationService {
       platformDetails,
       payload: payload,
     );
-    debugPrint("NotificationService: Showing wave notification. Payload: $payload");
+    debugPrint(
+        "NotificationService: Showing wave notification. Payload: $payload");
   }
 
   /// Shows a notification for a newly discovered user (optional).
@@ -145,11 +154,13 @@ class NotificationService {
     String? payload, // Optional: user's profileId or uidShort
   }) async {
     // Define Android details (without priority)
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
       discoveryChannelId,
       discoveryChannelName,
       channelDescription: discoveryChannelDescription,
-      importance: Importance.defaultImportance, // Use Importance.defaultImportance
+      importance:
+          Importance.defaultImportance, // Use Importance.defaultImportance
       // priority: Priority.defaultPriority, // REMOVED
       ticker: 'ticker',
     );
@@ -173,7 +184,8 @@ class NotificationService {
       platformDetails,
       payload: payload,
     );
-    debugPrint("NotificationService: Showing discovery notification. Payload: $payload");
+    debugPrint(
+        "NotificationService: Showing discovery notification. Payload: $payload");
   }
 
   // --- Notification Tap Handlers ---
@@ -182,7 +194,8 @@ class NotificationService {
   void onDidReceiveLocalNotification(
       int id, String? title, String? body, String? payload) async {
     // Display a dialog or handle as needed
-    debugPrint("NotificationService (iOS FG): Received: $title - Payload: $payload");
+    debugPrint(
+        "NotificationService (iOS FG): Received: $title - Payload: $payload");
     // Example: Show an in-app banner or dialog if app is active
   }
 
@@ -190,14 +203,64 @@ class NotificationService {
   void onDidReceiveNotificationResponse(
       NotificationResponse notificationResponse) async {
     final String? payload = notificationResponse.payload;
-    debugPrint("NotificationService (Tap): Notification tapped. Payload: $payload");
-    if (payload != null) {
-      // TODO: Implement navigation logic based on the payload.
-      // Example: If payload is a user ID, navigate to ProfileScreen(userId: payload)
-      // You might need access to a Navigator key or use a routing package like go_router.
-      // Example using a hypothetical global navigator key:
-      // GlobalNavigatorKey.navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => ProfileScreen(userId: payload)));
-      debugPrint("Navigate to relevant screen using payload: $payload");
+    debugPrint("[Local Notification] Tapped. Payload: $payload");
+
+    if (payload != null && payload.isNotEmpty) {
+      // Parse payload format: "type:id:extraId"
+      // Examples:
+      // - "chat:chatId123:senderId456"
+      // - "profile:userId123"
+
+      final parts = payload.split(':');
+      if (parts.isEmpty) return;
+
+      final type = parts[0];
+
+      try {
+        final fcmNav = FcmNavigationService();
+        final context = fcmNav.navigatorKey.currentContext;
+
+        if (context == null) {
+          debugPrint(
+              "[Local Notification] No context available for navigation");
+          return;
+        }
+
+        switch (type) {
+          case 'chat':
+            if (parts.length >= 3) {
+              final chatId = parts[1];
+              final senderId = parts[2];
+              debugPrint("[Local Notification] Navigating to chat: $chatId");
+              Navigator.pushNamed(
+                context,
+                '/chat',
+                arguments: {
+                  'chatId': chatId,
+                  'otherUserId': senderId,
+                },
+              );
+            }
+            break;
+
+          case 'profile':
+            if (parts.length >= 2) {
+              final userId = parts[1];
+              debugPrint("[Local Notification] Navigating to profile: $userId");
+              Navigator.pushNamed(
+                context,
+                '/profile',
+                arguments: {'userId': userId},
+              );
+            }
+            break;
+
+          default:
+            debugPrint("[Local Notification] Unknown payload type: $type");
+        }
+      } catch (e) {
+        debugPrint("[Local Notification] Error navigating: $e");
+      }
     }
   }
 
@@ -206,11 +269,11 @@ class NotificationService {
     debugPrint("NotificationService: Requesting iOS permissions...");
     return await _flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
-        IOSFlutterLocalNotificationsPlugin>()
+            IOSFlutterLocalNotificationsPlugin>()
         ?.requestPermissions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+          alert: true,
+          badge: true,
+          sound: true,
+        );
   }
 }

@@ -17,8 +17,10 @@ class NotificationModel {
   final String fromUserId;
   final String fromUsername;
   final String? fromUserPhotoUrl;
-  final String? postId; // Keep for potential future use or context? Or remove if truly unused.
-  final String? commentId; // Keep for potential future use or context? Or remove if truly unused.
+  final String?
+      postId; // Keep for potential future use or context? Or remove if truly unused.
+  final String?
+      commentId; // Keep for potential future use or context? Or remove if truly unused.
   final String? message; // Optional: for custom messages like waves
   final Timestamp timestamp;
   final bool isRead;
@@ -69,9 +71,9 @@ class NotificationModel {
   // Updated to remove deleted types
   static NotificationType _stringToNotificationType(String typeStr) {
     switch (typeStr) {
-    // case 'like': return NotificationType.like; // Removed
-    // case 'comment': return NotificationType.comment; // Removed
-    // case 'follow': return NotificationType.follow; // Removed
+      // case 'like': return NotificationType.like; // Removed
+      // case 'comment': return NotificationType.comment; // Removed
+      // case 'follow': return NotificationType.follow; // Removed
       case 'friend_request_received': // Allow legacy string
       case 'friendRequest':
         return NotificationType.friendRequest;
@@ -83,10 +85,11 @@ class NotificationModel {
         return NotificationType.superLike; // Keep
       case 'nearbyWave':
         return NotificationType.nearbyWave;
-    // case 'gameInvite': return NotificationType.gameInvite; // Removed
+      // case 'gameInvite': return NotificationType.gameInvite; // Removed
       default:
-      // Default to friendRequest or throw an error if unknown type is critical
-        print('Unknown notification type: $typeStr, defaulting to friendRequest.');
+        // Default to friendRequest or throw an error if unknown type is critical
+        print(
+            'Unknown notification type: $typeStr, defaulting to friendRequest.');
         return NotificationType.friendRequest;
     }
   }

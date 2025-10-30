@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/blocs/auth_bloc.dart';
 import 'package:freegram/screens/profile_screen.dart';
 import 'package:freegram/screens/settings_screen.dart';
+import 'package:freegram/services/navigation_service.dart';
+import 'package:freegram/locator.dart';
 
 class MenuScreen extends StatelessWidget {
   const MenuScreen({super.key});
@@ -18,26 +20,27 @@ class MenuScreen extends StatelessWidget {
             icon: Icons.person_outline,
             title: 'My Profile',
             onTap: () {
-              // Navigate to Profile screen using root navigator
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => ProfileScreen(
-                    userId: FirebaseAuth.instance.currentUser!.uid,
-                  ),
+              // Navigate to Profile screen with professional transition
+              locator<NavigationService>().navigateTo(
+                ProfileScreen(
+                  userId: FirebaseAuth.instance.currentUser!.uid,
                 ),
+                transition: PageTransition.slide,
               );
             },
           ),
-          _MenuTile(icon: Icons.storefront_outlined, title: 'Store', onTap: () {/* Navigate to StoreScreen */}),
+          _MenuTile(
+              icon: Icons.storefront_outlined,
+              title: 'Store',
+              onTap: () {/* Navigate to StoreScreen */}),
           _MenuTile(
             icon: Icons.settings_outlined,
             title: 'Settings',
             onTap: () {
-              // Navigate to Settings screen using root navigator
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const SettingsScreen(),
-                ),
+              // Navigate to Settings screen with professional transition
+              locator<NavigationService>().navigateTo(
+                const SettingsScreen(),
+                transition: PageTransition.slide,
               );
             },
           ),
@@ -47,37 +50,40 @@ class MenuScreen extends StatelessWidget {
             icon: Icons.logout,
             title: 'Logout',
             color: Theme.of(context).colorScheme.error,
-            onTap: () {
+            onTap: () async {
               // Store a reference to the AuthBloc before showing the dialog
               final authBloc = context.read<AuthBloc>();
-              
-              // Show confirmation dialog before logging out
-              showDialog(
-                context: context,
-                builder: (dialogContext) => AlertDialog(
+
+              // Show confirmation dialog with professional animation
+              final confirmed =
+                  await locator<NavigationService>().showDialogWithFade<bool>(
+                child: AlertDialog(
                   title: const Text('Confirm Logout'),
                   content: const Text('Are you sure you want to log out?'),
                   actions: [
                     TextButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      onPressed: () =>
+                          locator<NavigationService>().goBack(false),
                       child: const Text('Cancel'),
                     ),
                     TextButton(
-                      onPressed: () {
-                        // Dismiss the dialog
-                        Navigator.of(dialogContext).pop();
-                        // Trigger the AuthBloc's SignOut event using the stored reference
-                        // The AuthWrapper will automatically show LoginScreen when state becomes Unauthenticated
-                        authBloc.add(SignOut());
-                      },
+                      onPressed: () =>
+                          locator<NavigationService>().goBack(true),
                       child: Text(
                         'Logout',
-                        style: TextStyle(color: Theme.of(context).colorScheme.error),
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error),
                       ),
                     ),
                   ],
                 ),
               );
+
+              if (confirmed == true) {
+                // Trigger the AuthBloc's SignOut event
+                // The AuthWrapper will automatically handle navigation
+                authBloc.add(SignOut());
+              }
             },
           ),
         ],
@@ -107,7 +113,8 @@ class _MenuTile extends StatelessWidget {
       leading: Icon(icon, color: tileColor),
       title: Text(
         title,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(color: tileColor),
+        style:
+            Theme.of(context).textTheme.titleMedium?.copyWith(color: tileColor),
       ),
       onTap: onTap,
     );

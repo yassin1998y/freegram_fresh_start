@@ -1,10 +1,12 @@
 // lib/repositories/auth_repository.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart'; // Keep for debugPrint
+import 'package:flutter/foundation.dart'; // For kDebugMode and debugPrint
 import 'package:freegram/models/user_model.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:hive/hive.dart'; // For clearing user-specific data on logout
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
@@ -13,6 +15,13 @@ String _uidShortFromFullAuth(String fullId) {
   final bytes = utf8.encode(fullId);
   final digest = sha256.convert(bytes);
   return digest.toString().substring(0, 8);
+}
+
+// Conditional debug logging
+void _debugLog(String message) {
+  if (kDebugMode) {
+    debugPrint('AuthRepository: $message');
+  }
 }
 
 class AuthRepository {
@@ -26,10 +35,11 @@ class AuthRepository {
     GoogleSignIn? googleSignIn,
   })  : _db = firestore ?? FirebaseFirestore.instance,
         _auth = firebaseAuth ?? FirebaseAuth.instance,
-        _googleSignIn = googleSignIn ?? GoogleSignIn(
-          serverClientId: '60183775527-mifomgjm2uvpt3esk1so8580asto7vk6.apps.googleusercontent.com', // Web client ID
-          scopes: ['email', 'profile'],
-        );
+        _googleSignIn = googleSignIn ??
+            GoogleSignIn(
+              serverClientId: dotenv.env['GOOGLE_WEB_CLIENT_ID'] ?? '',
+              scopes: ['email', 'profile'],
+            );
 
   Future<void> createUser({
     required String uid,
@@ -49,7 +59,7 @@ class AuthRepository {
       lastNearbyDiscoveryDate: DateTime.fromMillisecondsSinceEpoch(0),
     );
     final userMap = newUser.toMap();
-    debugPrint("AuthRepository: Creating user document for UID: $uid with data: $userMap"); // Log data being saved
+    _debugLog("Creating user document for UID: $uid");
     return _db.collection('users').doc(uid).set(userMap);
   }
 
@@ -58,111 +68,115 @@ class AuthRepository {
     required String password,
     required String username,
   }) async {
-    User? user; // Declare user variable outside try block
+    User? user;
     try {
-      debugPrint("AuthRepository: Attempting to create Auth user for $email..."); // --- DEBUG ---
+      _debugLog("Creating Auth user for $email");
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      user = userCredential.user; // Assign user here
+      user = userCredential.user;
       if (user == null) {
         throw Exception('Firebase Auth user creation returned null.');
       }
-      debugPrint("AuthRepository: Auth user created successfully. UID: ${user.uid}"); // --- DEBUG ---
+      _debugLog("Auth user created successfully. UID: ${user.uid}");
 
-      debugPrint("AuthRepository: Attempting to update display name for ${user.uid}..."); // --- DEBUG ---
       await user.updateDisplayName(username);
-      debugPrint("AuthRepository: Display name updated."); // --- DEBUG ---
+      _debugLog("Display name updated for ${user.uid}");
 
-      debugPrint("AuthRepository: Attempting to create Firestore document for ${user.uid}..."); // --- DEBUG ---
       await createUser(
         uid: user.uid,
         username: username,
         email: email,
       );
-      debugPrint("AuthRepository: Firestore document created successfully for ${user.uid}."); // --- DEBUG ---
-
+      _debugLog("Firestore document created successfully for ${user.uid}");
     } catch (e) {
-      // --- DEBUG: Log specific error point ---
       if (user == null) {
-        debugPrint("AuthRepository: Error during Firebase Auth user creation: $e");
-      } else if (!(await _db.collection('users').doc(user.uid).get()).exists) {
-        debugPrint("AuthRepository: Error after Auth user creation, during Firestore document creation for ${user.uid}: $e");
+        _debugLog("Error during Firebase Auth user creation: $e");
       } else {
-        debugPrint("AuthRepository: Error during sign up (unknown point): $e");
+        final docExists =
+            (await _db.collection('users').doc(user.uid).get()).exists;
+        if (!docExists) {
+          _debugLog(
+              "Error during Firestore document creation for ${user.uid}: $e");
+        } else {
+          _debugLog("Error during sign up: $e");
+        }
       }
-      // --- END DEBUG ---
-      rethrow; // Re-throw the error for the BLoC to catch
+      rethrow;
     }
   }
 
-
   Future<UserCredential> signInWithGoogle() async {
-    debugPrint("AuthRepository: Attempting Google Sign In..."); // --- DEBUG ---
-    
+    _debugLog("Attempting Google Sign In");
+
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
-        debugPrint("AuthRepository: Google Sign In aborted by user."); // --- DEBUG ---
+        _debugLog("Google Sign In aborted by user");
         throw FirebaseAuthException(
             code: 'ERROR_ABORTED_BY_USER', message: 'Sign in aborted by user');
       }
-      
-      debugPrint("AuthRepository: Google Sign In successful, getting auth..."); // --- DEBUG ---
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      
+
+      _debugLog("Google Sign In successful, getting auth");
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
       if (googleAuth.accessToken == null || googleAuth.idToken == null) {
-        debugPrint("AuthRepository: Missing access token or ID token from Google");
+        _debugLog("Missing access token or ID token from Google");
         throw FirebaseAuthException(
-            code: 'ERROR_MISSING_TOKENS', 
+            code: 'ERROR_MISSING_TOKENS',
             message: 'Failed to get authentication tokens from Google');
       }
-      
+
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
-      
-      debugPrint("AuthRepository: Signing in with Firebase credential..."); // --- DEBUG ---
+
+      _debugLog("Signing in with Firebase credential");
       final userCredential = await _auth.signInWithCredential(credential);
       final user = userCredential.user;
 
-    if (user != null) {
-      debugPrint("AuthRepository: Firebase sign in successful. UID: ${user.uid}. Checking Firestore doc..."); // --- DEBUG ---
-      final userDoc = await _db.collection('users').doc(user.uid).get();
-      if (!userDoc.exists) {
-        debugPrint("AuthRepository: Firestore doc not found for ${user.uid}. Creating..."); // --- DEBUG ---
-        await createUser(
-          uid: user.uid,
-          username: user.displayName ?? 'Google User',
-          email: user.email ?? '',
-          photoUrl: user.photoURL,
-        );
-        debugPrint("AuthRepository: Firestore doc created for ${user.uid}."); // --- DEBUG ---
-        
-        // Wait a moment to ensure the document is fully written
-        await Future.delayed(const Duration(milliseconds: 500));
-        debugPrint("AuthRepository: Waiting for Firestore document to be fully written...");
-      } else {
-        debugPrint("AuthRepository: Firestore doc found for ${user.uid}. Checking uidShort..."); // --- DEBUG ---
-        if (!userDoc.data()!.containsKey('uidShort')) {
-          final calculatedShortId = _uidShortFromFullAuth(user.uid);
-          await _db.collection('users').doc(user.uid).update({'uidShort': calculatedShortId});
-          debugPrint("AuthRepository: Added missing uidShort for existing user ${user.uid}");
+      if (user != null) {
+        _debugLog("Firebase sign in successful. UID: ${user.uid}");
+
+        // Check if email already exists with different provider
+        await _handleDuplicateEmail(user.email);
+
+        final userDoc = await _db.collection('users').doc(user.uid).get();
+        if (!userDoc.exists) {
+          _debugLog("Creating new Firestore doc for ${user.uid}");
+          await createUser(
+            uid: user.uid,
+            username: user.displayName ?? 'Google User',
+            email: user.email ?? '',
+            photoUrl: user.photoURL,
+          );
+
+          // Properly wait for document to be created
+          await _waitForDocumentCreation(user.uid);
+        } else {
+          _debugLog("Firestore doc found for ${user.uid}");
+          // Ensure uidShort exists
+          if (!userDoc.data()!.containsKey('uidShort')) {
+            final calculatedShortId = _uidShortFromFullAuth(user.uid);
+            await _db
+                .collection('users')
+                .doc(user.uid)
+                .update({'uidShort': calculatedShortId});
+            _debugLog("Added missing uidShort for existing user");
+          }
         }
-      }
-    } else {
-      debugPrint("AuthRepository: Firebase sign in returned null user."); // --- DEBUG ---
-    }
-    return userCredential;
-    
-    } catch (e) {
-      debugPrint("AuthRepository: Error during Google Sign In: $e");
-      if (e is FirebaseAuthException) {
-        rethrow; // Re-throw Firebase auth exceptions as-is
       } else {
-        // Wrap other exceptions in FirebaseAuthException
+        _debugLog("Firebase sign in returned null user");
+      }
+      return userCredential;
+    } catch (e) {
+      _debugLog("Error during Google Sign In: $e");
+      if (e is FirebaseAuthException) {
+        rethrow;
+      } else {
         throw FirebaseAuthException(
           code: 'ERROR_GOOGLE_SIGNIN_FAILED',
           message: 'Google Sign-In failed: ${e.toString()}',
@@ -171,67 +185,157 @@ class AuthRepository {
     }
   }
 
+  // Helper method to wait for document creation (replaces artificial delay)
+  Future<void> _waitForDocumentCreation(String uid,
+      {int maxRetries = 10}) async {
+    for (int i = 0; i < maxRetries; i++) {
+      final doc = await _db.collection('users').doc(uid).get();
+      if (doc.exists) {
+        _debugLog("Document confirmed to exist after ${i + 1} attempts");
+        return;
+      }
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+    _debugLog(
+        "Warning: Document creation could not be confirmed after $maxRetries attempts");
+  }
+
+  // Helper method to detect duplicate accounts by email
+  Future<void> _handleDuplicateEmail(String? email) async {
+    if (email == null || email.isEmpty) return;
+
+    try {
+      final existingUsers = await _db
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (existingUsers.docs.isNotEmpty) {
+        _debugLog("Found existing account with email $email");
+        // Could link accounts here or throw error
+        // For now, we'll allow it (Firebase handles multiple providers)
+      }
+    } catch (e) {
+      _debugLog("Error checking for duplicate email: $e");
+    }
+  }
+
   Future<UserCredential> signInWithFacebook() async {
-    debugPrint("AuthRepository: Attempting Facebook Sign In..."); // --- DEBUG ---
-    final LoginResult result = await FacebookAuth.instance.login();
+    _debugLog("Attempting Facebook Sign In");
+
+    // Request email permission explicitly
+    final LoginResult result = await FacebookAuth.instance.login(
+      permissions: ['email', 'public_profile'],
+    );
+
     if (result.status == LoginStatus.success) {
-      debugPrint("AuthRepository: Facebook login successful, getting credential..."); // --- DEBUG ---
+      _debugLog("Facebook login successful, getting credential");
       final AccessToken accessToken = result.accessToken!;
       final AuthCredential credential =
-      FacebookAuthProvider.credential(accessToken.token);
-      debugPrint("AuthRepository: Signing in with Firebase credential..."); // --- DEBUG ---
+          FacebookAuthProvider.credential(accessToken.token);
+
+      _debugLog("Signing in with Firebase credential");
       final userCredential = await _auth.signInWithCredential(credential);
       final user = userCredential.user;
 
       if (user != null) {
-        debugPrint("AuthRepository: Firebase sign in successful. UID: ${user.uid}. Checking Firestore doc..."); // --- DEBUG ---
+        _debugLog("Firebase sign in successful. UID: ${user.uid}");
+
+        // Check for duplicate email
+        await _handleDuplicateEmail(user.email);
+
         final userDoc = await _db.collection('users').doc(user.uid).get();
         if (!userDoc.exists) {
-          debugPrint("AuthRepository: Firestore doc not found for ${user.uid}. Fetching FB data & Creating..."); // --- DEBUG ---
+          _debugLog("Fetching Facebook user data and creating Firestore doc");
           final userData = await FacebookAuth.instance.getUserData();
+
+          // Validate email was granted
+          final email = userData['email'] ?? user.email ?? '';
+          if (email.isEmpty) {
+            _debugLog("Warning: Email permission not granted by user");
+          }
+
           await createUser(
             uid: user.uid,
-            username: userData['name'] ?? 'Facebook User',
-            email: userData['email'] ?? '',
-            photoUrl: userData['picture']?['data']?['url'],
+            username: userData['name'] ?? user.displayName ?? 'Facebook User',
+            email: email,
+            photoUrl: userData['picture']?['data']?['url'] ?? user.photoURL,
           );
-          debugPrint("AuthRepository: Firestore doc created for ${user.uid}."); // --- DEBUG ---
+
+          // Wait for document creation
+          await _waitForDocumentCreation(user.uid);
         } else {
-          debugPrint("AuthRepository: Firestore doc found for ${user.uid}. Checking uidShort..."); // --- DEBUG ---
+          _debugLog("Firestore doc found for ${user.uid}");
+          // Ensure uidShort exists
           if (!userDoc.data()!.containsKey('uidShort')) {
             final calculatedShortId = _uidShortFromFullAuth(user.uid);
-            await _db.collection('users').doc(user.uid).update({'uidShort': calculatedShortId});
-            debugPrint("AuthRepository: Added missing uidShort for existing user ${user.uid}");
+            await _db
+                .collection('users')
+                .doc(user.uid)
+                .update({'uidShort': calculatedShortId});
+            _debugLog("Added missing uidShort for existing user");
           }
         }
       } else {
-        debugPrint("AuthRepository: Firebase sign in returned null user."); // --- DEBUG ---
+        _debugLog("Firebase sign in returned null user");
       }
       return userCredential;
     } else {
-      debugPrint("AuthRepository: Facebook login failed: ${result.message}"); // --- DEBUG ---
+      _debugLog("Facebook login failed: ${result.message}");
       throw FirebaseAuthException(
         code: 'ERROR_FACEBOOK_LOGIN_FAILED',
-        message: result.message,
+        message: result.message ?? 'Facebook login was not successful',
       );
     }
   }
 
   Future<void> signOut() async {
-    debugPrint("AuthRepository: Signing out..."); // --- DEBUG ---
+    _debugLog("Signing out");
+
+    // Clear all user-specific Hive data before signing out
+    try {
+      final settingsBox = await Hive.openBox('settings');
+
+      // Clear all profile-related flags
+      await settingsBox.delete('hasCheckedProfileCompleteness');
+      await settingsBox.delete('hasSeenOnboarding');
+
+      // Clear any user-specific keys (iterate and remove user-specific ones)
+      final keysToDelete = <dynamic>[];
+      for (var key in settingsBox.keys) {
+        final keyStr = key.toString();
+        if (keyStr.startsWith('profileComplete_') ||
+            keyStr.startsWith('hasChecked_') ||
+            keyStr.startsWith('user_')) {
+          keysToDelete.add(key);
+        }
+      }
+
+      for (var key in keysToDelete) {
+        await settingsBox.delete(key);
+      }
+
+      _debugLog(
+          "Cleared ${keysToDelete.length + 2} user-specific Hive settings");
+    } catch (e) {
+      _debugLog("Error clearing Hive data on logout: $e");
+      // Don't fail logout if Hive cleanup fails
+    }
+
     try {
       await _googleSignIn.signOut();
-      debugPrint("AuthRepository: Google sign out successful."); // --- DEBUG ---
+      _debugLog("Google sign out successful");
     } catch (e) {
-      debugPrint("AuthRepository: Error signing out from Google: $e");
+      _debugLog("Error signing out from Google: $e");
     }
     try {
       await FacebookAuth.instance.logOut();
-      debugPrint("AuthRepository: Facebook sign out successful."); // --- DEBUG ---
+      _debugLog("Facebook sign out successful");
     } catch (e) {
-      debugPrint("AuthRepository: Error signing out from Facebook: $e");
+      _debugLog("Error signing out from Facebook: $e");
     }
     await _auth.signOut();
-    debugPrint("AuthRepository: Firebase sign out successful."); // --- DEBUG ---
+    _debugLog("Firebase sign out successful");
   }
 }

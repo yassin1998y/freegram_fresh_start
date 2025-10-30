@@ -1,27 +1,26 @@
 // lib/services/sonar/sonar_controller.dart
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:freegram/blocs/connectivity_bloc.dart';
-import 'package:freegram/locator.dart';
-import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/user_repository.dart';
 import 'package:freegram/services/sonar/bluetooth_discovery_service.dart';
 import 'package:freegram/services/sonar/local_cache_service.dart';
 import 'package:freegram/services/sonar/wave_service.dart';
-import 'package:freegram/services/sonar/notification_service.dart';
 import 'package:freegram/services/sync_manager.dart';
 // Import bluetooth_service.dart directly here too
 import 'package:freegram/services/sonar/bluetooth_service.dart';
+import 'package:freegram/services/foreground_service_manager.dart';
+import 'package:freegram/services/device_info_helper.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class SonarController {
   final BluetoothDiscoveryService _discoveryService;
   final LocalCacheService _cacheService;
   final WaveService _waveService;
-  final NotificationService _notificationService;
   final SyncManager _syncManager;
   final ConnectivityBloc _connectivityBloc;
   final UserRepository _userRepository;
@@ -36,18 +35,21 @@ class SonarController {
 
   Timer? _cleanupTimer;
 
+  // MIUI/Redmi fix: Foreground service to prevent background killing
+  final ForegroundServiceManager _foregroundService =
+      ForegroundServiceManager();
+  final DeviceInfoHelper _deviceInfo = DeviceInfoHelper();
+
   SonarController({
     required BluetoothDiscoveryService discoveryService,
     required LocalCacheService cacheService,
     required WaveService waveService,
-    required NotificationService notificationService,
     required SyncManager syncManager,
     required ConnectivityBloc connectivityBloc,
     required UserRepository userRepository,
   })  : _discoveryService = discoveryService,
         _cacheService = cacheService,
         _waveService = waveService,
-        _notificationService = notificationService,
         _syncManager = syncManager,
         _connectivityBloc = connectivityBloc,
         _userRepository = userRepository {
@@ -65,7 +67,14 @@ class SonarController {
 
   int _genderToInt(String gender) {
     // ... (implementation remains the same)
-    switch (gender.toLowerCase()) { case 'male': return 1; case 'female': return 2; default: return 0; }
+    switch (gender.toLowerCase()) {
+      case 'male':
+        return 1;
+      case 'female':
+        return 2;
+      default:
+        return 0;
+    }
   }
 
   Future<bool> initializeUser() async {
@@ -78,7 +87,8 @@ class SonarController {
       _currentUserGender = _genderToInt(userModel.gender);
       _discoveryService.initialize(_currentUserShortId!, _currentUserGender!);
       _isInitialized = true;
-      debugPrint("SonarController: User Initialized. ShortID: $_currentUserShortId, Gender: $_currentUserGender");
+      debugPrint(
+          "SonarController: User Initialized. ShortID: $_currentUserShortId, Gender: $_currentUserGender");
       return true;
     } catch (e) {
       debugPrint("SonarController Error: Failed to fetch user details: $e");
@@ -94,15 +104,18 @@ class SonarController {
 
     // Check _isRunning flag *before* checking permissions/hardware
     if (_isRunning) {
-      debugPrint("SonarController: Start requested but already marked as running.");
+      debugPrint(
+          "SonarController: Start requested but already marked as running.");
       // Verify actual status, maybe it stopped unexpectedly?
       if (BluetoothStatusService().currentStatus == NearbyStatus.idle ||
           BluetoothStatusService().currentStatus == NearbyStatus.error ||
           BluetoothStatusService().currentStatus == NearbyStatus.adapterOff ||
-          BluetoothStatusService().currentStatus == NearbyStatus.permissionsDenied ||
-          BluetoothStatusService().currentStatus == NearbyStatus.permissionsPermanentlyDenied
-      ) {
-        debugPrint("SonarController: Mismatch detected. _isRunning=true but status is ${BluetoothStatusService().currentStatus}. Attempting restart.");
+          BluetoothStatusService().currentStatus ==
+              NearbyStatus.permissionsDenied ||
+          BluetoothStatusService().currentStatus ==
+              NearbyStatus.permissionsPermanentlyDenied) {
+        debugPrint(
+            "SonarController: Mismatch detected. _isRunning=true but status is ${BluetoothStatusService().currentStatus}. Attempting restart.");
         _isRunning = false; // Reset flag and proceed
       } else {
         return; // Already running and status seems okay
@@ -113,10 +126,10 @@ class SonarController {
     _isRunning = true;
     debugPrint("SonarController: Attempting to start Sonar discovery...");
 
-
     // Check permissions first
     if (!await _checkPermissions()) {
-      debugPrint("SonarController: Permissions not granted. Cannot start Sonar.");
+      debugPrint(
+          "SonarController: Permissions not granted. Cannot start Sonar.");
       // StatusService is updated within _checkPermissions
       _isRunning = false; // *** FIX: Reset flag on permission failure ***
       return;
@@ -124,9 +137,27 @@ class SonarController {
 
     // Check hardware state via Status Service
     if (BluetoothStatusService().currentStatus == NearbyStatus.adapterOff) {
-      debugPrint("SonarController: Bluetooth adapter is off. Cannot start Sonar.");
+      debugPrint(
+          "SonarController: Bluetooth adapter is off. Cannot start Sonar.");
       _isRunning = false; // *** FIX: Reset flag if adapter is off ***
       return; // Status service already reported adapterOff
+    }
+
+    // MIUI/Redmi Critical Fix: Start foreground service BEFORE Bluetooth scanning
+    // This prevents MIUI from killing the background process
+    if (Platform.isAndroid) {
+      await _deviceInfo.initialize();
+      if (_deviceInfo.isXiaomiDevice) {
+        debugPrint(
+            "SonarController: Xiaomi device detected. Starting foreground service...");
+      }
+      // Start foreground service for ALL Android devices (not just Xiaomi)
+      // Many Android OEMs have aggressive battery optimization
+      final serviceStarted = await _foregroundService.startService();
+      if (!serviceStarted) {
+        debugPrint(
+            "SonarController: Warning - Foreground service failed to start. Background scanning may be killed.");
+      }
     }
 
     // Try starting the discovery service
@@ -134,21 +165,29 @@ class SonarController {
 
     // *** FIX: Check status *after* attempting to start ***
     final currentStatus = BluetoothStatusService().currentStatus;
-    if (currentStatus == NearbyStatus.error || currentStatus == NearbyStatus.adapterOff) {
-      debugPrint("SonarController: Discovery service failed to start properly (Status: $currentStatus). Resetting state.");
+    if (currentStatus == NearbyStatus.error ||
+        currentStatus == NearbyStatus.adapterOff) {
+      debugPrint(
+          "SonarController: Discovery service failed to start properly (Status: $currentStatus). Resetting state.");
       _isRunning = false; // Reset flag if start failed
       // Stop potentially partially started services
       await _discoveryService.stop();
+      // Stop foreground service since we're not scanning
+      if (Platform.isAndroid) {
+        await _foregroundService.stopService();
+      }
     } else {
-      debugPrint("SonarController: Sonar started successfully (Current Status: $currentStatus).");
+      debugPrint(
+          "SonarController: Sonar started successfully (Current Status: $currentStatus).");
       // Start periodic cleanup timer only on successful start
       _cleanupTimer?.cancel();
       _cleanupTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-        if (_isRunning) { _cacheService.pruneStaleNearbyUsers(); }
+        if (_isRunning) {
+          _cacheService.pruneStaleNearbyUsers();
+        }
       });
     }
   }
-
 
   Future<void> stopSonar() async {
     // Check flag first
@@ -163,6 +202,13 @@ class SonarController {
     await _discoveryService.stop();
     _cleanupTimer?.cancel();
     _isRunning = false; // Mark as stopped
+
+    // MIUI/Redmi Fix: Stop foreground service when Sonar stops
+    if (Platform.isAndroid) {
+      await _foregroundService.stopService();
+      debugPrint("SonarController: Foreground service stopped.");
+    }
+
     // Status service should update to Idle via discoveryService.stop()
     debugPrint("SonarController: Stopped.");
   }
@@ -170,7 +216,8 @@ class SonarController {
   Future<void> sendWave(String targetUidShort) async {
     // ... (implementation remains the same)
     if (!_isInitialized || _currentUserShortId == null) return;
-    debugPrint("SonarController: Requesting WaveService to send wave to $targetUidShort");
+    debugPrint(
+        "SonarController: Requesting WaveService to send wave to $targetUidShort");
     await _waveService.sendWave(targetUidShort);
   }
 
@@ -185,7 +232,8 @@ class SonarController {
     bool allGranted = statuses.values.every((status) => status.isGranted);
     if (!allGranted) {
       if (statuses.values.any((s) => s.isPermanentlyDenied)) {
-        BluetoothStatusService().updateStatus(NearbyStatus.permissionsPermanentlyDenied);
+        BluetoothStatusService()
+            .updateStatus(NearbyStatus.permissionsPermanentlyDenied);
       } else {
         BluetoothStatusService().updateStatus(NearbyStatus.permissionsDenied);
       }
@@ -207,29 +255,41 @@ class SonarController {
 
   void _listenToDiscoveryStatus() {
     // ... (implementation remains the same)
-    _statusSubscription = BluetoothStatusService().statusStream.listen((status) { // Listen to shared service
+    _statusSubscription =
+        BluetoothStatusService().statusStream.listen((status) {
+      // Listen to shared service
       debugPrint("SonarController: Received status update -> $status");
       // Reset _isRunning flag if service stops unexpectedly
-      if ((status == NearbyStatus.idle || status == NearbyStatus.error || status == NearbyStatus.adapterOff) && _isRunning) {
+      if ((status == NearbyStatus.idle ||
+              status == NearbyStatus.error ||
+              status == NearbyStatus.adapterOff) &&
+          _isRunning) {
         // Check if this stop was intentional (e.g., via stopSonar)
         // This basic check assumes any transition to these states while _isRunning=true is unexpected.
-        debugPrint("SonarController: Discovery service stopped/errored unexpectedly ($status). Resetting _isRunning flag.");
+        debugPrint(
+            "SonarController: Discovery service stopped/errored unexpectedly ($status). Resetting _isRunning flag.");
         _isRunning = false;
         _cleanupTimer?.cancel();
-      } else if ((status == NearbyStatus.scanning || status == NearbyStatus.userFound) && !_isRunning) {
+      } else if ((status == NearbyStatus.scanning ||
+              status == NearbyStatus.userFound) &&
+          !_isRunning) {
         // If service starts running unexpectedly (maybe auto-reconnect?), update flag
-        debugPrint("SonarController: Discovery service started unexpectedly ($status). Setting _isRunning flag.");
+        debugPrint(
+            "SonarController: Discovery service started unexpectedly ($status). Setting _isRunning flag.");
         _isRunning = true;
         // Restart timer if needed
         _cleanupTimer?.cancel();
         _cleanupTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-          if (_isRunning) { _cacheService.pruneStaleNearbyUsers(); }
+          if (_isRunning) {
+            _cacheService.pruneStaleNearbyUsers();
+          }
         });
       }
-      
+
       // Handle the specific case where we're stuck in a loop
       if (status == NearbyStatus.idle && _isRunning) {
-        debugPrint("SonarController: Mismatch detected. _isRunning=true but status is $status. Attempting restart.");
+        debugPrint(
+            "SonarController: Mismatch detected. _isRunning=true but status is $status. Attempting restart.");
         _isRunning = false;
         _cleanupTimer?.cancel();
         // Force restart the discovery service

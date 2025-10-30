@@ -75,11 +75,13 @@ dependencies:
   # Local Storage
   hive: ^2.2.3
   hive_flutter: ^1.1.0
+  shared_preferences: ^2.2.2
 
   # Permissions & Settings
   permission_handler: ^11.3.0 # Keep for Bluetooth/Location
   app_settings: ^5.1.1 # Keep for Bluetooth/Location settings shortcut
   qr_flutter: ^4.1.0 # Keep for QR code display
+  url_launcher: ^6.2.0 # For smart text links (phone, email, URLs)
 
   # Store & Monetization
   google_mobile_ads: ^5.1.0 # Keep for AdHelper
@@ -89,6 +91,8 @@ dependencies:
   crypto: ^3.0.3
   # Added collection for firstWhereOrNull
   collection: ^1.18.0
+  # Environment variables for secure credential management
+  flutter_dotenv: ^5.1.0
 
 
 dev_dependencies:
@@ -106,6 +110,7 @@ flutter:
     - assets/google_logo.png
     - assets/music/ # Keep if used for background music? Otherwise remove.
     - assets/fonts/
+    - .env
   fonts:
     - family: OpenSans
       fonts:

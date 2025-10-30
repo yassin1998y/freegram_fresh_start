@@ -45,5 +45,56 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	
+	<!-- Permissions for Voice Messages -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need access to your microphone to record voice messages for your chats.</string>
+	
+	<!-- Permissions for Camera (already needed for image_picker) -->
+	<key>NSCameraUsageDescription</key>
+	<string>We need access to your camera to take photos for your chats.</string>
+	
+	<!-- Permissions for Photo Library -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need access to your photo library to share images in your chats.</string>
+	
+	<!-- Google Sign-In Configuration -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Reversed Client ID from GoogleService-Info.plist -->
+				<string>com.googleusercontent.apps.60183775527-gjvde58t3u5lh1ftdufpupljlg8t9cj5</string>
+				<!-- Facebook URL Scheme -->
+				<string>fb703196319414511</string>
+			</array>
+		</dict>
+	</array>
+	
+	<!-- AdMob Configuration -->
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-5103124743666302~4939219415</string>
+	
+	<!-- Facebook Configuration -->
+	<key>FacebookAppID</key>
+	<string>703196319414511</string>
+	
+	<key>FacebookClientToken</key>
+	<string>9ce9b2bc5524dff39d25e0886cfca96d</string>
+	
+	<key>FacebookDisplayName</key>
+	<string>Freegram</string>
+	
+	<!-- Allow app to query Facebook and other apps -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>fbapi</string>
+		<string>fb-messenger-share-api</string>
+		<string>fbauth2</string>
+		<string>fbshareextension</string>
+	</array>
 </dict>
 </plist>

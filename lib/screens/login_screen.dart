@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/auth_bloc.dart';
 import 'package:freegram/screens/signup_screen.dart';
-import 'package:freegram/theme/app_theme.dart';
+import 'package:freegram/services/navigation_service.dart';
+import 'package:freegram/locator.dart';
 // import 'package:freegram/widgets/gradient_button.dart'; // Removed
 import 'package:flutter/foundation.dart'; // Import for debugPrint
 
@@ -25,7 +26,8 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (_isLoading) return; // Prevent multiple clicks
 
-    debugPrint("LoginScreen: Login button pressed for email: ${_emailController.text}");
+    debugPrint(
+        "LoginScreen: Login button pressed for email: ${_emailController.text}");
 
     setState(() {
       _isLoading = true;
@@ -38,16 +40,16 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text.trim(),
       );
       // On success, AuthWrapper will handle navigation.
-      // We don't need to set _isLoading = false here,
-      // as the screen will be replaced upon successful authentication.
-      debugPrint("LoginScreen: Firebase signIn successful. WAITING FOR AuthWrapper navigation...");
+      debugPrint(
+          "LoginScreen: Firebase signIn successful. WAITING FOR AuthWrapper navigation...");
     } on FirebaseAuthException catch (e) {
       debugPrint("LoginScreen: Firebase sign in failed: ${e.message}");
       // Show error message only if login fails
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.message ?? 'Login failed. Please check your credentials.'),
+            content: Text(
+                e.message ?? 'Login failed. Please check your credentials.'),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -89,7 +91,8 @@ class _LoginScreenState extends State<LoginScreen> {
           // ensure the loading indicator is turned off if it was active.
           // Note: Email/password errors are handled within _login() directly.
           if (_isLoading) {
-            debugPrint("LoginScreen: BlocListener received AuthError while _isLoading=true. Resetting.");
+            debugPrint(
+                "LoginScreen: BlocListener received AuthError while _isLoading=true. Resetting.");
             setState(() => _isLoading = false);
           }
           ScaffoldMessenger.of(context).showSnackBar(
@@ -100,7 +103,8 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
         // No need to handle Authenticated state here, AuthWrapper does that.
-        debugPrint("LoginScreen: BlocListener received state: ${state.runtimeType}");
+        debugPrint(
+            "LoginScreen: BlocListener received state: ${state.runtimeType}");
       },
       child: Scaffold(
         body: Center(
@@ -112,15 +116,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  Text( // App Title
+                  Text(
+                    // App Title
                     'Freegram',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                   ),
                   const SizedBox(height: 48.0),
-                  TextFormField( // Email Field
+                  TextFormField(
+                    // Email Field
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
@@ -128,12 +134,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Consider adding prefix icon: prefixIcon: Icon(Icons.email_outlined),
                     ),
                     enabled: !_isLoading, // Disable when loading
-                    validator: (value) => (value == null || !value.contains('@'))
-                        ? 'Please enter a valid email'
-                        : null,
+                    validator: (value) =>
+                        (value == null || !value.contains('@'))
+                            ? 'Please enter a valid email'
+                            : null,
                   ),
                   const SizedBox(height: 16.0),
-                  TextFormField( // Password Field
+                  TextFormField(
+                    // Password Field
                     controller: _passwordController,
                     obscureText: true,
                     decoration: const InputDecoration(
@@ -155,33 +163,44 @@ class _LoginScreenState extends State<LoginScreen> {
                       foregroundColor: Theme.of(context).colorScheme.onPrimary,
                     ),
                     child: _isLoading
-                        ? const SizedBox( // Standard loading indicator
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: Colors.white,
-                      ),
-                    )
+                        ? const SizedBox(
+                            // Standard loading indicator
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
                         : const Text('Log In'),
                   ),
                   const SizedBox(height: 16.0),
-                  TextButton( // Sign Up Button
-                    onPressed: _isLoading ? null : () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => const SignUpScreen())),
+                  TextButton(
+                    // Sign Up Button
+                    onPressed: _isLoading
+                        ? null
+                        : () => locator<NavigationService>().navigateTo(
+                              const SignUpScreen(),
+                              transition: PageTransition.slide,
+                            ),
                     child: Text(
                       "Don't have an account? Sign Up",
                       // Dim text when loading
-                      style: TextStyle(color: _isLoading ? Colors.grey : Theme.of(context).colorScheme.primary),
+                      style: TextStyle(
+                          color: _isLoading
+                              ? Colors.grey
+                              : Theme.of(context).colorScheme.primary),
                     ),
                   ),
                   const SizedBox(height: 24.0),
-                  Row( // OR Separator
+                  Row(
+                    // OR Separator
                     children: [
                       const Expanded(child: Divider()),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: Text('OR', style: Theme.of(context).textTheme.bodySmall),
+                        child: Text('OR',
+                            style: Theme.of(context).textTheme.bodySmall),
                       ),
                       const Expanded(child: Divider()),
                     ],
@@ -191,7 +210,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   _SocialLoginButton(
                     text: 'Sign in with Google',
                     assetName: 'assets/google_logo.png',
-                    onPressed: _isLoading ? (){} : () => context.read<AuthBloc>().add(SignInWithGoogle()),
+                    onPressed: _isLoading
+                        ? () {}
+                        : () =>
+                            context.read<AuthBloc>().add(SignInWithGoogle()),
                     // Use theme colors for consistency
                     backgroundColor: Theme.of(context).colorScheme.surface,
                     textColor: Theme.of(context).colorScheme.onSurface,
@@ -201,7 +223,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   _SocialLoginButton(
                     text: 'Sign in with Facebook',
                     icon: Icons.facebook,
-                    onPressed: _isLoading ? (){} : () => context.read<AuthBloc>().add(SignInWithFacebook()),
+                    onPressed: _isLoading
+                        ? () {}
+                        : () =>
+                            context.read<AuthBloc>().add(SignInWithFacebook()),
                     backgroundColor: const Color(0xFF1877F2), // Facebook blue
                     textColor: Colors.white,
                     disabled: _isLoading,
@@ -242,7 +267,8 @@ class _SocialLoginButton extends StatelessWidget {
       onPressed: disabled ? null : onPressed,
       style: ElevatedButton.styleFrom(
         // Dim background when disabled
-        backgroundColor: disabled ? backgroundColor.withOpacity(0.5) : backgroundColor,
+        backgroundColor:
+            disabled ? backgroundColor.withOpacity(0.5) : backgroundColor,
         padding: const EdgeInsets.symmetric(vertical: 12.0),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
@@ -255,17 +281,20 @@ class _SocialLoginButton extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (assetName != null)
-            Image.asset(assetName!, height: 24.0, color: disabled ? Colors.grey : null) // Dim icon
+            Image.asset(assetName!,
+                height: 24.0, color: disabled ? Colors.grey : null) // Dim icon
           else if (icon != null)
-            Icon(icon, color: disabled ? Colors.grey : textColor, size: 24.0), // Dim icon
+            Icon(icon,
+                color: disabled ? Colors.grey : textColor,
+                size: 24.0), // Dim icon
           const SizedBox(width: 12),
           Text(
             text,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              // Dim text
-              color: disabled ? Colors.grey : textColor,
-              fontWeight: FontWeight.w600,
-            ),
+                  // Dim text
+                  color: disabled ? Colors.grey : textColor,
+                  fontWeight: FontWeight.w600,
+                ),
           ),
         ],
       ),

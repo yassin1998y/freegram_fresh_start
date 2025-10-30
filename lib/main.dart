@@ -1,14 +1,21 @@
 // lib/main.dart
+import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:freegram/blocs/auth_bloc.dart';
 import 'package:freegram/blocs/connectivity_bloc.dart';
 import 'package:freegram/firebase_options.dart';
 import 'package:freegram/locator.dart';
+import 'package:freegram/services/fcm_navigation_service.dart';
+import 'package:freegram/services/fcm_foreground_handler.dart';
+import 'package:freegram/services/professional_notification_manager.dart';
+import 'package:freegram/services/notification_action_handler.dart';
+import 'package:freegram/services/navigation_service.dart';
 // Hive Models
 import 'package:freegram/models/hive/nearby_user.dart';
 import 'package:freegram/models/hive/user_profile.dart';
@@ -24,45 +31,111 @@ import 'package:freegram/screens/edit_profile_screen.dart';
 import 'package:freegram/screens/login_screen.dart';
 import 'package:freegram/screens/main_screen.dart';
 import 'package:freegram/screens/onboarding_screen.dart';
+import 'package:freegram/screens/profile_screen.dart';
+import 'package:freegram/screens/improved_chat_screen.dart';
 // Services
 import 'package:freegram/services/cache_manager_service.dart';
+import 'package:freegram/services/presence_manager.dart'; // <<<--- Presence/online status
 import 'package:freegram/services/sonar/notification_service.dart'
     as LocalNotificationService;
 import 'package:freegram/services/sonar/sonar_controller.dart'; // <<<--- Added for MainScreenWrapper
 import 'package:freegram/services/sync_manager.dart'; // <<<--- Added for MainScreenWrapper
 import 'package:freegram/services/sonar/bluetooth_service.dart'; // <<<--- Added for MainScreenWrapper (StatusService)
+// MIUI/Redmi Fixes
+import 'package:freegram/services/device_info_helper.dart';
 // Other Imports
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:freegram/theme/app_theme.dart';
 
-// --- START: Background Handler ---
+// --- START: Firebase Messaging Background Handler ---
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // If you're going to use other Firebase services in the background, like Firestore,
-  // make sure you call `initializeApp` before using them.
-  // IMPORTANT: Re-initializing Firebase here might be necessary if your background
-  // task needs it and runs in a separate isolate. Test this thoroughly.
-  // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  debugPrint("Handling a background message: ${message.messageId}");
-  debugPrint('Message data: ${message.data}');
-  debugPrint(
-      'Message notification: ${message.notification?.title}/${message.notification?.body}');
+  // Initialize Firebase for background isolate
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // You COULD potentially show a local notification here as well,
-  // but be mindful of double notifications if the system also shows one.
-  // Example (needs testing in background isolate context):
-  // await LocalNotificationService.NotificationService().initialize(); // May need initialization here
-  // LocalNotificationService.NotificationService().showWaveNotification(
-  //   title: message.notification?.title ?? "Background Notification",
-  //   body: message.notification?.body ?? "",
-  //   payload: message.data['click_action'] ?? message.data['screen'], // Example payload extraction
-  // );
+  debugPrint('[FCM Background] Message: ${message.messageId}');
+  debugPrint('[FCM Background] Type: ${message.data['type']}');
+
+  // Initialize ProfessionalNotificationManager for rich notifications
+  final proNotificationManager = ProfessionalNotificationManager();
+  await proNotificationManager.initialize();
+
+  // Initialize NotificationActionHandler for action buttons
+  // Note: This is lightweight initialization, main init happens in app startup
+
+  // Handle different notification types with rich local notifications
+  final type = message.data['type'] ?? '';
+
+  switch (type) {
+    case 'newMessage':
+      final chatId = message.data['chatId'] ?? '';
+      final senderId = message.data['senderId'] ?? '';
+      final senderUsername = message.data['senderUsername'] ?? 'User';
+      final senderPhotoUrl = message.data['senderPhotoUrl'] ?? '';
+      final messageText = message.data['messageText'] ?? '';
+      final messageCount =
+          int.tryParse(message.data['messageCount'] ?? '1') ?? 1;
+      final messagesJson = message.data['messages'] ?? '[]';
+
+      List<String> messages = [];
+      try {
+        messages = List<String>.from(jsonDecode(messagesJson));
+      } catch (e) {
+        messages = [messageText];
+      }
+
+      await proNotificationManager.showBackgroundMessageNotification(
+        chatId: chatId,
+        senderId: senderId,
+        senderUsername: senderUsername,
+        senderPhotoUrl: senderPhotoUrl,
+        messageText: messageText,
+        messageCount: messageCount,
+        messages: messages,
+      );
+      break;
+
+    case 'friendRequest':
+      final fromUserId = message.data['fromUserId'] ?? '';
+      final fromUsername = message.data['fromUsername'] ?? 'User';
+      final fromPhotoUrl = message.data['fromPhotoUrl'] ?? '';
+
+      await proNotificationManager.showBackgroundFriendRequestNotification(
+        fromUserId: fromUserId,
+        fromUsername: fromUsername,
+        fromPhotoUrl: fromPhotoUrl,
+      );
+      break;
+
+    case 'requestAccepted':
+      final fromUserId = message.data['fromUserId'] ?? '';
+      final fromUsername = message.data['fromUsername'] ?? 'User';
+      final fromPhotoUrl = message.data['fromPhotoUrl'] ?? '';
+
+      await proNotificationManager.showBackgroundFriendAcceptedNotification(
+        fromUserId: fromUserId,
+        fromUsername: fromUsername,
+        fromPhotoUrl: fromPhotoUrl,
+      );
+      break;
+
+    default:
+      debugPrint('[FCM Background] Unknown type: $type');
+  }
 }
 // --- END: Background Handler ---
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load environment variables
+  await dotenv.load(fileName: ".env");
+
+  // MIUI/Redmi Critical Fix: Initialize device info early
+  // This helps detect Xiaomi devices and apply appropriate fixes
+  await DeviceInfoHelper().initialize();
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -87,24 +160,24 @@ void main() async {
   );
   debugPrint('User granted FCM permission: ${settings.authorizationStatus}');
 
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    debugPrint('Got a message whilst in the foreground!');
-    debugPrint('Message data: ${message.data}');
-    RemoteNotification? notification = message.notification;
-    if (notification != null && !kIsWeb) {
-      debugPrint(
-          'Foreground message contained a notification: ${notification.title}/${notification.body}');
-      LocalNotificationService.NotificationService().showWaveNotification(
-        title: notification.title ?? "New Notification",
-        body: notification.body ?? "",
-        payload: message.data['screen'] ?? message.data['click_action'],
-      );
-    }
-  });
+  // FOREGROUND: Use Island Popup (Professional App Behavior)
+  // Don't use FCM local notifications when app is open
+  // Background notifications are handled by system automatically
+  // FcmForegroundHandler will handle foreground messages with Island Popup
+
+  // Initialize Professional Notification System
+  await ProfessionalNotificationManager().initialize();
+
+  // Initialize Notification Action Handler (for Reply, Mark as Read, etc.)
+  await NotificationActionHandler().initialize();
+
+  // Initialize FCM Services
+  FcmNavigationService().initialize(); // Background/Terminated navigation
+  FcmForegroundHandler().initialize(); // Foreground Island Popup
   // --- END: FCM Setup ---
 
   if (!kIsWeb) {
-    MobileAds.instance.initialize();
+    await MobileAds.instance.initialize();
   }
   await LocalNotificationService.NotificationService().initialize();
   await Hive.initFlutter();
@@ -157,8 +230,51 @@ class MyApp extends StatelessWidget {
         theme: SonarPulseTheme.light, // Light theme definition
         darkTheme: SonarPulseTheme.dark, // Dark theme definition
         themeMode: ThemeMode.system, // Use system theme setting
+        navigatorKey: locator<NavigationService>()
+            .navigatorKey, // Professional navigation
         home:
             const AuthWrapper(), // Start with AuthWrapper to handle login state
+        onGenerateRoute: (settings) {
+          // Handle named routes for FCM navigation
+          switch (settings.name) {
+            case '/profile':
+              final args = settings.arguments as Map<String, dynamic>?;
+              final userId = args?['userId'] as String?;
+              if (userId != null) {
+                // Import ProfileScreen at top of file
+                return MaterialPageRoute(
+                  builder: (_) => ProfileScreen(userId: userId),
+                );
+              }
+              break;
+            case '/chat':
+              final args = settings.arguments as Map<String, dynamic>?;
+              final chatId = args?['chatId'] as String?;
+              final otherUserId = args?['otherUserId'] as String?;
+              if (chatId != null && otherUserId != null) {
+                // Use FutureBuilder to fetch username before showing chat
+                return MaterialPageRoute(
+                  builder: (_) => FutureBuilder<UserModel?>(
+                    future: locator<UserRepository>().getUser(otherUserId),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Scaffold(
+                          body: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                      final username = snapshot.data?.username ?? 'User';
+                      return ImprovedChatScreen(
+                        chatId: chatId,
+                        otherUsername: username,
+                      );
+                    },
+                  ),
+                );
+              }
+              break;
+          }
+          return null; // Let the default route handling take over
+        },
       ),
     );
   }
@@ -173,6 +289,17 @@ class AuthWrapper extends StatelessWidget {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         debugPrint("AuthWrapper: Received AuthState -> ${state.runtimeType}");
+
+        // Handle different auth states
+        if (state is AuthInitial) {
+          // Show loading for initial auth check
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
         if (state is Authenticated) {
           // debugPrint("AuthWrapper: State is Authenticated for user ${state.user.uid}. Getting UserModel stream...");
           // If authenticated, listen to the user's profile stream
@@ -184,7 +311,17 @@ class AuthWrapper extends StatelessWidget {
               if (snapshot.connectionState == ConnectionState.waiting &&
                   !snapshot.hasData) {
                 return const Scaffold(
-                    body: Center(child: CircularProgressIndicator()));
+                  body: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Loading your profile...'),
+                      ],
+                    ),
+                  ),
+                );
               }
               // Handle errors loading the profile
               if (snapshot.hasError) {
@@ -223,6 +360,7 @@ class AuthWrapper extends StatelessWidget {
               if (snapshot.hasData) {
                 final user = snapshot.data!;
                 // debugPrint("AuthWrapper StreamBuilder: Received UserModel for ${user.username}. Checking profile completeness...");
+
                 // Check if essential profile details are filled
                 final bool isProfileComplete = user.age > 0 &&
                     user.country.isNotEmpty &&
@@ -230,39 +368,38 @@ class AuthWrapper extends StatelessWidget {
 
                 if (isProfileComplete) {
                   // If complete, show the main app content wrapper
-                  // debugPrint("AuthWrapper: ---> RETURNING MainScreenWrapper <---");
+                  debugPrint(
+                      "AuthWrapper: Profile complete for ${user.username}. Showing MainScreen.");
                   return MainScreenWrapper(
                     key: ValueKey(user
                         .id), // Use ValueKey for potential rebuilds on user change
-                    connectivityBloc: BlocProvider.of<ConnectivityBloc>(
-                        context), // Pass ConnectivityBloc from context
+                    connectivityBloc:
+                        BlocProvider.of<ConnectivityBloc>(context),
                   );
                 } else {
-                  // Check if user has already completed profile check once
+                  // Profile is incomplete - ALWAYS show EditProfileScreen for new/incomplete users
+                  // Use per-user flag to track if they've seen the profile setup before
                   final settingsBox = Hive.box('settings');
-                  final hasCheckedProfile = settingsBox.get(
-                      'hasCheckedProfileCompleteness',
-                      defaultValue: false) as bool;
+                  final userProfileKey = 'profileComplete_${user.id}';
+                  final hasCompletedProfileBefore = settingsBox
+                      .get(userProfileKey, defaultValue: false) as bool;
 
-                  // Only show edit profile if this is the first time OR if profile is truly incomplete
-                  if (!hasCheckedProfile) {
-                    // Mark that we've checked once
-                    settingsBox.put('hasCheckedProfileCompleteness', true);
-                    // For first-time users or incomplete profiles, show EditProfileScreen
-                    // debugPrint("AuthWrapper: ---> RETURNING EditProfileScreen (First Time) <---");
+                  if (!hasCompletedProfileBefore) {
+                    // First time or never completed - FORCE profile setup
+                    debugPrint(
+                        "AuthWrapper: Profile incomplete for ${user.username}. Showing EditProfileScreen (REQUIRED).");
                     return EditProfileScreen(
-                      currentUserData: user.toMap(), // Pass current data
-                      isCompletingProfile:
-                          true, // Flag to indicate profile completion flow
+                      currentUserData: user.toMap(),
+                      isCompletingProfile: true, // Required profile completion
                     );
                   } else {
-                    // User has checked before, just go to main screen
-                    // Profile can be edited from menu
-                    // debugPrint("AuthWrapper: Profile incomplete but already checked once, showing main screen");
-                    return MainScreenWrapper(
-                      key: ValueKey(user.id),
-                      connectivityBloc:
-                          BlocProvider.of<ConnectivityBloc>(context),
+                    // Edge case: User completed profile before but data was somehow lost
+                    // This shouldn't happen but handle gracefully
+                    debugPrint(
+                        "AuthWrapper: WARNING - Profile marked complete but data incomplete for ${user.username}. Forcing EditProfileScreen.");
+                    return EditProfileScreen(
+                      currentUserData: user.toMap(),
+                      isCompletingProfile: true,
                     );
                   }
                 }
@@ -273,7 +410,7 @@ class AuthWrapper extends StatelessWidget {
             },
           );
         }
-        // If state is Initial, Unauthenticated, or AuthError, show LoginScreen
+        // If state is Unauthenticated or AuthError, show LoginScreen
         debugPrint(
             "AuthWrapper: State is ${state.runtimeType}. Showing LoginScreen.");
         return const LoginScreen();
@@ -297,6 +434,7 @@ class _MainScreenWrapperState extends State<MainScreenWrapper>
   // Get instances needed for lifecycle management - moved to initState to avoid GetIt errors
   SonarController? _sonarController;
   SyncManager? _syncManager;
+  PresenceManager? _presenceManager;
   late final ConnectivityBloc
       _connectivityBloc; // Will be initialized in initState
   bool _sonarShouldBeRunning =
@@ -313,6 +451,11 @@ class _MainScreenWrapperState extends State<MainScreenWrapper>
       try {
         _sonarController = locator<SonarController>();
         _syncManager = locator<SyncManager>();
+        _presenceManager = locator<PresenceManager>();
+
+        // Initialize presence manager
+        _presenceManager?.initialize();
+
         debugPrint(
             'MainScreenWrapper: Successfully initialized services from locator');
       } catch (e) {
@@ -323,6 +466,11 @@ class _MainScreenWrapperState extends State<MainScreenWrapper>
           try {
             _sonarController = locator<SonarController>();
             _syncManager = locator<SyncManager>();
+            _presenceManager = locator<PresenceManager>();
+
+            // Initialize presence manager
+            _presenceManager?.initialize();
+
             debugPrint(
                 'MainScreenWrapper: Successfully initialized services on retry');
           } catch (retryError) {
@@ -348,6 +496,8 @@ class _MainScreenWrapperState extends State<MainScreenWrapper>
     WidgetsBinding.instance.removeObserver(this); // Remove observer
     // Ensure sonar stops cleanly when this wrapper is disposed (e.g., on logout)
     _sonarController?.stopSonar();
+    // Dispose presence manager
+    _presenceManager?.dispose();
     // Note: SyncManager might also need a dispose call if it has active timers
     // _syncManager?.dispose(); // Uncomment if SyncManager implements dispose
     super.dispose();
@@ -361,7 +511,9 @@ class _MainScreenWrapperState extends State<MainScreenWrapper>
     if (kIsWeb) return; // Ignore lifecycle events on web
 
     // Check if services are initialized before using them
-    if (_sonarController == null || _syncManager == null) {
+    if (_sonarController == null ||
+        _syncManager == null ||
+        _presenceManager == null) {
       debugPrint(
           "MainScreenWrapper: Services not yet initialized, skipping lifecycle handling");
       return;

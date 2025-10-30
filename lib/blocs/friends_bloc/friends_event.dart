@@ -24,7 +24,17 @@ class _FriendsUpdated extends FriendsEvent {
 /// Event to send a friend request to another user.
 class SendFriendRequest extends FriendsEvent {
   final String toUserId;
-  const SendFriendRequest(this.toUserId);
+  final String? message; // Optional message with friend request
+  const SendFriendRequest(this.toUserId, {this.message});
+
+  @override
+  List<Object> get props => [toUserId, message ?? ''];
+}
+
+/// Event to cancel a sent friend request.
+class CancelFriendRequest extends FriendsEvent {
+  final String toUserId;
+  const CancelFriendRequest(this.toUserId);
 
   @override
   List<Object> get props => [toUserId];

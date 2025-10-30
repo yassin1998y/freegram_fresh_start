@@ -1,24 +1,57 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-// === Entry Function (same usage) ===
+// === Entry Function (with optional tap callback) ===
 void showIslandPopup({
   required BuildContext context,
   required String message,
   IconData? icon,
+  VoidCallback? onTap, // Optional tap callback for navigation
 }) {
-  final overlay = Overlay.of(context);
-  late OverlayEntry overlayEntry;
+  // CRITICAL FIX: Use Navigator's overlay instead of searching for MaterialApp's overlay
+  // This ensures we always have access to an overlay when we have a Navigator context
+  try {
+    // Try to get the Navigator's overlay state
+    final NavigatorState? navigator = Navigator.maybeOf(context);
 
-  overlayEntry = OverlayEntry(
-    builder: (context) => IslandPopup(
-      message: message,
-      icon: icon,
-      onDismiss: () => overlayEntry.remove(),
-    ),
-  );
+    if (navigator == null) {
+      debugPrint(
+          '[Island Popup] No Navigator found in context, cannot show popup');
+      return;
+    }
 
-  overlay.insert(overlayEntry);
+    final OverlayState? overlayState = navigator.overlay;
+
+    if (overlayState == null) {
+      debugPrint(
+          '[Island Popup] Navigator overlay not available, cannot show popup');
+      return;
+    }
+
+    late OverlayEntry overlayEntry;
+
+    overlayEntry = OverlayEntry(
+      builder: (context) => IslandPopup(
+        message: message,
+        icon: icon,
+        onDismiss: () {
+          try {
+            overlayEntry.remove();
+          } catch (e) {
+            debugPrint('[Island Popup] Error removing overlay: $e');
+          }
+        },
+        onTap: onTap,
+      ),
+    );
+
+    overlayState.insert(overlayEntry);
+    debugPrint('[Island Popup] Successfully shown: $message');
+  } catch (e) {
+    debugPrint('[Island Popup] Error showing popup: $e');
+    // Silently fail - don't crash the app
+  }
 }
 
 // === THEME-AWARE ISLAND POPUP (Width-only Expansion) ===
@@ -26,12 +59,14 @@ class IslandPopup extends StatefulWidget {
   final String message;
   final IconData? icon;
   final VoidCallback onDismiss;
+  final VoidCallback? onTap; // NEW: Optional tap callback
 
   const IslandPopup({
     super.key,
     required this.message,
     this.icon,
     required this.onDismiss,
+    this.onTap, // NEW: Optional tap callback
   });
 
   @override
@@ -103,65 +138,73 @@ class _IslandPopupState extends State<IslandPopup>
       right: 0,
       child: FadeTransition(
         opacity: _fadeAnimation,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeInOutCubic,
-          width: _expanded ? expandedWidth : collapsedWidth,
-          height: 55, // Slimmer height
-          margin: const EdgeInsets.symmetric(horizontal: 20),
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: BorderRadius.circular(40),
-            boxShadow: [
-              BoxShadow(
-                color: theme.brightness == Brightness.dark
-                    ? Colors.black.withOpacity(0.6)
-                    : Colors.grey.withOpacity(0.25),
-                blurRadius: 18,
-                offset: const Offset(0, 6),
+        child: GestureDetector(
+          onTap: () {
+            if (widget.onTap != null) {
+              _closeIsland();
+              widget.onTap!();
+            }
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOutCubic,
+            width: _expanded ? expandedWidth : collapsedWidth,
+            height: 55, // Slimmer height
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(40),
+              boxShadow: [
+                BoxShadow(
+                  color: theme.brightness == Brightness.dark
+                      ? Colors.black.withOpacity(0.6)
+                      : Colors.grey.withOpacity(0.25),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+              border: Border.all(
+                color: primaryAccent.withOpacity(0.25),
+                width: 1,
               ),
-            ],
-            border: Border.all(
-              color: primaryAccent.withOpacity(0.25),
-              width: 1,
             ),
-          ),
-          child: Center(
-            child: AnimatedOpacity(
-              opacity: _expanded ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 250),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (widget.icon != null) ...[
-                      Container(
-                        decoration: BoxDecoration(
-                          color: primaryAccent.withOpacity(0.15),
-                          shape: BoxShape.circle,
+            child: Center(
+              child: AnimatedOpacity(
+                opacity: _expanded ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 250),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (widget.icon != null) ...[
+                        Container(
+                          decoration: BoxDecoration(
+                            color: primaryAccent.withOpacity(0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          padding: const EdgeInsets.all(5),
+                          child: Icon(
+                            widget.icon,
+                            color: primaryAccent,
+                            size: 20,
+                          ),
                         ),
-                        padding: const EdgeInsets.all(5),
-                        child: Icon(
-                          widget.icon,
-                          color: primaryAccent,
-                          size: 20,
+                        const SizedBox(width: 8),
+                      ],
+                      Flexible(
+                        child: Text(
+                          widget.message,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: textColor,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 8),
                     ],
-                    Flexible(
-                      child: Text(
-                        widget.message,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          color: textColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),

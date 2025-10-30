@@ -1,0 +1,608 @@
+// lib/screens/improved_chat_list_screen.dart
+// Professional Chat List Screen with Search, Filters, and Shimmer Loading
+
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:freegram/locator.dart';
+import 'package:freegram/services/navigation_service.dart';
+import 'package:freegram/models/user_model.dart';
+import 'package:freegram/repositories/chat_repository.dart';
+import 'package:freegram/repositories/user_repository.dart';
+import 'package:freegram/screens/improved_chat_screen.dart';
+import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/widgets/chat_widgets/professional_chat_list_item.dart';
+import 'package:freegram/widgets/chat_widgets/shimmer_chat_skeleton.dart';
+import 'package:freegram/widgets/island_popup.dart';
+import 'package:freegram/widgets/freegram_app_bar.dart';
+
+class ImprovedChatListScreen extends StatefulWidget {
+  const ImprovedChatListScreen({super.key});
+
+  @override
+  State<ImprovedChatListScreen> createState() => _ImprovedChatListScreenState();
+}
+
+class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
+    with AutomaticKeepAliveClientMixin {
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+  Timer? _searchDebounce;
+
+  // Search filters
+  bool _showUnreadOnly = false;
+  String _sortBy = 'recent'; // recent, name, unread
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchDebounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    // Debounce search to reduce queries
+    if (_searchDebounce?.isActive ?? false) _searchDebounce!.cancel();
+
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          _searchQuery = _searchController.text.trim();
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: FreegramAppBar(
+        title: 'Chats',
+        showBackButton: false,
+        actions: [
+          AppBarActionButton(
+            icon: Icons.search_rounded,
+            tooltip: 'Search chats',
+            onPressed: () {
+              // Focus search
+              setState(() {
+                // Search is always visible, could add focus logic here
+              });
+            },
+          ),
+        ],
+      ),
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            // Enhanced search bar
+            _buildSearchHeader(),
+
+            // Filter chips
+            if (_searchQuery.isNotEmpty || _showUnreadOnly) _buildFilterChips(),
+
+            // Chat list or search results
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _onRefresh,
+                color: theme.colorScheme.primary,
+                child: _searchQuery.isEmpty
+                    ? _buildChatList()
+                    : _buildSearchResults(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchHeader() {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        DesignTokens.spaceMD,
+        DesignTokens.spaceSM,
+        DesignTokens.spaceMD,
+        DesignTokens.spaceSM,
+      ),
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        border: Border(
+          bottom: BorderSide(
+            color: theme.dividerColor.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+      ),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Search chats...',
+          hintStyle: TextStyle(
+            color: theme.colorScheme.onSurface.withOpacity(0.5),
+            fontSize: DesignTokens.fontSizeMD,
+          ),
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            color: theme.colorScheme.onSurface.withOpacity(0.5),
+            size: 22,
+          ),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: Icon(
+                    Icons.clear_rounded,
+                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    _searchController.clear();
+                  },
+                )
+              : IconButton(
+                  icon: Icon(
+                    _showUnreadOnly
+                        ? Icons.filter_list
+                        : Icons.filter_list_outlined,
+                    color: _showUnreadOnly
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurface.withOpacity(0.5),
+                    size: 22,
+                  ),
+                  tooltip: 'Filter',
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    setState(() {
+                      _showUnreadOnly = !_showUnreadOnly;
+                    });
+                  },
+                ),
+          filled: true,
+          fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
+          ),
+        ),
+        style: TextStyle(
+          fontSize: DesignTokens.fontSizeMD,
+          color: theme.colorScheme.onSurface,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChips() {
+    return Container(
+      height: 56,
+      padding: EdgeInsets.symmetric(
+        horizontal: DesignTokens.spaceMD,
+        vertical: DesignTokens.spaceSM,
+      ),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          if (_showUnreadOnly)
+            _buildFilterChip(
+              label: 'Unread Only',
+              icon: Icons.mark_email_unread,
+              isActive: true,
+              onTap: () {
+                HapticFeedback.lightImpact();
+                setState(() => _showUnreadOnly = false);
+              },
+            ),
+          SizedBox(width: DesignTokens.spaceSM),
+          _buildFilterChip(
+            label: 'Recent',
+            icon: Icons.access_time,
+            isActive: _sortBy == 'recent',
+            onTap: () {
+              HapticFeedback.lightImpact();
+              setState(() => _sortBy = 'recent');
+            },
+          ),
+          SizedBox(width: DesignTokens.spaceSM),
+          _buildFilterChip(
+            label: 'Name',
+            icon: Icons.sort_by_alpha,
+            isActive: _sortBy == 'name',
+            onTap: () {
+              HapticFeedback.lightImpact();
+              setState(() => _sortBy = 'name');
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required IconData icon,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color:
+          isActive ? Theme.of(context).colorScheme.primary : Colors.grey[100],
+      borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: DesignTokens.spaceMD,
+            vertical: DesignTokens.spaceXS,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
+            border: Border.all(
+              color: isActive
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.grey.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: DesignTokens.iconSM,
+                color: isActive ? Colors.white : Colors.grey[700],
+              ),
+              SizedBox(width: DesignTokens.spaceXS),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isActive ? Colors.white : Colors.grey[700],
+                  fontSize: DesignTokens.fontSizeSM,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatList() {
+    final currentUser = FirebaseAuth.instance.currentUser!;
+    final chatRepository = locator<ChatRepository>();
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: chatRepository.getChatsStream(currentUser.uid),
+      builder: (context, chatSnapshot) {
+        if (chatSnapshot.connectionState == ConnectionState.waiting) {
+          return const ShimmerChatSkeleton();
+        }
+
+        if (chatSnapshot.hasError) {
+          return _buildErrorState('Error loading chats');
+        }
+
+        if (!chatSnapshot.hasData || chatSnapshot.data!.docs.isEmpty) {
+          return _buildEmptyState();
+        }
+
+        var chats = chatSnapshot.data!.docs;
+
+        // Apply filters
+        if (_showUnreadOnly) {
+          chats = chats.where((chat) {
+            final data = chat.data() as Map<String, dynamic>;
+            final unreadFor = data['unreadFor'] as List? ?? [];
+            return unreadFor.contains(currentUser.uid);
+          }).toList();
+        }
+
+        // Apply sorting
+        if (_sortBy == 'name') {
+          chats.sort((a, b) {
+            final aData = a.data() as Map<String, dynamic>;
+            final bData = b.data() as Map<String, dynamic>;
+            final aUsernames = aData['usernames'] as Map<String, dynamic>;
+            final bUsernames = bData['usernames'] as Map<String, dynamic>;
+
+            final aOtherId = (aData['users'] as List)
+                .firstWhere((id) => id != currentUser.uid, orElse: () => '');
+            final bOtherId = (bData['users'] as List)
+                .firstWhere((id) => id != currentUser.uid, orElse: () => '');
+
+            final aName = aUsernames[aOtherId] ?? '';
+            final bName = bUsernames[bOtherId] ?? '';
+
+            return aName.compareTo(bName);
+          });
+        }
+
+        if (chats.isEmpty) {
+          return _buildEmptyState(message: 'No unread chats');
+        }
+
+        return ListView.builder(
+          itemCount: chats.length +
+              (chats.length >= 30 ? 1 : 0), // Add 1 for "load more" indicator
+          physics: const BouncingScrollPhysics(),
+          itemBuilder: (context, index) {
+            // Show "Load More" message if at end and there might be more chats
+            if (index == chats.length && chats.length >= 30) {
+              return Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Center(
+                  child: Column(
+                    children: [
+                      const Divider(),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Showing ${chats.length} most recent chats',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Scroll up to see older chats as needed',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            return RepaintBoundary(
+              child: ProfessionalChatListItem(
+                chat: chats[index],
+                currentUserId: currentUser.uid,
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSearchResults() {
+    final userRepository = locator<UserRepository>();
+    final chatRepository = locator<ChatRepository>();
+    final currentUser = FirebaseAuth.instance.currentUser!;
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: userRepository.searchUsers(_searchQuery),
+      builder: (context, userSnapshot) {
+        if (userSnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        }
+
+        if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
+          return _buildEmptyState(message: 'No users found');
+        }
+
+        final users = userSnapshot.data!.docs
+            .where((doc) => doc.id != currentUser.uid)
+            .toList();
+
+        if (users.isEmpty) {
+          return _buildEmptyState(message: 'No users found');
+        }
+
+        return ListView.builder(
+          itemCount: users.length,
+          physics: const BouncingScrollPhysics(),
+          itemBuilder: (context, index) {
+            final userDoc = users[index];
+            final user = UserModel.fromDoc(userDoc);
+
+            return _buildSearchResultTile(user, chatRepository);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSearchResultTile(UserModel user, ChatRepository chatRepository) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () async {
+          HapticFeedback.lightImpact();
+
+          // Show loading
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+
+          try {
+            final chatId = await chatRepository.startOrGetChat(
+              user.id,
+              user.username,
+            );
+
+            if (mounted) {
+              locator<NavigationService>().goBack(); // Close loading
+              locator<NavigationService>().navigateTo(
+                ImprovedChatScreen(
+                  chatId: chatId,
+                  otherUsername: user.username,
+                ),
+                transition: PageTransition.slide,
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              Navigator.of(context).pop(); // Close loading
+              showIslandPopup(
+                context: context,
+                message: 'Failed to open chat: $e',
+                icon: Icons.error_outline,
+              );
+            }
+          }
+        },
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: DesignTokens.spaceMD,
+            vertical: DesignTokens.spaceSM,
+          ),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: Colors.grey.withOpacity(0.1),
+                width: 0.5,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundImage: user.photoUrl.isNotEmpty
+                    ? NetworkImage(user.photoUrl)
+                    : null,
+                child: user.photoUrl.isEmpty
+                    ? Text(
+                        user.username.isNotEmpty
+                            ? user.username[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          fontSize: DesignTokens.fontSizeLG,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                    : null,
+              ),
+              SizedBox(width: DesignTokens.spaceMD),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user.username,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Tap to message',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: DesignTokens.fontSizeSM,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: Colors.grey[400],
+                size: DesignTokens.iconLG,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState({String? message}) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.chat_bubble_outline,
+            size: 64,
+            color: Colors.grey[400],
+          ),
+          SizedBox(height: DesignTokens.spaceMD),
+          Text(
+            message ?? 'No active chats',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: DesignTokens.fontSizeLG,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          SizedBox(height: DesignTokens.spaceSM),
+          Text(
+            'Start a conversation with someone!',
+            style: TextStyle(
+              color: Colors.grey[500],
+              fontSize: DesignTokens.fontSizeSM,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 64,
+            color: Colors.red[400],
+          ),
+          SizedBox(height: DesignTokens.spaceMD),
+          Text(
+            message,
+            style: TextStyle(
+              color: Colors.grey[700],
+              fontSize: DesignTokens.fontSizeLG,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _onRefresh() async {
+    HapticFeedback.mediumImpact();
+
+    // Show feedback
+    showIslandPopup(
+      context: context,
+      message: 'Refreshed!',
+      icon: Icons.check_circle,
+    );
+
+    // Wait a bit for visual feedback
+    await Future.delayed(const Duration(milliseconds: 300));
+  }
+}

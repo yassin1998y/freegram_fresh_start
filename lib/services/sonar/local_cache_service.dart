@@ -10,8 +10,6 @@ import 'package:freegram/models/hive/friend_request_record.dart';
 import 'package:freegram/services/sync_manager.dart'; // Import for SyncManager
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
-// Import collection package for firstWhereOrNull
-import 'package:collection/collection.dart';
 
 class LocalCacheService {
   late final Box<NearbyUser> _nearbyUsersBox;
@@ -136,10 +134,36 @@ class LocalCacheService {
   // *** HELPER: Find user by full profile ID ***
   NearbyUser? getNearbyUserByProfileId(String profileId) {
     if (profileId.isEmpty) return null;
-    // Use firstWhereOrNull for cleaner handling of not found case
-    return _nearbyUsersBox.values.firstWhereOrNull(
-      (user) => user.profileId == profileId,
-    );
+
+    // CRITICAL FIX: Detect if multiple nearby users have the same profileId!
+    final matches = _nearbyUsersBox.values
+        .where(
+          (user) => user.profileId == profileId,
+        )
+        .toList();
+
+    if (matches.isEmpty) {
+      return null;
+    }
+
+    if (matches.length > 1) {
+      debugPrint("❌ [CRITICAL BUG] DUPLICATE profileId mapping detected!");
+      debugPrint("   profileId: $profileId");
+      debugPrint(
+          "   Found ${matches.length} nearby users with this profileId:");
+      for (var match in matches) {
+        debugPrint(
+            "      - uidShort: ${match.uidShort}, gender: ${match.gender}, lastSeen: ${match.lastSeen}");
+      }
+      debugPrint(
+          "   ⚠️  This will cause WRONG WAVE TARGETS! Returning the most recently seen one.");
+
+      // Return the most recently seen user as best guess
+      matches.sort((a, b) => b.lastSeen.compareTo(a.lastSeen));
+      return matches.first;
+    }
+
+    return matches.first;
   }
 
   // *** HELPER: Get all users that haven't been synced (Defined in sync_manager.dart now) ***

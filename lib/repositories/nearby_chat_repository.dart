@@ -2,14 +2,12 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:freegram/locator.dart';
 import 'package:freegram/models/nearby_message.dart';
-import 'package:freegram/services/bluetooth_service.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 class NearbyChatRepository {
-  final BluetoothService _bluetoothService = locator<BluetoothService>();
+  // Note: BluetoothService reference removed as it's no longer used
   late final Box<List<dynamic>> _chatBox;
   StreamSubscription? _messageSubscription;
   Timer? _cleanupTimer;
@@ -47,11 +45,11 @@ class NearbyChatRepository {
     */
   }
 
-  void _handleIncomingWave(String fromUserId) {
-    debugPrint("Received a wave from $fromUserId!");
-  }
-
-  Future<void> sendMessage(String recipientId, String deviceAddress, String text) async {
+  Future<void> sendMessage(
+      String recipientId, String deviceAddress, String text) async {
+    // Note: BluetoothService removed, this method is no longer functional
+    // TODO: Implement using new bluetooth architecture if needed
+    /*
     final myId = _bluetoothService.getCurrentUserId();
     if (myId == null) return;
 
@@ -62,6 +60,7 @@ class NearbyChatRepository {
     );
     // COMMENTED OUT to fix compilation error
     // await _bluetoothService.sendMessage(deviceAddress, text);
+    */
   }
 
   Future<void> sendWave(String deviceAddress) async {
@@ -86,7 +85,8 @@ class NearbyChatRepository {
       timestamp: DateTime.now(),
     );
 
-    final chatHistory = _chatBox.get(chatId)?.cast<NearbyMessage>().toList() ?? [];
+    final chatHistory =
+        _chatBox.get(chatId)?.cast<NearbyMessage>().toList() ?? [];
     chatHistory.add(newMessage);
     await _chatBox.put(chatId, chatHistory);
   }
@@ -96,9 +96,11 @@ class NearbyChatRepository {
     return ValueNotifier(messages);
   }
 
-  void listenToChatUpdates(String chatId, ValueNotifier<List<NearbyMessage>> notifier) {
+  void listenToChatUpdates(
+      String chatId, ValueNotifier<List<NearbyMessage>> notifier) {
     _chatBox.listenable(keys: [chatId]).addListener(() {
-      notifier.value = _chatBox.get(chatId)?.cast<NearbyMessage>().toList() ?? [];
+      notifier.value =
+          _chatBox.get(chatId)?.cast<NearbyMessage>().toList() ?? [];
     });
   }
 
@@ -114,7 +116,8 @@ class NearbyChatRepository {
     final allChatIds = _chatBox.keys.toList();
 
     for (final chatId in allChatIds) {
-      final messages = _chatBox.get(chatId)?.cast<NearbyMessage>().toList() ?? [];
+      final messages =
+          _chatBox.get(chatId)?.cast<NearbyMessage>().toList() ?? [];
       if (messages.isEmpty) continue;
 
       final recentMessages = messages.where((msg) {

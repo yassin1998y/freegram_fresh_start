@@ -4,7 +4,6 @@ import 'dart:io'; // For Platform check
 import 'dart:ui'; // For ImageFilter and BackdropFilter
 import 'package:app_settings/app_settings.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter/material.dart';
@@ -21,10 +20,14 @@ import 'package:freegram/services/sonar/sonar_controller.dart';
 import 'package:freegram/services/sonar/bluetooth_service.dart';
 import 'package:freegram/services/sonar/ble_advertiser.dart';
 import 'package:freegram/services/sync_manager.dart'; // Import SyncManager
+// MIUI/Redmi Fixes
+import 'package:freegram/services/device_info_helper.dart';
+import 'package:freegram/services/miui_permission_helper.dart';
 // Models (Hive & Firestore Alias)
 import 'package:freegram/models/hive/nearby_user.dart';
 import 'package:freegram/models/hive/user_profile.dart';
 import 'package:freegram/models/user_model.dart' as ServerUserModel; // Alias
+import 'package:freegram/services/navigation_service.dart';
 // Screens
 import 'package:freegram/screens/nearby_chat_list_screen.dart';
 import 'package:freegram/screens/profile_screen.dart';
@@ -335,69 +338,27 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
 
   // --- Manual Sync Trigger ---
 
-  // --- Battery Optimization Dialog ---
+  // --- Battery Optimization Dialog (MIUI/Redmi Enhanced) ---
   Future<void> _checkAndShowBatteryOptimizationDialog() async {
     if (!mounted ||
         !Platform.isAndroid ||
         _settingsBox.get('hasSeenBatteryDialog', defaultValue: false)) return;
-    DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-    AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-    List<String> problematicManufacturers = [
-      'xiaomi',
-      'huawei',
-      'oppo',
-      'vivo'
-    ];
-    if (problematicManufacturers
-        .contains(androidInfo.manufacturer.toLowerCase())) {
+
+    // Use the new MIUI Permission Helper
+    final miuiHelper = MiuiPermissionHelper();
+    final deviceInfo = DeviceInfoHelper();
+    await deviceInfo.initialize();
+
+    // Check if battery optimization is enabled
+    final isBatteryOptimized = await miuiHelper.isBatteryOptimizationEnabled();
+
+    // Show dialog if battery optimization is enabled and device has aggressive optimization
+    if (isBatteryOptimized && deviceInfo.hasAggressiveBatteryOptimization) {
       if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text('Important Settings for ${androidInfo.manufacturer}'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                    'For Nearby to work correctly on your device, please:'),
-                const SizedBox(height: 12),
-                const Text(
-                    '1. Set Battery saver for Freegram to "No restrictions"'),
-                const Text('2. Allow "Background activity" for Freegram'),
-                const Text('3. Disable "Auto-start management" restrictions'),
-                const Text(
-                    '4. Enable "Bluetooth scanning" in location settings'),
-                const SizedBox(height: 8),
-                Text(
-                  'These settings help prevent Bluetooth advertising issues on ${androidInfo.manufacturer} devices.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontStyle: FontStyle.italic,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withOpacity(0.7),
-                      ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Later')),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  AppSettings.openAppSettings(
-                      type: AppSettingsType.batteryOptimization);
-                },
-                child: const Text('Open Settings'),
-              ),
-            ],
-          ),
-        );
+        await miuiHelper.showMiuiPermissionGuide(context);
       }
     }
+
     await _settingsBox.put('hasSeenBatteryDialog', true);
   }
 
@@ -429,7 +390,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
         try {
           final advertiser = locator<BleAdvertiser>();
           if (advertiser.isScanOnlyMode) {
-            return "Scan-only mode - Can find others but may not be discoverable";
+            return "Scan-only mode - Can find others but not discoverable";
           }
         } catch (e) {
           // If we can't access the advertiser, assume normal mode
@@ -529,10 +490,9 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                   label: "Chats",
                   icon: Icons.forum_outlined,
                   isActive: true,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const NearbyChatListScreen(),
-                    ),
+                  onTap: () => locator<NavigationService>().navigateTo(
+                    const NearbyChatListScreen(),
+                    transition: PageTransition.slide,
                   ),
                 ),
               ),
@@ -1787,8 +1747,9 @@ class _ProfessionalFoundUsersModalState
               isProfileSynced: isProfileSynced,
               rssi: estimatedRssi,
               userModel: displayUser,
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => ProfileScreen(userId: displayUser.id))),
+              onTap: () => locator<NavigationService>().navigateTo(
+                  ProfileScreen(userId: displayUser.id),
+                  transition: PageTransition.slide),
               onDelete: () => widget.onDeleteUser(nearbyUser.uidShort),
             ),
           );

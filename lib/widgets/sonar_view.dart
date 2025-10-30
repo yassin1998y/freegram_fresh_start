@@ -77,7 +77,7 @@ class _SonarViewState extends State<SonarView> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return AspectRatio(
       aspectRatio: 1.0,
       child: CustomPaint(
@@ -87,7 +87,7 @@ class _SonarViewState extends State<SonarView> with TickerProviderStateMixin {
           discoveryAnimation: _discoveryAnimation,
           primaryColor: theme.colorScheme.primary,
           secondaryColor: theme.colorScheme.secondary,
-          discoveryColor: theme.colorScheme.tertiary ?? theme.colorScheme.primary,
+          discoveryColor: theme.colorScheme.tertiary,
         ),
         child: Stack(
           children: [
@@ -118,9 +118,11 @@ class SonarPainter extends CustomPainter {
     required this.secondaryColor,
     required this.discoveryColor,
   })  : _sonarPaint = Paint()
-    ..color = primaryColor.withOpacity(0.5)
-    ..style = PaintingStyle.stroke,
-        super(repaint: Listenable.merge([sonarAnimation, unleashAnimation, discoveryAnimation]));
+          ..color = primaryColor.withOpacity(0.5)
+          ..style = PaintingStyle.stroke,
+        super(
+            repaint: Listenable.merge(
+                [sonarAnimation, unleashAnimation, discoveryAnimation]));
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -144,15 +146,19 @@ class SonarPainter extends CustomPainter {
     // Draw unleash pulse
     if (unleashAnimation.value > 0) {
       _sonarPaint.strokeWidth = 4.0;
-      _sonarPaint.color = secondaryColor.withOpacity(1.0 - unleashAnimation.value);
-      canvas.drawCircle(center, maxRadius * unleashAnimation.value, _sonarPaint);
+      _sonarPaint.color =
+          secondaryColor.withOpacity(1.0 - unleashAnimation.value);
+      canvas.drawCircle(
+          center, maxRadius * unleashAnimation.value, _sonarPaint);
     }
 
     // Draw discovery pulse
     if (discoveryAnimation.value > 0) {
       _sonarPaint.strokeWidth = 5.0;
-      _sonarPaint.color = discoveryColor.withOpacity(1.0 - discoveryAnimation.value);
-      canvas.drawCircle(center, maxRadius * discoveryAnimation.value, _sonarPaint);
+      _sonarPaint.color =
+          discoveryColor.withOpacity(1.0 - discoveryAnimation.value);
+      canvas.drawCircle(
+          center, maxRadius * discoveryAnimation.value, _sonarPaint);
     }
   }
 

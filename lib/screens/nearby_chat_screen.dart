@@ -8,6 +8,7 @@ import 'package:freegram/locator.dart';
 import 'package:freegram/models/nearby_message.dart';
 import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/nearby_chat_repository.dart';
+import 'package:freegram/widgets/freegram_app_bar.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 class NearbyChatScreen extends StatelessWidget {
@@ -74,15 +75,13 @@ class _NearbyChatViewState extends State<_NearbyChatView> {
     super.dispose();
   }
 
-  void _sendMessage() {
-    // We prevent sending messages for now.
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Chat functionality is temporarily disabled.")));
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: FreegramAppBar(
+        title: '${widget.targetUser.username}',
+        showBackButton: true,
+      ),
       body: Column(
         children: [
           Expanded(
@@ -111,7 +110,8 @@ class _NearbyChatViewState extends State<_NearbyChatView> {
                     itemCount: messages.length,
                     itemBuilder: (context, index) {
                       final message = messages.reversed.toList()[index];
-                      final isMe = message.senderId == FirebaseAuth.instance.currentUser!.uid;
+                      final isMe = message.senderId ==
+                          FirebaseAuth.instance.currentUser!.uid;
                       return _MessageBubble(message: message, isMe: isMe);
                     },
                   );
@@ -131,7 +131,9 @@ class _NearbyChatViewState extends State<_NearbyChatView> {
                       hintText: 'Chat is disabled...',
                       filled: true,
                       fillColor: Theme.of(context).dividerColor,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20.0), borderSide: BorderSide.none),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20.0),
+                          borderSide: BorderSide.none),
                     ),
                     enabled: false, // Disabled
                   ),
@@ -158,19 +160,30 @@ class _MessageBubble extends StatelessWidget {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
         margin: const EdgeInsets.symmetric(vertical: 4.0),
         padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
         decoration: BoxDecoration(
-          color: isMe ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surface,
+          color: isMe
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(20.0),
         ),
         child: Column(
-          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment:
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
-            Text(message.text, style: TextStyle(color: isMe ? Colors.white : Theme.of(context).textTheme.bodyLarge?.color)),
+            Text(message.text,
+                style: TextStyle(
+                    color: isMe
+                        ? Colors.white
+                        : Theme.of(context).textTheme.bodyLarge?.color)),
             const SizedBox(height: 4),
-            Text(timeago.format(message.timestamp, locale: 'en_short'), style: TextStyle(fontSize: 10, color: isMe ? Colors.white70 : Colors.grey[600])),
+            Text(timeago.format(message.timestamp, locale: 'en_short'),
+                style: TextStyle(
+                    fontSize: 10,
+                    color: isMe ? Colors.white70 : Colors.grey[600])),
           ],
         ),
       ),

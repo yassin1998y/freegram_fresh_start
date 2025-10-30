@@ -14,6 +14,16 @@ class ProfileInitial extends ProfileState {}
 /// The state when a profile update is in progress.
 class ProfileLoading extends ProfileState {}
 
+/// The state when a profile image is being uploaded.
+class ProfileImageUploading extends ProfileState {
+  final double progress;
+
+  const ProfileImageUploading({required this.progress});
+
+  @override
+  List<Object> get props => [progress];
+}
+
 /// The state when a profile update has completed successfully.
 class ProfileUpdateSuccess extends ProfileState {}
 

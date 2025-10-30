@@ -20,12 +20,13 @@ class ChatRepository {
     // required TaskRepository taskRepository, // Removed
   })  : _db = firestore ?? FirebaseFirestore.instance,
         _auth = firebaseAuth ?? FirebaseAuth.instance,
-  // _gamificationRepository = gamificationRepository, // Removed
-  // _taskRepository = taskRepository, // Removed
+        // _gamificationRepository = gamificationRepository, // Removed
+        // _taskRepository = taskRepository, // Removed
         _actionQueueRepository = locator<ActionQueueRepository>();
 
   // startOrGetChat remains the same
-  Future<String> startOrGetChat(String otherUserId, String otherUsername) async {
+  Future<String> startOrGetChat(
+      String otherUserId, String otherUsername) async {
     final currentUser = _auth.currentUser!;
     final ids = [currentUser.uid, otherUserId];
     ids.sort();
@@ -48,7 +49,6 @@ class ChatRepository {
     // If chat exists, don't overwrite type, just return ID
     return chatId;
   }
-
 
   // sendMessage updated to remove gamification/task calls
   Future<void> sendMessage({
@@ -85,7 +85,8 @@ class ChatRepository {
     if (!chatDoc.exists) return; // Exit if chat doesn't exist
 
     final chatData = chatDoc.data() as Map<String, dynamic>;
-    final chatType = chatData['chatType'] ?? 'friend'; // Default to 'friend' if type missing
+    final chatType =
+        chatData['chatType'] ?? 'friend'; // Default to 'friend' if type missing
 
     // Keep contact request logic
     if (chatType == 'contact_request') {
@@ -126,20 +127,24 @@ class ChatRepository {
     });
 
     // Update the main chat document for previews and unread status
-    final otherUserId =
-    (chatData['users'] as List).firstWhere((id) => id != senderId, orElse: () => '');
+    final otherUserId = (chatData['users'] as List)
+        .firstWhere((id) => id != senderId, orElse: () => '');
+
+    // Determine last message preview text
+    final lastMessagePreview = imageUrl != null ? '📷 Photo' : text ?? '';
 
     if (otherUserId.isNotEmpty) {
       await chatRef.update({
-        'lastMessage': imageUrl != null ? '📷 Photo' : text,
+        'lastMessage': lastMessagePreview,
         'lastMessageIsImage': imageUrl != null,
         'lastMessageTimestamp': FieldValue.serverTimestamp(),
-        'unreadFor': FieldValue.arrayUnion([otherUserId]), // Mark unread for recipient
+        'unreadFor':
+            FieldValue.arrayUnion([otherUserId]), // Mark unread for recipient
       });
     } else {
       // Handle case where other user ID couldn't be found (e.g., chat with self?)
       await chatRef.update({
-        'lastMessage': imageUrl != null ? '📷 Photo' : text,
+        'lastMessage': lastMessagePreview,
         'lastMessageIsImage': imageUrl != null,
         'lastMessageTimestamp': FieldValue.serverTimestamp(),
       });
@@ -150,11 +155,13 @@ class ChatRepository {
     // await _taskRepository.updateTaskProgress(senderId, 'send_messages', 1);
   }
 
-
   // editMessage remains the same
   Future<void> editMessage(String chatId, String messageId, String newText) {
-    final messageRef =
-    _db.collection('chats').doc(chatId).collection('messages').doc(messageId);
+    final messageRef = _db
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .doc(messageId);
     return messageRef.update({
       'text': newText,
       'edited': true,
@@ -189,8 +196,11 @@ class ChatRepository {
   // toggleMessageReaction remains the same
   Future<void> toggleMessageReaction(
       String chatId, String messageId, String userId, String emoji) async {
-    final messageRef =
-    _db.collection('chats').doc(chatId).collection('messages').doc(messageId);
+    final messageRef = _db
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .doc(messageId);
     final doc = await messageRef.get();
     final reactions = Map<String, String>.from(doc.data()?['reactions'] ?? {});
     // If user already reacted with the same emoji, remove reaction
@@ -206,7 +216,8 @@ class ChatRepository {
   // markMultipleMessagesAsSeen remains the same
   Future<void> markMultipleMessagesAsSeen(
       String chatId, List<String> messageIds) {
-    if (messageIds.isEmpty) return Future.value(); // No need for batch if list is empty
+    if (messageIds.isEmpty)
+      return Future.value(); // No need for batch if list is empty
     final batch = _db.batch();
     for (final messageId in messageIds) {
       final messageRef = _db
@@ -221,15 +232,13 @@ class ChatRepository {
 
   // resetUnreadCount remains the same
   Future<void> resetUnreadCount(String chatId, String userId) {
-    return _db
-        .collection('chats')
-        .doc(chatId)
-        .update({'unreadFor': FieldValue.arrayRemove([userId])});
+    return _db.collection('chats').doc(chatId).update({
+      'unreadFor': FieldValue.arrayRemove([userId])
+    });
   }
 
   // updateTypingStatus remains the same
-  Future<void> updateTypingStatus(
-      String chatId, String userId, bool isTyping) {
+  Future<void> updateTypingStatus(String chatId, String userId, bool isTyping) {
     // Use dot notation for nested fields
     return _db
         .collection('chats')
@@ -237,16 +246,33 @@ class ChatRepository {
         .update({'typingStatus.$userId': isTyping});
   }
 
-
   // --- STREAMS ---
 
-  // getChatsStream remains the same
-  Stream<QuerySnapshot> getChatsStream(String userId) {
+  // getChatsStream - OPTIMIZED with pagination limit
+  Stream<QuerySnapshot> getChatsStream(String userId, {int limit = 30}) {
     return _db
         .collection('chats')
         .where('users', arrayContains: userId)
         .orderBy('lastMessageTimestamp', descending: true)
+        .limit(limit) // Limit to 30 chats initially
         .snapshots();
+  }
+
+  // Load more chats for pagination
+  Future<QuerySnapshot> loadMoreChats(
+      String userId, DocumentSnapshot? lastDocument,
+      {int limit = 30}) async {
+    Query query = _db
+        .collection('chats')
+        .where('users', arrayContains: userId)
+        .orderBy('lastMessageTimestamp', descending: true)
+        .limit(limit);
+
+    if (lastDocument != null) {
+      query = query.startAfterDocument(lastDocument);
+    }
+
+    return await query.get();
   }
 
   // getChatStream remains the same
@@ -270,6 +296,7 @@ class ChatRepository {
         .collection('chats')
         .where('unreadFor', arrayContains: userId)
         .snapshots()
-        .map((snapshot) => snapshot.docs.length); // Count documents where user is in 'unreadFor'
+        .map((snapshot) => snapshot
+            .docs.length); // Count documents where user is in 'unreadFor'
   }
 }

@@ -5,7 +5,6 @@ import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart'; // <<<--- ADDED THIS IMPORT for debugPrint
 import 'package:freegram/locator.dart'; // To get SonarController
-import 'package:freegram/services/sonar/bluetooth_discovery_service.dart'; // For StatusService & Enum
 import 'package:freegram/services/sonar/sonar_controller.dart'; // To start/stop
 import 'package:meta/meta.dart';
 import 'package:freegram/services/sonar/bluetooth_service.dart';
@@ -16,10 +15,12 @@ part 'nearby_state.dart';
 class NearbyBloc extends Bloc<NearbyEvent, NearbyState> {
   // Get instances from locator
   final SonarController _sonarController = locator<SonarController>();
-  final BluetoothStatusService _statusService = BluetoothStatusService(); // Use shared status service
+  final BluetoothStatusService _statusService =
+      BluetoothStatusService(); // Use shared status service
   StreamSubscription? _statusSubscription;
 
-  NearbyBloc() : super(NearbyInitial()) { // Removed BluetoothService dependency
+  NearbyBloc() : super(NearbyInitial()) {
+    // Removed BluetoothService dependency
 
     // Listen to the shared status stream
     _statusSubscription = _statusService.statusStream.listen((status) {
@@ -38,7 +39,8 @@ class NearbyBloc extends Bloc<NearbyEvent, NearbyState> {
   }
 
   // Calls SonarController to start
-  void _onStartServices(StartNearbyServices event, Emitter<NearbyState> emit) async {
+  void _onStartServices(
+      StartNearbyServices event, Emitter<NearbyState> emit) async {
     debugPrint("NearbyBloc: Received StartNearbyServices event."); // Corrected
     // Initialize user if not already done (controller handles internal check)
     await _sonarController.initializeUser();
@@ -48,7 +50,8 @@ class NearbyBloc extends Bloc<NearbyEvent, NearbyState> {
   }
 
   // Calls SonarController to stop
-  void _onStopServices(StopNearbyServices event, Emitter<NearbyState> emit) async {
+  void _onStopServices(
+      StopNearbyServices event, Emitter<NearbyState> emit) async {
     debugPrint("NearbyBloc: Received StopNearbyServices event."); // Corrected
     await _sonarController.stopSonar();
     // The state will update via the _statusSubscription
@@ -61,17 +64,18 @@ class NearbyBloc extends Bloc<NearbyEvent, NearbyState> {
 
     switch (status) {
       case NearbyStatus.idle:
-      // Only emit initial if the current state isn't already initial
-      // This prevents unnecessary rebuilds if stopSonar is called multiple times
+        // Only emit initial if the current state isn't already initial
+        // This prevents unnecessary rebuilds if stopSonar is called multiple times
         if (state is! NearbyInitial) {
           emit(NearbyInitial());
         }
         break;
       case NearbyStatus.scanning:
-      case NearbyStatus.userFound: // Combine scanning and found into 'Active' state
-      // In the new model, the BLoC doesn't hold the user list directly.
-      // The UI will get the list from LocalCacheService via Hive.listenable().
-      // We just need to signal that the service is active.
+      case NearbyStatus
+            .userFound: // Combine scanning and found into 'Active' state
+        // In the new model, the BLoC doesn't hold the user list directly.
+        // The UI will get the list from LocalCacheService via Hive.listenable().
+        // We just need to signal that the service is active.
         emit(NearbyActive(status: status));
         break;
       case NearbyStatus.adapterOff:
@@ -85,7 +89,6 @@ class NearbyBloc extends Bloc<NearbyEvent, NearbyState> {
             "Permissions permanently denied. Please enable in Settings."));
         break;
       case NearbyStatus.error:
-      default: // Handle any unexpected status as error
         emit(const NearbyError("A Sonar error occurred. Please try again."));
         break;
     }

@@ -13,7 +13,6 @@ String _uidShortFromFull(String fullId) {
   return digest.toString().substring(0, 8);
 }
 
-
 class UserModel extends Equatable {
   final String id;
   final String uidShort; // Derived from id
@@ -83,33 +82,34 @@ class UserModel extends Equatable {
     this.nearbyDataVersion = 0,
   }) : uidShort = _uidShortFromFull(id);
 
-
   // _toDateTime, _getList, _getIntList remain the same
   static DateTime _toDateTime(dynamic timestamp) {
     if (timestamp is Timestamp) return timestamp.toDate();
-    if (timestamp is String) return DateTime.tryParse(timestamp) ?? DateTime.fromMillisecondsSinceEpoch(0); // Safer fallback
+    if (timestamp is String)
+      return DateTime.tryParse(timestamp) ??
+          DateTime.fromMillisecondsSinceEpoch(0); // Safer fallback
     if (timestamp is int) {
-      if (timestamp > 1000000000000) { // Milliseconds
+      if (timestamp > 1000000000000) {
+        // Milliseconds
         return DateTime.fromMillisecondsSinceEpoch(timestamp);
-      } else { // Seconds
+      } else {
+        // Seconds
         return DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
       }
     }
     if (timestamp is Map && timestamp.containsKey('_seconds')) {
-      return Timestamp(timestamp['_seconds'], timestamp['_nanoseconds'] ?? 0).toDate();
+      return Timestamp(timestamp['_seconds'], timestamp['_nanoseconds'] ?? 0)
+          .toDate();
     }
-    print("UserModel WARNING: Unhandled timestamp type: ${timestamp?.runtimeType}");
+    print(
+        "UserModel WARNING: Unhandled timestamp type: ${timestamp?.runtimeType}");
     return DateTime.fromMillisecondsSinceEpoch(0); // Consistent safe fallback
   }
 
   static List<String> _getList(Map<String, dynamic> data, String key) {
     final value = data[key];
-    if (value is List) return List<String>.from(value.map((item) => item.toString()));
-    return [];
-  }
-  static List<int> _getIntList(Map<String, dynamic> data, String key) {
-    final value = data[key];
-    if (value is List) return List<int>.from(value.map((item) => int.tryParse(item.toString()) ?? 0));
+    if (value is List)
+      return List<String>.from(value.map((item) => item.toString()));
     return [];
   }
 
@@ -155,7 +155,9 @@ class UserModel extends Equatable {
       nearbyStatusEmoji: data['nearbyStatusEmoji'] ?? '',
       nearbyDiscoveryStreak: data['nearbyDiscoveryStreak'] ?? 0,
       lastNearbyDiscoveryDate: _toDateTime(data['lastNearbyDiscoveryDate']),
-      sharedMusicTrack: data['sharedMusicTrack'] != null ? Map<String, String>.from(data['sharedMusicTrack']) : null,
+      sharedMusicTrack: data['sharedMusicTrack'] != null
+          ? Map<String, String>.from(data['sharedMusicTrack'])
+          : null,
       nearbyDataVersion: data['nearbyDataVersion'] ?? 0,
       // uidShort is calculated by the constructor
     );
@@ -213,10 +215,13 @@ class UserModel extends Equatable {
   // props updated to remove deleted fields, but kept a selection for Equatable comparison
   @override
   List<Object?> get props => [
-    id, uidShort, username, email, photoUrl, pictureVersion, bio, presence, lastSeen,
-    country, age, gender, interests, createdAt, friends, superLikes, // Keep superLikes here if important for equality checks
-    nearbyStatusMessage, nearbyStatusEmoji, nearbyDiscoveryStreak, lastNearbyDiscoveryDate,
-    sharedMusicTrack, nearbyDataVersion, coins, // Added coins
-    // Removed: level
-  ];
+        id, uidShort, username, email, photoUrl, pictureVersion, bio, presence,
+        lastSeen,
+        country, age, gender, interests, createdAt, friends,
+        superLikes, // Keep superLikes here if important for equality checks
+        nearbyStatusMessage, nearbyStatusEmoji, nearbyDiscoveryStreak,
+        lastNearbyDiscoveryDate,
+        sharedMusicTrack, nearbyDataVersion, coins, // Added coins
+        // Removed: level
+      ];
 }

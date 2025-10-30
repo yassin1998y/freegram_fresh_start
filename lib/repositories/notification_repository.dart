@@ -13,23 +13,28 @@ class NotificationRepository {
   /// Ensure the 'type' string matches one of the remaining NotificationType enum values.
   Future<void> addNotification({
     required String userId,
-    required String type, // Should be 'friendRequest', 'requestAccepted', 'superLike', or 'nearbyWave'
+    required String
+        type, // Should be 'friendRequest', 'requestAccepted', 'superLike', or 'nearbyWave'
     required String fromUsername,
     required String fromUserId,
     String? fromUserPhotoUrl,
-    String? postId, // Keep for context? (e.g., if superLike was on a profile vs post)
+    String?
+        postId, // Keep for context? (e.g., if superLike was on a profile vs post)
     String? postImageUrl, // Keep for context?
     String? commentText, // Keep for context?
     String? message, // Keep for wave message
   }) {
     // Basic validation for type based on remaining enums
     // Use NotificationType enum directly for better type safety if possible
-    final validTypesAsString = NotificationType.values.map((e) => e.name).toList();
+    final validTypesAsString =
+        NotificationType.values.map((e) => e.name).toList();
     // Also allow legacy strings if necessary
-    validTypesAsString.addAll(['friend_request_received', 'request_accepted', 'super_like']);
+    validTypesAsString
+        .addAll(['friend_request_received', 'request_accepted', 'super_like']);
 
     if (!validTypesAsString.contains(type)) {
-      debugPrint("NotificationRepository Warning: Attempted to add notification with invalid type: $type");
+      debugPrint(
+          "NotificationRepository Warning: Attempted to add notification with invalid type: $type");
       // Optionally throw an error or just return to prevent adding invalid types
       // throw ArgumentError("Invalid notification type: $type");
       return Future.value(); // Silently ignore invalid types for now
@@ -37,10 +42,11 @@ class NotificationRepository {
 
     // Map legacy types to current enum string representation before saving
     String finalTypeString = type;
-    if (type == 'friend_request_received') finalTypeString = NotificationType.friendRequest.name;
-    if (type == 'request_accepted') finalTypeString = NotificationType.requestAccepted.name;
+    if (type == 'friend_request_received')
+      finalTypeString = NotificationType.friendRequest.name;
+    if (type == 'request_accepted')
+      finalTypeString = NotificationType.requestAccepted.name;
     if (type == 'super_like') finalTypeString = NotificationType.superLike.name;
-
 
     final data = <String, dynamic>{
       'type': finalTypeString, // Save the corrected type string
@@ -64,7 +70,6 @@ class NotificationRepository {
         .add(data);
   }
 
-
   // getNotificationsStream remains the same (relies on NotificationModel.fromFirestore)
   Stream<List<NotificationModel>> getNotificationsStream(String userId) {
     return _db
@@ -79,8 +84,8 @@ class NotificationRepository {
       // Although _stringToNotificationType handles defaults, you might want stricter filtering here.
       return snapshot.docs
           .map((doc) => NotificationModel.fromFirestore(doc))
-      // Optional: Filter based on valid types if _stringToNotificationType default is not desired
-      // .where((notification) => NotificationType.values.contains(notification.type))
+          // Optional: Filter based on valid types if _stringToNotificationType default is not desired
+          // .where((notification) => NotificationType.values.contains(notification.type))
           .toList();
     });
   }
@@ -109,11 +114,12 @@ class NotificationRepository {
   // markAllNotificationsAsRead remains the same
   Future<bool> markAllNotificationsAsRead(String userId) async {
     final notificationsRef =
-    _db.collection('users').doc(userId).collection('notifications');
+        _db.collection('users').doc(userId).collection('notifications');
     // Get only unread notifications
     final unreadNotifications =
-    await notificationsRef.where('read', isEqualTo: false).get();
-    if (unreadNotifications.docs.isEmpty) return false; // No unread notifications
+        await notificationsRef.where('read', isEqualTo: false).get();
+    if (unreadNotifications.docs.isEmpty)
+      return false; // No unread notifications
 
     // Use a batch write for efficiency
     final batch = _db.batch();

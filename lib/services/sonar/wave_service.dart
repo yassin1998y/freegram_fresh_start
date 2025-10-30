@@ -2,7 +2,6 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:freegram/locator.dart';
 import 'package:freegram/models/hive/nearby_user.dart'; // Import NearbyUser
 import 'package:freegram/models/hive/user_profile.dart';
 import 'package:freegram/services/sonar/bluetooth_discovery_service.dart';
@@ -14,6 +13,7 @@ class WaveService {
   final BluetoothDiscoveryService _discoveryService;
   final LocalCacheService _cacheService;
   final NotificationService _notificationService;
+  // WaveManager is managed by BluetoothDiscoveryService (singleton - single source of truth)
   // StreamSubscription? _waveSubscription; // REMOVED
 
   WaveService({
@@ -38,8 +38,7 @@ class WaveService {
     try {
       // Pass both IDs to discovery service
       await _discoveryService.sendWave(
-          fromUidFull: currentUser.uid,
-          toUidShort: targetUidShort);
+          fromUidFull: currentUser.uid, toUidShort: targetUidShort);
       debugPrint("WaveService: Wave broadcast initiated for $targetUidShort.");
     } catch (e) {
       debugPrint("WaveService Error: Failed to send wave: $e");
@@ -47,9 +46,10 @@ class WaveService {
   }
 
   /// Handles an incoming wave detected by the BLE scanner.
-  /// Now public or accessed via extension.
-  Future<void> handleReceivedWave(String senderUidShort) async { // Renamed from _handleReceivedWave
-    debugPrint("WaveService: Handling received wave from $senderUidShort");
+  /// Cooldown enforcement happens in WaveManager (via BluetoothDiscoveryService)
+  /// This method only processes valid waves that pass through the scanner filter
+  Future<void> handleReceivedWave(String senderUidShort) async {
+    debugPrint("[WaveService] Processing wave from $senderUidShort");
 
     // 1. Vibrate
     try {
@@ -70,7 +70,8 @@ class WaveService {
     String? payload = senderUidShort; // Default payload is short ID
 
     if (nearbyUser?.profileId != null) {
-      UserProfile? profile = _cacheService.getUserProfile(nearbyUser!.profileId!);
+      UserProfile? profile =
+          _cacheService.getUserProfile(nearbyUser!.profileId!);
       if (profile != null) {
         senderName = profile.name;
         payload = profile.profileId; // Use full ID as payload if available
@@ -83,6 +84,7 @@ class WaveService {
         body: "$senderName waved at you!",
         payload: payload,
       );
+      debugPrint("WaveService: Wave notification shown for $senderName");
     } catch (e) {
       debugPrint("WaveService Error: Failed to show wave notification: $e");
     }
