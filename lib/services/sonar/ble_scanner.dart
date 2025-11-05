@@ -173,8 +173,13 @@ class BleScanner {
             debugPrint(
                 "BLE Scanner: Wave from $senderUidShort to $targetUidShort (my ID: $_currentUserShortId)");
 
+            // CRITICAL FIX: Prevent self-wave notifications
+            if (senderUidShort == _currentUserShortId) {
+              debugPrint(
+                  "BLE Scanner: Wave ignored - cannot receive wave from self");
+            }
             // Only process if this device is the target
-            if (targetUidShort == _currentUserShortId) {
+            else if (targetUidShort == _currentUserShortId) {
               if (_lastWaveTime[senderUidShort] == null ||
                   now.difference(_lastWaveTime[senderUidShort]!) >
                       _waveDebounceDuration) {
@@ -230,8 +235,13 @@ class BleScanner {
                 debugPrint(
                     "BLE Scanner: Service Data Wave from $senderUidShort to $targetUidShort (my ID: $_currentUserShortId)");
 
+                // CRITICAL FIX: Prevent self-wave notifications
+                if (senderUidShort == _currentUserShortId) {
+                  debugPrint(
+                      "BLE Scanner: Service Data Wave ignored - cannot receive wave from self");
+                }
                 // Only process if this device is the target
-                if (targetUidShort == _currentUserShortId) {
+                else if (targetUidShort == _currentUserShortId) {
                   if (_lastWaveTime[senderUidShort] == null ||
                       now.difference(_lastWaveTime[senderUidShort]!) >
                           _waveDebounceDuration) {
@@ -334,6 +344,13 @@ class BleScanner {
     _scanSubscription = null;
     _scanningStateSubscription?.cancel();
     _scanningStateSubscription = null;
+
+    // CRITICAL FIX: Clear debounce maps to prevent stale advertisements
+    // When BLE scan restarts, old advertisements may still be in scanner cache
+    // Clearing these maps ensures we don't process stale packets
+    _lastDiscoveryTime.clear();
+    _lastWaveTime.clear();
+
     debugPrint("BLE Scanner: Scanner state reset complete.");
   }
 

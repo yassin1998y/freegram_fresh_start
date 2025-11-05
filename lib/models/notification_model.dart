@@ -1,14 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum NotificationType {
-  // like, // Removed
-  // comment, // Removed
-  // follow, // Removed
   friendRequest,
   requestAccepted,
-  superLike, // Keep
+  superLike,
   nearbyWave,
-  // gameInvite, // Removed
+  comment, // Comment on post
+  reaction, // Reaction to post
+  mention, // Mentioned in post
 }
 
 class NotificationModel {
@@ -68,26 +67,26 @@ class NotificationModel {
     };
   }
 
-  // Updated to remove deleted types
   static NotificationType _stringToNotificationType(String typeStr) {
     switch (typeStr) {
-      // case 'like': return NotificationType.like; // Removed
-      // case 'comment': return NotificationType.comment; // Removed
-      // case 'follow': return NotificationType.follow; // Removed
-      case 'friend_request_received': // Allow legacy string
+      case 'friend_request_received':
       case 'friendRequest':
         return NotificationType.friendRequest;
-      case 'request_accepted': // Allow legacy string
+      case 'request_accepted':
       case 'requestAccepted':
         return NotificationType.requestAccepted;
-      case 'super_like': // Allow legacy string
+      case 'super_like':
       case 'superLike':
-        return NotificationType.superLike; // Keep
+        return NotificationType.superLike;
       case 'nearbyWave':
         return NotificationType.nearbyWave;
-      // case 'gameInvite': return NotificationType.gameInvite; // Removed
+      case 'comment':
+        return NotificationType.comment;
+      case 'reaction':
+        return NotificationType.reaction;
+      case 'mention':
+        return NotificationType.mention;
       default:
-        // Default to friendRequest or throw an error if unknown type is critical
         print(
             'Unknown notification type: $typeStr, defaulting to friendRequest.');
         return NotificationType.friendRequest;

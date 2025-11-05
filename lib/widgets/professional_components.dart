@@ -5,8 +5,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/models/user_model.dart';
 import 'package:freegram/blocs/friends_bloc/friends_bloc.dart';
+import 'package:freegram/blocs/connectivity_bloc.dart';
 import 'package:freegram/services/sonar/local_cache_service.dart';
 import 'package:freegram/services/sonar/sonar_controller.dart';
+import 'package:freegram/repositories/chat_repository.dart';
+import 'package:freegram/services/navigation_service.dart';
+import 'package:freegram/navigation/app_routes.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/widgets/island_popup.dart';
 
@@ -1421,74 +1425,202 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
 
   void _handleChat() {
     HapticFeedback.lightImpact();
-    showIslandPopup(context: context, message: "Chat temporarily disabled.");
+    Navigator.pop(widget.modalContext);
+
+    // Navigate to regular chat screen using ChatRepository
+    final chatRepository = locator<ChatRepository>();
+    chatRepository
+        .startOrGetChat(
+      widget.targetUser.id,
+      widget.targetUser.username,
+    )
+        .then((chatId) {
+      // CRITICAL: Check mounted before navigation
+      if (!mounted) return;
+
+      locator<NavigationService>().navigateNamed(
+        AppRoutes.chat,
+        arguments: {
+          'chatId': chatId,
+          'otherUserId': widget.targetUser.id,
+        },
+      );
+    }).catchError((e) {
+      if (mounted) {
+        showIslandPopup(
+          context: context,
+          message: "Failed to open chat: $e",
+          icon: Icons.error_outline,
+        );
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final friendsBlocState = context.watch<FriendsBloc>().state;
-    if (friendsBlocState is! FriendsLoaded) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    return BlocBuilder<FriendsBloc, FriendsState>(
+      builder: (context, friendsBlocState) {
+        if (friendsBlocState is! FriendsLoaded) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    final currentUserData = friendsBlocState.user;
-    final isFriend = currentUserData.friends.contains(widget.targetUser.id);
-    final requestSent =
-        currentUserData.friendRequestsSent.contains(widget.targetUser.id);
-    final requestReceived =
-        currentUserData.friendRequestsReceived.contains(widget.targetUser.id);
+        final currentUserData = friendsBlocState.user;
+        final isFriend = currentUserData.friends.contains(widget.targetUser.id);
+        final requestSent =
+            currentUserData.friendRequestsSent.contains(widget.targetUser.id);
+        final requestReceived = currentUserData.friendRequestsReceived
+            .contains(widget.targetUser.id);
 
-    return Column(
-      children: [
-        Text(
-          'Actions',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                fontSize: DesignTokens.fontSizeLG,
+        return BlocBuilder<ConnectivityBloc, ConnectivityState>(
+          builder: (context, connectivityState) {
+            final isOnline = connectivityState is Online;
+
+            return Column(
+              children: [
+                Text(
+                  'Actions',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: DesignTokens.fontSizeLG,
+                      ),
+                ),
+                SizedBox(height: DesignTokens.spaceMD),
+                Wrap(
+                  spacing: DesignTokens.spaceMD,
+                  runSpacing: DesignTokens.spaceMD,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    _buildActionButton(
+                      context,
+                      icon: Icons.waving_hand_outlined,
+                      label: 'Wave',
+                      isLoading: _isLoadingWave,
+                      onTap: _handleWave,
+                      animation: _buttonAnimations[0],
+                    ),
+                    _buildChatButton(context, isOnline),
+                    _buildActionButton(
+                      context,
+                      icon: _getFriendButtonIcon(
+                          isFriend, requestSent, requestReceived),
+                      label: _getFriendButtonLabel(
+                          isFriend, requestSent, requestReceived),
+                      isLoading: _isLoadingFriend,
+                      onTap: _getFriendButtonAction(
+                          isFriend, requestSent, requestReceived),
+                      animation: _buttonAnimations[2],
+                    ),
+                    _buildActionButton(
+                      context,
+                      icon: Icons.sports_esports_outlined,
+                      label: 'Invite',
+                      onTap: _handleInvite,
+                      animation: _buttonAnimations[3],
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildChatButton(BuildContext context, bool isOnline) {
+    return FadeTransition(
+      opacity: _buttonAnimations[1],
+      child: ScaleTransition(
+        scale: _buttonAnimations[1],
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: isOnline ? _handleChat : null,
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+            child: Container(
+              width: 80,
+              padding: EdgeInsets.all(DesignTokens.spaceMD),
+              decoration: BoxDecoration(
+                color: isOnline
+                    ? Theme.of(context).cardColor
+                    : Theme.of(context).dividerColor.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                border: Border.all(
+                  color: isOnline
+                      ? Theme.of(context).dividerColor
+                      : Theme.of(context).dividerColor.withOpacity(0.3),
+                  width: 0.5,
+                ),
+                boxShadow: isOnline ? DesignTokens.shadowLight : null,
               ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: isOnline
+                          ? Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withOpacity(0.1)
+                          : Theme.of(context).dividerColor.withOpacity(0.3),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Icon(
+                          Icons.chat_bubble_outline,
+                          color: isOnline
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.grey[500],
+                          size: DesignTokens.iconLG,
+                        ),
+                        if (!isOnline)
+                          Positioned(
+                            bottom: 2,
+                            right: 2,
+                            child: Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[600],
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Theme.of(context).cardColor,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.wifi_off,
+                                color: Colors.white,
+                                size: 6,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: DesignTokens.spaceSM),
+                  Text(
+                    'Chat',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: isOnline ? null : Colors.grey[500],
+                          fontWeight: FontWeight.w600,
+                          fontSize: DesignTokens.fontSizeXS,
+                        ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-        SizedBox(height: DesignTokens.spaceMD),
-        Wrap(
-          spacing: DesignTokens.spaceMD,
-          runSpacing: DesignTokens.spaceMD,
-          alignment: WrapAlignment.center,
-          children: [
-            _buildActionButton(
-              context,
-              icon: Icons.waving_hand_outlined,
-              label: 'Wave',
-              isLoading: _isLoadingWave,
-              onTap: _handleWave,
-              animation: _buttonAnimations[0],
-            ),
-            _buildActionButton(
-              context,
-              icon: Icons.chat_bubble_outline,
-              label: 'Chat',
-              onTap: _handleChat,
-              animation: _buttonAnimations[1],
-            ),
-            _buildActionButton(
-              context,
-              icon:
-                  _getFriendButtonIcon(isFriend, requestSent, requestReceived),
-              label:
-                  _getFriendButtonLabel(isFriend, requestSent, requestReceived),
-              isLoading: _isLoadingFriend,
-              onTap: _getFriendButtonAction(
-                  isFriend, requestSent, requestReceived),
-              animation: _buttonAnimations[2],
-            ),
-            _buildActionButton(
-              context,
-              icon: Icons.sports_esports_outlined,
-              label: 'Invite',
-              onTap: _handleInvite,
-              animation: _buttonAnimations[3],
-            ),
-          ],
-        ),
-      ],
+      ),
     );
   }
 

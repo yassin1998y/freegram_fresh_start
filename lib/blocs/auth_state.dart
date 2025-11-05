@@ -23,7 +23,10 @@ class Authenticated extends AuthState {
 /// The state when no user is authenticated.
 class Unauthenticated extends AuthState {}
 
-/// The state when an authentication error occurs. (NEW)
+/// The state when authentication is in progress (loading).
+class AuthLoading extends AuthState {}
+
+/// The state when an authentication error occurs.
 class AuthError extends AuthState {
   final String message;
   const AuthError(this.message);

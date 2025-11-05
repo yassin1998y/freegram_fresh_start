@@ -25,12 +25,16 @@ class FriendsListScreen extends StatefulWidget {
   final int initialIndex;
   final String? userId;
   final Function(String friendId)? onFriendSelected;
+  final bool
+      hideBackButton; // CRITICAL: Hide back button when used as tab in IndexedStack
 
   const FriendsListScreen({
     super.key,
     this.initialIndex = 0,
     this.userId,
     this.onFriendSelected,
+    this.hideBackButton =
+        false, // Default to showing back button for standalone navigation
   });
 
   @override
@@ -96,80 +100,89 @@ class _FriendsListScreenState extends State<FriendsListScreen>
           );
 
     return Scaffold(
+      // CRITICAL: Explicit background color to prevent black screen during transitions
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: _isSelectionMode
           ? FreegramAppBar(
               title: 'Select Friend',
               showBackButton: true,
             )
-          : FreegramAppBar(
-              title: 'Friends',
-              showBackButton: true,
-              bottom: tabs,
+          : !widget.hideBackButton
+              ? FreegramAppBar(
+                  title: 'Friends',
+                  showBackButton: true,
+                  bottom: tabs,
+                )
+              : null, // No app bar when used as tab in MainScreen
+      body: Container(
+        // Additional container with background for extra safety
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: Column(
+          children: [
+            // ⭐ PHASE 5: NETWORK AWARENESS - Show connectivity status
+            const NetworkStatusBanner(),
+            // Show tabs in body when used as tab (no app bar)
+            if (widget.hideBackButton && tabs != null) tabs,
+            Expanded(
+              child: BlocConsumer<FriendsBloc, FriendsState>(
+                listener: (context, state) {
+                  // ⭐ FIX: Just show feedback, don't reload (stream already handles that)
+                  if (state is FriendsActionSuccess) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(state.message),
+                        backgroundColor: Colors.green,
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  } else if (state is FriendsActionError) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(state.message),
+                        backgroundColor: Theme.of(context).colorScheme.error,
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                },
+                buildWhen: (previous, current) {
+                  // ⭐ FIX: Only rebuild for stable states, ignore transient success/error
+                  return current is FriendsLoaded ||
+                      current is FriendsInitial ||
+                      current is FriendsLoading ||
+                      current is FriendsError;
+                },
+                builder: (context, state) {
+                  if (state is FriendsLoading || state is FriendsInitial) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (state is FriendsError) {
+                    return _buildErrorState(state.message);
+                  }
+
+                  if (state is FriendsLoaded) {
+                    return _isSelectionMode
+                        ? _buildFriendsList(state.user.friends, state.user)
+                        : TabBarView(
+                            controller: _tabController,
+                            children: [
+                              _buildFriendsTab(state.user),
+                              _buildRequestsTab(
+                                  state.user.friendRequestsReceived),
+                              _buildBlockedTab(state.user.blockedUsers),
+                            ],
+                          );
+                  }
+
+                  return const Center(child: Text('Something went wrong.'));
+                },
+              ),
             ),
-      body: Column(
-        children: [
-          // ⭐ PHASE 5: NETWORK AWARENESS - Show connectivity status
-          const NetworkStatusBanner(),
-
-          Expanded(
-            child: BlocConsumer<FriendsBloc, FriendsState>(
-              listener: (context, state) {
-                // ⭐ FIX: Just show feedback, don't reload (stream already handles that)
-                if (state is FriendsActionSuccess) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(state.message),
-                      backgroundColor: Colors.green,
-                      behavior: SnackBarBehavior.floating,
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                } else if (state is FriendsActionError) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(state.message),
-                      backgroundColor: Theme.of(context).colorScheme.error,
-                      behavior: SnackBarBehavior.floating,
-                      duration: const Duration(seconds: 3),
-                    ),
-                  );
-                }
-              },
-              buildWhen: (previous, current) {
-                // ⭐ FIX: Only rebuild for stable states, ignore transient success/error
-                return current is FriendsLoaded ||
-                    current is FriendsInitial ||
-                    current is FriendsLoading ||
-                    current is FriendsError;
-              },
-              builder: (context, state) {
-                if (state is FriendsLoading || state is FriendsInitial) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (state is FriendsError) {
-                  return _buildErrorState(state.message);
-                }
-
-                if (state is FriendsLoaded) {
-                  return _isSelectionMode
-                      ? _buildFriendsList(state.user.friends, state.user)
-                      : TabBarView(
-                          controller: _tabController,
-                          children: [
-                            _buildFriendsTab(state.user),
-                            _buildRequestsTab(
-                                state.user.friendRequestsReceived),
-                            _buildBlockedTab(state.user.blockedUsers),
-                          ],
-                        );
-                }
-
-                return const Center(child: Text('Something went wrong.'));
-              },
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -464,6 +477,8 @@ class _FriendsListScreenState extends State<FriendsListScreen>
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(
+            // CRITICAL: Explicit background color to prevent black screen
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             appBar: FreegramAppBar(
               title: 'Friends',
               showBackButton: true,
@@ -473,6 +488,8 @@ class _FriendsListScreenState extends State<FriendsListScreen>
         }
         if (snapshot.hasError || !snapshot.hasData) {
           return Scaffold(
+            // CRITICAL: Explicit background color to prevent black screen
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             appBar: FreegramAppBar(
               title: 'Friends',
               showBackButton: true,
@@ -482,6 +499,8 @@ class _FriendsListScreenState extends State<FriendsListScreen>
         }
         final user = snapshot.data!;
         return Scaffold(
+          // CRITICAL: Explicit background color to prevent black screen
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: FreegramAppBar(
             title: "${user.username}'s Friends",
             showBackButton: true,

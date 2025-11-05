@@ -330,7 +330,9 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
         ),
       ),
     ).then((_) {
-      setState(() => _showAttachmentMenu = false);
+      if (mounted) {
+        setState(() => _showAttachmentMenu = false);
+      }
     });
   }
 

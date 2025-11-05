@@ -98,12 +98,15 @@ class FreegramAppBar extends StatelessWidget implements PreferredSizeWidget {
                       ),
                     ),
                     SizedBox(width: 12),
-                    Text(
-                      title!,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        color: foregroundColor,
+                    Flexible(
+                      child: Text(
+                        title!,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                          color: foregroundColor,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],

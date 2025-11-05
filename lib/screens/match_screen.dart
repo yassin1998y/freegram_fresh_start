@@ -252,13 +252,12 @@ class _MatchScreenState extends State<MatchScreen>
 
           await userRepository.createMatch(currentUser.uid, otherUserId);
 
-          Navigator.of(context).push(
-            PageRouteBuilder(
-              opaque: false,
-              pageBuilder: (context, _, __) => MatchAnimationScreen(
-                currentUser: currentUserModel,
-                matchedUser: otherUserModel,
-              ),
+          // Use NavigationService with fade transition for match animation
+          // Opaque: false is handled by NavigationService's fade transition
+          locator<NavigationService>().navigateToFade(
+            MatchAnimationScreen(
+              currentUser: currentUserModel,
+              matchedUser: otherUserModel,
             ),
           );
         }
@@ -528,8 +527,13 @@ class _MatchScreenState extends State<MatchScreen>
                               // Delay to ensure dialog is closed before showing celebration
                               Future.delayed(const Duration(milliseconds: 300),
                                   () {
-                                if (mounted) {
+                                // CRITICAL: Validate widget is still mounted before navigation
+                                if (!mounted) return;
+
+                                try {
                                   _showRewardCelebration();
+                                } catch (e) {
+                                  debugPrint('Error showing celebration: $e');
                                 }
                               });
                             });
@@ -808,6 +812,8 @@ class _MatchScreenState extends State<MatchScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // CRITICAL: Explicit background color to prevent black screen during transitions
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: BlocBuilder<ConnectivityBloc, ConnectivityState>(
         builder: (context, connectivityState) {
           return Stack(

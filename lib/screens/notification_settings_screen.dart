@@ -394,8 +394,19 @@ class _NotificationSettingsScreenState
                 ElevatedButton.icon(
                   onPressed: () async {
                     try {
+                      final userId = FirebaseAuth.instance.currentUser?.uid;
+                      if (userId == null) {
+                        if (mounted) {
+                          showIslandPopup(
+                            context: context,
+                            message: 'User not authenticated',
+                            icon: Icons.error,
+                          );
+                        }
+                        return;
+                      }
                       final fcmService = locator<FcmTokenService>();
-                      await fcmService.updateTokenOnLogin();
+                      await fcmService.updateTokenOnLogin(userId);
                       await _checkNotificationStatus();
                       if (mounted) {
                         showIslandPopup(

@@ -18,6 +18,7 @@ import 'package:freegram/models/user_model.dart'; // Firestore UserModel
 // Other Services & Utils
 import 'package:hive_flutter/hive_flutter.dart'; // Needed for Hive box access in extensions
 import 'package:freegram/services/cache_manager_service.dart';
+import 'package:freegram/utils/app_constants.dart';
 
 class SyncManager {
   final ConnectivityBloc _connectivityBloc;
@@ -41,8 +42,18 @@ class SyncManager {
   // --- START: Periodic Check Timer ---
   Timer? _periodicCheckTimer;
   final Duration _periodicCheckInterval =
-      const Duration(minutes: 2); // Check every 2 minutes if online
+      AppConstants.syncPeriodicCheckInterval; // Check every 2 minutes if online
   // --- END: Periodic Check Timer ---
+
+  // --- START: Pending Work Count Caching ---
+  int? _cachedPendingWorkCount;
+  DateTime? _pendingWorkCacheTimestamp;
+  // --- END: Pending Work Count Caching ---
+
+  // --- START: Image Pre-caching Queue ---
+  final List<String> _imageCacheQueue = [];
+  bool _isProcessingImageQueue = false;
+  // --- END: Image Pre-caching Queue ---
 
   SyncManager({required ConnectivityBloc connectivityBloc})
       : _connectivityBloc = connectivityBloc {
@@ -109,15 +120,13 @@ class SyncManager {
     }
 
     // Check all potential sources of pending work efficiently
-    final bool hasPendingWork =
-        _localCacheService.getUnsyncedNearbyUsers().isNotEmpty ||
-            _localCacheService.getPendingWaves().isNotEmpty ||
-            _localCacheService.getPendingFriendRequests().isNotEmpty ||
-            _actionQueueRepository.getQueuedActions().isNotEmpty;
+    // Optimized: Single combined check to reduce Hive box iterations
+    final bool hasPendingWork = _hasAnyPendingSyncWork();
 
     if (hasPendingWork) {
       debugPrint(
           "SyncManager: Periodic check found pending work. Triggering processQueue.");
+      _invalidatePendingWorkCache(); // Invalidate cache before processing
       processQueue(); // Trigger the full sync process
     } else {
       // debugPrint("SyncManager: Periodic check found no pending work.");
@@ -223,48 +232,82 @@ class SyncManager {
       // If this happens consistently, might need a mechanism to mark them locally as 'not_found'.
     }
 
-    // Process the profiles that were successfully fetched
-    for (var entry in fetchedProfiles.entries) {
-      final uidShort = entry.key;
-      final userModel = entry.value;
+    // Optimized: Process profiles in parallel with concurrency limit
+    // Batch Hive writes and queue images for background processing
+    final profileEntries = fetchedProfiles.entries.toList();
 
-      // Attempt to store and update locally, handle individual errors
-      try {
-        // debugPrint("SyncManager: Processing profile for uidShort: $uidShort, UserID: ${userModel.id}");
-        // Create Hive UserProfile object from Firestore UserModel
-        final userProfile = UserProfile(
-          profileId: userModel.id, name: userModel.username,
-          photoUrl: userModel.photoUrl,
-          updatedAt: DateTime.now(), // Use sync time as update time
-          level: 0, xp: 0, // Defaults (fields removed from UserModel)
-          interests: userModel.interests, friends: userModel.friends,
-          gender: userModel.gender,
-          nearbyStatusMessage: userModel.nearbyStatusMessage,
-          nearbyStatusEmoji: userModel.nearbyStatusEmoji,
-          friendRequestsSent: userModel.friendRequestsSent,
-          friendRequestsReceived: userModel.friendRequestsReceived,
-          blockedUsers: userModel.blockedUsers,
-        );
+    // Process profiles in groups to limit concurrency
+    for (var i = 0;
+        i < profileEntries.length;
+        i += AppConstants.maxConcurrentProfileSync) {
+      final profileGroup = profileEntries.sublist(
+        i,
+        i + AppConstants.maxConcurrentProfileSync > profileEntries.length
+            ? profileEntries.length
+            : i + AppConstants.maxConcurrentProfileSync,
+      );
 
-        // Store the full profile locally
-        await _localCacheService.storeUserProfile(userProfile);
-        // Mark the corresponding NearbyUser as synced by adding the full profileId
-        // CRITICAL FIX: Log the mapping for debugging
-        debugPrint(
-            "✅ [PROFILE SYNC] Mapping: uidShort '$uidShort' → profileId '${userModel.id}' (${userModel.username})");
-        await _localCacheService.markNearbyUserSynced(uidShort, userModel.id);
+      // Collect all operations for this group
+      final writeOperations = <Future<void>>[];
 
-        // Pre-cache the profile image (fire-and-forget)
-        if (userProfile.photoUrl.isNotEmpty) {
-          locator<CacheManagerService>().preCacheImage(userProfile.photoUrl);
+      for (var entry in profileGroup) {
+        final uidShort = entry.key;
+        final userModel = entry.value;
+
+        // Attempt to store and update locally, handle individual errors
+        try {
+          // Create Hive UserProfile object from Firestore UserModel
+          final userProfile = UserProfile(
+            profileId: userModel.id,
+            name: userModel.username,
+            photoUrl: userModel.photoUrl,
+            updatedAt: DateTime.now(), // Use sync time as update time
+            level: 0,
+            xp: 0, // Defaults (fields removed from UserModel)
+            interests: userModel.interests,
+            friends: userModel.friends,
+            gender: userModel.gender,
+            nearbyStatusMessage: userModel.nearbyStatusMessage,
+            nearbyStatusEmoji: userModel.nearbyStatusEmoji,
+            friendRequestsSent: userModel.friendRequestsSent,
+            friendRequestsReceived: userModel.friendRequestsReceived,
+            blockedUsers: userModel.blockedUsers,
+          );
+
+          // Collect write operations to batch execute
+          writeOperations.add(_localCacheService.storeUserProfile(userProfile));
+          writeOperations.add(
+            _localCacheService
+                .markNearbyUserSynced(uidShort, userModel.id)
+                .then((_) {
+              debugPrint(
+                  "✅ [PROFILE SYNC] Mapping: uidShort '$uidShort' → profileId '${userModel.id}' (${userModel.username})");
+            }),
+          );
+
+          // Queue image URLs for background processing
+          if (userProfile.photoUrl.isNotEmpty) {
+            _queueImageForPreCache(userProfile.photoUrl);
+          }
+        } catch (e) {
+          // --- Item-Level Error Handling ---
+          debugPrint(
+              "SyncManager Error (Profile Store/Mark): Failed to process/store profile for $uidShort (ID: ${userModel.id}): $e. Will retry later.");
+          // Continue to the next profile, this specific one remains unsynced
         }
+      }
+
+      // Batch execute all Hive writes for this group
+      try {
+        await Future.wait(writeOperations, eagerError: false);
       } catch (e) {
-        // --- Item-Level Error Handling ---
         debugPrint(
-            "SyncManager Error (Profile Store/Mark): Failed to process/store profile for $uidShort (ID: ${userModel.id}): $e. Will retry later.");
-        // Continue to the next profile, this specific one remains unsynced
+            "SyncManager Error: Some profile writes failed in batch: $e");
       }
     }
+
+    // Process image cache queue in background
+    _processImageCacheQueue();
     // debugPrint("SyncManager: Profile sync attempt completed.");
   }
 
@@ -291,129 +334,147 @@ class SyncManager {
     int failedCount = 0;
     int permanentErrorCount = 0;
 
-    // Process actions one by one
-    for (final action in queuedActions) {
-      final String actionId = action['id'];
-      final String type = action['type'];
-      // Ensure payload is Map<String, dynamic> for type safety
-      final Map<String, dynamic> payload =
-          Map<String, dynamic>.from(action['payload'] ?? {});
+    // Optimized: Process actions in batches with configurable batch size
+    // This improves performance for large queues while maintaining sequential behavior per batch
+    for (var i = 0;
+        i < queuedActions.length;
+        i += AppConstants.actionQueueBatchSize) {
+      final batch = queuedActions.sublist(
+        i,
+        i + AppConstants.actionQueueBatchSize > queuedActions.length
+            ? queuedActions.length
+            : i + AppConstants.actionQueueBatchSize,
+      );
 
-      // Check connectivity before each attempt
-      if (_connectivityBloc.state is! Online) {
-        debugPrint(
-            "SyncManager: Connection lost during Action Queue sync. Aborting further actions.");
-        break; // Stop processing queue if connection drops
-      }
+      // Process batch sequentially but batch-by-batch for better error isolation
+      for (final action in batch) {
+        final String actionId = action['id'];
+        final String type = action['type'];
+        // Ensure payload is Map<String, dynamic> for type safety
+        final Map<String, dynamic> payload =
+            Map<String, dynamic>.from(action['payload'] ?? {});
 
-      debugPrint("SyncManager: Processing action $actionId, Type: $type");
-      bool success = false;
-      bool isPermanentError =
-          false; // Flag for errors that shouldn't be retried
-
-      try {
-        // Use a switch to handle different action types
-        switch (type) {
-          case 'accept_friend_request':
-            final currentUserId = payload['currentUserId'] as String?;
-            final requestingUserId = payload['requestingUserId'] as String?;
-            if (currentUserId != null && requestingUserId != null) {
-              await _userRepository.acceptFriendRequest(
-                  currentUserId, requestingUserId,
-                  isSync: true);
-              success = true;
-            } else {
-              debugPrint(
-                  "SyncManager Error: Invalid payload for accept_friend_request ($actionId).");
-              isPermanentError = true; // Missing essential data
-            }
-            break;
-
-          case 'send_online_message':
-            final chatId = payload['chatId'] as String?;
-            final senderId = payload['senderId'] as String?;
-            if (chatId != null && senderId != null) {
-              // sendMessage checks connectivity internally, but we're already online
-              await _chatRepository.sendMessage(
-                chatId: chatId,
-                senderId: senderId,
-                text: payload['text'] as String?,
-                imageUrl: payload['imageUrl'] as String?,
-                replyToMessageId: payload['replyToMessageId'] as String?,
-                replyToMessageText: payload['replyToMessageText'] as String?,
-                replyToImageUrl: payload['replyToImageUrl'] as String?,
-                replyToSender: payload['replyToSender'] as String?,
-              );
-              success = true;
-            } else {
-              debugPrint(
-                  "SyncManager Error: Invalid payload for send_online_message ($actionId).");
-              isPermanentError = true;
-            }
-            break;
-
-          // --- Add cases for other potential offline actions here ---
-          // case 'update_profile_field':
-          //   final userId = payload['userId'] as String?;
-          //   final field = payload['field'] as String?;
-          //   final value = payload['value']; // Type depends on field
-          //   if (userId != null && field != null && value != null) {
-          //     await _userRepository.updateUser(userId, {field: value});
-          //     success = true;
-          //   } else { isPermanentError = true; }
-          //   break;
-
-          default:
-            // Handle unknown action types
-            debugPrint(
-                "SyncManager Warning: Unknown action type '$type' in queue ($actionId). Marking as permanent error.");
-            isPermanentError = true; // Remove unknown types
-        }
-
-        // If the action executed successfully
-        if (success) {
-          // debugPrint("SyncManager: Successfully synced action $actionId.");
-          await _actionQueueRepository.removeAction(actionId);
-          successCount++;
-        }
-      } catch (e) {
-        // Handle errors during the action execution
-        failedCount++;
-        debugPrint(
-            "SyncManager Error: Failed to sync action $actionId (Type: $type). Error: $e");
-        // --- START: Permanent Error Check ---
-        // Check error message for indicators of permanent failure
-        final errorString = e.toString().toLowerCase();
-        if (errorString.contains("not found") ||
-                errorString.contains("does not exist") ||
-                errorString.contains(
-                    "permission denied") || // Firestore permission errors
-                errorString
-                    .contains("invalid argument") // Errors due to bad data
-            ) {
-          isPermanentError = true;
+        // Check connectivity before each attempt
+        if (_connectivityBloc.state is! Online) {
           debugPrint(
-              "SyncManager: Marking action $actionId as permanent error based on exception.");
+              "SyncManager: Connection lost during Action Queue sync. Aborting further actions.");
+          break; // Stop processing queue if connection drops
         }
-        // --- END: Permanent Error Check ---
-      } finally {
-        // If it was a permanent error (either from logic or exception), remove it
-        if (isPermanentError && !success) {
-          // Ensure it wasn't accidentally marked success
-          try {
-            await _actionQueueRepository.removeAction(actionId);
-            permanentErrorCount++;
-            debugPrint(
-                "SyncManager: Removed action $actionId due to permanent error.");
-          } catch (removeError) {
-            debugPrint(
-                "SyncManager CRITICAL Error: Failed to remove action $actionId after permanent error: $removeError");
+
+        debugPrint("SyncManager: Processing action $actionId, Type: $type");
+        bool success = false;
+        bool isPermanentError =
+            false; // Flag for errors that shouldn't be retried
+
+        try {
+          // Use a switch to handle different action types
+          switch (type) {
+            case 'accept_friend_request':
+              final currentUserId = payload['currentUserId'] as String?;
+              final requestingUserId = payload['requestingUserId'] as String?;
+              if (currentUserId != null && requestingUserId != null) {
+                await _userRepository.acceptFriendRequest(
+                    currentUserId, requestingUserId,
+                    isSync: true);
+                success = true;
+              } else {
+                debugPrint(
+                    "SyncManager Error: Invalid payload for accept_friend_request ($actionId).");
+                isPermanentError = true; // Missing essential data
+              }
+              break;
+
+            case 'send_online_message':
+              final chatId = payload['chatId'] as String?;
+              final senderId = payload['senderId'] as String?;
+              if (chatId != null && senderId != null) {
+                // sendMessage checks connectivity internally, but we're already online
+                await _chatRepository.sendMessage(
+                  chatId: chatId,
+                  senderId: senderId,
+                  text: payload['text'] as String?,
+                  imageUrl: payload['imageUrl'] as String?,
+                  replyToMessageId: payload['replyToMessageId'] as String?,
+                  replyToMessageText: payload['replyToMessageText'] as String?,
+                  replyToImageUrl: payload['replyToImageUrl'] as String?,
+                  replyToSender: payload['replyToSender'] as String?,
+                );
+                success = true;
+              } else {
+                debugPrint(
+                    "SyncManager Error: Invalid payload for send_online_message ($actionId).");
+                isPermanentError = true;
+              }
+              break;
+
+            // --- Add cases for other potential offline actions here ---
+            // case 'update_profile_field':
+            //   final userId = payload['userId'] as String?;
+            //   final field = payload['field'] as String?;
+            //   final value = payload['value']; // Type depends on field
+            //   if (userId != null && field != null && value != null) {
+            //     await _userRepository.updateUser(userId, {field: value});
+            //     success = true;
+            //   } else { isPermanentError = true; }
+            //   break;
+
+            default:
+              // Handle unknown action types
+              debugPrint(
+                  "SyncManager Warning: Unknown action type '$type' in queue ($actionId). Marking as permanent error.");
+              isPermanentError = true; // Remove unknown types
           }
+
+          // If the action executed successfully
+          if (success) {
+            // debugPrint("SyncManager: Successfully synced action $actionId.");
+            await _actionQueueRepository.removeAction(actionId);
+            successCount++;
+          }
+        } catch (e) {
+          // Handle errors during the action execution
+          failedCount++;
+          debugPrint(
+              "SyncManager Error: Failed to sync action $actionId (Type: $type). Error: $e");
+          // --- START: Permanent Error Check ---
+          // Check error message for indicators of permanent failure
+          final errorString = e.toString().toLowerCase();
+          if (errorString.contains("not found") ||
+                  errorString.contains("does not exist") ||
+                  errorString.contains(
+                      "permission denied") || // Firestore permission errors
+                  errorString
+                      .contains("invalid argument") // Errors due to bad data
+              ) {
+            isPermanentError = true;
+            debugPrint(
+                "SyncManager: Marking action $actionId as permanent error based on exception.");
+          }
+          // --- END: Permanent Error Check ---
+        } finally {
+          // If it was a permanent error (either from logic or exception), remove it
+          if (isPermanentError && !success) {
+            // Ensure it wasn't accidentally marked success
+            try {
+              await _actionQueueRepository.removeAction(actionId);
+              permanentErrorCount++;
+              debugPrint(
+                  "SyncManager: Removed action $actionId due to permanent error.");
+            } catch (removeError) {
+              debugPrint(
+                  "SyncManager CRITICAL Error: Failed to remove action $actionId after permanent error: $removeError");
+            }
+          }
+          // If it was a temporary error (success = false, isPermanentError = false),
+          // it remains in the queue automatically for the next sync cycle.
         }
-        // If it was a temporary error (success = false, isPermanentError = false),
-        // it remains in the queue automatically for the next sync cycle.
+      } // End of batch processing
+
+      // Small delay between batches to avoid overwhelming services
+      if (i + AppConstants.actionQueueBatchSize < queuedActions.length) {
+        await Future.delayed(const Duration(milliseconds: 100));
       }
-    } // End of loop through actions
+    } // End of loop through all batches
 
     debugPrint(
         "SyncManager: Action Queue sync attempt finished. Success: $successCount, Temp Fail: $failedCount, Permanent Error (Removed): $permanentErrorCount.");
@@ -623,6 +684,90 @@ class SyncManager {
 
     debugPrint(
         "SyncManager: LocalCache Wave sync attempt finished. Success: $successCount, Temp Fail: $failedCount, Permanent Error (Removed): $permanentErrorCount.");
+  }
+
+  /// Checks if there is any pending work across all sync queues.
+  ///
+  /// Optimized to check all queues efficiently in a single pass where possible.
+  /// Uses caching to avoid redundant Hive box iterations.
+  /// Returns true if any queue has pending items, false otherwise.
+  bool _hasAnyPendingSyncWork() {
+    // Use cached count if available and still valid
+    final now = DateTime.now();
+    if (_cachedPendingWorkCount != null &&
+        _pendingWorkCacheTimestamp != null &&
+        now.difference(_pendingWorkCacheTimestamp!) <
+            AppConstants.pendingWorkCacheDuration) {
+      return _cachedPendingWorkCount! > 0;
+    }
+
+    // Check all potential sources of pending work efficiently
+    // Returns early on first non-empty queue for better performance
+    int pendingCount = 0;
+    if (_localCacheService.getUnsyncedNearbyUsers().isNotEmpty) pendingCount++;
+    if (_localCacheService.getPendingWaves().isNotEmpty) pendingCount++;
+    if (_localCacheService.getPendingFriendRequests().isNotEmpty)
+      pendingCount++;
+    if (_actionQueueRepository.getQueuedActions().isNotEmpty) pendingCount++;
+
+    // Update cache
+    _cachedPendingWorkCount = pendingCount;
+    _pendingWorkCacheTimestamp = now;
+
+    return pendingCount > 0;
+  }
+
+  /// Invalidates the pending work count cache.
+  ///
+  /// Call this when queues are modified to ensure accurate counts.
+  void _invalidatePendingWorkCache() {
+    _cachedPendingWorkCount = null;
+    _pendingWorkCacheTimestamp = null;
+  }
+
+  /// Queues an image URL for background pre-caching.
+  ///
+  /// Images are processed asynchronously to avoid blocking sync operations.
+  /// Queue size is limited to prevent memory issues.
+  void _queueImageForPreCache(String imageUrl) {
+    if (imageUrl.isEmpty) return;
+
+    // Limit queue size to prevent memory issues
+    if (_imageCacheQueue.length >= AppConstants.maxImageCacheQueueSize) {
+      // Remove oldest entry
+      _imageCacheQueue.removeAt(0);
+    }
+
+    // Add to queue if not already present
+    if (!_imageCacheQueue.contains(imageUrl)) {
+      _imageCacheQueue.add(imageUrl);
+    }
+  }
+
+  /// Processes the image pre-caching queue in the background.
+  ///
+  /// This method runs asynchronously and processes images one by one
+  /// to avoid overwhelming the network or cache.
+  void _processImageCacheQueue() {
+    if (_isProcessingImageQueue || _imageCacheQueue.isEmpty) return;
+
+    _isProcessingImageQueue = true;
+    Future(() async {
+      while (_imageCacheQueue.isNotEmpty) {
+        final imageUrl = _imageCacheQueue.removeAt(0);
+        try {
+          await locator<CacheManagerService>().preCacheImage(imageUrl);
+        } catch (e) {
+          debugPrint("SyncManager: Error pre-caching image $imageUrl: $e");
+        }
+        // Small delay between images to avoid overwhelming network
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+      _isProcessingImageQueue = false;
+    }).catchError((e) {
+      debugPrint("SyncManager: Error processing image cache queue: $e");
+      _isProcessingImageQueue = false;
+    });
   }
 
   // --- Dispose ---

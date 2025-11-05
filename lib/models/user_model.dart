@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 
 // Helper function remains the same
 String _uidShortFromFull(String fullId) {
@@ -25,6 +26,7 @@ class UserModel extends Equatable {
   final bool presence;
   final DateTime lastSeen;
   final String country;
+  final GeoPoint? location; // User's current location (for nearby features)
   final int age;
   final String gender;
   final List<String> interests;
@@ -33,6 +35,12 @@ class UserModel extends Equatable {
   final List<String> friendRequestsSent;
   final List<String> friendRequestsReceived;
   final List<String> blockedUsers;
+  final List<String> followedPages; // Pages this user follows
+  /// Affinity scores for users and pages this user interacts with
+  /// Key: userId or pageId, Value: affinity score (0.0 to 10.0)
+  /// Example: {'user_123': 5.2, 'page_456': 1.5, 'user_789': 3.8}
+  /// Max 200 entries (enforced in Cloud Functions)
+  final Map<String, double> userAffinities;
   final int coins;
   final int superLikes; // Keep this field
   final DateTime lastFreeSuperLike;
@@ -62,6 +70,7 @@ class UserModel extends Equatable {
     this.presence = false,
     required this.lastSeen,
     this.country = '',
+    this.location,
     this.age = 0,
     this.gender = '',
     this.interests = const [],
@@ -70,6 +79,8 @@ class UserModel extends Equatable {
     this.friendRequestsSent = const [],
     this.friendRequestsReceived = const [],
     this.blockedUsers = const [],
+    this.followedPages = const [], // Initialize empty list
+    this.userAffinities = const {}, // Initialize empty map
     this.coins = 0,
     this.superLikes = 1, // Keep
     required this.lastFreeSuperLike,
@@ -84,6 +95,13 @@ class UserModel extends Equatable {
 
   // _toDateTime, _getList, _getIntList remain the same
   static DateTime _toDateTime(dynamic timestamp) {
+    // Handle null timestamps
+    if (timestamp == null) {
+      debugPrint(
+          "UserModel: Null timestamp encountered, using epoch as fallback");
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
+
     if (timestamp is Timestamp) return timestamp.toDate();
     if (timestamp is String)
       return DateTime.tryParse(timestamp) ??
@@ -101,8 +119,8 @@ class UserModel extends Equatable {
       return Timestamp(timestamp['_seconds'], timestamp['_nanoseconds'] ?? 0)
           .toDate();
     }
-    print(
-        "UserModel WARNING: Unhandled timestamp type: ${timestamp?.runtimeType}");
+    debugPrint(
+        "UserModel WARNING: Unhandled timestamp type: ${timestamp.runtimeType}");
     return DateTime.fromMillisecondsSinceEpoch(0); // Consistent safe fallback
   }
 
@@ -113,6 +131,21 @@ class UserModel extends Equatable {
     return [];
   }
 
+  /// Parse affinity map from Firestore data
+  /// Safely converts Map<String, dynamic> to Map<String, double>
+  static Map<String, double> _getAffinityMap(Map<String, dynamic> data) {
+    final value = data['userAffinities'];
+    if (value is Map) {
+      return Map<String, double>.from(
+        value.map((key, val) => MapEntry(
+              key.toString(),
+              (val is num) ? val.toDouble() : 1.0,
+            )),
+      );
+    }
+    return {};
+  }
+
   // fromDoc remains the same, relies on fromMap
   factory UserModel.fromDoc(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
@@ -121,17 +154,35 @@ class UserModel extends Equatable {
 
   // fromMap updated to remove deleted fields
   factory UserModel.fromMap(String id, Map<String, dynamic> data) {
+    // Validate photoUrl - ensure it's a valid HTTP/HTTPS URL or empty string
+    final rawPhotoUrl = data['photoUrl'] ?? '';
+    final photoUrl = (rawPhotoUrl is String &&
+            rawPhotoUrl.isNotEmpty &&
+            rawPhotoUrl.trim().isNotEmpty &&
+            (rawPhotoUrl.startsWith('http://') ||
+                rawPhotoUrl.startsWith('https://')))
+        ? rawPhotoUrl.trim()
+        : '';
+
     return UserModel(
       id: id,
       username: data['username'] ?? 'Anonymous',
       email: data['email'] ?? '',
-      photoUrl: data['photoUrl'] ?? '',
+      photoUrl: photoUrl,
       pictureVersion: data['pictureVersion'] ?? 0,
       bio: data['bio'] ?? '',
       fcmToken: data['fcmToken'] ?? '',
       presence: data['presence'] ?? false,
       lastSeen: _toDateTime(data['lastSeen']),
       country: data['country'] ?? '',
+      location: data['location'] is GeoPoint
+          ? data['location'] as GeoPoint
+          : (data['location'] is Map
+              ? GeoPoint(
+                  (data['location'] as Map)['latitude'] ?? 0.0,
+                  (data['location'] as Map)['longitude'] ?? 0.0,
+                )
+              : null),
       age: data['age'] ?? 0,
       gender: data['gender'] ?? '',
       interests: _getList(data, 'interests'),
@@ -140,6 +191,8 @@ class UserModel extends Equatable {
       friendRequestsSent: _getList(data, 'friendRequestsSent'),
       friendRequestsReceived: _getList(data, 'friendRequestsReceived'),
       blockedUsers: _getList(data, 'blockedUsers'),
+      followedPages: _getList(data, 'followedPages'), // Read from Firestore
+      userAffinities: _getAffinityMap(data),
       coins: data['coins'] ?? 0,
       superLikes: data['superLikes'] ?? 1, // Keep
       lastFreeSuperLike: _toDateTime(data['lastFreeSuperLike']),
@@ -176,6 +229,7 @@ class UserModel extends Equatable {
       'presence': presence,
       'lastSeen': lastSeen.millisecondsSinceEpoch,
       'country': country,
+      'location': location,
       'age': age,
       'gender': gender,
       'interests': interests,
@@ -184,6 +238,8 @@ class UserModel extends Equatable {
       'friendRequestsSent': friendRequestsSent,
       'friendRequestsReceived': friendRequestsReceived,
       'blockedUsers': blockedUsers,
+      'followedPages': followedPages, // Write to Firestore
+      'userAffinities': userAffinities, // Write to Firestore
       'coins': coins,
       'superLikes': superLikes, // Keep
       'lastFreeSuperLike': lastFreeSuperLike.millisecondsSinceEpoch,
@@ -212,12 +268,23 @@ class UserModel extends Equatable {
     return 0;
   }
 
+  // Getter for userAvatarUrl (alias for photoUrl for consistency)
+  String get userAvatarUrl => photoUrl;
+
+  /// Get affinity score for a target (user or page)
+  /// Returns 1.0 (neutral) if not found
+  double getAffinityFor(String targetId) {
+    return userAffinities[targetId] ?? 1.0;
+  }
+
   // props updated to remove deleted fields, but kept a selection for Equatable comparison
   @override
   List<Object?> get props => [
         id, uidShort, username, email, photoUrl, pictureVersion, bio, presence,
         lastSeen,
-        country, age, gender, interests, createdAt, friends,
+        country, location, age, gender, interests, createdAt, friends,
+        followedPages, // Added for equality checks
+        userAffinities, // Added for ranking algorithm
         superLikes, // Keep superLikes here if important for equality checks
         nearbyStatusMessage, nearbyStatusEmoji, nearbyDiscoveryStreak,
         lastNearbyDiscoveryDate,

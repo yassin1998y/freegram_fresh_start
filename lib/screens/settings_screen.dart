@@ -72,6 +72,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // CRITICAL: Explicit background color to prevent black screen during transitions
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: FreegramAppBar(
         title: 'Settings',
         showBackButton: true,

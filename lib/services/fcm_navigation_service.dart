@@ -2,6 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:freegram/navigation/app_routes.dart';
+import 'package:freegram/locator.dart';
+import 'package:freegram/services/navigation_service.dart';
+import 'package:freegram/screens/post_detail_screen.dart';
 
 /// Service to handle FCM notification navigation
 /// This ensures tapping notifications opens the correct screen
@@ -11,8 +15,9 @@ class FcmNavigationService {
   factory FcmNavigationService() => _instance;
   FcmNavigationService._internal();
 
-  // Global navigator key for navigation
-  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  // Use centralized navigator from NavigationService
+  GlobalKey<NavigatorState> get navigatorKey =>
+      locator<NavigationService>().navigatorKey;
 
   /// Initialize FCM navigation handling
   void initialize() {
@@ -75,6 +80,12 @@ class FcmNavigationService {
         _navigateToProfile(context, data);
         break;
 
+      case 'comment':
+      case 'reaction':
+      case 'mention':
+        _navigateToPost(context, data);
+        break;
+
       default:
         if (kDebugMode) {
           debugPrint('[FCM Navigation] Unknown notification type: $type');
@@ -94,10 +105,8 @@ class FcmNavigationService {
         debugPrint('[FCM Navigation] From: $fromUsername ($fromUserId)');
       }
 
-      // Navigate to profile screen of the user who sent the request
-      Navigator.pushNamed(
-        context,
-        '/profile',
+      locator<NavigationService>().navigateNamed(
+        AppRoutes.profile,
         arguments: {'userId': fromUserId},
       );
     } catch (e) {
@@ -127,10 +136,8 @@ class FcmNavigationService {
         return;
       }
 
-      // Navigate to chat screen
-      Navigator.pushNamed(
-        context,
-        '/chat',
+      locator<NavigationService>().navigateNamed(
+        AppRoutes.chat,
         arguments: {
           'chatId': chatId,
           'otherUserId': senderId,
@@ -161,15 +168,47 @@ class FcmNavigationService {
         return;
       }
 
-      // Navigate to profile screen
-      Navigator.pushNamed(
-        context,
-        '/profile',
+      locator<NavigationService>().navigateNamed(
+        AppRoutes.profile,
         arguments: {'userId': fromUserId},
       );
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[FCM Navigation] Error navigating to profile: $e');
+      }
+    }
+  }
+
+  /// Navigate to post detail screen
+  void _navigateToPost(BuildContext context, Map<String, dynamic> data) {
+    try {
+      final postId = data['postId'];
+      final commentId = data['commentId'];
+
+      if (kDebugMode) {
+        debugPrint('[FCM Navigation] Navigating to post');
+        debugPrint('[FCM Navigation] Post ID: $postId');
+        if (commentId != null) {
+          debugPrint('[FCM Navigation] Comment ID: $commentId');
+        }
+      }
+
+      if (postId == null || postId.isEmpty) {
+        if (kDebugMode) {
+          debugPrint('[FCM Navigation] Post ID is null or empty');
+        }
+        return;
+      }
+
+      locator<NavigationService>().navigateTo(
+        PostDetailScreen(
+          postId: postId,
+          commentId: commentId,
+        ),
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[FCM Navigation] Error navigating to post: $e');
       }
     }
   }

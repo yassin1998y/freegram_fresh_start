@@ -68,6 +68,7 @@ class NearbyChatRepository {
     // await _bluetoothService.sendWave(deviceAddress);
   }
 
+  // ignore: unused_element
   Future<void> _saveMessage({
     required String senderId,
     required String recipientId,

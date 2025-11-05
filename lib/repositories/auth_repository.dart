@@ -1,12 +1,13 @@
 // lib/repositories/auth_repository.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart'; // For kDebugMode and debugPrint
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint, kIsWeb;
 import 'package:freegram/models/user_model.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:hive/hive.dart'; // For clearing user-specific data on logout
+import 'package:hive/hive.dart';
+import 'package:freegram/utils/auth_constants.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
@@ -36,21 +37,27 @@ class AuthRepository {
   })  : _db = firestore ?? FirebaseFirestore.instance,
         _auth = firebaseAuth ?? FirebaseAuth.instance,
         _googleSignIn = googleSignIn ??
-            GoogleSignIn(
-              serverClientId: dotenv.env['GOOGLE_WEB_CLIENT_ID'] ?? '',
-              scopes: ['email', 'profile'],
-            );
+            // On web, serverClientId is not supported
+            (kIsWeb
+                ? GoogleSignIn(
+                    scopes: ['email', 'profile'],
+                  )
+                : GoogleSignIn(
+                    serverClientId: dotenv.env['GOOGLE_WEB_CLIENT_ID'] ?? '',
+                    scopes: ['email', 'profile'],
+                  ));
 
   Future<void> createUser({
     required String uid,
-    required String username,
     required String email,
+    String? username,
     String? photoUrl,
   }) {
     final now = DateTime.now();
     final newUser = UserModel(
       id: uid,
-      username: username,
+      username: username ??
+          'User', // Temporary username, will be updated in onboarding
       email: email,
       photoUrl: photoUrl ?? '',
       lastSeen: now,
@@ -66,7 +73,7 @@ class AuthRepository {
   Future<void> signUp({
     required String email,
     required String password,
-    required String username,
+    String? username,
   }) async {
     User? user;
     try {
@@ -81,15 +88,27 @@ class AuthRepository {
       }
       _debugLog("Auth user created successfully. UID: ${user.uid}");
 
-      await user.updateDisplayName(username);
-      _debugLog("Display name updated for ${user.uid}");
+      // Only update display name if username is provided
+      if (username != null && username.isNotEmpty) {
+        await user.updateDisplayName(username);
+        _debugLog("Display name updated for ${user.uid}");
+      }
 
       await createUser(
         uid: user.uid,
-        username: username,
         email: email,
+        username: username,
       );
       _debugLog("Firestore document created successfully for ${user.uid}");
+
+      // Send email verification
+      try {
+        await user.sendEmailVerification();
+        _debugLog("Email verification sent to $email");
+      } catch (verificationError) {
+        _debugLog("Error sending email verification: $verificationError");
+        // Don't fail signup if verification email fails
+      }
     } catch (e) {
       if (user == null) {
         _debugLog("Error during Firebase Auth user creation: $e");
@@ -141,9 +160,6 @@ class AuthRepository {
       if (user != null) {
         _debugLog("Firebase sign in successful. UID: ${user.uid}");
 
-        // Check if email already exists with different provider
-        await _handleDuplicateEmail(user.email);
-
         final userDoc = await _db.collection('users').doc(user.uid).get();
         if (!userDoc.exists) {
           _debugLog("Creating new Firestore doc for ${user.uid}");
@@ -185,39 +201,48 @@ class AuthRepository {
     }
   }
 
-  // Helper method to wait for document creation (replaces artificial delay)
-  Future<void> _waitForDocumentCreation(String uid,
-      {int maxRetries = 10}) async {
-    for (int i = 0; i < maxRetries; i++) {
+  Future<void> _waitForDocumentCreation(String uid) async {
+    for (int i = 0; i < AuthConstants.documentCreationMaxRetries; i++) {
       final doc = await _db.collection('users').doc(uid).get();
       if (doc.exists) {
         _debugLog("Document confirmed to exist after ${i + 1} attempts");
         return;
       }
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future.delayed(AuthConstants.documentCreationRetryDelay);
     }
-    _debugLog(
-        "Warning: Document creation could not be confirmed after $maxRetries attempts");
+    if (kDebugMode) {
+      _debugLog(
+          "Warning: Document creation could not be confirmed after ${AuthConstants.documentCreationMaxRetries} attempts");
+    }
   }
 
-  // Helper method to detect duplicate accounts by email
-  Future<void> _handleDuplicateEmail(String? email) async {
-    if (email == null || email.isEmpty) return;
-
+  Future<UserCredential> signInWithEmailPassword({
+    required String email,
+    required String password,
+  }) async {
+    _debugLog("Attempting email/password sign in for $email");
     try {
-      final existingUsers = await _db
-          .collection('users')
-          .where('email', isEqualTo: email)
-          .limit(1)
-          .get();
-
-      if (existingUsers.docs.isNotEmpty) {
-        _debugLog("Found existing account with email $email");
-        // Could link accounts here or throw error
-        // For now, we'll allow it (Firebase handles multiple providers)
-      }
+      final userCredential = await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      _debugLog(
+          "Email/password sign in successful. UID: ${userCredential.user?.uid}");
+      return userCredential;
     } catch (e) {
-      _debugLog("Error checking for duplicate email: $e");
+      _debugLog("Error during email/password sign in: $e");
+      rethrow;
+    }
+  }
+
+  Future<void> sendPasswordResetEmail(String email) async {
+    _debugLog("Sending password reset email to $email");
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+      _debugLog("Password reset email sent successfully");
+    } catch (e) {
+      _debugLog("Error sending password reset email: $e");
+      rethrow;
     }
   }
 
@@ -241,9 +266,6 @@ class AuthRepository {
 
       if (user != null) {
         _debugLog("Firebase sign in successful. UID: ${user.uid}");
-
-        // Check for duplicate email
-        await _handleDuplicateEmail(user.email);
 
         final userDoc = await _db.collection('users').doc(user.uid).get();
         if (!userDoc.exists) {
@@ -297,17 +319,14 @@ class AuthRepository {
     try {
       final settingsBox = await Hive.openBox('settings');
 
-      // Clear all profile-related flags
-      await settingsBox.delete('hasCheckedProfileCompleteness');
-      await settingsBox.delete('hasSeenOnboarding');
-
-      // Clear any user-specific keys (iterate and remove user-specific ones)
+      // Clear user-specific keys using standardized patterns
       final keysToDelete = <dynamic>[];
       for (var key in settingsBox.keys) {
         final keyStr = key.toString();
-        if (keyStr.startsWith('profileComplete_') ||
-            keyStr.startsWith('hasChecked_') ||
-            keyStr.startsWith('user_')) {
+        if (keyStr.startsWith(AuthConstants.onboardingCompletePrefix) ||
+            keyStr.startsWith(AuthConstants.profileCompletePrefix) ||
+            keyStr.startsWith(AuthConstants.hasCheckedPrefix) ||
+            keyStr.startsWith(AuthConstants.userPrefix)) {
           keysToDelete.add(key);
         }
       }

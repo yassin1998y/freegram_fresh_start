@@ -14,6 +14,26 @@ class NavigationService {
   BuildContext? get context => navigatorKey.currentContext;
   NavigatorState? get navigator => navigatorKey.currentState;
 
+  // --- Duplicate navigation prevention ---
+  DateTime _lastNavigationAt = DateTime.fromMillisecondsSinceEpoch(0);
+  bool _navigationInProgress = false;
+  Duration _debounceInterval = const Duration(milliseconds: 500);
+
+  void setDebounceInterval(Duration interval) {
+    _debounceInterval = interval;
+  }
+
+  bool _canNavigate() {
+    final now = DateTime.now();
+    if (_navigationInProgress) return false;
+    if (now.difference(_lastNavigationAt) < _debounceInterval) return false;
+    _lastNavigationAt = now;
+    _navigationInProgress = true;
+    // Release the in-flight flag shortly after push completes
+    Future.microtask(() => _navigationInProgress = false);
+    return true;
+  }
+
   /// Navigation with slide transition (default)
   Future<T?> navigateTo<T>(
     Widget page, {
@@ -27,14 +47,24 @@ class NavigationService {
       return Future.value(null);
     }
 
-    final route = _buildRoute<T>(page, transition, duration);
+    if (!_canNavigate()) {
+      debugPrint('[NavigationService] Navigation debounced');
+      return Future.value(null);
+    }
 
-    if (clearStack) {
-      return navigator!.pushAndRemoveUntil(route, (route) => false);
-    } else if (replace) {
-      return navigator!.pushReplacement(route);
-    } else {
-      return navigator!.push(route);
+    try {
+      final route = _buildRoute<T>(page, transition, duration);
+      if (clearStack) {
+        return navigator!.pushAndRemoveUntil(route, (route) => false);
+      } else if (replace) {
+        return navigator!.pushReplacement(route);
+      } else {
+        return navigator!.push(route);
+      }
+    } catch (e, st) {
+      debugPrint('[NavigationService] Error during navigateTo: $e');
+      debugPrint('$st');
+      return Future.value(null);
     }
   }
 
@@ -72,6 +102,48 @@ class NavigationService {
       transition: PageTransition.slideUp,
       duration: const Duration(milliseconds: 350),
     );
+  }
+
+  /// Navigate using route name and optional arguments (centralized)
+  Future<T?> navigateNamed<T>(
+    String routeName, {
+    Map<String, dynamic>? arguments,
+    bool replace = false,
+    bool clearStack = false,
+  }) {
+    if (navigator == null) {
+      debugPrint('[NavigationService] Navigator not ready');
+      return Future.value(null);
+    }
+
+    if (!_canNavigate()) {
+      debugPrint('[NavigationService] Navigation (named) debounced');
+      return Future.value(null);
+    }
+
+    try {
+      if (clearStack) {
+        return navigator!.pushNamedAndRemoveUntil<T>(
+          routeName,
+          (route) => false,
+          arguments: arguments,
+        );
+      } else if (replace) {
+        return navigator!.pushReplacementNamed<T, T>(
+          routeName,
+          arguments: arguments,
+        );
+      } else {
+        return navigator!.pushNamed<T>(
+          routeName,
+          arguments: arguments,
+        );
+      }
+    } catch (e, st) {
+      debugPrint('[NavigationService] Error during navigateNamed: $e');
+      debugPrint('$st');
+      return Future.value(null);
+    }
   }
 
   /// Show modal bottom sheet with smooth animation
@@ -136,8 +208,31 @@ class NavigationService {
 
   /// Go back to root (clear all navigation stack)
   void goBackToRoot() {
-    if (navigator == null) return;
-    navigator!.popUntil((route) => route.isFirst);
+    if (navigator == null) {
+      debugPrint(
+          '[NavigationService] Cannot go back to root: Navigator not ready');
+      return;
+    }
+
+    try {
+      // Clear the navigation in-progress flag to allow this operation
+      _navigationInProgress = false;
+
+      // Pop all routes until we reach the first route (home/AuthWrapper)
+      navigator!.popUntil((route) {
+        final isFirst = route.isFirst;
+        if (isFirst) {
+          debugPrint(
+              '[NavigationService] Cleared navigation stack. Reached root route.');
+        }
+        return isFirst;
+      });
+
+      debugPrint('[NavigationService] Navigation stack cleared successfully');
+    } catch (e, st) {
+      debugPrint('[NavigationService] Error clearing navigation stack: $e');
+      debugPrint('$st');
+    }
   }
 
   /// Pop until a specific route name

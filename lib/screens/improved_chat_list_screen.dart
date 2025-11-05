@@ -17,6 +17,7 @@ import 'package:freegram/widgets/chat_widgets/professional_chat_list_item.dart';
 import 'package:freegram/widgets/chat_widgets/shimmer_chat_skeleton.dart';
 import 'package:freegram/widgets/island_popup.dart';
 import 'package:freegram/widgets/freegram_app_bar.dart';
+import 'package:freegram/utils/app_constants.dart';
 
 class ImprovedChatListScreen extends StatefulWidget {
   const ImprovedChatListScreen({super.key});
@@ -34,6 +35,23 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
   // Search filters
   bool _showUnreadOnly = false;
   String _sortBy = 'recent'; // recent, name, unread
+
+  // Memoization cache for filtered/sorted chat list
+  List<QueryDocumentSnapshot>? _cachedChats;
+  String? _cacheKey;
+
+  /// Extracts the other user's ID from chat data.
+  ///
+  /// Returns the user ID that is not the current user's ID.
+  /// Returns empty string if not found.
+  String _getOtherUserId(Map<String, dynamic> chatData, String currentUserId) {
+    final users = chatData['users'] as List?;
+    if (users == null) return '';
+    return users.firstWhere(
+      (id) => id != currentUserId,
+      orElse: () => '',
+    );
+  }
 
   @override
   bool get wantKeepAlive => true;
@@ -70,6 +88,8 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
     final theme = Theme.of(context);
 
     return Scaffold(
+      // CRITICAL: Explicit background color to prevent black screen during transitions
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: FreegramAppBar(
         title: 'Chats',
         showBackButton: false,
@@ -309,34 +329,55 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
         }
 
         var chats = chatSnapshot.data!.docs;
+        final chatsType = chats; // Preserve type for memoization
 
-        // Apply filters
-        if (_showUnreadOnly) {
-          chats = chats.where((chat) {
-            final data = chat.data() as Map<String, dynamic>;
-            final unreadFor = data['unreadFor'] as List? ?? [];
-            return unreadFor.contains(currentUser.uid);
-          }).toList();
-        }
+        // Memoization: Check if we can reuse cached filtered/sorted results
+        final cacheKey = '${_showUnreadOnly}_${_sortBy}_${chats.length}';
+        if (cacheKey == _cacheKey &&
+            _cachedChats != null &&
+            _cachedChats!.length == chats.length) {
+          chats = _cachedChats!;
+        } else {
+          // Preserve original type for processing
+          chats = chatsType;
+          // Optimized: Cache chat data to avoid repeated Map parsing
+          final chatDataCache = <DocumentSnapshot, Map<String, dynamic>>{};
+          for (var chat in chats) {
+            chatDataCache[chat] = chat.data() as Map<String, dynamic>;
+          }
 
-        // Apply sorting
-        if (_sortBy == 'name') {
-          chats.sort((a, b) {
-            final aData = a.data() as Map<String, dynamic>;
-            final bData = b.data() as Map<String, dynamic>;
-            final aUsernames = aData['usernames'] as Map<String, dynamic>;
-            final bUsernames = bData['usernames'] as Map<String, dynamic>;
+          // Apply filters
+          // Optimized: Use cached data instead of calling chat.data() multiple times
+          if (_showUnreadOnly) {
+            chats = chats.where((chat) {
+              final data = chatDataCache[chat]!;
+              final unreadFor = data['unreadFor'] as List? ?? [];
+              return unreadFor.contains(currentUser.uid);
+            }).toList();
+          }
 
-            final aOtherId = (aData['users'] as List)
-                .firstWhere((id) => id != currentUser.uid, orElse: () => '');
-            final bOtherId = (bData['users'] as List)
-                .firstWhere((id) => id != currentUser.uid, orElse: () => '');
+          // Apply sorting
+          // Optimized: Pre-compute sort keys to avoid O(n²) complexity
+          if (_sortBy == 'name') {
+            // Pre-compute other user IDs and names once for all chats
+            final chatSortData = chats.map((chat) {
+              final data = chatDataCache[chat]!;
+              final otherUserId = _getOtherUserId(data, currentUser.uid);
+              final usernames = data['usernames'] as Map<String, dynamic>;
+              final otherUserName = usernames[otherUserId] ?? '';
+              return (chat: chat, sortKey: otherUserName);
+            }).toList();
 
-            final aName = aUsernames[aOtherId] ?? '';
-            final bName = bUsernames[bOtherId] ?? '';
+            // Sort using pre-computed keys
+            chatSortData.sort((a, b) => a.sortKey.compareTo(b.sortKey));
 
-            return aName.compareTo(bName);
-          });
+            // Extract sorted chats
+            chats = chatSortData.map((entry) => entry.chat).toList();
+          }
+
+          // Update cache
+          _cachedChats = chats;
+          _cacheKey = cacheKey;
         }
 
         if (chats.isEmpty) {
@@ -345,11 +386,14 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
 
         return ListView.builder(
           itemCount: chats.length +
-              (chats.length >= 30 ? 1 : 0), // Add 1 for "load more" indicator
+              (chats.length >= AppConstants.chatListLoadMoreThreshold
+                  ? 1
+                  : 0), // Add 1 for "load more" indicator
           physics: const BouncingScrollPhysics(),
           itemBuilder: (context, index) {
             // Show "Load More" message if at end and there might be more chats
-            if (index == chats.length && chats.length >= 30) {
+            if (index == chats.length &&
+                chats.length >= AppConstants.chatListLoadMoreThreshold) {
               return Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Center(

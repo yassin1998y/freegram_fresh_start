@@ -31,7 +31,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/friends_bloc/friends_bloc.dart';
+import 'package:freegram/blocs/connectivity_bloc.dart';
 import 'profile_screen.dart';
+import 'package:hive/hive.dart';
 
 class ImprovedChatScreen extends StatelessWidget {
   final String chatId;
@@ -84,8 +86,19 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
   // State
   List<Message> _messages = [];
   StreamSubscription? _messageSubscription;
+  StreamSubscription? _connectivitySubscription;
   Timer? _typingTimer;
+  Timer? _draftSaveTimer;
   bool _isUploading = false;
+  static const Duration _sendTimeout = Duration(seconds: 8);
+
+  bool get _isOffline {
+    final state = context.read<ConnectivityBloc>().state;
+    return state is Offline;
+  }
+
+  final Set<String> _pendingRetryMessageIds = <String>{};
+
   String? _firstUnreadMessageId;
   String? _highlightedMessageId;
 
@@ -117,16 +130,70 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
     // Auto-mark messages as seen (like WhatsApp)
     MessageSeenTracker().startTracking(widget.chatId);
 
-    _chatRepository.resetUnreadCount(
-      widget.chatId,
-      FirebaseAuth.instance.currentUser!.uid,
-    );
+    // CRITICAL: Check auth before resetting unread count
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      _chatRepository.resetUnreadCount(
+        widget.chatId,
+        currentUser.uid,
+      );
+    }
     _messageController.addListener(_onTyping);
+    _messageController.addListener(_onDraftChanged);
     _listenForMessages();
     _scrollController.addListener(_onScroll);
 
+    // Load per-chat draft
+    try {
+      final box = Hive.box('settings');
+      final draftKey = 'draft_${widget.chatId}';
+      final draftText = box.get(draftKey, defaultValue: '') as String;
+      if (draftText.isNotEmpty) {
+        _messageController.text = draftText;
+        _messageController.selection = TextSelection.fromPosition(
+          TextPosition(offset: draftText.length),
+        );
+      }
+    } catch (_) {}
+
     // Refresh presence when entering chat
     _presenceManager.refreshPresence();
+
+    // Listen for connectivity changes to process queued retries
+    _connectivitySubscription =
+        context.read<ConnectivityBloc>().stream.listen((state) async {
+      // CRITICAL: Check mounted before any async operations
+      if (!mounted) return;
+
+      final isNowOnline = state is Online;
+      if (isNowOnline && _pendingRetryMessageIds.isNotEmpty) {
+        // Re-check mounted before processing queue
+        if (!mounted) return;
+
+        final idsToProcess = List<String>.from(_pendingRetryMessageIds);
+        for (final id in idsToProcess) {
+          // Check mounted in loop to break early if disposed
+          if (!mounted) break;
+
+          final msg = _messages.firstWhere(
+            (m) => m.id == id,
+            orElse: () => Message(
+              id: '',
+              senderId: '',
+              text: '',
+            ),
+          );
+          if (msg.id.isEmpty) {
+            _pendingRetryMessageIds.remove(id);
+            continue;
+          }
+          await _performRetry(msg);
+          // Re-check mounted after async operation
+          if (!mounted) break;
+          _pendingRetryMessageIds.remove(id);
+        }
+      }
+    });
   }
 
   @override
@@ -138,10 +205,13 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
     MessageSeenTracker().stopTracking(widget.chatId);
 
     _messageController.removeListener(_onTyping);
+    _messageController.removeListener(_onDraftChanged);
     _messageController.dispose();
     _typingTimer?.cancel();
+    _draftSaveTimer?.cancel();
     _scrollController.dispose();
     _messageSubscription?.cancel();
+    _connectivitySubscription?.cancel();
     _updateTypingStatus(false);
     super.dispose();
   }
@@ -157,6 +227,9 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
   Future<void> _loadMoreMessages() async {
     if (_isLoadingMore || !_hasMoreMessages) return;
 
+    // CRITICAL: Check mounted before setState
+    if (!mounted) return;
+
     setState(() => _isLoadingMore = true);
 
     // TODO: Implement pagination
@@ -171,7 +244,10 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
   }
 
   void _listenForMessages() {
-    final currentUser = FirebaseAuth.instance.currentUser!;
+    // CRITICAL: Check auth before listening to messages
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
     _messageSubscription =
         _chatRepository.getMessagesStream(widget.chatId).listen((snapshot) {
       if (mounted) {
@@ -247,6 +323,23 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
     }
   }
 
+  void _onDraftChanged() {
+    // Debounce disk writes
+    _draftSaveTimer?.cancel();
+    _draftSaveTimer = Timer(const Duration(milliseconds: 300), () {
+      try {
+        final box = Hive.box('settings');
+        final draftKey = 'draft_${widget.chatId}';
+        final text = _messageController.text;
+        if (text.isEmpty) {
+          box.delete(draftKey);
+        } else {
+          box.put(draftKey, text);
+        }
+      } catch (_) {}
+    });
+  }
+
   void _addMessageToList(Message message) {
     if (mounted) {
       setState(() {
@@ -256,7 +349,10 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
   }
 
   Future<void> _sendMessage() async {
-    final currentUser = FirebaseAuth.instance.currentUser!;
+    // CRITICAL: Check auth before sending
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
     final messageText = _messageController.text.trim();
 
     if (messageText.isEmpty) return;
@@ -279,22 +375,72 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
     _addMessageToList(optimisticMessage);
     _messageController.clear();
     _cancelReply();
+    // Clear saved draft on send
+    try {
+      final box = Hive.box('settings');
+      box.delete('draft_${widget.chatId}');
+    } catch (_) {}
 
     // Dismiss keyboard after sending message
     FocusScope.of(context).unfocus();
 
-    try {
-      await _chatRepository.sendMessage(
-        chatId: widget.chatId,
-        senderId: currentUser.uid,
-        text: messageText,
-        replyToMessageId: optimisticMessage.replyToMessageId,
-        replyToMessageText: optimisticMessage.replyToMessageText,
-        replyToImageUrl: optimisticMessage.replyToImageUrl,
-        replyToSender: optimisticMessage.replyToSender,
+    // If offline, mark as error immediately so user can retry
+    if (_isOffline) {
+      final index = _messages.indexWhere((m) => m.id == optimisticMessage.id);
+      if (index != -1) {
+        setState(() {
+          _messages[index] = Message(
+            id: optimisticMessage.id,
+            senderId: optimisticMessage.senderId,
+            text: optimisticMessage.text,
+            status: MessageStatus.error,
+            timestamp: optimisticMessage.timestamp,
+          );
+        });
+      }
+      showIslandPopup(
+        context: context,
+        message: 'You are offline. Tap the message to retry.',
+        icon: Icons.wifi_off,
       );
+      return;
+    }
+
+    try {
+      await _chatRepository
+          .sendMessage(
+            chatId: widget.chatId,
+            senderId: currentUser.uid,
+            text: messageText,
+            replyToMessageId: optimisticMessage.replyToMessageId,
+            replyToMessageText: optimisticMessage.replyToMessageText,
+            replyToImageUrl: optimisticMessage.replyToImageUrl,
+            replyToSender: optimisticMessage.replyToSender,
+          )
+          .timeout(_sendTimeout);
 
       HapticFeedback.lightImpact();
+    } on TimeoutException catch (_) {
+      // Mark as error on timeout so user can retry
+      final index = _messages.indexWhere((m) => m.id == optimisticMessage.id);
+      if (index != -1) {
+        setState(() {
+          _messages[index] = Message(
+            id: optimisticMessage.id,
+            senderId: optimisticMessage.senderId,
+            text: optimisticMessage.text,
+            status: MessageStatus.error,
+            timestamp: optimisticMessage.timestamp,
+          );
+        });
+      }
+      if (mounted) {
+        showIslandPopup(
+          context: context,
+          message: 'No connection. Tap message to retry.',
+          icon: Icons.wifi_off,
+        );
+      }
     } catch (e) {
       if (mounted) {
         showIslandPopup(
@@ -395,7 +541,9 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
       if (pickedFile == null) return;
 
       // OPTIMIZED: Show optimistic message immediately (non-blocking)
-      final currentUser = FirebaseAuth.instance.currentUser!;
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
       final optimisticMessage = Message.optimistic(
         senderId: currentUser.uid,
         text: '',
@@ -426,21 +574,25 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
 
       // Upload in background without blocking (using CloudinaryService)
       try {
+        // If offline, fail fast
+        if (_isOffline) throw TimeoutException('offline');
         final imageUrl = await CloudinaryService.uploadImageFromFile(
           File(pickedFile.path),
         );
         if (imageUrl == null) throw Exception('Image upload failed');
 
         // Send actual message after upload
-        await _chatRepository.sendMessage(
-          chatId: widget.chatId,
-          senderId: currentUser.uid,
-          imageUrl: imageUrl,
-          replyToMessageId: optimisticMessage.replyToMessageId,
-          replyToMessageText: optimisticMessage.replyToMessageText,
-          replyToImageUrl: optimisticMessage.replyToImageUrl,
-          replyToSender: optimisticMessage.replyToSender,
-        );
+        await _chatRepository
+            .sendMessage(
+              chatId: widget.chatId,
+              senderId: currentUser.uid,
+              imageUrl: imageUrl,
+              replyToMessageId: optimisticMessage.replyToMessageId,
+              replyToMessageText: optimisticMessage.replyToMessageText,
+              replyToImageUrl: optimisticMessage.replyToImageUrl,
+              replyToSender: optimisticMessage.replyToSender,
+            )
+            .timeout(_sendTimeout);
 
         // Remove optimistic message (real message will appear from stream)
         if (mounted) {
@@ -455,6 +607,29 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
             context: context,
             message: 'Image sent!',
             icon: Icons.check_circle_outline,
+          );
+        }
+      } on TimeoutException catch (_) {
+        // Mark optimistic image message as error on timeout
+        if (mounted) {
+          final index =
+              _messages.indexWhere((m) => m.id == optimisticMessage.id);
+          if (index != -1) {
+            setState(() {
+              _messages[index] = Message(
+                id: optimisticMessage.id,
+                senderId: optimisticMessage.senderId,
+                text: 'Failed to send image',
+                status: MessageStatus.error,
+                timestamp: optimisticMessage.timestamp,
+                imageUrl: optimisticMessage.imageUrl,
+              );
+            });
+          }
+          showIslandPopup(
+            context: context,
+            message: 'No connection. Tap message to retry.',
+            icon: Icons.wifi_off,
           );
         }
       } catch (e) {
@@ -497,7 +672,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
       _replyingToMessageText = message.text;
       _replyingToImageUrl = message.imageUrl;
       _replyingToSender =
-          message.senderId == FirebaseAuth.instance.currentUser!.uid
+          message.senderId == (FirebaseAuth.instance.currentUser?.uid ?? '')
               ? 'You'
               : widget.otherUsername;
     });
@@ -544,12 +719,14 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
         message: message,
         isMe: isMe,
         chatId: widget.chatId,
-        currentUserId: FirebaseAuth.instance.currentUser!.uid,
+        currentUserId: FirebaseAuth.instance.currentUser?.uid ?? '',
         onReaction: (emoji) {
+          final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+          if (currentUserId == null) return;
           _chatRepository.toggleMessageReaction(
             widget.chatId,
             message.id,
-            FirebaseAuth.instance.currentUser!.uid,
+            currentUserId,
             emoji,
           );
         },
@@ -564,11 +741,105 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
     );
   }
 
+  Future<void> _retryMessage(Message failed) async {
+    if (_isOffline) {
+      // Queue for auto-retry when online; don't attempt now
+      _pendingRetryMessageIds.add(failed.id);
+      if (mounted) {
+        showIslandPopup(
+          context: context,
+          message:
+              'You are offline. Will resend automatically when back online.',
+          icon: Icons.schedule_send,
+        );
+      }
+      return;
+    }
+    await _performRetry(failed);
+  }
+
+  Future<void> _performRetry(Message failed) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+    try {
+      if (_isOffline) throw TimeoutException('offline');
+      if ((failed.imageUrl ?? '').isNotEmpty &&
+          !(failed.imageUrl!.startsWith('http'))) {
+        // Retry image: re-upload local file path
+        final file = File(failed.imageUrl!);
+        if (!await file.exists()) throw Exception('Image not found');
+        final imageUrl = await CloudinaryService.uploadImageFromFile(file);
+        if (imageUrl == null) throw Exception('Image upload failed');
+        await _chatRepository.sendMessage(
+          chatId: widget.chatId,
+          senderId: currentUser.uid,
+          imageUrl: imageUrl,
+          replyToMessageId: failed.replyToMessageId,
+          replyToMessageText: failed.replyToMessageText,
+          replyToImageUrl: failed.replyToImageUrl,
+          replyToSender: failed.replyToSender,
+        );
+      } else {
+        // Retry text
+        await _chatRepository.sendMessage(
+          chatId: widget.chatId,
+          senderId: currentUser.uid,
+          text: failed.text,
+          replyToMessageId: failed.replyToMessageId,
+          replyToMessageText: failed.replyToMessageText,
+          replyToImageUrl: failed.replyToImageUrl,
+          replyToSender: failed.replyToSender,
+        );
+      }
+      if (mounted) {
+        setState(() {
+          _messages.removeWhere((m) => m.id == failed.id);
+        });
+        showIslandPopup(
+          context: context,
+          message: 'Message resent',
+          icon: Icons.check_circle_outline,
+        );
+      }
+    } on TimeoutException catch (_) {
+      if (mounted) {
+        showIslandPopup(
+          context: context,
+          message: 'Still offline. Will retry when connected.',
+          icon: Icons.wifi_off,
+        );
+      }
+      _pendingRetryMessageIds.add(failed.id);
+    } catch (e) {
+      if (mounted) {
+        showIslandPopup(
+          context: context,
+          message: 'Retry failed: $e',
+          icon: Icons.error_outline,
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
 
-    final currentUser = FirebaseAuth.instance.currentUser!;
+    // CRITICAL: Check if user is authenticated before building chat
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      // User logged out - return loading scaffold with background
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: FreegramAppBar(
+          title: widget.otherUsername,
+          showBackButton: true,
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
     return StreamBuilder<DocumentSnapshot>(
       stream: _chatRepository.getChatStream(widget.chatId),
@@ -664,10 +935,9 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
       titleWidget: InkWell(
         onTap: () {
           HapticFeedback.lightImpact();
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ProfileScreen(userId: userId),
-            ),
+          locator<NavigationService>().navigateTo(
+            ProfileScreen(userId: userId),
+            transition: PageTransition.slide,
           );
         },
         borderRadius: BorderRadius.circular(12),
@@ -1001,6 +1271,12 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                 key: ValueKey(message.id),
                 message: message,
                 isMe: message.senderId == currentUserId,
+                onTap: () {
+                  final isMe = message.senderId == currentUserId;
+                  if (isMe && message.status == MessageStatus.error) {
+                    _retryMessage(message);
+                  }
+                },
                 previousMessage: previousMessage,
                 nextMessage: nextMessage,
                 otherUsername: widget.otherUsername,
@@ -1022,6 +1298,8 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
 
   Widget _buildErrorScaffold(String message) {
     return Scaffold(
+      // CRITICAL: Explicit background color to prevent black screen during transitions
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: FreegramAppBar(
         title: widget.otherUsername,
       ),
@@ -1056,6 +1334,8 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
 
   Widget _buildLoadingScaffold() {
     return Scaffold(
+      // CRITICAL: Explicit background color to prevent black screen during transitions
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: FreegramAppBar(
         title: widget.otherUsername,
       ),

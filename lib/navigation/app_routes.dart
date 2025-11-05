@@ -15,6 +15,7 @@ class AppRoutes {
   static const String main = '/main';
   static const String nearby = '/nearby';
   static const String feed = '/feed';
+  static const String createPost = '/createPost';
   static const String match = '/match';
   static const String friends = '/friends';
   static const String menu = '/menu';

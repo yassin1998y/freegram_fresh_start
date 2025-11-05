@@ -3,7 +3,7 @@ import 'package:bloc/bloc.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:equatable/equatable.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint, kIsWeb;
 import 'package:freegram/repositories/user_repository.dart';
 import 'package:freegram/services/cloudinary_service.dart';
 import 'package:image_picker/image_picker.dart';
@@ -31,6 +31,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         super(ProfileInitial()) {
     on<ProfileUpdateEvent>(_onUpdateProfile);
     on<ProfileImageUploadProgressEvent>(_onImageUploadProgress);
+    on<ProfileImageUploadOnlyEvent>(_onImageUploadOnly);
   }
 
   /// Handles profile image upload progress updates
@@ -145,6 +146,57 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     }
   }
 
+  /// Handles image-only upload (for onboarding when image is picked)
+  Future<void> _onImageUploadOnly(
+    ProfileImageUploadOnlyEvent event,
+    Emitter<ProfileState> emit,
+  ) async {
+    // Check if already uploading
+    if (state is ProfileImageUploading) {
+      _debugLog('Image upload already in progress, ignoring duplicate request');
+      return;
+    }
+
+    try {
+      // Check internet connectivity first
+      final hasInternet = await _checkInternetConnection();
+      if (!hasInternet) {
+        emit(const ProfileError(
+          'No internet connection. Please check your network and try again.',
+        ));
+        return;
+      }
+
+      _debugLog('Starting immediate image upload for profile picture');
+
+      // Emit uploading state
+      emit(const ProfileImageUploading(progress: 0.0));
+
+      final imageUrl = await CloudinaryService.uploadImageFromXFile(
+        event.imageFile,
+        onProgress: (progress) {
+          add(ProfileImageUploadProgressEvent(progress: progress));
+        },
+      );
+
+      if (imageUrl != null) {
+        _debugLog('Image uploaded successfully: $imageUrl');
+        emit(ProfileImageUploaded(imageUrl: imageUrl));
+      } else {
+        throw Exception(
+          'Failed to upload image. Please check your connection and try again.',
+        );
+      }
+    } catch (e) {
+      _debugLog('Error during image upload: $e');
+      emit(ProfileError(
+        e.toString().contains('network') || e.toString().contains('connection')
+            ? 'Network error. Please check your connection and try again.'
+            : 'Failed to upload image. Please try again.',
+      ));
+    }
+  }
+
   /// Check if device has internet connectivity
   Future<bool> _checkInternetConnection() async {
     try {
@@ -155,6 +207,12 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       }
 
       // Verify actual internet access (not just network connection)
+      // InternetAddress.lookup is not supported on web
+      if (kIsWeb) {
+        // On web, assume online if connectivity check passed
+        return true;
+      }
+
       try {
         final result = await InternetAddress.lookup('google.com').timeout(
           const Duration(seconds: 3),

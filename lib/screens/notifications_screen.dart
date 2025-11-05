@@ -10,6 +10,7 @@ import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/models/notification_model.dart';
 import 'package:freegram/repositories/notification_repository.dart';
 import 'package:freegram/screens/profile_screen.dart';
+import 'package:freegram/screens/post_detail_screen.dart';
 import 'package:freegram/widgets/freegram_app_bar.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
@@ -299,7 +300,21 @@ class NotificationTile extends StatelessWidget {
         leadingIconColor = Colors.deepPurpleAccent;
         notificationActionText = ' waved at you from nearby!';
         break;
-      // No default needed as enum covers all possibilities
+      case NotificationType.comment:
+        leadingIcon = Icons.comment;
+        leadingIconColor = Colors.blue;
+        notificationActionText = ' commented on your post.';
+        break;
+      case NotificationType.reaction:
+        leadingIcon = Icons.favorite;
+        leadingIconColor = Colors.red;
+        notificationActionText = ' liked your post.';
+        break;
+      case NotificationType.mention:
+        leadingIcon = Icons.alternate_email;
+        leadingIconColor = Colors.purple;
+        notificationActionText = ' mentioned you in a post.';
+        break;
     }
 
     // --- START: Read Status UI Update (Fix #6) ---
@@ -327,7 +342,6 @@ class NotificationTile extends StatelessWidget {
                   // Navigate to user's profile
                   locator<NavigationService>().navigateTo(
                     ProfileScreen(userId: notification.fromUserId),
-                    transition: PageTransition.slide,
                   );
                   // Note: Mark as read is handled by the ListTile's onTap, not here to avoid duplicates
                 },
@@ -466,11 +480,24 @@ class NotificationTile extends StatelessWidget {
         // --- END: Read Status UI Update ---
         // ListTile Tap Action (Navigates AND marks read)
         onTap: () {
-          // Navigate to user's profile
-          locator<NavigationService>().navigateTo(
-            ProfileScreen(userId: notification.fromUserId),
-            transition: PageTransition.slide,
-          );
+          // Navigate based on notification type
+          if (notification.postId != null &&
+              (notification.type == NotificationType.comment ||
+                  notification.type == NotificationType.reaction ||
+                  notification.type == NotificationType.mention)) {
+            // Navigate to post detail screen
+            locator<NavigationService>().navigateTo(
+              PostDetailScreen(
+                postId: notification.postId!,
+                commentId: notification.commentId,
+              ),
+            );
+          } else {
+            // Navigate to user's profile for other types
+            locator<NavigationService>().navigateTo(
+              ProfileScreen(userId: notification.fromUserId),
+            );
+          }
           // --- Mark as read on tap (Fix #6) ---
           // If the notification was unread, dispatch event to mark it read
           if (isUnread) {

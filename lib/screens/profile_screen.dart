@@ -15,6 +15,14 @@ import 'package:freegram/theme/design_tokens.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:freegram/screens/qr_display_screen.dart';
 import 'package:freegram/utils/mutual_friends_helper.dart';
+import 'package:freegram/repositories/post_repository.dart';
+import 'package:freegram/models/post_model.dart';
+import 'package:freegram/repositories/page_repository.dart';
+import 'package:freegram/models/page_model.dart';
+import 'package:freegram/screens/create_page_screen.dart';
+import 'package:freegram/screens/page_profile_screen.dart';
+import 'package:freegram/widgets/feed_widgets/post_card.dart';
+import 'package:freegram/models/feed_item_model.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String userId;
@@ -43,6 +51,30 @@ class _ProfileScreenView extends StatefulWidget {
 // Removed SingleTickerProviderStateMixin as TabController is removed
 class _ProfileScreenViewState extends State<_ProfileScreenView> {
   // Removed TabController initialization and disposal
+  final PageRepository _pageRepository = locator<PageRepository>();
+  List<PageModel> _myPages = [];
+  bool _loadingPages = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMyPagesIfOwnProfile();
+  }
+
+  Future<void> _loadMyPagesIfOwnProfile() async {
+    final isCurrentUserProfile =
+        FirebaseAuth.instance.currentUser?.uid == widget.userId;
+    if (!isCurrentUserProfile) return;
+    setState(() => _loadingPages = true);
+    try {
+      final pages = await _pageRepository.getUserPages(widget.userId);
+      if (mounted) setState(() => _myPages = pages);
+    } catch (e) {
+      debugPrint('ProfileScreen: Error loading user pages: $e');
+    } finally {
+      if (mounted) setState(() => _loadingPages = false);
+    }
+  }
 
   Future<void> _startChat(BuildContext context, UserModel user) async {
     final chatId = await locator<ChatRepository>().startOrGetChat(
@@ -206,17 +238,29 @@ class _ProfileScreenViewState extends State<_ProfileScreenView> {
         FirebaseAuth.instance.currentUser?.uid == widget.userId;
 
     return Scaffold(
+      // CRITICAL: Explicit background color to prevent black screen during transitions
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: StreamBuilder<UserModel>(
         stream: userRepository.getUserStream(widget.userId),
         builder: (context, userSnapshot) {
+          // CRITICAL: Wrap all states in Scaffold to ensure proper background
           if (userSnapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return Scaffold(
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              body: const Center(child: CircularProgressIndicator()),
+            );
           }
           if (!userSnapshot.hasData) {
-            return const Center(child: Text('User not found.'));
+            return Scaffold(
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              body: const Center(child: Text('User not found.')),
+            );
           }
           if (userSnapshot.hasError) {
-            return Center(child: Text('Error: ${userSnapshot.error}'));
+            return Scaffold(
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              body: Center(child: Text('Error: ${userSnapshot.error}')),
+            );
           }
 
           final user = userSnapshot.data!;
@@ -265,6 +309,15 @@ class _ProfileScreenViewState extends State<_ProfileScreenView> {
                 actions: [
                   if (isCurrentUserProfile)
                     IconButton(
+                      icon: const Icon(Icons.storefront_outlined),
+                      tooltip: 'Pages',
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        _openPagesMenu(context);
+                      },
+                    ),
+                  if (isCurrentUserProfile)
+                    IconButton(
                       icon: const Icon(Icons.qr_code_2_outlined),
                       tooltip: 'My QR Code',
                       onPressed: () {
@@ -295,6 +348,10 @@ class _ProfileScreenViewState extends State<_ProfileScreenView> {
                   onStartChat: () => _startChat(context, user),
                 ),
               ),
+              // Posts section
+              SliverToBoxAdapter(
+                child: _UserPostsSection(userId: widget.userId),
+              ),
             ],
           );
         },
@@ -302,7 +359,264 @@ class _ProfileScreenViewState extends State<_ProfileScreenView> {
     );
   }
 
-// Removed _buildPostsGrid method
+  void _openPagesMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.storefront_outlined),
+                    const SizedBox(width: 8),
+                    const Text('Your Pages',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.refresh),
+                      onPressed: _loadingPages
+                          ? null
+                          : () async {
+                              Navigator.of(ctx).pop();
+                              await _loadMyPagesIfOwnProfile();
+                              _openPagesMenu(context);
+                            },
+                      tooltip: 'Refresh',
+                    )
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (_loadingPages)
+                  const Center(
+                      child: Padding(
+                    padding: EdgeInsets.all(12.0),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ))
+                else ...[
+                  if (_myPages.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text('No pages yet',
+                          style: Theme.of(context).textTheme.bodyMedium),
+                    )
+                  else
+                    ..._myPages.map((p) => ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.grey.shade200,
+                            backgroundImage: p.profileImageUrl.isNotEmpty
+                                ? CachedNetworkImageProvider(p.profileImageUrl)
+                                : null,
+                            child: p.profileImageUrl.isEmpty
+                                ? const Icon(Icons.flag_outlined,
+                                    color: Colors.grey)
+                                : null,
+                          ),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(p.pageName),
+                              ),
+                              if (p.verificationStatus ==
+                                  VerificationStatus.verified) ...[
+                                const SizedBox(width: 8),
+                                const Icon(Icons.verified,
+                                    size: 18, color: Colors.blue),
+                              ],
+                            ],
+                          ),
+                          subtitle: Text('@${p.pageHandle}'),
+                          onTap: () {
+                            Navigator.of(ctx).pop();
+                            locator<NavigationService>().navigateTo(
+                              PageProfileScreen(pageId: p.pageId),
+                              transition: PageTransition.slide,
+                            );
+                          },
+                        )),
+                ],
+                const Divider(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      locator<NavigationService>().navigateTo(
+                        const CreatePageScreen(),
+                        transition: PageTransition.slide,
+                      );
+                    },
+                    icon: const Icon(Icons.add_circle_outline),
+                    label: const Text('Create new Page'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// User Posts Section Widget (moved outside ProfileScreen)
+class _UserPostsSection extends StatefulWidget {
+  final String userId;
+
+  const _UserPostsSection({required this.userId});
+
+  @override
+  State<_UserPostsSection> createState() => _UserPostsSectionState();
+}
+
+class _UserPostsSectionState extends State<_UserPostsSection> {
+  final PostRepository _postRepository = locator<PostRepository>();
+  List<PostModel> _pinnedPosts = [];
+  List<PostModel> _posts = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPosts();
+  }
+
+  Future<void> _loadPosts() async {
+    try {
+      // Load pinned posts first
+      final pinned = await _postRepository.getPinnedPosts(widget.userId);
+
+      // Load all posts (which will include pinned ones)
+      final allPosts =
+          await _postRepository.getUserPosts(userId: widget.userId);
+
+      // Separate pinned from non-pinned
+      final pinnedIds = pinned.map((p) => p.id).toSet();
+      final nonPinned =
+          allPosts.where((p) => !pinnedIds.contains(p.id)).toList();
+
+      if (mounted) {
+        setState(() {
+          _pinnedPosts = pinned;
+          _posts = nonPinned;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('ProfileScreen: Error loading posts: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_pinnedPosts.isEmpty && _posts.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(
+                Icons.grid_off_outlined,
+                size: 48,
+                color: Theme.of(context).colorScheme.secondary,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'No posts yet',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Pinned posts section
+        if (_pinnedPosts.isNotEmpty) ...[
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.push_pin,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Pinned',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          ..._pinnedPosts.map((post) => PostCard(
+                item: PostFeedItem(
+                  post: post,
+                  displayType: PostDisplayType.organic,
+                ),
+              )),
+          const SizedBox(height: 8),
+        ],
+        // Regular posts section
+        if (_posts.isNotEmpty) ...[
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.grid_view_outlined,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Posts (${_posts.length})',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          ..._posts.map((post) => PostCard(
+                item: PostFeedItem(
+                  post: post,
+                  displayType: PostDisplayType.organic,
+                ),
+              )),
+        ],
+      ],
+    );
+  }
 }
 
 /// Modern profile header with professional UX and card-based layout

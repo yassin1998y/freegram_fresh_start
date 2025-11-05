@@ -1,0 +1,194 @@
+// lib/widgets/story_widgets/viewers_list_bottom_sheet.dart
+
+import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:freegram/locator.dart';
+import 'package:freegram/repositories/story_repository.dart';
+import 'package:freegram/repositories/user_repository.dart';
+
+class ViewersListBottomSheet extends StatelessWidget {
+  final String storyId;
+
+  const ViewersListBottomSheet({
+    Key? key,
+    required this.storyId,
+  }) : super(key: key);
+
+  static Future<void> show(BuildContext context, String storyId) async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => ViewersListBottomSheet(storyId: storyId),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final storyRepository = locator<StoryRepository>();
+    final userRepository = locator<UserRepository>();
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.75,
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.onSurface.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Title
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Story Viewers',
+                style: theme.textTheme.titleLarge,
+              ),
+            ),
+            const Divider(),
+            // Viewers list
+            Expanded(
+              child: FutureBuilder<List<String>>(
+                future: storyRepository.getStoryViewers(storyId),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: 48,
+                            color: theme.colorScheme.error,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Error loading viewers',
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final viewerIds = snapshot.data ?? [];
+                  if (viewerIds.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.remove_red_eye_outlined,
+                            size: 48,
+                            color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No viewers yet',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color:
+                                  theme.colorScheme.onSurface.withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    itemCount: viewerIds.length,
+                    itemBuilder: (context, index) {
+                      final viewerId = viewerIds[index];
+                      return FutureBuilder(
+                        future: userRepository.getUser(viewerId),
+                        builder: (context, userSnapshot) {
+                          if (userSnapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor:
+                                    theme.colorScheme.surfaceVariant,
+                                child: const CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              title: Text(
+                                'Loading...',
+                                style: theme.textTheme.bodyMedium,
+                              ),
+                            );
+                          }
+
+                          if (userSnapshot.hasError || !userSnapshot.hasData) {
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor:
+                                    theme.colorScheme.surfaceVariant,
+                                child: Icon(
+                                  Icons.person,
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                              ),
+                              title: Text(
+                                'Unknown user',
+                                style: theme.textTheme.bodyMedium,
+                              ),
+                            );
+                          }
+
+                          final user = userSnapshot.data!;
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: theme.colorScheme.surfaceVariant,
+                              backgroundImage: user.photoUrl.isNotEmpty
+                                  ? CachedNetworkImageProvider(user.photoUrl)
+                                  : null,
+                              child: user.photoUrl.isEmpty
+                                  ? Icon(
+                                      Icons.person,
+                                      color: theme.colorScheme.onSurface,
+                                    )
+                                  : null,
+                            ),
+                            title: Text(
+                              user.username,
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            subtitle: Text(
+                              '@${user.username}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurface
+                                    .withOpacity(0.6),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

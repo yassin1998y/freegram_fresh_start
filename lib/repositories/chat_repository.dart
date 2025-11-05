@@ -3,6 +3,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/repositories/action_queue_repository.dart';
+import 'package:freegram/utils/app_constants.dart';
 // import 'package:freegram/repositories/gamification_repository.dart'; // Removed
 // import 'package:freegram/repositories/task_repository.dart'; // Removed
 
@@ -248,20 +249,35 @@ class ChatRepository {
 
   // --- STREAMS ---
 
-  // getChatsStream - OPTIMIZED with pagination limit
-  Stream<QuerySnapshot> getChatsStream(String userId, {int limit = 30}) {
+  /// Provides a real-time stream of user's chat list with pagination support.
+  ///
+  /// Chats are ordered by last message timestamp (most recent first).
+  /// The stream automatically updates when new messages arrive or chat data changes.
+  ///
+  /// [userId] - The unique identifier of the user
+  /// [limit] - Maximum number of chats to return (defaults to AppConstants.chatListInitialLimit)
+  ///
+  /// Returns a [Stream<QuerySnapshot>] of chat documents.
+  Stream<QuerySnapshot> getChatsStream(String userId,
+      {int limit = AppConstants.chatListInitialLimit}) {
     return _db
         .collection('chats')
         .where('users', arrayContains: userId)
         .orderBy('lastMessageTimestamp', descending: true)
-        .limit(limit) // Limit to 30 chats initially
+        .limit(limit) // Limit chats initially
         .snapshots();
   }
 
-  // Load more chats for pagination
+  /// Loads additional chats for pagination beyond the initial limit.
+  ///
+  /// [userId] - The unique identifier of the user
+  /// [lastDocument] - The last document from the previous page (for cursor-based pagination)
+  /// [limit] - Number of additional chats to load (defaults to AppConstants.chatListInitialLimit)
+  ///
+  /// Returns a [Future<QuerySnapshot>] containing the next page of chats.
   Future<QuerySnapshot> loadMoreChats(
       String userId, DocumentSnapshot? lastDocument,
-      {int limit = 30}) async {
+      {int limit = AppConstants.chatListInitialLimit}) async {
     Query query = _db
         .collection('chats')
         .where('users', arrayContains: userId)

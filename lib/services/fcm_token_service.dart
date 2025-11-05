@@ -19,9 +19,13 @@ class FcmTokenService {
         _auth = auth ?? FirebaseAuth.instance,
         _messaging = messaging ?? FirebaseMessaging.instance;
 
+  bool _isInitialized = false;
+
   /// Initialize FCM token management
   /// Call this on app launch after user is authenticated
   Future<void> initialize() async {
+    if (_isInitialized) return;
+
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -31,20 +35,18 @@ class FcmTokenService {
         return;
       }
 
-      // Get current token
-      final token = await _getToken();
-      if (token != null) {
-        await _saveTokenToFirestore(token);
-      }
-
-      // Listen for token refresh
+      // Listen for token refresh (only set up once)
       _messaging.onTokenRefresh.listen((newToken) {
         if (kDebugMode) {
           debugPrint('[FCM] Token refreshed: ${newToken.substring(0, 20)}...');
         }
-        _saveTokenToFirestore(newToken);
+        final currentUser = _auth.currentUser;
+        if (currentUser != null) {
+          _saveTokenToFirestore(newToken, currentUser.uid);
+        }
       });
 
+      _isInitialized = true;
       if (kDebugMode) {
         debugPrint('[FCM] Token service initialized successfully');
       }
@@ -92,12 +94,12 @@ class FcmTokenService {
 
   /// Save token to Firestore with device info
   /// Professional apps store multiple tokens per user for multi-device support
-  Future<void> _saveTokenToFirestore(String token) async {
+  Future<void> _saveTokenToFirestore(String token, [String? userId]) async {
     try {
-      final user = _auth.currentUser;
-      if (user == null) return;
+      final uid = userId ?? _auth.currentUser?.uid;
+      if (uid == null) return;
 
-      final userRef = _firestore.collection('users').doc(user.uid);
+      final userRef = _firestore.collection('users').doc(uid);
 
       // Use regular timestamp instead of FieldValue.serverTimestamp()
       // because serverTimestamp can't be used inside arrayUnion
@@ -112,7 +114,7 @@ class FcmTokenService {
             'token': token,
             'platform': defaultTargetPlatform.name,
             'lastUpdated': now,
-            'userId': user.uid,
+            'userId': uid,
           }
         ]),
       }, SetOptions(merge: true));
@@ -129,11 +131,17 @@ class FcmTokenService {
 
   /// Update token when user logs in
   /// Call this after successful authentication
-  Future<void> updateTokenOnLogin() async {
+  /// Consolidates initialization and token update to prevent duplicate work
+  Future<void> updateTokenOnLogin(String userId) async {
     try {
+      // Ensure service is initialized
+      if (!_isInitialized) {
+        await initialize();
+      }
+
       final token = await _getToken();
       if (token != null) {
-        await _saveTokenToFirestore(token);
+        await _saveTokenToFirestore(token, userId);
       }
     } catch (e) {
       if (kDebugMode) {
@@ -144,15 +152,13 @@ class FcmTokenService {
 
   /// Remove token when user logs out
   /// Important for privacy and preventing notifications to wrong device
-  Future<void> removeTokenOnLogout() async {
+  /// Accepts userId parameter to avoid race condition with Firebase signOut
+  Future<void> removeTokenOnLogout(String userId) async {
     try {
-      final user = _auth.currentUser;
-      if (user == null) return;
-
       final token = await _messaging.getToken();
       if (token == null) return;
 
-      final userRef = _firestore.collection('users').doc(user.uid);
+      final userRef = _firestore.collection('users').doc(userId);
 
       // Get all tokens for this user and remove only the matching one
       final doc = await userRef.get();
@@ -187,7 +193,7 @@ class FcmTokenService {
   }
 
   /// Clean up expired or invalid tokens
-  /// Call this periodically or when you detect invalid tokens
+  /// Reserved for future use - can be called periodically or when invalid tokens detected
   Future<void> cleanupInvalidTokens(
       String userId, List<String> invalidTokens) async {
     try {

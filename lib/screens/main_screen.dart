@@ -1,6 +1,7 @@
 // lib/screens/main_screen.dart
 import 'dart:async';
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -15,13 +16,20 @@ import 'package:freegram/repositories/user_repository.dart';
 // Import Screens
 import 'package:freegram/screens/improved_chat_list_screen.dart';
 import 'package:freegram/screens/friends_list_screen.dart';
-import 'package:freegram/screens/match_screen.dart';
 import 'package:freegram/screens/menu_screen.dart';
 import 'package:freegram/screens/nearby_screen.dart';
 import 'package:freegram/screens/notifications_screen.dart';
+import 'package:freegram/screens/feed_screen.dart';
+import 'package:freegram/screens/feed/for_you_feed_tab.dart'
+    show kForYouFeedTabKey;
+import 'package:freegram/screens/match_screen.dart';
+// FeedBloc removed - using FollowingFeedBloc and ForYouFeedBloc instead
+// PostRepository and PageRepository no longer needed here (handled by FeedScreen's BLoCs)
 import 'package:freegram/theme/app_theme.dart';
-import 'package:freegram/widgets/island_popup.dart';
 import 'package:freegram/widgets/offline_overlay.dart';
+import 'package:hive/hive.dart';
+import 'package:freegram/widgets/guided_overlay.dart';
+import 'package:freegram/services/navigation_service.dart';
 
 const bool _enableBlurEffects = true; // Keep blur toggle
 
@@ -52,12 +60,47 @@ class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   String _currentScreenName = 'Nearby'; // Default screen name
 
+  // Showcase keys
+  final GlobalKey _guideFeedKey = GlobalKey();
+  final GlobalKey _guideNearbyKey = GlobalKey();
+  final GlobalKey _guideFriendsKey = GlobalKey();
+  final GlobalKey _guideMenuKey = GlobalKey();
+  bool _showGuide = false;
+
+  void _maybeStartGuide() {
+    try {
+      final settingsBox = Hive.box('settings');
+      final user = FirebaseAuth.instance.currentUser;
+      final key = 'hasSeenMainShowcase_${user?.uid ?? 'guest'}';
+      final hasSeen = settingsBox.get(key, defaultValue: false) as bool;
+      if (!hasSeen && !_showGuide) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() => _showGuide = true);
+        });
+      }
+    } catch (_) {}
+  }
+
   // Simplified _onItemTapped for IndexedStack
   void _onItemTapped(int index) {
+    // CRITICAL: Check auth state before processing taps to prevent interactions during sign-out
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      debugPrint(
+          'MainScreen: Ignoring navigation tap - user not authenticated');
+      return;
+    }
+
     debugPrint(
         'MainScreen: _onItemTapped called with index: $index, current _selectedIndex: $_selectedIndex');
 
     if (index < 0 || index > 4) return;
+
+    // If tapping Feed while already on Feed: scroll to top and refresh
+    if (index == 1 && _selectedIndex == 1) {
+      kForYouFeedTabKey.currentState?.scrollToTopAndRefresh();
+      return;
+    }
 
     setState(() {
       _selectedIndex = index;
@@ -86,161 +129,232 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, authState) {
-        // No need for inline loading - LoadingOverlay handles this
-        if (authState is Unauthenticated) {
-          // Return empty scaffold while AuthWrapper handles transition
-          return const Scaffold(body: SizedBox.shrink());
+    return BlocConsumer<AuthBloc, AuthState>(
+      listener: (context, state) {
+        // If we become unauthenticated, immediately disable all interactions
+        if (state is! Authenticated) {
+          debugPrint(
+              "MainScreen: AuthState changed to ${state.runtimeType}. Disabling interactions.");
         }
-
+      },
+      buildWhen: (previous, current) {
+        // Rebuild on any state change to immediately respond to sign-out
+        return true;
+      },
+      builder: (context, authState) {
+        // CRITICAL: Immediately return empty if not authenticated
+        // This prevents MainScreen from processing any events after sign-out
+        // Returning Scaffold here blocks AuthWrapper from showing LoginScreen
         if (authState is! Authenticated) {
-          return const Scaffold(body: SizedBox.shrink());
+          if (kDebugMode) {
+            debugPrint(
+                "MainScreen: AuthState is not Authenticated (${authState.runtimeType}). Returning empty scaffold to let AuthWrapper show LoginScreen.");
+          }
+          // Return empty scaffold with background - AuthWrapper will show LoginScreen
+          // CRITICAL: Use Scaffold with background color to prevent black screen during logout transition
+          return Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            body: SizedBox.shrink(),
+          );
         }
 
         final currentUser = authState.user;
 
+        // Safety check: Verify FirebaseAuth also has the user (double-check)
+        if (FirebaseAuth.instance.currentUser == null) {
+          debugPrint(
+              "MainScreen: WARNING - Authenticated state but FirebaseAuth has no user. Returning empty scaffold.");
+          return Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            body: SizedBox.shrink(),
+          );
+        }
+
+        _maybeStartGuide();
+
         // Simplified Scaffold structure
-        return Scaffold(
-          extendBody: true, // Body behind bottom bar
-          appBar: AppBar(
-            // No back button - use device hardware back button
-            automaticallyImplyLeading: false,
-            backgroundColor: Colors.transparent, // For blur effect
-            elevation: 0,
-            flexibleSpace:
-                _buildBlurredAppBarBackground(context), // Blurred background
-            title: Column(
-              // Title/Subtitle structure
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Freegram',
-                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                        color: SonarPulseTheme.primaryAccent,
-                        fontSize: 24,
-                        height: 1.0)),
-                BlocBuilder<ConnectivityBloc, ConnectivityState>(
-                  // Connectivity/Screen Name subtitle
-                  builder: (context, state) {
-                    Widget subtitle;
-                    if (state is Offline) {
-                      subtitle = Text("Bluetooth Only Mode",
-                          key: const ValueKey('offline_mode'),
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(
-                                  height: 1.0, color: Colors.blueAccent));
-                    } else {
-                      subtitle = Text(_currentScreenName,
-                          key: ValueKey(_currentScreenName),
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(height: 1.0));
-                    }
-                    return AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        transitionBuilder: (child, animation) =>
-                            FadeTransition(opacity: animation, child: child),
-                        child: subtitle);
-                  },
-                ),
-              ],
-            ),
-            actions: [
-              // AppBar actions
-              _AppBarAction(
-                // Chat action
-                icon: Icons.chat_bubble_outline,
-                stream: locator<ChatRepository>()
-                    .getUnreadChatCountStream(currentUser.uid),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const ImprovedChatListScreen(),
-                  ),
-                ),
-              ),
-              _AppBarAction(
-                  // Add action (placeholder)
-                  icon: Icons.add_box_outlined,
-                  onPressed: () => showIslandPopup(
-                      context: context,
-                      message: "Create feature coming soon!",
-                      icon: Icons.add_box_outlined)),
-              // --- START: Notification Action Update (Fix #5) ---
-              _AppBarAction(
-                // Notification action
-                icon: Icons.notifications_outlined,
-                stream: locator<NotificationRepository>()
-                    .getUnreadNotificationCountStream(currentUser.uid),
-                onPressed: () {
-                  // --- Use showModalBottomSheet ---
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Theme.of(context).colorScheme.surface,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(20)),
+        // Wrap in IgnorePointer if auth state changes to prevent interactions during sign-out
+        return Stack(
+          children: [
+            Scaffold(
+              extendBody: true, // Body behind bottom bar
+              appBar: AppBar(
+                // No back button - use device hardware back button
+                automaticallyImplyLeading: false,
+                backgroundColor: Colors.transparent, // For blur effect
+                elevation: 0,
+                flexibleSpace: _buildBlurredAppBarBackground(
+                    context), // Blurred background
+                title: Column(
+                  // Title/Subtitle structure
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Freegram',
+                        style: Theme.of(context)
+                            .textTheme
+                            .displayMedium
+                            ?.copyWith(
+                                color: SonarPulseTheme.primaryAccent,
+                                fontSize: 24,
+                                height: 1.0)),
+                    BlocBuilder<ConnectivityBloc, ConnectivityState>(
+                      // Connectivity/Screen Name subtitle
+                      builder: (context, state) {
+                        Widget subtitle;
+                        if (state is Offline) {
+                          subtitle = Text("Bluetooth Only Mode",
+                              key: const ValueKey('offline_mode'),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                      height: 1.0, color: Colors.blueAccent));
+                        } else {
+                          subtitle = Text(_currentScreenName,
+                              key: ValueKey(_currentScreenName),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(height: 1.0));
+                        }
+                        return AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            transitionBuilder: (child, animation) =>
+                                FadeTransition(
+                                    opacity: animation, child: child),
+                            child: subtitle);
+                      },
                     ),
-                    builder: (modalContext) {
-                      return DraggableScrollableSheet(
-                        initialChildSize: 0.75, // Start at 75% height
-                        minChildSize: 0.5, // Allow shrinking to 50%
-                        maxChildSize: 0.95, // Allow expanding to 95%
-                        expand: false,
-                        builder: (_, scrollController) {
-                          return NotificationsScreen(
-                            isModal: true,
-                            scrollController: scrollController,
+                  ],
+                ),
+                actions: [
+                  // AppBar actions
+                  _AppBarAction(
+                    // Chat action
+                    icon: Icons.chat_bubble_outline,
+                    stream: locator<ChatRepository>()
+                        .getUnreadChatCountStream(currentUser.uid),
+                    onPressed: () => locator<NavigationService>().navigateTo(
+                      const ImprovedChatListScreen(),
+                      transition: PageTransition.slide,
+                    ),
+                  ),
+                  // Create Post action (only show on Feed screen)
+                  // Create post functionality is now integrated into CreatePostWidget in the feed
+                  // No need for separate navigation button
+                  // --- START: Notification Action Update (Fix #5) ---
+                  _AppBarAction(
+                    // Notification action
+                    icon: Icons.notifications_outlined,
+                    stream: locator<NotificationRepository>()
+                        .getUnreadNotificationCountStream(currentUser.uid),
+                    onPressed: () {
+                      // --- Use showModalBottomSheet ---
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Theme.of(context).colorScheme.surface,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(20)),
+                        ),
+                        builder: (modalContext) {
+                          return DraggableScrollableSheet(
+                            initialChildSize: 0.75, // Start at 75% height
+                            minChildSize: 0.5, // Allow shrinking to 50%
+                            maxChildSize: 0.95, // Allow expanding to 95%
+                            expand: false,
+                            builder: (_, scrollController) {
+                              return NotificationsScreen(
+                                isModal: true,
+                                scrollController: scrollController,
+                              );
+                            },
                           );
                         },
                       );
+                      // --- Old Navigation (Removed): ---
+                      // _navigatorKey.currentState?.pushNamed(notificationsRoute);
                     },
-                  );
-                  // --- Old Navigation (Removed): ---
-                  // _navigatorKey.currentState?.pushNamed(notificationsRoute);
-                },
+                  ),
+                  // --- END: Notification Action Update ---
+                  const SizedBox(width: 8), // Padding
+                ],
               ),
-              // --- END: Notification Action Update ---
-              const SizedBox(width: 8), // Padding
-            ],
-          ),
-          // Optimized content area using IndexedStack with visibility management
-          body: IndexedStack(
-            index: _selectedIndex,
-            children: [
-              _VisibilityWrapper(
-                isVisible: _selectedIndex == 0,
-                child: const NearbyScreen(),
-              ),
-              _VisibilityWrapper(
-                isVisible: _selectedIndex == 1,
-                child: const SimplifiedFeedWidget(),
-              ),
-              _VisibilityWrapper(
-                isVisible: _selectedIndex == 2,
-                child: const MatchScreen(),
-              ),
-              _VisibilityWrapper(
-                isVisible: _selectedIndex == 3,
-                child: BlocProvider(
-                  create: (_) =>
-                      FriendsBloc(userRepository: locator<UserRepository>())
-                        ..add(LoadFriends()),
-                  child: const FriendsListScreen(),
+              // Optimized content area using IndexedStack with visibility management
+              // CRITICAL: Ensure Scaffold has background color to prevent black screen during transitions
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              body: Container(
+                // Explicit container with background to prevent black screen
+                color: Theme.of(context).scaffoldBackgroundColor,
+                child: IndexedStack(
+                  index: _selectedIndex,
+                  children: [
+                    _VisibilityWrapper(
+                      isVisible: _selectedIndex == 0,
+                      child: const NearbyScreen(),
+                    ),
+                    _VisibilityWrapper(
+                      isVisible: _selectedIndex == 1,
+                      child: const FeedScreen(),
+                    ),
+                    _VisibilityWrapper(
+                      isVisible: _selectedIndex == 2,
+                      child: const MatchScreen(),
+                    ),
+                    _VisibilityWrapper(
+                      isVisible: _selectedIndex == 3,
+                      child: BlocProvider(
+                        create: (_) => FriendsBloc(
+                            userRepository: locator<UserRepository>())
+                          ..add(LoadFriends()),
+                        // CRITICAL: Hide back button when used as tab - tabs aren't routes, can't pop
+                        child: const FriendsListScreen(hideBackButton: true),
+                      ),
+                    ),
+                    _VisibilityWrapper(
+                      isVisible: _selectedIndex == 4,
+                      child: const MenuScreen(),
+                    ),
+                  ],
                 ),
               ),
-              _VisibilityWrapper(
-                isVisible: _selectedIndex == 4,
-                child: const MenuScreen(),
+              bottomNavigationBar: _buildFlatBottomNavBar(context, currentUser),
+            ),
+            if (_showGuide)
+              GuidedOverlay(
+                steps: [
+                  GuideStep(
+                    targetKey: _guideNearbyKey,
+                    description: 'Discover people around you with Nearby.',
+                    fallbackAlignment: Alignment.bottomCenter,
+                  ),
+                  GuideStep(
+                    targetKey: _guideFeedKey,
+                    description: 'See updates in your Feed.',
+                    fallbackAlignment: Alignment.bottomCenter,
+                  ),
+                  GuideStep(
+                    targetKey: _guideFriendsKey,
+                    description: 'Manage your friends and requests here.',
+                    fallbackAlignment: Alignment.bottomCenter,
+                  ),
+                  GuideStep(
+                    targetKey: _guideMenuKey,
+                    description: 'Access your profile and settings.',
+                    fallbackAlignment: Alignment.bottomCenter,
+                  ),
+                ],
+                onFinish: () {
+                  setState(() => _showGuide = false);
+                  final settingsBox = Hive.box('settings');
+                  final user = FirebaseAuth.instance.currentUser;
+                  final key = 'hasSeenMainShowcase_${user?.uid ?? 'guest'}';
+                  settingsBox.put(key, true);
+                },
               ),
-            ],
-          ),
-          // Bottom Navigation Bar - Flat design with 5 buttons
-          bottomNavigationBar: _buildFlatBottomNavBar(context, currentUser),
+          ],
         );
       },
     );
@@ -297,30 +411,43 @@ class _MainScreenState extends State<MainScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 _FlatBottomNavIcon(
+                  key: _guideFeedKey,
+                  showcaseKey: _guideFeedKey,
+                  showcaseDescription: 'See what’s new in the feed',
                   icon: Icons.public,
                   label: 'Feed',
                   isSelected: _selectedIndex == 1,
                   onTap: () => _onItemTapped(1),
                 ),
                 _FlatBottomNavIcon(
+                  key: const ValueKey('nav_match'),
                   icon: Icons.whatshot_outlined,
                   label: 'Match',
                   isSelected: _selectedIndex == 2,
                   onTap: () => _onItemTapped(2),
                 ),
                 _GlassmorphicCenterButton(
+                  key: _guideNearbyKey,
+                  showcaseKey: _guideNearbyKey,
+                  showcaseDescription: 'Discover people around you',
                   icon: Icons.radar,
                   label: 'Nearby',
                   isSelected: _selectedIndex == 0,
                   onTap: () => _onItemTapped(0),
                 ),
                 _FlatBottomNavIcon(
+                  key: _guideFriendsKey,
+                  showcaseKey: _guideFriendsKey,
+                  showcaseDescription: 'Manage friends and requests',
                   icon: Icons.people_outline,
                   label: 'Friends',
                   isSelected: _selectedIndex == 3,
                   onTap: () => _onItemTapped(3),
                 ),
                 _FlatBottomNavIcon(
+                  key: _guideMenuKey,
+                  showcaseKey: _guideMenuKey,
+                  showcaseDescription: 'Access your profile and settings',
                   icon: Icons.menu,
                   label: 'Menu',
                   isSelected: _selectedIndex == 4,
@@ -399,12 +526,17 @@ class _FlatBottomNavIcon extends StatelessWidget {
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
+  final GlobalKey? showcaseKey;
+  final String? showcaseDescription;
 
   const _FlatBottomNavIcon({
+    super.key,
     required this.icon,
     required this.label,
     required this.isSelected,
     required this.onTap,
+    this.showcaseKey,
+    this.showcaseDescription,
   });
 
   @override
@@ -415,59 +547,63 @@ class _FlatBottomNavIcon extends StatelessWidget {
 
     final fontWeight = isSelected ? FontWeight.w600 : FontWeight.normal;
 
-    return Expanded(
-      child: Material(
-        type: MaterialType.transparency,
-        child: InkWell(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            onTap();
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 24,
-                    color: color,
-                  ),
+    Widget content = Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                const SizedBox(height: 4),
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 200),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: fontWeight,
-                    color: color,
-                    height: 1.0,
-                  ),
-                  child: Text(
-                    label,
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                    textAlign: TextAlign.center,
-                  ),
+                child: Icon(
+                  icon,
+                  size: 24,
+                  color: color,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 4),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 200),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: fontWeight,
+                  color: color,
+                  height: 1.0,
+                ),
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
+
+    if (showcaseKey != null && showcaseDescription != null) {
+      // Showcase disabled: using global GuidedOverlay instead
+    }
+
+    return Expanded(child: content);
   }
 }
 
@@ -477,12 +613,17 @@ class _GlassmorphicCenterButton extends StatelessWidget {
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
+  final GlobalKey? showcaseKey;
+  final String? showcaseDescription;
 
   const _GlassmorphicCenterButton({
+    super.key,
     required this.icon,
     required this.label,
     required this.isSelected,
     required this.onTap,
+    this.showcaseKey,
+    this.showcaseDescription,
   });
 
   @override
@@ -490,96 +631,99 @@ class _GlassmorphicCenterButton extends StatelessWidget {
     final primaryColor = Theme.of(context).colorScheme.primary;
     final accentColor = SonarPulseTheme.primaryAccent;
 
-    return Expanded(
-      child: Material(
-        type: MaterialType.transparency,
-        child: InkWell(
-          onTap: () {
-            HapticFeedback.mediumImpact();
-            onTap();
-          },
-          customBorder: const CircleBorder(),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Glassmorphic container with animated glow
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOutCubic,
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: isSelected
-                        ? LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              accentColor.withOpacity(0.4),
-                              primaryColor.withOpacity(0.3),
-                            ],
-                          )
-                        : LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              primaryColor.withOpacity(0.15),
-                              primaryColor.withOpacity(0.08),
-                            ],
-                          ),
-                    border: Border.all(
-                      color: isSelected
-                          ? accentColor.withOpacity(0.6)
-                          : primaryColor.withOpacity(0.3),
-                      width: isSelected ? 2 : 1.5,
-                    ),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: accentColor.withOpacity(0.4),
-                              blurRadius: 12,
-                              spreadRadius: 2,
-                            ),
-                          ]
-                        : [],
-                  ),
-                  child: Center(
-                    child: Icon(
-                      icon,
-                      size: 22,
-                      color: isSelected
-                          ? Colors.white
-                          : primaryColor.withOpacity(0.9),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 200),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+    Widget content = Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.mediumImpact();
+          onTap();
+        },
+        customBorder: const CircleBorder(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Glassmorphic container with animated glow
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOutCubic,
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: isSelected
+                      ? LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            accentColor.withOpacity(0.4),
+                            primaryColor.withOpacity(0.3),
+                          ],
+                        )
+                      : LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            primaryColor.withOpacity(0.15),
+                            primaryColor.withOpacity(0.08),
+                          ],
+                        ),
+                  border: Border.all(
                     color: isSelected
-                        ? accentColor
-                        : primaryColor.withOpacity(0.9),
-                    height: 1.0,
+                        ? accentColor.withOpacity(0.6)
+                        : primaryColor.withOpacity(0.3),
+                    width: isSelected ? 2 : 1.5,
                   ),
-                  child: Text(
-                    label,
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                    textAlign: TextAlign.center,
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: accentColor.withOpacity(0.4),
+                            blurRadius: 12,
+                            spreadRadius: 2,
+                          ),
+                        ]
+                      : [],
+                ),
+                child: Center(
+                  child: Icon(
+                    icon,
+                    size: 22,
+                    color: isSelected
+                        ? Colors.white
+                        : primaryColor.withOpacity(0.9),
                   ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 4),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 200),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                  color:
+                      isSelected ? accentColor : primaryColor.withOpacity(0.9),
+                  height: 1.0,
+                ),
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
+
+    if (showcaseKey != null && showcaseDescription != null) {
+      // Showcase disabled: using global GuidedOverlay instead
+    }
+
+    return Expanded(child: content);
   }
 }
 
@@ -620,7 +764,10 @@ class SimplifiedFeedWidget extends StatelessWidget {
                                       textAlign: TextAlign.center,
                                       style: TextStyle(color: Colors.grey))
                                 ])))))),
-        if (state is Offline) const OfflineOverlay()
+        // CRITICAL: Only show OfflineOverlay when authenticated - hide on sign-out to prevent blocking LoginScreen
+        // Check if user is still authenticated using FirebaseAuth instead of Bloc state
+        if (FirebaseAuth.instance.currentUser != null && state is Offline)
+          const OfflineOverlay()
       ]);
     });
   }
@@ -667,7 +814,11 @@ class _VisibilityWrapperState extends State<_VisibilityWrapper>
       );
     }
 
-    // Return empty container for completely inactive screens
-    return const SizedBox.shrink();
+    // Return container with background color instead of shrink to prevent black screen
+    // This ensures something visible is shown during transitions
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: const SizedBox.shrink(),
+    );
   }
 }

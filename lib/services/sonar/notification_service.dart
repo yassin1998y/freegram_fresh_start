@@ -3,6 +3,9 @@ import 'package:flutter/foundation.dart'; // Needed for debugPrint
 import 'package:flutter/material.dart'; // Needed for @pragma('vm:entry-point')
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:freegram/services/fcm_navigation_service.dart';
+import 'package:freegram/navigation/app_routes.dart';
+import 'package:freegram/locator.dart';
+import 'package:freegram/services/navigation_service.dart';
 
 // Define top-level or static function for background notification tap handling
 @pragma('vm:entry-point')
@@ -232,9 +235,8 @@ class NotificationService {
               final chatId = parts[1];
               final senderId = parts[2];
               debugPrint("[Local Notification] Navigating to chat: $chatId");
-              Navigator.pushNamed(
-                context,
-                '/chat',
+              locator<NavigationService>().navigateNamed(
+                AppRoutes.chat,
                 arguments: {
                   'chatId': chatId,
                   'otherUserId': senderId,
@@ -247,9 +249,8 @@ class NotificationService {
             if (parts.length >= 2) {
               final userId = parts[1];
               debugPrint("[Local Notification] Navigating to profile: $userId");
-              Navigator.pushNamed(
-                context,
-                '/profile',
+              locator<NavigationService>().navigateNamed(
+                AppRoutes.profile,
                 arguments: {'userId': userId},
               );
             }

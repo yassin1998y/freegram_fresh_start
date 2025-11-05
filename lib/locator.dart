@@ -7,9 +7,13 @@ import 'package:freegram/repositories/chat_repository.dart'; // Keep
 // import 'package:freegram/repositories/game_repository.dart'; // Remove
 // import 'package:freegram/repositories/inventory_repository.dart'; // Remove
 import 'package:freegram/repositories/notification_repository.dart'; // Keep
-// import 'package:freegram/repositories/post_repository.dart'; // Remove
+import 'package:freegram/repositories/post_repository.dart'; // Social Feed
+import 'package:freegram/repositories/page_repository.dart'; // Pages & Admin System
+import 'package:freegram/repositories/post_template_repository.dart'; // Post Templates
+import 'package:freegram/repositories/report_repository.dart'; // Reporting & Moderation
+import 'package:freegram/repositories/feature_guide_repository.dart'; // Feature Discovery
 import 'package:freegram/repositories/store_repository.dart'; // Keep
-// import 'package:freegram/repositories/story_repository.dart'; // Remove
+import 'package:freegram/repositories/story_repository.dart'; // Stories Feature
 // import 'package:freegram/repositories/task_repository.dart'; // Remove
 import 'package:freegram/repositories/user_repository.dart'; // Keep
 import 'package:freegram/services/sonar/local_cache_service.dart'; // Keep
@@ -27,6 +31,12 @@ import 'package:freegram/services/fcm_token_service.dart'; // FCM push notificat
 import 'package:freegram/services/presence_manager.dart'; // Presence/online status
 import 'package:freegram/services/navigation_service.dart'; // Professional navigation
 import 'package:freegram/services/loading_overlay_service.dart'; // Loading overlays
+import 'package:freegram/services/page_analytics_service.dart'; // Page Analytics
+import 'package:freegram/services/hashtag_service.dart'; // Hashtag System
+import 'package:freegram/services/mention_service.dart'; // Mention System
+import 'package:freegram/services/moderation_service.dart'; // Moderation System
+import 'package:freegram/repositories/search_repository.dart'; // Search & Discovery
+import 'package:freegram/services/ad_service.dart'; // Ad Service
 import 'package:get_it/get_it.dart';
 
 final GetIt locator = GetIt.instance;
@@ -40,6 +50,21 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
   locator.registerLazySingleton(() => NotificationRepository()); // Keep
   locator.registerLazySingleton(() => StoreRepository()); // Keep
   locator.registerLazySingleton(() => ActionQueueRepository()); // Keep
+  // PostRepository now depends on HashtagService and MentionService, so register them first
+  locator.registerLazySingleton(() => HashtagService());
+  locator.registerLazySingleton(() => MentionService(
+        userRepository: locator<UserRepository>(),
+      ));
+  locator.registerLazySingleton(() => PostRepository()); // Social Feed
+  locator.registerLazySingleton(() => PageRepository()); // Pages & Admin System
+  locator
+      .registerLazySingleton(() => PostTemplateRepository()); // Post Templates
+  locator.registerLazySingleton(
+      () => ReportRepository()); // Reporting & Moderation
+  locator.registerLazySingleton(
+      () => FeatureGuideRepository()); // Feature Discovery
+  locator.registerLazySingleton(() => SearchRepository()); // Search & Discovery
+  locator.registerLazySingleton(() => StoryRepository()); // Stories Feature
 
   // --- Register Repositories with Dependencies ---
   // UserRepository: Remove GamificationRepository dependency, keep NotificationRepository
@@ -79,6 +104,15 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
 
   // Presence Manager - Online status and last seen
   locator.registerLazySingleton(() => PresenceManager());
+
+  // Page Analytics Service
+  locator.registerLazySingleton(() => PageAnalyticsService());
+
+  // Ad Service
+  locator.registerLazySingleton(() => AdService());
+
+  // Moderation Service
+  locator.registerLazySingleton(() => ModerationService());
 
   // Initialize Services
   NetworkQualityService().init();

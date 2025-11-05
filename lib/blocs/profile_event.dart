@@ -33,3 +33,17 @@ class ProfileImageUploadProgressEvent extends ProfileEvent {
   @override
   List<Object?> get props => [progress];
 }
+
+/// Event to upload an image only (without updating full profile).
+class ProfileImageUploadOnlyEvent extends ProfileEvent {
+  final String userId;
+  final XFile imageFile;
+
+  const ProfileImageUploadOnlyEvent({
+    required this.userId,
+    required this.imageFile,
+  });
+
+  @override
+  List<Object?> get props => [userId, imageFile];
+}

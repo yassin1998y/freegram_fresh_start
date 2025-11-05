@@ -1,8 +1,12 @@
+// lib/screens/onboarding_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:freegram/screens/feature_discovery_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
+  const OnboardingScreen({Key? key}) : super(key: key);
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -12,30 +16,70 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  // The content for each onboarding page
-  final List<Map<String, String>> _onboardingData = [
-    {
-      "icon": "assets/icons/discover.png", // Placeholder, you'd add actual assets
-      "title": "Discover & Connect",
-      "description": "Explore profiles in the Discover tab and find new people who share your interests.",
-    },
-    {
-      "icon": "assets/icons/match.png",
-      "title": "Play the Match Game",
-      "description": "Tap the flame icon to swipe through profiles. A right swipe is a 'like' - if they like you back, it's a match!",
-    },
-    {
-      "icon": "assets/icons/store.png",
-      "title": "Visit the Store",
-      "description": "Get free daily rewards and purchase Super Likes to stand out from the crowd.",
-    },
+  final List<OnboardingPage> _pages = [
+    OnboardingPage(
+      icon: Icons.explore,
+      title: 'Welcome to Freegram!',
+      description: 'Discover, connect, and share with people around you.',
+      color: Colors.blue,
+    ),
+    OnboardingPage(
+      icon: Icons.feed,
+      title: 'Social Feed',
+      description:
+          'Stay updated with posts from friends, pages, and trending content.',
+      color: Colors.purple,
+    ),
+    OnboardingPage(
+      icon: Icons.location_on,
+      title: 'Nearby Discovery',
+      description:
+          'Find people and content near you using Bluetooth technology.',
+      color: Colors.green,
+    ),
+    OnboardingPage(
+      icon: Icons.chat_bubble,
+      title: 'Connect & Chat',
+      description: 'Message friends, react to posts, and build your community.',
+      color: Colors.orange,
+    ),
+    OnboardingPage(
+      icon: Icons.school,
+      title: 'Learn Features',
+      description:
+          'Explore our feature guides to get the most out of Freegram.',
+      color: Colors.pink,
+    ),
   ];
 
-  void _onFinished() {
-    // Use Hive to save that the user has completed onboarding
-    final settingsBox = Hive.box('settings');
-    settingsBox.put('hasSeenOnboarding', true);
-    Navigator.of(context).pop();
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _markOnboardingComplete() async {
+    try {
+      final settingsBox = Hive.box('settings');
+      final user = FirebaseAuth.instance.currentUser;
+      final key = 'hasSeenOnboarding_${user?.uid ?? 'guest'}';
+      await settingsBox.put(key, true);
+
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/');
+      }
+    } catch (e) {
+      debugPrint('OnboardingScreen: Error marking complete: $e');
+    }
+  }
+
+  void _skipToFeatureDiscovery() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const FeatureDiscoveryScreen(),
+      ),
+    );
   }
 
   @override
@@ -44,141 +88,157 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            // Skip button
+            Align(
+              alignment: Alignment.topRight,
+              child: TextButton(
+                onPressed: _markOnboardingComplete,
+                child: const Text('Skip'),
+              ),
+            ),
+            // Page view
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
-                itemCount: _onboardingData.length,
-                onPageChanged: (int page) {
+                onPageChanged: (index) {
                   setState(() {
-                    _currentPage = page;
+                    _currentPage = index;
                   });
                 },
+                itemCount: _pages.length,
                 itemBuilder: (context, index) {
-                  return OnboardingPage(
-                    title: _onboardingData[index]['title']!,
-                    description: _onboardingData[index]['description']!,
-                    iconData: _getIconData(index),
-                  );
+                  final page = _pages[index];
+                  return _buildOnboardingPage(page);
                 },
               ),
             ),
+            // Page indicators
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                _pages.length,
+                (index) => _buildPageIndicator(index == _currentPage),
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Navigation buttons
             Padding(
               padding: const EdgeInsets.all(24.0),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Skip Button
-                  TextButton(
-                    onPressed: _onFinished,
-                    child: const Text("SKIP"),
-                  ),
-
-                  // Dots Indicator
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      _onboardingData.length,
-                          (index) => AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        height: 10,
-                        width: _currentPage == index ? 30 : 10,
-                        margin: const EdgeInsets.symmetric(horizontal: 5),
-                        decoration: BoxDecoration(
-                          color: _currentPage == index
-                              ? Colors.blue
-                              : Colors.grey,
-                          borderRadius: BorderRadius.circular(5),
-                        ),
+                  if (_currentPage > 0)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          _pageController.previousPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        },
+                        child: const Text('Previous'),
                       ),
                     ),
-                  ),
-
-                  // Next / Done Button
-                  ElevatedButton(
-                    onPressed: () {
-                      if (_currentPage == _onboardingData.length - 1) {
-                        _onFinished();
-                      } else {
-                        _pageController.nextPage(
-                          duration: const Duration(milliseconds: 400),
-                          curve: Curves.easeInOut,
-                        );
-                      }
-                    },
-                    child: Text(
-                      _currentPage == _onboardingData.length - 1
-                          ? "DONE"
-                          : "NEXT",
+                  if (_currentPage > 0) const SizedBox(width: 16),
+                  Expanded(
+                    flex: _currentPage == 0 ? 1 : 2,
+                    child: ElevatedButton(
+                      onPressed: _currentPage == _pages.length - 1
+                          ? _markOnboardingComplete
+                          : () {
+                              _pageController.nextPage(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
+                              );
+                            },
+                      child: Text(
+                        _currentPage == _pages.length - 1
+                            ? 'Get Started'
+                            : 'Next',
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
+            // Explore features button (on last page)
+            if (_currentPage == _pages.length - 1)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: TextButton(
+                  onPressed: _skipToFeatureDiscovery,
+                  child: const Text('Explore Feature Guides'),
+                ),
+              ),
           ],
         ),
       ),
     );
   }
 
-  // Helper to return actual icons since we can't use asset strings directly
-  IconData _getIconData(int index) {
-    switch (index) {
-      case 0:
-        return Icons.people_outline;
-      case 1:
-        return Icons.whatshot;
-      case 2:
-        return Icons.storefront_outlined;
-      default:
-        return Icons.info_outline;
-    }
-  }
-}
-
-class OnboardingPage extends StatelessWidget {
-  final String title;
-  final String description;
-  final IconData iconData;
-
-  const OnboardingPage({
-    super.key,
-    required this.title,
-    required this.description,
-    required this.iconData,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildOnboardingPage(OnboardingPage page) {
     return Padding(
-      padding: const EdgeInsets.all(40.0),
+      padding: const EdgeInsets.all(32.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            iconData,
-            size: 120,
-            color: Colors.blue,
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: page.color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              page.icon,
+              size: 64,
+              color: page.color,
+            ),
           ),
           const SizedBox(height: 48),
           Text(
-            title,
+            page.title,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
           ),
           const SizedBox(height: 16),
           Text(
-            description,
+            page.description,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: Colors.grey[700],
+                ),
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[700],
-            ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildPageIndicator(bool isActive) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      width: isActive ? 24 : 8,
+      height: 8,
+      decoration: BoxDecoration(
+        color:
+            isActive ? Theme.of(context).colorScheme.primary : Colors.grey[300],
+        borderRadius: BorderRadius.circular(4),
+      ),
+    );
+  }
+}
+
+class OnboardingPage {
+  final IconData icon;
+  final String title;
+  final String description;
+  final Color color;
+
+  OnboardingPage({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.color,
+  });
 }

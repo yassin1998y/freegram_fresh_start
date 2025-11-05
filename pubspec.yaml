@@ -26,8 +26,10 @@ dependencies:
   firebase_core: ^2.25.4
   firebase_auth: ^4.17.4
   cloud_firestore: ^4.15.4
+  cloud_functions: ^4.7.6 # For calling Cloud Functions (Boost Post feature)
   firebase_messaging: ^14.7.15
   firebase_database: ^10.4.5 # Keep for Presence
+  firebase_analytics: ^10.10.7 # For analytics tracking (compatible with firebase_core ^2.25.4)
 
   # Social Sign-In
   google_sign_in: ^6.2.1
@@ -47,12 +49,14 @@ dependencies:
   shimmer: ^3.0.0
   # animations: ^2.0.11 # Removed (Likely used by deleted features)
   # card_swiper: ^3.0.1 # Removed (Likely used by deleted features like stories/feed?) - Re-add if used elsewhere
-  showcaseview: ^2.0.3 # Keep if onboarding uses it
+  showcaseview: 2.0.3 # Pin to avoid breaking changes in 2.1.x
   country_picker: ^2.0.26 # Keep for profile editing
   simple_animations: ^5.0.2 # Keep if used by remaining UI (e.g., SonarView)
 
-  # Video (REMOVED - No longer needed for reels/stories)
-  # video_player: ^2.8.6
+  # Video (Re-added for Stories feature)
+  video_player: ^2.8.6
+  video_thumbnail: ^0.5.3
+  camera: ^0.10.5
   # chewie: ^1.7.5
   # video_editor: ^3.0.0
   # video_compress: ^3.1.2
@@ -60,6 +64,7 @@ dependencies:
 
   flutter_cache_manager: ^3.3.1 # Keep for images
   cached_network_image: ^3.3.1 # Keep for images
+  photo_view: ^0.14.0 # Image gallery viewer with zoom/pan
 
   # Utils
   http: ^1.1.0 # Keep for Cloudinary upload (profile pics)
@@ -71,6 +76,7 @@ dependencies:
   connectivity_plus: ^5.0.2 # Keep for connectivity BLoC
   google_fonts: ^6.2.1 # Keep for Theme
   intl: ^0.18.1 # Keep for formatting dates/numbers
+  fl_chart: ^0.66.0 # Charts for analytics
 
   # Local Storage
   hive: ^2.2.3
@@ -82,10 +88,18 @@ dependencies:
   app_settings: ^5.1.1 # Keep for Bluetooth/Location settings shortcut
   qr_flutter: ^4.1.0 # Keep for QR code display
   url_launcher: ^6.2.0 # For smart text links (phone, email, URLs)
+  share_plus: ^7.2.2 # For sharing posts
+  
+  # Location Services (for Nearby Feed)
+  geolocator: ^10.1.0
+  geocoding: ^3.0.0
 
   # Store & Monetization
   google_mobile_ads: ^5.1.0 # Keep for AdHelper
   in_app_purchase: ^3.2.0 # Keep for IAP Service
+
+  # Analytics & Tracking
+  visibility_detector: ^0.4.0+2 # For tracking ad impressions
 
   # Added crypto for uidShort generation in user_model
   crypto: ^3.0.3

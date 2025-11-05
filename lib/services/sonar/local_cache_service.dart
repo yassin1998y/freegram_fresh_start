@@ -8,6 +8,7 @@ import 'package:freegram/models/hive/user_profile.dart';
 import 'package:freegram/models/hive/wave_record.dart';
 import 'package:freegram/models/hive/friend_request_record.dart';
 import 'package:freegram/services/sync_manager.dart'; // Import for SyncManager
+import 'package:freegram/utils/app_constants.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -22,8 +23,8 @@ class LocalCacheService {
 
   // --- ADDED: Debounce timer for profile sync ---
   Timer? _syncDebounceTimer;
-  final Duration _syncDebounceDuration =
-      const Duration(milliseconds: 1500); // 1.5 seconds debounce
+  // Use constant from AppConstants for maintainability
+  final Duration _syncDebounceDuration = AppConstants.syncDebounceDuration;
 
   LocalCacheService() {
     // Ensure boxes are opened in main.dart before this is instantiated
@@ -69,6 +70,9 @@ class LocalCacheService {
           "LocalCacheService: NEW user discovered $uidShort with foundAt=$now (put complete)");
 
       // --- START: Profile Sync Delay Fix (#1 & #2) ---
+      // ⚠️ STRUCTURE: Circular dependency - LocalCacheService triggers SyncManager
+      // Consider: Use event bus or callback pattern to break circular dependency
+      // Consider: Extract sync trigger logic to a coordinator service
       // When a NEW user is found, check connectivity and trigger sync if online
       final connectivityBloc = locator<ConnectivityBloc>();
       if (connectivityBloc.state is Online) {

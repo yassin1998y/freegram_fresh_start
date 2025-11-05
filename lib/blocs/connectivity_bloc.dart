@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:bloc/bloc.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:equatable/equatable.dart';
-import 'package:flutter/foundation.dart'; // For debugPrint
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 
 part 'connectivity_event.dart';
 part 'connectivity_state.dart';
@@ -68,6 +68,14 @@ class ConnectivityBloc extends Bloc<ConnectivityEvent, ConnectivityState> {
 
     _isCheckingInternet = true;
     try {
+      // InternetAddress.lookup is not supported on web
+      if (kIsWeb) {
+        _isCheckingInternet = false;
+        // On web, assume online if connectivity check passed
+        // (connectivity_plus handles web connectivity differently)
+        return true;
+      }
+
       // Try to lookup Google's DNS (very reliable and fast)
       final result = await InternetAddress.lookup('google.com').timeout(
         const Duration(seconds: 3),

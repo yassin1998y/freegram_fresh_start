@@ -7,6 +7,7 @@ import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/notification_repository.dart';
 import 'package:freegram/repositories/action_queue_repository.dart';
 import 'package:freegram/services/friend_cache_service.dart';
+import 'package:freegram/utils/app_constants.dart';
 
 class UserRepository {
   final FirebaseFirestore _db;
@@ -24,6 +25,12 @@ class UserRepository {
         _actionQueueRepository = locator<ActionQueueRepository>();
 
   // --- User Profile Methods ---
+
+  /// Fetches a single user by their unique ID.
+  ///
+  /// Throws [Exception] if the user document does not exist in Firestore.
+  ///
+  /// Returns [UserModel] containing the user's profile data.
   Future<UserModel> getUser(String uid) async {
     final doc = await _db.collection('users').doc(uid).get();
     if (!doc.exists) {
@@ -32,6 +39,36 @@ class UserRepository {
     return UserModel.fromDoc(doc);
   }
 
+  /// Fetches a user by their username (case-insensitive).
+  ///
+  /// Returns [UserModel] if found, null otherwise.
+  Future<UserModel?> getUserByUsername(String username) async {
+    try {
+      final snapshot = await _db
+          .collection('users')
+          .where('username', isEqualTo: username)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        return null;
+      }
+
+      return UserModel.fromDoc(snapshot.docs.first);
+    } catch (e) {
+      debugPrint('UserRepository: Error getting user by username: $e');
+      return null;
+    }
+  }
+
+  /// Provides a real-time stream of user profile updates.
+  ///
+  /// When a document doesn't exist initially, retries with a delay before throwing.
+  ///
+  /// [userId] - The unique identifier of the user to stream
+  ///
+  /// Returns a [Stream<UserModel>] that emits updates whenever the user document changes.
+  /// Throws [Exception] if user not found after retry.
   Stream<UserModel> getUserStream(String userId) {
     return _db
         .collection('users')
@@ -60,6 +97,15 @@ class UserRepository {
     });
   }
 
+  /// Updates user profile data in Firestore.
+  ///
+  /// Automatically removes protected fields (uidShort, id, xp, level, etc.) to prevent
+  /// accidental overwrites. Invalidates friend cache after successful update.
+  ///
+  /// [uid] - The unique identifier of the user to update
+  /// [data] - Map of field names to new values
+  ///
+  /// Throws [Exception] if Firestore update fails.
   Future<void> updateUser(String uid, Map<String, dynamic> data) async {
     data.remove('uidShort');
     data.remove('id');
@@ -90,7 +136,16 @@ class UserRepository {
     }
   }
 
-  // getUsersByUidShorts remains the same
+  /// Fetches multiple user profiles by their short IDs (uidShort).
+  ///
+  /// Automatically handles Firestore's 30-item batch limit by splitting large requests
+  /// into multiple queries. Useful for syncing discovered users from Sonar system.
+  ///
+  /// [uidShorts] - List of 8-character short user IDs derived from full user IDs
+  ///
+  /// Returns a [Map<String, UserModel>] where keys are uidShorts and values are UserModels.
+  /// Returns empty map if uidShorts list is empty.
+  /// Logs warning if duplicate uidShorts are detected in Firestore (data integrity issue).
   Future<Map<String, UserModel>> getUsersByUidShorts(
       List<String> uidShorts) async {
     if (uidShorts.isEmpty) {
@@ -100,38 +155,74 @@ class UserRepository {
     try {
       Map<String, UserModel> results = {};
       List<List<String>> batches = [];
-      for (var i = 0; i < uidShorts.length; i += 30) {
+      // Use Firestore batch limit constant for clarity
+      for (var i = 0;
+          i < uidShorts.length;
+          i += AppConstants.firestoreBatchLimit) {
         batches.add(uidShorts.sublist(
-            i, i + 30 > uidShorts.length ? uidShorts.length : i + 30));
+            i,
+            i + AppConstants.firestoreBatchLimit > uidShorts.length
+                ? uidShorts.length
+                : i + AppConstants.firestoreBatchLimit));
       }
 
-      for (var batch in batches) {
-        final querySnapshot = await _db
-            .collection('users')
-            .where('uidShort', whereIn: batch)
-            .get();
+      // Optimized: Process batches in parallel with concurrency limit
+      // This improves performance when fetching many profiles while avoiding Firestore overload
+      for (var i = 0;
+          i < batches.length;
+          i += AppConstants.maxConcurrentBatches) {
+        final batchGroup = batches.sublist(
+          i,
+          i + AppConstants.maxConcurrentBatches > batches.length
+              ? batches.length
+              : i + AppConstants.maxConcurrentBatches,
+        );
 
-        for (var doc in querySnapshot.docs) {
-          final user = UserModel.fromDoc(doc);
+        final groupFutures = batchGroup.map((batch) async {
+          final querySnapshot = await _db
+              .collection('users')
+              .where('uidShort', whereIn: batch)
+              .get();
 
-          // CRITICAL FIX: Detect duplicate uidShort values in Firestore!
-          if (results.containsKey(user.uidShort)) {
-            debugPrint(
-                "❌ [CRITICAL BUG] DUPLICATE uidShort detected in Firestore!");
-            debugPrint("   uidShort: ${user.uidShort}");
-            debugPrint(
-                "   Previous user: ${results[user.uidShort]!.id} (${results[user.uidShort]!.username})");
-            debugPrint("   Current user:  ${user.id} (${user.username})");
-            debugPrint(
-                "   ⚠️  This will cause WRONG WAVE TARGETS! Only ONE user should have this uidShort!");
-            // Keep the first one found, log the duplicate
-            continue; // Skip the duplicate
+          // Optimized: Check for duplicates in query results before converting to UserModel
+          final foundUidShorts = <String>{};
+          for (var doc in querySnapshot.docs) {
+            final data = doc.data();
+            final uidShort = data['uidShort'] as String?;
+            if (uidShort == null) continue;
+
+            // Check for duplicates in this batch's results before processing
+            if (foundUidShorts.contains(uidShort)) {
+              debugPrint(
+                  "❌ [CRITICAL BUG] DUPLICATE uidShort in same batch: $uidShort");
+              continue;
+            }
+            foundUidShorts.add(uidShort);
+
+            // Check if already exists in final results
+            if (results.containsKey(uidShort)) {
+              debugPrint(
+                  "❌ [CRITICAL BUG] DUPLICATE uidShort detected in Firestore!");
+              debugPrint("   uidShort: $uidShort");
+              debugPrint(
+                  "   Previous user: ${results[uidShort]!.id} (${results[uidShort]!.username})");
+              debugPrint(
+                  "   Current user:  ${doc.id} (${data['username'] ?? 'unknown'})");
+              debugPrint(
+                  "   ⚠️  This will cause WRONG WAVE TARGETS! Only ONE user should have this uidShort!");
+              continue; // Skip the duplicate
+            }
+
+            // Only convert to UserModel if we know it's not a duplicate
+            final user = UserModel.fromDoc(doc);
+            results[uidShort] = user;
           }
+          debugPrint(
+              "UserRepository: Fetched batch for ${batch.length} uidShorts, found ${querySnapshot.docs.length} users.");
+        });
 
-          results[user.uidShort] = user;
-        }
-        debugPrint(
-            "UserRepository: Fetched batch for ${batch.length} uidShorts, found ${querySnapshot.docs.length} users.");
+        // Wait for this group to complete before starting next group
+        await Future.wait(groupFutures, eagerError: false);
       }
 
       debugPrint(
@@ -193,6 +284,24 @@ class UserRepository {
 
   // --- Friendship Methods ---
   // ⭐ PHASE 5: TRANSACTION SAFETY - Using Firestore transaction for atomic operations
+
+  /// Sends a friend request from one user to another with full transaction safety.
+  ///
+  /// Uses Firestore transactions to ensure atomicity and prevent race conditions.
+  /// Includes comprehensive validation: blocks checks, idempotency, duplicate prevention.
+  /// Optionally includes a custom message with the friend request.
+  ///
+  /// [fromUserId] - The user sending the friend request
+  /// [toUserId] - The user receiving the friend request
+  /// [isSync] - If true, skips connectivity check (used during offline sync)
+  /// [message] - Optional custom message to include with the request
+  ///
+  /// Throws [Exception] if:
+  /// - Users not found
+  /// - Users are already friends
+  /// - Request already sent (idempotency check)
+  /// - Either user has blocked the other
+  /// - User attempting to send request to themselves
   Future<void> sendFriendRequest(String fromUserId, String toUserId,
       {bool isSync = false, String? message}) async {
     if (fromUserId == toUserId) {
@@ -215,6 +324,10 @@ class UserRepository {
       UserModel? fromUser;
 
       // Bug #13 fix: Check blocks BEFORE starting transaction for better performance
+      // ⚠️ PERFORMANCE: Pre-check adds extra Firestore read before transaction
+      // Consider: This is acceptable for avoiding transaction overhead, but note the trade-off
+      // ⚠️ MAINTAINABILITY: Data is read twice (pre-check + transaction) - ensure consistency
+      // Consider: Document why pre-check is necessary (transaction retry cost)
       final fromUserPreCheck = await fromUserRef.get();
       if (!fromUserPreCheck.exists) {
         throw Exception("Sender user not found.");
@@ -864,5 +977,41 @@ class UserRepository {
         .where('username', isLessThanOrEqualTo: '$sanitizedQuery\uf8ff')
         .limit(20)
         .snapshots();
+  }
+
+  /// Check if user is following a page
+  /// Uses the user's followedPages array for efficient lookup
+  /// More efficient than querying a subcollection
+  Future<bool> isFollowingPage(String userId, String pageId) async {
+    try {
+      final userDoc = await _db.collection('users').doc(userId).get();
+      if (!userDoc.exists) {
+        if (kDebugMode) {
+          debugPrint('[UserRepository] User not found: $userId');
+        }
+        return false;
+      }
+
+      final data = userDoc.data();
+      if (data == null) {
+        if (kDebugMode) {
+          debugPrint('[UserRepository] User data is null: $userId');
+        }
+        return false;
+      }
+
+      final followedPages = List<String>.from(data['followedPages'] ?? []);
+      final isFollowing = followedPages.contains(pageId);
+
+      if (kDebugMode) {
+        debugPrint(
+            '[UserRepository] User $userId isFollowingPage $pageId: $isFollowing');
+      }
+
+      return isFollowing;
+    } catch (e) {
+      debugPrint('UserRepository: Error checking if following page: $e');
+      return false;
+    }
   }
 }

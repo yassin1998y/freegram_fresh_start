@@ -27,6 +27,16 @@ class ProfileImageUploading extends ProfileState {
 /// The state when a profile update has completed successfully.
 class ProfileUpdateSuccess extends ProfileState {}
 
+/// The state when an image has been uploaded successfully (without full profile update).
+class ProfileImageUploaded extends ProfileState {
+  final String imageUrl;
+
+  const ProfileImageUploaded({required this.imageUrl});
+
+  @override
+  List<Object> get props => [imageUrl];
+}
+
 /// The state when an error occurs during a profile update.
 class ProfileError extends ProfileState {
   final String message;

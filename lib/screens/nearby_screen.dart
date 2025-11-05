@@ -29,7 +29,6 @@ import 'package:freegram/models/hive/user_profile.dart';
 import 'package:freegram/models/user_model.dart' as ServerUserModel; // Alias
 import 'package:freegram/services/navigation_service.dart';
 // Screens
-import 'package:freegram/screens/nearby_chat_list_screen.dart';
 import 'package:freegram/screens/profile_screen.dart';
 // Widgets
 import 'package:freegram/widgets/sonar_view.dart';
@@ -412,6 +411,8 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
 
     // Use BlocConsumer to react to state changes and build UI
     return Scaffold(
+      // CRITICAL: Explicit background color to prevent black screen during transitions
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: BlocConsumer<NearbyBloc, NearbyState>(
         listener: (context, state) {
           // Optional: Add listeners for specific state transitions if needed
@@ -481,18 +482,6 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                   isActive: _isBluetoothHardwareEnabled,
                   onTap: () => AppSettings.openAppSettings(
                     type: AppSettingsType.bluetooth,
-                  ),
-                ),
-              ),
-              SizedBox(width: DesignTokens.spaceMD),
-              Expanded(
-                child: ProfessionalStatusChip(
-                  label: "Chats",
-                  icon: Icons.forum_outlined,
-                  isActive: true,
-                  onTap: () => locator<NavigationService>().navigateTo(
-                    const NearbyChatListScreen(),
-                    transition: PageTransition.slide,
                   ),
                 ),
               ),
@@ -1091,9 +1080,10 @@ class _WebPlaceholder extends StatelessWidget {
   const _WebPlaceholder();
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      // Needs Scaffold parent
-      body: Center(
+    return Scaffold(
+      // CRITICAL: Explicit background color to prevent black screen
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: const Center(
         child: Padding(
           padding: EdgeInsets.all(24.0),
           child: Column(
