@@ -116,8 +116,9 @@ class PageRepository {
       if (pageName != null) updateData['pageName'] = pageName;
       if (category != null) updateData['category'] = category;
       if (description != null) updateData['description'] = description;
-      if (profileImageUrl != null)
+      if (profileImageUrl != null) {
         updateData['profileImageUrl'] = profileImageUrl;
+      }
       if (coverImageUrl != null) updateData['coverImageUrl'] = coverImageUrl;
       if (website != null) updateData['website'] = website;
       if (contactEmail != null) updateData['contactEmail'] = contactEmail;
@@ -332,7 +333,7 @@ class PageRepository {
         // For now, we'll search by pageName starting with query (case-insensitive would require Cloud Functions)
         firestoreQuery = firestoreQuery
             .where('pageName', isGreaterThanOrEqualTo: query)
-            .where('pageName', isLessThan: query + '\uf8ff');
+            .where('pageName', isLessThan: '$query\uf8ff');
       }
 
       firestoreQuery = firestoreQuery
@@ -344,6 +345,64 @@ class PageRepository {
     } catch (e) {
       debugPrint('PageRepository: Error searching pages: $e');
       rethrow;
+    }
+  }
+
+  /// Get page suggestions for a user
+  /// Returns popular pages, pages with similar interests, or trending pages
+  Future<List<PageModel>> getPageSuggestions(String userId, {int limit = 10}) async {
+    try {
+      debugPrint('PageRepository: Getting page suggestions for $userId');
+      
+      // Get user's followed pages to exclude them
+      final userDoc = await _db.collection('users').doc(userId).get();
+      if (!userDoc.exists) {
+        return [];
+      }
+
+      final userData = userDoc.data()!;
+      final followedPages = List<String>.from(userData['followedPages'] ?? []);
+      final userInterests = List<String>.from(userData['interests'] ?? []);
+
+      // Get popular pages (high follower count)
+      final popularPagesSnapshot = await _db
+          .collection('pages')
+          .where('isActive', isEqualTo: true)
+          .orderBy('followerCount', descending: true)
+          .limit(limit * 2)
+          .get();
+
+      final pages = popularPagesSnapshot.docs
+          .where((doc) => !followedPages.contains(doc.id))
+          .map((doc) => PageModel.fromDoc(doc))
+          .toList();
+
+      // If user has interests, prioritize pages with similar categories/interests
+      if (userInterests.isNotEmpty && pages.length > limit) {
+        pages.sort((a, b) {
+          // Prioritize pages with categories matching user interests
+          final aMatches = userInterests
+              .where((interest) => 
+                  a.category?.toLowerCase().contains(interest.toLowerCase()) ?? false)
+              .length;
+          final bMatches = userInterests
+              .where((interest) => 
+                  b.category?.toLowerCase().contains(interest.toLowerCase()) ?? false)
+              .length;
+
+          if (aMatches != bMatches) {
+            return bMatches.compareTo(aMatches);
+          }
+
+          // Secondary sort by follower count
+          return (b.followerCount ?? 0).compareTo(a.followerCount ?? 0);
+        });
+      }
+
+      return pages.take(limit).toList();
+    } catch (e) {
+      debugPrint('PageRepository: Error getting page suggestions: $e');
+      return [];
     }
   }
 
@@ -741,7 +800,7 @@ class PageRepository {
       final status = requestData['status'] as String?;
 
       if (status != 'pending') {
-        throw Exception('Request is already ${status}');
+        throw Exception('Request is already $status');
       }
 
       if (pageId == null) {
@@ -790,7 +849,7 @@ class PageRepository {
       final status = requestData['status'] as String?;
 
       if (status != 'pending') {
-        throw Exception('Request is already ${status}');
+        throw Exception('Request is already $status');
       }
 
       if (pageId == null) {

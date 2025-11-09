@@ -58,6 +58,11 @@ class FcmForegroundHandler {
       case 'requestAccepted':
         _handleRequestAccepted(data);
         break;
+      case 'comment':
+      case 'reaction':
+      case 'mention':
+        _handlePostNotification(data);
+        break;
       default:
         if (kDebugMode) {
           debugPrint('[FCM Foreground Handler] Unknown type: $type');
@@ -136,6 +141,67 @@ class FcmForegroundHandler {
     if (kDebugMode) {
       debugPrint(
           '[FCM Foreground Handler] Island popup shown for friend request from $fromUsername');
+    }
+  }
+
+  /// Handle post-related notifications (comment, reaction/like, mention)
+  void _handlePostNotification(Map<String, dynamic> data) {
+    final postId = data['postId'] ?? '';
+    final commentId = data['commentId'];
+    final fromUsername = data['fromUsername'] ?? 'Someone';
+    final type = data['type'] ?? '';
+    
+    String title;
+    String body;
+    IconData icon;
+
+    // Customize message based on type
+    switch (type) {
+      case 'comment':
+        title = data['title'] ?? 'New Comment';
+        body = data['body'] ?? '$fromUsername commented on your post';
+        icon = Icons.comment;
+        break;
+      case 'reaction':
+        title = data['title'] ?? 'New Like';
+        body = data['body'] ?? '$fromUsername liked your post';
+        icon = Icons.favorite;
+        break;
+      case 'mention':
+        title = data['title'] ?? 'Mentioned You';
+        body = data['body'] ?? '$fromUsername mentioned you in a post';
+        icon = Icons.alternate_email;
+        break;
+      default:
+        title = 'Post Notification';
+        body = 'You have a new notification';
+        icon = Icons.notifications;
+    }
+
+    if (postId.isEmpty) {
+      if (kDebugMode) {
+        debugPrint('[FCM Foreground Handler] Post ID is empty, skipping post notification');
+      }
+      return;
+    }
+
+    // Show Island Popup
+    _showIslandPopup(
+      icon: icon,
+      title: title,
+      message: body,
+      onTap: () {
+        // Navigate to post detail screen when tapped
+        _navigationService.handleForegroundNotificationTap({
+          'type': type,
+          'postId': postId,
+          if (commentId != null) 'commentId': commentId,
+        });
+      },
+    );
+
+    if (kDebugMode) {
+      debugPrint('[FCM Foreground Handler] Island popup shown for $type notification from $fromUsername');
     }
   }
 

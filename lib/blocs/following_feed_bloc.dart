@@ -172,7 +172,7 @@ class FollowingFeedBloc extends Bloc<FollowingFeedEvent, FollowingFeedState> {
             // Prepend to the beginning of the feed
             posts.insert(0, mostRecent);
             debugPrint(
-                'FollowingFeedBloc: Added user\'s recent post to top of feed (${ageInMinutes} minutes old)');
+                'FollowingFeedBloc: Added user\'s recent post to top of feed ($ageInMinutes minutes old)');
           }
         }
       } catch (e) {

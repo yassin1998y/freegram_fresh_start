@@ -103,9 +103,10 @@ class UserModel extends Equatable {
     }
 
     if (timestamp is Timestamp) return timestamp.toDate();
-    if (timestamp is String)
+    if (timestamp is String) {
       return DateTime.tryParse(timestamp) ??
           DateTime.fromMillisecondsSinceEpoch(0); // Safer fallback
+    }
     if (timestamp is int) {
       if (timestamp > 1000000000000) {
         // Milliseconds
@@ -126,8 +127,9 @@ class UserModel extends Equatable {
 
   static List<String> _getList(Map<String, dynamic> data, String key) {
     final value = data[key];
-    if (value is List)
+    if (value is List) {
       return List<String>.from(value.map((item) => item.toString()));
+    }
     return [];
   }
 

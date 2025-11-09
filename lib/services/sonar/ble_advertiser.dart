@@ -1,6 +1,5 @@
 // lib/services/sonar/ble_advertiser.dart
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 // Correct import for advertising
 import 'package:flutter_ble_peripheral/flutter_ble_peripheral.dart';
@@ -261,7 +260,7 @@ class BleAdvertiser {
 
     try {
       // Use a different manufacturer ID to avoid conflicts
-      const int ALTERNATIVE_MANUFACTURER_ID = 0xFFFC;
+      const int alternativeManufacturerId = 0xFFFC;
 
       // Try with even more minimal data
       String shortUid = uidShort.substring(0, 2); // Only 2 characters
@@ -273,7 +272,7 @@ class BleAdvertiser {
       final advData = AdvertiseData(
         serviceUuid:
             BluetoothDiscoveryService.DISCOVERY_SERVICE_UUID.toString(),
-        manufacturerId: ALTERNATIVE_MANUFACTURER_ID,
+        manufacturerId: alternativeManufacturerId,
         manufacturerData: payload,
       );
 

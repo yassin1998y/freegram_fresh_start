@@ -20,6 +20,7 @@ import 'package:freegram/utils/friend_list_helpers.dart';
 import 'package:freegram/widgets/freegram_app_bar.dart';
 import 'package:freegram/widgets/network_status_banner.dart';
 import 'package:freegram/widgets/friend_loading_skeleton.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class FriendsListScreen extends StatefulWidget {
   final int initialIndex;
@@ -55,6 +56,7 @@ class _FriendsListScreenState extends State<FriendsListScreen>
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: friends_list_screen.dart');
     _tabController = TabController(
         length: widget.userId == null ? 3 : 1,
         vsync: this,
@@ -103,7 +105,7 @@ class _FriendsListScreenState extends State<FriendsListScreen>
       // CRITICAL: Explicit background color to prevent black screen during transitions
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: _isSelectionMode
-          ? FreegramAppBar(
+          ? const FreegramAppBar(
               title: 'Select Friend',
               showBackButton: true,
             )
@@ -156,7 +158,7 @@ class _FriendsListScreenState extends State<FriendsListScreen>
                 },
                 builder: (context, state) {
                   if (state is FriendsLoading || state is FriendsInitial) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(child: AppProgressIndicator());
                   }
 
                   if (state is FriendsError) {
@@ -207,7 +209,7 @@ class _FriendsListScreenState extends State<FriendsListScreen>
 
   Widget _buildSearchAndSortHeader() {
     return Container(
-      padding: EdgeInsets.all(DesignTokens.spaceMD),
+      padding: const EdgeInsets.all(DesignTokens.spaceMD),
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
         border: Border(
@@ -243,7 +245,7 @@ class _FriendsListScreenState extends State<FriendsListScreen>
                   borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: EdgeInsets.symmetric(
+                contentPadding: const EdgeInsets.symmetric(
                   horizontal: DesignTokens.spaceMD,
                   vertical: DesignTokens.spaceSM,
                 ),
@@ -251,7 +253,7 @@ class _FriendsListScreenState extends State<FriendsListScreen>
             ),
           ),
 
-          SizedBox(width: DesignTokens.spaceMD),
+          const SizedBox(width: DesignTokens.spaceMD),
 
           // Sort dropdown
           _buildSortDropdown(),
@@ -262,7 +264,7 @@ class _FriendsListScreenState extends State<FriendsListScreen>
 
   Widget _buildSortDropdown() {
     return Container(
-      padding: EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         horizontal: DesignTokens.spaceSM,
         vertical: DesignTokens.spaceXS,
       ),
@@ -286,7 +288,7 @@ class _FriendsListScreenState extends State<FriendsListScreen>
             value: option,
             child: Text(
               FriendListHelpers.getSortOptionName(option),
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
@@ -351,10 +353,10 @@ class _FriendsListScreenState extends State<FriendsListScreen>
         }
 
         return ListView.separated(
-          padding: EdgeInsets.all(DesignTokens.spaceMD),
+          padding: const EdgeInsets.all(DesignTokens.spaceMD),
           itemCount: friends.length,
           separatorBuilder: (context, index) =>
-              SizedBox(height: DesignTokens.spaceSM),
+              const SizedBox(height: DesignTokens.spaceSM),
           itemBuilder: (context, index) {
             final friend = friends[index];
             return EnhancedFriendCard(
@@ -405,10 +407,10 @@ class _FriendsListScreenState extends State<FriendsListScreen>
         final requests = snapshot.data!;
 
         return ListView.separated(
-          padding: EdgeInsets.all(DesignTokens.spaceMD),
+          padding: const EdgeInsets.all(DesignTokens.spaceMD),
           itemCount: requests.length,
           separatorBuilder: (context, index) =>
-              SizedBox(height: DesignTokens.spaceSM),
+              const SizedBox(height: DesignTokens.spaceSM),
           itemBuilder: (context, index) {
             return EnhancedFriendCard(
               user: requests[index],
@@ -451,10 +453,10 @@ class _FriendsListScreenState extends State<FriendsListScreen>
         final blockedUsers = snapshot.data!;
 
         return ListView.separated(
-          padding: EdgeInsets.all(DesignTokens.spaceMD),
+          padding: const EdgeInsets.all(DesignTokens.spaceMD),
           itemCount: blockedUsers.length,
           separatorBuilder: (context, index) =>
-              SizedBox(height: DesignTokens.spaceSM),
+              const SizedBox(height: DesignTokens.spaceSM),
           itemBuilder: (context, index) {
             return EnhancedFriendCard(
               user: blockedUsers[index],
@@ -479,18 +481,18 @@ class _FriendsListScreenState extends State<FriendsListScreen>
           return Scaffold(
             // CRITICAL: Explicit background color to prevent black screen
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            appBar: FreegramAppBar(
+            appBar: const FreegramAppBar(
               title: 'Friends',
               showBackButton: true,
             ),
-            body: const Center(child: CircularProgressIndicator()),
+            body: const Center(child: AppProgressIndicator()),
           );
         }
         if (snapshot.hasError || !snapshot.hasData) {
           return Scaffold(
             // CRITICAL: Explicit background color to prevent black screen
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            appBar: FreegramAppBar(
+            appBar: const FreegramAppBar(
               title: 'Friends',
               showBackButton: true,
             ),
@@ -558,7 +560,7 @@ class _FriendsListScreenState extends State<FriendsListScreen>
   }) {
     return Center(
       child: Padding(
-        padding: EdgeInsets.all(DesignTokens.spaceXL),
+        padding: const EdgeInsets.all(DesignTokens.spaceXL),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -568,7 +570,7 @@ class _FriendsListScreenState extends State<FriendsListScreen>
               color:
                   iconColor ?? SonarPulseTheme.primaryAccent.withOpacity(0.3),
             ),
-            SizedBox(height: DesignTokens.spaceLG),
+            const SizedBox(height: DesignTokens.spaceLG),
             Text(
               title,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -576,7 +578,7 @@ class _FriendsListScreenState extends State<FriendsListScreen>
                   ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: DesignTokens.spaceMD),
+            const SizedBox(height: DesignTokens.spaceMD),
             Text(
               message,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -603,12 +605,12 @@ class _FriendsListScreenState extends State<FriendsListScreen>
             size: 64,
             color: Theme.of(context).colorScheme.error,
           ),
-          SizedBox(height: DesignTokens.spaceLG),
+          const SizedBox(height: DesignTokens.spaceLG),
           Text(
             'Error',
             style: Theme.of(context).textTheme.titleLarge,
           ),
-          SizedBox(height: DesignTokens.spaceSM),
+          const SizedBox(height: DesignTokens.spaceSM),
           Text(
             message,
             textAlign: TextAlign.center,
@@ -673,12 +675,12 @@ class EnhancedFriendCard extends StatelessWidget {
                 );
               },
           child: Padding(
-            padding: EdgeInsets.all(DesignTokens.spaceMD),
+            padding: const EdgeInsets.all(DesignTokens.spaceMD),
             child: Row(
               children: [
                 // Avatar with online indicator
                 _buildAvatar(context),
-                SizedBox(width: DesignTokens.spaceMD),
+                const SizedBox(width: DesignTokens.spaceMD),
                 // User info
                 Expanded(child: _buildUserInfo(context)),
                 // Actions
@@ -755,7 +757,7 @@ class EnhancedFriendCard extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        SizedBox(height: DesignTokens.spaceXS),
+        const SizedBox(height: DesignTokens.spaceXS),
 
         // Activity status
         Row(
@@ -794,7 +796,7 @@ class EnhancedFriendCard extends StatelessWidget {
     if (user.country.isEmpty) return const SizedBox.shrink();
 
     return Padding(
-      padding: EdgeInsets.only(top: DesignTokens.spaceXS),
+      padding: const EdgeInsets.only(top: DesignTokens.spaceXS),
       child: Row(
         children: [
           Icon(
@@ -802,7 +804,7 @@ class EnhancedFriendCard extends StatelessWidget {
             size: 12,
             color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
           ),
-          SizedBox(width: 4),
+          const SizedBox(width: 4),
           Text(
             user.country,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -842,7 +844,7 @@ class EnhancedFriendCard extends StatelessWidget {
                 context.read<FriendsBloc>().add(AcceptFriendRequest(user.id));
               },
             ),
-            SizedBox(width: DesignTokens.spaceXS),
+            const SizedBox(width: DesignTokens.spaceXS),
             IconButton(
               icon: Container(
                 padding: const EdgeInsets.all(8),
@@ -884,7 +886,7 @@ class EnhancedFriendCard extends StatelessWidget {
             ),
           ),
           style: TextButton.styleFrom(
-            padding: EdgeInsets.symmetric(
+            padding: const EdgeInsets.symmetric(
               horizontal: DesignTokens.spaceMD,
               vertical: DesignTokens.spaceSM,
             ),

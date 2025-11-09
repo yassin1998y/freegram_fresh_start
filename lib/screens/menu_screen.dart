@@ -8,6 +8,7 @@ import 'package:freegram/navigation/app_routes.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:freegram/screens/moderation_dashboard_screen.dart';
 import 'package:freegram/screens/feature_discovery_screen.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
@@ -23,6 +24,7 @@ class _MenuScreenState extends State<MenuScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: menu_screen.dart');
     _checkAdminAccess();
   }
 
@@ -184,7 +186,7 @@ class _MenuScreenState extends State<MenuScreen> {
                           }
                         },
                         child: const Center(
-                          child: CircularProgressIndicator(),
+                          child: AppProgressIndicator(),
                         ),
                       ),
                     ),

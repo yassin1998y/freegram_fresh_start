@@ -15,10 +15,11 @@ class NearbyChatListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('📱 SCREEN: nearby_chat_list_screen.dart');
     final myId = FirebaseAuth.instance.currentUser?.uid;
     if (myId == null) {
-      return Scaffold(
-        body: const Center(child: Text("Authentication error.")),
+      return const Scaffold(
+        body: Center(child: Text("Authentication error.")),
       );
     }
 
@@ -26,7 +27,7 @@ class NearbyChatListScreen extends StatelessWidget {
     final profileBox = Hive.box('user_profiles');
 
     return Scaffold(
-      appBar: FreegramAppBar(
+      appBar: const FreegramAppBar(
         title: 'Nearby Chats',
         showBackButton: true,
       ),

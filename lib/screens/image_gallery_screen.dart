@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class ImageGalleryScreen extends StatefulWidget {
   final List<String> imageUrls;
@@ -26,6 +27,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: image_gallery_screen.dart');
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: widget.initialIndex);
   }
@@ -74,10 +76,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
         },
         itemCount: widget.imageUrls.length,
         loadingBuilder: (context, event) => Center(
-          child: Container(
+          child: SizedBox(
             width: 20.0,
             height: 20.0,
-            child: CircularProgressIndicator(
+            child: AppProgressIndicator(
               value: event == null
                   ? 0
                   : event.cumulativeBytesLoaded / event.expectedTotalBytes!,

@@ -706,8 +706,9 @@ class SyncManager {
     int pendingCount = 0;
     if (_localCacheService.getUnsyncedNearbyUsers().isNotEmpty) pendingCount++;
     if (_localCacheService.getPendingWaves().isNotEmpty) pendingCount++;
-    if (_localCacheService.getPendingFriendRequests().isNotEmpty)
+    if (_localCacheService.getPendingFriendRequests().isNotEmpty) {
       pendingCount++;
+    }
     if (_actionQueueRepository.getQueuedActions().isNotEmpty) pendingCount++;
 
     // Update cache

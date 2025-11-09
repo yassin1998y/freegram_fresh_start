@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/widgets/freegram_app_bar.dart';
+import 'package:freegram/widgets/common/keyboard_safe_area.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:freegram/screens/notification_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -71,116 +73,119 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('📱 SCREEN: settings_screen.dart');
     return Scaffold(
       // CRITICAL: Explicit background color to prevent black screen during transitions
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: FreegramAppBar(
+      resizeToAvoidBottomInset: true,
+      appBar: const FreegramAppBar(
         title: 'Settings',
         showBackButton: true,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          _buildSectionHeader(context, 'Account'),
-          Card(
-            clipBehavior: Clip.antiAlias,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Change Password',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _newPasswordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'New Password',
-                        border: OutlineInputBorder(),
+      body: KeyboardSafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16.0),
+          children: [
+            _buildSectionHeader(context, 'Account'),
+            Card(
+              clipBehavior: Clip.antiAlias,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Change Password',
+                        style: Theme.of(context).textTheme.titleLarge,
                       ),
-                      validator: (value) {
-                        if (value == null || value.length < 6) {
-                          return 'Password must be at least 6 characters';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _confirmPasswordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Confirm New Password',
-                        border: OutlineInputBorder(),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _newPasswordController,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: 'New Password',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.length < 6) {
+                            return 'Password must be at least 6 characters';
+                          }
+                          return null;
+                        },
                       ),
-                      validator: (value) {
-                        if (value != _newPasswordController.text) {
-                          return 'Passwords do not match';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _changePassword,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _confirmPasswordController,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Confirm New Password',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value != _newPasswordController.text) {
+                            return 'Passwords do not match';
+                          }
+                          return null;
+                        },
                       ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 24,
-                              width: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Update Password'),
-                    ),
-                  ],
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: _isLoading ? null : _changePassword,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: _isLoading
+                            ? const AppProgressIndicator(
+                                size: 24,
+                                strokeWidth: 2,
+                              )
+                            : const Text('Update Password'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          const Divider(height: 40),
-          _buildSectionHeader(context, 'Preferences'),
-          _SettingsTile(
-            icon: Icons.notifications_outlined,
-            title: 'Manage Notifications',
-            subtitle: 'Control push notification preferences',
-            onTap: () {
-              locator<NavigationService>().navigateTo(
-                const NotificationSettingsScreen(),
-                transition: PageTransition.slide,
-              );
-            },
-          ),
-          _SettingsTile(
-            icon: Icons.palette_outlined,
-            title: 'Appearance',
-            subtitle: 'Light / Dark Mode',
-            onTap: () {
-              // Placeholder for future implementation
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Theme settings coming soon!')),
-              );
-            },
-          ),
-          const Divider(height: 40),
-          _buildSectionHeader(context, 'About'),
-          _SettingsTile(
-            icon: Icons.shield_outlined,
-            title: 'Privacy Policy',
-            onTap: () {},
-          ),
-          _SettingsTile(
-            icon: Icons.description_outlined,
-            title: 'Terms of Service',
-            onTap: () {},
-          ),
-        ],
+            const Divider(height: 40),
+            _buildSectionHeader(context, 'Preferences'),
+            _SettingsTile(
+              icon: Icons.notifications_outlined,
+              title: 'Manage Notifications',
+              subtitle: 'Control push notification preferences',
+              onTap: () {
+                locator<NavigationService>().navigateTo(
+                  const NotificationSettingsScreen(),
+                  transition: PageTransition.slide,
+                );
+              },
+            ),
+            _SettingsTile(
+              icon: Icons.palette_outlined,
+              title: 'Appearance',
+              subtitle: 'Light / Dark Mode',
+              onTap: () {
+                // Placeholder for future implementation
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Theme settings coming soon!')),
+                );
+              },
+            ),
+            const Divider(height: 40),
+            _buildSectionHeader(context, 'About'),
+            _SettingsTile(
+              icon: Icons.shield_outlined,
+              title: 'Privacy Policy',
+              onTap: () {},
+            ),
+            _SettingsTile(
+              icon: Icons.description_outlined,
+              title: 'Terms of Service',
+              onTap: () {},
+            ),
+          ],
+        ),
       ),
     );
   }

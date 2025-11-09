@@ -112,6 +112,7 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
   final String _viewerId;
   DateTime? _storyStartTime;
   Duration? _storyDuration;
+  String? _currentProgressStoryId; // Track which story progress is running for
 
   StoryViewerCubit({
     required StoryRepository storyRepository,
@@ -188,12 +189,15 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
         currentUserIndex: startingIndex,
         currentStoryIndex: 0,
         userStoriesMap: userStoriesMap,
-        progressMap: {},
+        progressMap: const {},
       ));
 
       // Start auto-advance after a brief delay to ensure UI is ready
+      // For videos, don't start progress until video is ready
+      final firstStory = userStoriesMap[usersWithStories[startingIndex].userId]?.first;
+      final isVideo = firstStory?.mediaType == 'video';
       Future.delayed(const Duration(milliseconds: 100), () {
-        _startAutoAdvance();
+        _startAutoAdvance(startProgressImmediately: !isVideo);
       });
     } catch (e) {
       debugPrint('StoryViewerCubit: Error loading stories: $e');
@@ -216,8 +220,11 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
       final nextIndex = state.currentStoryIndex + 1;
       _markStoryAsViewed(stories[nextIndex].storyId);
       emit(state.copyWith(currentStoryIndex: nextIndex, progressMap: {}));
+      // For videos, don't start progress until video is ready
+      final nextStory = stories[nextIndex];
+      final isVideo = nextStory.mediaType == 'video';
       Future.delayed(const Duration(milliseconds: 100), () {
-        _startAutoAdvance();
+        _startAutoAdvance(startProgressImmediately: !isVideo);
       });
     } else {
       // Move to next user
@@ -232,12 +239,17 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
 
     _stopAutoAdvance();
 
+    final userId = state.usersWithStories[state.currentUserIndex].userId;
+    final stories = state.userStoriesMap[userId] ?? [];
+
     if (state.currentStoryIndex > 0) {
       // Previous story in current user's reel
+      final prevStory = stories[state.currentStoryIndex - 1];
+      final isVideo = prevStory.mediaType == 'video';
       emit(state.copyWith(
           currentStoryIndex: state.currentStoryIndex - 1, progressMap: {}));
       Future.delayed(const Duration(milliseconds: 100), () {
-        _startAutoAdvance();
+        _startAutoAdvance(startProgressImmediately: !isVideo);
       });
     } else {
       // Move to previous user
@@ -259,13 +271,15 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
 
       if (nextStories.isNotEmpty) {
         _markStoryAsViewed(nextStories[0].storyId);
+        final firstStory = nextStories[0];
+        final isVideo = firstStory.mediaType == 'video';
         emit(state.copyWith(
           currentUserIndex: nextUserIndex,
           currentStoryIndex: 0,
           progressMap: {},
         ));
         Future.delayed(const Duration(milliseconds: 100), () {
-          _startAutoAdvance();
+          _startAutoAdvance(startProgressImmediately: !isVideo);
         });
       }
     } else {
@@ -288,13 +302,15 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
 
       if (prevStories.isNotEmpty) {
         final lastStoryIndex = prevStories.length - 1;
+        final lastStory = prevStories[lastStoryIndex];
+        final isVideo = lastStory.mediaType == 'video';
         emit(state.copyWith(
           currentUserIndex: prevUserIndex,
           currentStoryIndex: lastStoryIndex,
           progressMap: {},
         ));
         Future.delayed(const Duration(milliseconds: 100), () {
-          _startAutoAdvance();
+          _startAutoAdvance(startProgressImmediately: !isVideo);
         });
       } else {
         // If previous user has no stories, skip to next previous user
@@ -370,7 +386,9 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
       }
     } else {
       // Restart if no timing info
-      _startAutoAdvance();
+      final story = state.currentStory;
+      final isVideo = story?.mediaType == 'video';
+      _startAutoAdvance(startProgressImmediately: !isVideo);
     }
 
     debugPrint('StoryViewerCubit: Story resumed');
@@ -417,7 +435,8 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
   }
 
   /// Start auto-advance timer
-  void _startAutoAdvance() {
+  /// For videos, progress should only start when video is ready (call startStoryProgress when ready)
+  void _startAutoAdvance({bool startProgressImmediately = true}) {
     final state = this.state;
     if (state is! StoryViewerLoaded || state.isPaused) return;
 
@@ -429,7 +448,47 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
         ? Duration(seconds: story.duration!.toInt().clamp(1, 15))
         : const Duration(seconds: 5);
 
+    // For images, start progress immediately (they load fast)
+    // For videos, wait until video is initialized
+    if (startProgressImmediately || story.mediaType == 'image') {
+      startStoryProgress();
+    }
+
+    // Start auto-advance timer (this will be started when progress starts for videos)
+    if (startProgressImmediately || story.mediaType == 'image') {
+      _autoAdvanceTimer?.cancel();
+      _autoAdvanceTimer = Timer(_storyDuration!, () {
+        if (this.state is StoryViewerLoaded) {
+          nextStory();
+        }
+      });
+    }
+  }
+
+  /// Start story progress (call this when media is ready to play)
+  void startStoryProgress() {
+    final state = this.state;
+    if (state is! StoryViewerLoaded || state.isPaused) return;
+
+    final story = state.currentStory;
+    if (story == null) return;
+
+    // Prevent multiple calls for the same story (e.g., if video initializes multiple times)
+    if (_currentProgressStoryId == story.storyId && _progressTimer != null) {
+      debugPrint('StoryViewerCubit: Progress already started for story ${story.storyId}');
+      return;
+    }
+
+    // Ensure duration is set
+    if (_storyDuration == null) {
+      _storyDuration = story.mediaType == 'video' && story.duration != null
+          ? Duration(seconds: story.duration!.toInt().clamp(1, 15))
+          : const Duration(seconds: 5);
+    }
+
+    // Set start time when media is actually ready
     _storyStartTime = DateTime.now();
+    _currentProgressStoryId = story.storyId;
 
     // Reset progress
     updateProgress(story.storyId, 0.0);
@@ -453,16 +512,19 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
 
       if (progress >= 1.0) {
         timer.cancel();
+        _currentProgressStoryId = null;
       }
     });
 
-    // Start auto-advance timer
-    _autoAdvanceTimer?.cancel();
-    _autoAdvanceTimer = Timer(_storyDuration!, () {
-      if (this.state is StoryViewerLoaded) {
-        nextStory();
-      }
-    });
+    // Start auto-advance timer if not already started
+    if (_autoAdvanceTimer == null) {
+      _autoAdvanceTimer?.cancel();
+      _autoAdvanceTimer = Timer(_storyDuration!, () {
+        if (this.state is StoryViewerLoaded) {
+          nextStory();
+        }
+      });
+    }
   }
 
   /// Stop auto-advance timer
@@ -473,6 +535,7 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
     _progressTimer = null;
     _storyStartTime = null;
     _storyDuration = null;
+    _currentProgressStoryId = null;
   }
 
   /// Delete current story (only if owner)
@@ -489,6 +552,11 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
     }
 
     try {
+      // CRITICAL FIX: Stop auto-advance and progress timers before deletion
+      _stopAutoAdvance();
+      _progressTimer?.cancel();
+      _progressTimer = null;
+
       await _storyRepository.deleteStory(story.storyId, _viewerId);
 
       // Remove story from state and navigate
@@ -497,25 +565,157 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
       final updatedStories =
           stories.where((s) => s.storyId != story.storyId).toList();
 
+      // CRITICAL FIX: Clear progress map for deleted story
+      final updatedProgressMap = Map<String, double>.from(state.progressMap);
+      updatedProgressMap.remove(story.storyId);
+
       if (updatedStories.isEmpty) {
-        // No more stories for this user, move to next user
-        nextUser();
+        // No more stories for this user
+        final updatedMap =
+            Map<String, List<StoryMedia>>.from(state.userStoriesMap);
+        updatedMap[userId] = [];
+
+        // CRITICAL FIX: Remove user from usersWithStories if no stories remain
+        final updatedUsers = state.usersWithStories
+            .where((u) {
+              final userStories = updatedMap[u.userId] ?? [];
+              return userStories.isNotEmpty;
+            })
+            .toList();
+
+        // CRITICAL FIX: Check if we have any users with stories left
+        if (updatedUsers.isEmpty) {
+          // No more stories for anyone - close viewer (will be handled by UI)
+          emit(state.copyWith(
+            usersWithStories: [],
+            userStoriesMap: updatedMap,
+            progressMap: {},
+          ));
+          return;
+        }
+
+        // CRITICAL FIX: Adjust currentUserIndex if we're beyond the list
+        int newUserIndex = state.currentUserIndex;
+        if (newUserIndex >= updatedUsers.length) {
+          newUserIndex = updatedUsers.length - 1;
+        }
+
+        // CRITICAL FIX: If current user was removed, need to find the correct index
+        final currentUserId = state.usersWithStories[state.currentUserIndex].userId;
+        final foundIndex = updatedUsers.indexWhere((u) => u.userId == currentUserId);
+        if (foundIndex == -1) {
+          // Current user was removed, use adjusted index
+          if (newUserIndex < 0) newUserIndex = 0;
+        } else {
+          newUserIndex = foundIndex;
+        }
+
+        if (newUserIndex >= 0 && newUserIndex < updatedUsers.length) {
+          final nextUserId = updatedUsers[newUserIndex].userId;
+          final nextStories = updatedMap[nextUserId] ?? [];
+
+          if (nextStories.isNotEmpty) {
+            // Move to first story of next user
+            emit(state.copyWith(
+              usersWithStories: updatedUsers,
+              currentUserIndex: newUserIndex,
+              currentStoryIndex: 0,
+              userStoriesMap: updatedMap,
+              progressMap: {},
+            ));
+            Future.delayed(const Duration(milliseconds: 100), () {
+              if (this.state is StoryViewerLoaded) {
+                final currentState = this.state as StoryViewerLoaded;
+                final story = currentState.currentStory;
+                if (story != null) {
+                  final isVideo = story.mediaType == 'video';
+                  _startAutoAdvance(startProgressImmediately: !isVideo);
+                }
+              }
+            });
+          } else {
+            // Next user also has no stories - try to find any user with stories
+            StoryUser? userWithStories;
+            for (final user in updatedUsers) {
+              final userStories = updatedMap[user.userId] ?? [];
+              if (userStories.isNotEmpty) {
+                userWithStories = user;
+                break;
+              }
+            }
+            
+            if (userWithStories != null) {
+              final storiesForUser = updatedMap[userWithStories.userId] ?? [];
+              if (storiesForUser.isNotEmpty) {
+                final userIndex = updatedUsers.indexOf(userWithStories);
+                if (userIndex >= 0 && userIndex < updatedUsers.length) {
+                  emit(state.copyWith(
+                    usersWithStories: updatedUsers,
+                    currentUserIndex: userIndex,
+                    currentStoryIndex: 0,
+                    userStoriesMap: updatedMap,
+                    progressMap: {},
+                  ));
+                  Future.delayed(const Duration(milliseconds: 100), () {
+                    if (this.state is StoryViewerLoaded) {
+                      final currentState = this.state as StoryViewerLoaded;
+                      final story = currentState.currentStory;
+                      if (story != null) {
+                        final isVideo = story.mediaType == 'video';
+                        _startAutoAdvance(startProgressImmediately: !isVideo);
+                      }
+                    }
+                  });
+                  return;
+                }
+              }
+            }
+            
+            // No stories left at all
+            emit(state.copyWith(
+              usersWithStories: [],
+              userStoriesMap: updatedMap,
+              progressMap: {},
+            ));
+          }
+        } else {
+          // Invalid state - close viewer
+          emit(state.copyWith(
+            usersWithStories: [],
+            userStoriesMap: updatedMap,
+            progressMap: {},
+          ));
+        }
       } else {
         // Update stories map and adjust current index
         final updatedMap =
             Map<String, List<StoryMedia>>.from(state.userStoriesMap);
         updatedMap[userId] = updatedStories;
 
+        // CRITICAL FIX: Clamp index to valid range
         final newIndex = state.currentStoryIndex >= updatedStories.length
-            ? updatedStories.length - 1
-            : state.currentStoryIndex;
+            ? (updatedStories.length - 1).clamp(0, updatedStories.length - 1)
+            : state.currentStoryIndex.clamp(0, updatedStories.length - 1);
 
         emit(state.copyWith(
           userStoriesMap: updatedMap,
           currentStoryIndex: newIndex,
+          progressMap: updatedProgressMap,
         ));
 
-        _startAutoAdvance();
+        // CRITICAL FIX: Only start auto-advance if we have a valid story
+        if (newIndex >= 0 && newIndex < updatedStories.length) {
+          final story = updatedStories[newIndex];
+          final isVideo = story.mediaType == 'video';
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (this.state is StoryViewerLoaded) {
+              final currentState = this.state as StoryViewerLoaded;
+              if (currentState.currentStory != null) {
+                _startAutoAdvance(startProgressImmediately: !isVideo);
+              }
+            }
+          });
+        }
       }
     } catch (e) {
       debugPrint('StoryViewerCubit: Error deleting story: $e');

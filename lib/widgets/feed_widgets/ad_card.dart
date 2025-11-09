@@ -116,7 +116,7 @@ class _AdCardState extends State<AdCard> {
             children: [
               Row(
                 children: [
-                  CircleAvatar(radius: 20, backgroundColor: Colors.white),
+                  const CircleAvatar(radius: 20, backgroundColor: Colors.white),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(

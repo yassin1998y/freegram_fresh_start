@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class LocationPickerScreen extends StatefulWidget {
   const LocationPickerScreen({Key? key}) : super(key: key);
@@ -21,6 +22,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: location_picker_screen.dart');
     _loadCurrentLocation();
   }
 
@@ -215,7 +217,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
           ),
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: AppProgressIndicator())
                 : _places.isEmpty
                     ? Center(
                         child: Column(

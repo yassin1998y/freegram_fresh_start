@@ -11,12 +11,13 @@ class QrDisplayScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('📱 SCREEN: qr_display_screen.dart');
     // This is the data that will be embedded in the QR code.
     // It's a "deep link" that could be used to open the app to a specific profile.
     final String qrData = 'freegram://user/${user.id}';
 
     return Scaffold(
-      appBar: FreegramAppBar(
+      appBar: const FreegramAppBar(
         title: 'My QR Code',
         showBackButton: true,
       ),

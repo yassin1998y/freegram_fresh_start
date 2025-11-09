@@ -78,7 +78,7 @@ class _SonarVerifiedBadgeState extends State<SonarVerifiedBadge>
               Container(
                 width: size,
                 height: size,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   color: SonarPulseTheme.primaryAccent,
                 ),

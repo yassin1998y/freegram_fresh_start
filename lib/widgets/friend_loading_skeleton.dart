@@ -45,10 +45,10 @@ class _FriendLoadingSkeletonState extends State<FriendLoadingSkeleton>
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      padding: EdgeInsets.all(DesignTokens.spaceMD),
+      padding: const EdgeInsets.all(DesignTokens.spaceMD),
       itemCount: widget.itemCount,
       separatorBuilder: (context, index) =>
-          SizedBox(height: DesignTokens.spaceSM),
+          const SizedBox(height: DesignTokens.spaceSM),
       itemBuilder: (context, index) {
         return AnimatedBuilder(
           animation: _animation,
@@ -65,7 +65,7 @@ class _FriendLoadingSkeletonState extends State<FriendLoadingSkeleton>
                   ),
                 ],
               ),
-              padding: EdgeInsets.all(DesignTokens.spaceMD),
+              padding: const EdgeInsets.all(DesignTokens.spaceMD),
               child: Row(
                 children: [
                   // Avatar skeleton
@@ -76,7 +76,7 @@ class _FriendLoadingSkeletonState extends State<FriendLoadingSkeleton>
                       backgroundColor: Colors.grey,
                     ),
                   ),
-                  SizedBox(width: DesignTokens.spaceMD),
+                  const SizedBox(width: DesignTokens.spaceMD),
                   // Text skeletons
                   Expanded(
                     child: Column(
@@ -93,7 +93,7 @@ class _FriendLoadingSkeletonState extends State<FriendLoadingSkeleton>
                             ),
                           ),
                         ),
-                        SizedBox(height: DesignTokens.spaceXS),
+                        const SizedBox(height: DesignTokens.spaceXS),
                         _buildShimmer(
                           context,
                           child: Container(

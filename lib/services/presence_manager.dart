@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart' as rtdb;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:freegram/utils/chat_presence_constants.dart';
 

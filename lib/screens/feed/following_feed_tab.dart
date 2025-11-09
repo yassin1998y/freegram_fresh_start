@@ -4,10 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/blocs/following_feed_bloc.dart';
-import 'package:freegram/locator.dart';
-import 'package:freegram/repositories/post_repository.dart';
-import 'package:freegram/repositories/page_repository.dart';
 import 'package:freegram/widgets/feed_widgets/post_card.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class FollowingFeedTab extends StatefulWidget {
   const FollowingFeedTab({Key? key}) : super(key: key);
@@ -145,7 +143,7 @@ class _FollowingFeedTabState extends State<FollowingFeedTab> {
                   return const Center(
                     child: Padding(
                       padding: EdgeInsets.all(16),
-                      child: CircularProgressIndicator(),
+                      child: AppProgressIndicator(),
                     ),
                   );
                 }

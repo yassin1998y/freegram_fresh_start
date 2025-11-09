@@ -1,7 +1,6 @@
 // lib/services/miui_permission_helper.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:freegram/services/device_info_helper.dart';
 import 'package:app_settings/app_settings.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -85,7 +84,7 @@ class MiuiPermissionHelper {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
             Icon(Icons.battery_alert, color: Colors.orange),
             SizedBox(width: 8),
@@ -99,34 +98,34 @@ class MiuiPermissionHelper {
             children: [
               Text(
                 'Your ${deviceInfo.deviceName} requires additional permissions for Freegram to work properly in the background.',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               _buildPermissionStep(
                 '1',
                 'Disable Battery Optimization',
                 'Tap "Battery Settings" below and select "No restrictions"',
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               _buildPermissionStep(
                 '2',
                 'Enable Autostart',
                 'Go to Settings → Apps → Freegram → Autostart → Enable',
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               _buildPermissionStep(
                 '3',
                 'Lock App in Recent Apps',
                 'Open Recent Apps, drag down on Freegram, tap lock icon',
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Container(
-                padding: EdgeInsets.all(12),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.orange.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
                     Icon(Icons.info_outline, color: Colors.orange, size: 20),
                     SizedBox(width: 8),
@@ -145,15 +144,15 @@ class MiuiPermissionHelper {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Later'),
+            child: const Text('Later'),
           ),
           ElevatedButton.icon(
             onPressed: () async {
               Navigator.pop(context);
               await openBatteryOptimizationSettings();
             },
-            icon: Icon(Icons.settings),
-            label: Text('Battery Settings'),
+            icon: const Icon(Icons.settings),
+            label: const Text('Battery Settings'),
           ),
         ],
       ),
@@ -168,25 +167,25 @@ class MiuiPermissionHelper {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Battery Optimization'),
+        title: const Text('Battery Optimization'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'For the best experience, disable battery optimization for Freegram.',
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             if (deviceInfo.hasAggressiveBatteryOptimization)
               Container(
-                padding: EdgeInsets.all(12),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.orange.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   deviceInfo.getBatteryOptimizationGuidance(),
-                  style: TextStyle(fontSize: 12),
+                  style: const TextStyle(fontSize: 12),
                 ),
               ),
           ],
@@ -194,14 +193,14 @@ class MiuiPermissionHelper {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Later'),
+            child: const Text('Later'),
           ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
               await openBatteryOptimizationSettings();
             },
-            child: Text('Open Settings'),
+            child: const Text('Open Settings'),
           ),
         ],
       ),
@@ -216,14 +215,14 @@ class MiuiPermissionHelper {
         Container(
           width: 24,
           height: 24,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: Colors.blue,
             shape: BoxShape.circle,
           ),
           child: Center(
             child: Text(
               number,
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -231,16 +230,16 @@ class MiuiPermissionHelper {
             ),
           ),
         ),
-        SizedBox(width: 12),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 description,
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),

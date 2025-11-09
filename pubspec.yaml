@@ -57,10 +57,13 @@ dependencies:
   video_player: ^2.8.6
   video_thumbnail: ^0.5.3
   camera: ^0.10.5
+  video_compress: ^3.1.2 # Added for Reels feature - client-side video compression
+  # FFmpegKit packages are currently unavailable due to FFmpegKit being discontinued
+  # Audio merging/trimming features are temporarily disabled until a stable alternative is found
+  # Video trimming uses video_compress package (already included)
+  # ffmpeg_kit_flutter_new: 1.6.1 # DISABLED: Build errors due to missing FFmpegKit Java classes
   # chewie: ^1.7.5
   # video_editor: ^3.0.0
-  # video_compress: ^3.1.2
-  # ffmpeg_kit_flutter_new: ^3.2.0
 
   flutter_cache_manager: ^3.3.1 # Keep for images
   cached_network_image: ^3.3.1 # Keep for images
@@ -69,6 +72,9 @@ dependencies:
   # Utils
   http: ^1.1.0 # Keep for Cloudinary upload (profile pics)
   image_picker: ^1.0.7 # Keep for profile pics
+  photo_manager: ^3.3.0 # For loading recent gallery photos for stories
+  file_picker: ^8.0.0+1 # For audio file import (upgraded to fix v1 embedding compatibility)
+  audioplayers: ^5.2.1 # For audio preview and playback
   timeago: ^3.6.1 # Keep for timestamps
   uuid: ^4.2.2 # Keep for generating IDs
   path_provider: ^2.1.2 # Keep if needed for file paths
@@ -107,12 +113,21 @@ dependencies:
   collection: ^1.18.0
   # Environment variables for secure credential management
   flutter_dotenv: ^5.1.0
+  
+  # Background Tasks
+  # NOTE: workmanager 0.5.2 is incompatible with current Flutter Android embedding
+  # Temporarily disabled until a compatible version is available or alternative solution is implemented
+  # workmanager: ^0.5.2
+  flutter_background_service: ^5.0.5 # For background upload support
 
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
+  # NOTE: dart_code_metrics has dependency conflicts (uuid version)
+  # Using built-in dart analyze and manual review instead
+  # dart_code_metrics: ^5.0.0
   # faker: ^2.1.0 # Removed if only used for testing deleted features
 
 dependency_overrides:

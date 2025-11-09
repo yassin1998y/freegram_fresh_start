@@ -15,13 +15,41 @@ import 'package:freegram/models/text_overlay_model.dart';
 import 'package:freegram/models/drawing_path_model.dart';
 import 'package:freegram/models/sticker_overlay_model.dart';
 import 'package:freegram/widgets/story_widgets/drawing_canvas.dart';
-import 'package:freegram/widgets/story_widgets/drawing_toolbar.dart';
-import 'package:freegram/widgets/story_widgets/sticker_picker_sheet.dart';
 import 'package:freegram/widgets/story_widgets/draggable_sticker_widget.dart';
 import 'package:freegram/widgets/story_widgets/draggable_text_widget.dart';
+import 'package:freegram/widgets/story_widgets/editor/story_editor_toolbar.dart';
+import 'package:freegram/widgets/story_widgets/editor/story_drawing_tools.dart';
+import 'package:freegram/widgets/story_widgets/editor/story_sticker_picker.dart';
+import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/theme/app_theme.dart';
+// Audio features temporarily disabled - FFmpegKit packages have compatibility issues
+// import 'package:freegram/widgets/story_widgets/audio_import_modal.dart';
+// import 'package:freegram/widgets/story_widgets/audio_trimmer_widget.dart';
+import 'package:freegram/widgets/story_widgets/video_trimmer_screen.dart';
+// import 'package:freegram/models/audio_segment_model.dart';
+// import 'package:freegram/services/audio_merger_service.dart';
+// import 'package:freegram/services/audio_trimmer_service.dart';
+import 'package:freegram/services/upload_progress_service.dart';
+import 'package:freegram/services/upload_notification_service.dart';
+import 'package:freegram/services/cloudinary_service.dart';
+import 'package:freegram/services/video_upload_service.dart';
+import 'package:video_thumbnail/video_thumbnail.dart' as video_thumbnail;
+import 'package:freegram/models/upload_progress_model.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 
 class StoryCreatorScreen extends StatefulWidget {
-  const StoryCreatorScreen({Key? key}) : super(key: key);
+  final File? preSelectedMedia;
+  final String? mediaType; // 'image' or 'video'
+  final bool? openCamera;
+
+  const StoryCreatorScreen({
+    Key? key,
+    this.preSelectedMedia,
+    this.mediaType,
+    this.openCamera,
+  }) : super(key: key);
 
   @override
   State<StoryCreatorScreen> createState() => _StoryCreatorScreenState();
@@ -45,28 +73,125 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
   VideoPlayerController? _videoPreviewController;
 
   // Editing state
-  String _activeTool = 'none'; // 'none', 'text', 'draw', 'stickers'
+  String _activeTool = 'none'; // 'none', 'text', 'draw', 'stickers', 'music'
   List<TextOverlay> _textOverlays = [];
   List<DrawingPath> _drawings = [];
-  List<String> _stickerIds = []; // Legacy
-  List<StickerOverlay> _stickerOverlays =
-      []; // New with position/scale/rotation
+  List<StickerOverlay> _stickerOverlays = [];
 
   // Drawing tool state
   Color _drawingColor = Colors.white;
   double _drawingStrokeWidth = 5.0;
 
+  // Audio import state (temporarily disabled - FFmpegKit compatibility issues)
+  // String? _selectedAudioPath;
+  // double? _audioStartTime;
+  // double? _audioDuration;
+
   @override
   void initState() {
     super.initState();
-    // Note: Media picker will be shown via StoryCreatorTypeScreen modal
-    // This screen should only be shown when media is already selected
-    // For backward compatibility, we keep the picker call but it can be removed in future
+    debugPrint('📱 SCREEN: story_creator_screen.dart');
+
+    // Handle pre-selected media or camera option
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _selectedMedia == null && _selectedMediaBytes == null) {
-        _showMediaPicker();
+      if (mounted) {
+        if (widget.preSelectedMedia != null) {
+          // Pre-selected media file
+          _handlePreSelectedMedia(widget.preSelectedMedia!);
+        } else if (widget.openCamera == true) {
+          // Open camera directly
+          _initializeCamera();
+        } else if (_selectedMedia == null && _selectedMediaBytes == null) {
+          // Fallback: show media picker (for backward compatibility)
+          _showMediaPicker();
+        }
       }
     });
+  }
+
+  Future<void> _handlePreSelectedMedia(File file) async {
+    try {
+      // CRITICAL FIX: Verify file exists before processing
+      if (!await file.exists()) {
+        debugPrint('StoryCreatorScreen: File does not exist: ${file.path}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Selected file not found')),
+          );
+          Navigator.of(context).pop();
+        }
+        return;
+      }
+
+      if (widget.mediaType == 'video') {
+        // Initialize video preview with error handling
+        try {
+          debugPrint('StoryCreatorScreen: Initializing video preview for: ${file.path}');
+          _videoPreviewController = VideoPlayerController.file(file);
+          await _videoPreviewController!.initialize();
+          
+          // Verify video is valid
+          if (!_videoPreviewController!.value.isInitialized) {
+            throw Exception('Video failed to initialize');
+          }
+
+          await _videoPreviewController!.play();
+
+          if (mounted) {
+            setState(() {
+              _selectedMedia = file;
+              _mediaType = 'video';
+            });
+            debugPrint('StoryCreatorScreen: Video preview initialized successfully');
+          }
+        } catch (e) {
+          debugPrint('StoryCreatorScreen: Error initializing video preview: $e');
+          _videoPreviewController?.dispose();
+          _videoPreviewController = null;
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error loading video: $e')),
+            );
+            Navigator.of(context).pop();
+          }
+        }
+      } else {
+        // Image - verify it's a valid image file
+        try {
+          debugPrint('StoryCreatorScreen: Loading image: ${file.path}');
+          // Try to read the file to verify it's valid
+          final bytes = await file.readAsBytes();
+          if (bytes.isEmpty) {
+            throw Exception('Image file is empty');
+          }
+
+          if (mounted) {
+            setState(() {
+              _selectedMedia = file;
+              _mediaType = 'image';
+            });
+            debugPrint('StoryCreatorScreen: Image loaded successfully');
+          }
+        } catch (e) {
+          debugPrint('StoryCreatorScreen: Error loading image: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error loading image: $e')),
+            );
+            Navigator.of(context).pop();
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('StoryCreatorScreen: Error handling pre-selected media: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+        Navigator.of(context).pop();
+      }
+    }
   }
 
   @override
@@ -189,8 +314,8 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
         });
       }
 
-      // Auto-stop after 15 seconds (max duration)
-      Future.delayed(const Duration(seconds: 15), () {
+      // Auto-stop after 20 seconds (max duration)
+      Future.delayed(const Duration(seconds: 20), () {
         if (_isRecordingVideo && mounted) {
           _stopVideoRecording();
         }
@@ -212,16 +337,16 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
       final XFile videoFile = await _cameraController!.stopVideoRecording();
       final file = File(videoFile.path);
 
-      // Check video duration (max 15 seconds)
+      // Check video duration (max 20 seconds)
       final controller = VideoPlayerController.file(file);
       await controller.initialize();
       final duration = controller.value.duration;
 
-      if (duration.inSeconds > 15) {
+      if (duration.inSeconds > 20) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Video too long. Maximum 15 seconds allowed.'),
+              content: Text('Video too long. Maximum 20 seconds allowed.'),
             ),
           );
         }
@@ -334,11 +459,17 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
   Future<void> _pickMedia(ImageSource source,
       {String mediaType = 'image'}) async {
     try {
+      debugPrint('StoryCreatorScreen: _pickMedia called with source: $source, type: $mediaType');
+      
+      // CRITICAL FIX: Only request camera permission manually
+      // ImagePicker handles gallery permissions internally, requesting them manually causes conflicts
       if (source == ImageSource.camera) {
+        debugPrint('StoryCreatorScreen: Requesting camera permission...');
         final permissionStatus = await Permission.camera.status;
         if (!permissionStatus.isGranted) {
           final permission = await Permission.camera.request();
           if (!permission.isGranted) {
+            debugPrint('StoryCreatorScreen: Camera permission denied');
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Camera permission required')),
@@ -348,16 +479,17 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
             return;
           }
         }
+        debugPrint('StoryCreatorScreen: Camera permission granted');
       }
 
       XFile? pickedFile;
 
       if (mediaType == 'video') {
-        // Pick video (max 15 seconds)
+        // Pick video (max 20 seconds)
         pickedFile = await _imagePicker
             .pickVideo(
               source: source,
-              maxDuration: const Duration(seconds: 15),
+              maxDuration: const Duration(seconds: 20),
             )
             .timeout(
               const Duration(seconds: 30),
@@ -389,37 +521,98 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
           return;
         }
 
+        // CRITICAL FIX: Verify file exists and is accessible
+        final file = File(pickedFile.path);
+        if (!await file.exists()) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Selected file not found')),
+            );
+          }
+          return;
+        }
+
         if (mounted) {
           if (kIsWeb && mediaType == 'image') {
             // For web, read file as bytes (images only)
-            final bytes = await pickedFile.readAsBytes();
-            setState(() {
-              _selectedMediaBytes = bytes;
-              _mediaType = 'image';
-            });
-          } else if (!kIsWeb) {
-            final file = File(pickedFile.path);
-
-            if (mediaType == 'video') {
-              // Initialize video preview
-              _videoPreviewController = VideoPlayerController.file(file);
-              await _videoPreviewController!.initialize();
-              await _videoPreviewController!.play();
-
+            try {
+              final bytes = await pickedFile.readAsBytes();
+              if (bytes.isEmpty) {
+                throw Exception('Image file is empty');
+              }
               setState(() {
-                _selectedMedia = file;
-                _mediaType = 'video';
-              });
-            } else {
-              setState(() {
-                _selectedMedia = file;
+                _selectedMediaBytes = bytes;
                 _mediaType = 'image';
               });
+              debugPrint('StoryCreatorScreen: Image selected successfully (web)');
+            } catch (e) {
+              debugPrint('StoryCreatorScreen: Error reading image bytes: $e');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error loading image: $e')),
+                );
+              }
+            }
+          } else if (!kIsWeb) {
+            if (mediaType == 'video') {
+              // Initialize video preview with error handling
+              try {
+                debugPrint('StoryCreatorScreen: Initializing video preview for: ${file.path}');
+                _videoPreviewController = VideoPlayerController.file(file);
+                await _videoPreviewController!.initialize();
+                
+                // Verify video is valid
+                if (!_videoPreviewController!.value.isInitialized) {
+                  throw Exception('Video failed to initialize');
+                }
+
+                await _videoPreviewController!.play();
+
+                setState(() {
+                  _selectedMedia = file;
+                  _mediaType = 'video';
+                });
+                debugPrint('StoryCreatorScreen: Video selected successfully');
+              } catch (e) {
+                debugPrint('StoryCreatorScreen: Error initializing video: $e');
+                _videoPreviewController?.dispose();
+                _videoPreviewController = null;
+                
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error loading video: $e')),
+                  );
+                }
+              }
+            } else {
+              // Image - verify it's a valid image file
+              try {
+                debugPrint('StoryCreatorScreen: Loading image: ${file.path}');
+                // Try to read the file to verify it's valid
+                final bytes = await file.readAsBytes();
+                if (bytes.isEmpty) {
+                  throw Exception('Image file is empty');
+                }
+
+                setState(() {
+                  _selectedMedia = file;
+                  _mediaType = 'image';
+                });
+                debugPrint('StoryCreatorScreen: Image selected successfully');
+              } catch (e) {
+                debugPrint('StoryCreatorScreen: Error loading image: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error loading image: $e')),
+                  );
+                }
+              }
             }
           }
         }
       } else {
         // User cancelled
+        debugPrint('StoryCreatorScreen: User cancelled media selection');
         if (mounted) {
           Navigator.of(context).pop();
         }
@@ -446,37 +639,260 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
       return;
     }
 
+    // Check if video needs trimming (> 20 seconds)
+    File? mediaFileToUpload = _selectedMedia;
+    if (!kIsWeb && _selectedMedia != null && _mediaType == 'video') {
+      try {
+        final controller = VideoPlayerController.file(_selectedMedia!);
+        await controller.initialize();
+        final videoDuration = controller.value.duration.inSeconds.toDouble();
+        await controller.dispose();
+
+        if (videoDuration > 20.0) {
+          // Show video trimmer
+          final trimmedVideo = await Navigator.of(context).push<File>(
+            MaterialPageRoute(
+              builder: (context) => VideoTrimmerScreen(
+                videoFile: _selectedMedia!,
+              ),
+            ),
+          );
+
+          if (trimmedVideo != null) {
+            mediaFileToUpload = trimmedVideo;
+            // Update preview
+            _videoPreviewController?.dispose();
+            _videoPreviewController = VideoPlayerController.file(trimmedVideo);
+            await _videoPreviewController!.initialize();
+            await _videoPreviewController!.play();
+            if (mounted) {
+              setState(() {
+                _selectedMedia = trimmedVideo;
+              });
+            }
+          } else {
+            // User cancelled trimming
+            return;
+          }
+        }
+      } catch (e) {
+        debugPrint('StoryCreatorScreen: Error checking video duration: $e');
+      }
+    }
+
+    // Initialize upload progress tracking
+    final uploadProgressService = UploadProgressService();
+    final uploadNotificationService = UploadNotificationService();
+    await uploadNotificationService.initialize();
+
+    final uploadId = uploadProgressService.startUpload(
+      currentStep: 'Preparing media...',
+    );
+
     setState(() {
       _isUploading = true;
     });
 
     try {
+      File? finalMediaFile = mediaFileToUpload;
+      String finalMediaType = _mediaType;
+
+      // Audio merging temporarily disabled - FFmpegKit compatibility issues
+      // Step 1: Merge audio with media if audio is selected (0-50% progress)
+      // if (_selectedAudioPath != null && !kIsWeb && finalMediaFile != null) {
+      //   uploadProgressService.updateProgress(
+      //     uploadId: uploadId,
+      //     state: UploadState.merging,
+      //     progress: 0.1,
+      //     currentStep: 'Merging audio with media...',
+      //   );
+      //   uploadNotificationService.showUploadProgress(
+      //     uploadId: uploadId,
+      //     progress: 0.1,
+      //     currentStep: 'Merging audio...',
+      //   );
+
+      //   final mergedFile = await _mergeAudioWithMedia(finalMediaFile);
+      //   if (mergedFile != null) {
+      //     finalMediaFile = mergedFile;
+      //     // If it was a photo, it's now a video
+      //     if (_mediaType == 'image') {
+      //       finalMediaType = 'video';
+      //     }
+      //   }
+      // }
+
+      // Skip audio merging step - proceed directly to media processing
+
+      uploadProgressService.updateProgress(
+        uploadId: uploadId,
+        state: UploadState.uploading,
+        progress: 0.5,
+        currentStep: 'Uploading to server...',
+      );
+      uploadNotificationService.showUploadProgress(
+        uploadId: uploadId,
+        progress: 0.5,
+        currentStep: 'Uploading...',
+      );
+
+      // Step 2: Upload media to Cloudinary with progress tracking
+      String? mediaUrl;
+      String? thumbnailUrl;
+      Map<String, String>? videoQualities;
+      double? videoDuration;
+      DateTime uploadStartTime = DateTime.now();
+
       if (kIsWeb && _selectedMediaBytes != null) {
-        // For web, upload directly from bytes
+        // For web, upload directly from bytes (no audio support yet)
+        mediaUrl = await CloudinaryService.uploadImageFromBytes(
+          _selectedMediaBytes!,
+          filename: 'story_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          onProgress: (progress) {
+            final totalProgress = 0.5 + (progress * 0.4); // 50-90%
+            uploadProgressService.updateProgress(
+              uploadId: uploadId,
+              progress: totalProgress,
+              currentStep: 'Uploading to server...',
+            );
+            uploadNotificationService.updateUploadProgress(
+              uploadId: uploadId,
+              progress: totalProgress,
+              currentStep: 'Uploading...',
+            );
+          },
+        ) ?? '';
+        
+        if (mediaUrl.isEmpty) {
+          throw Exception('Failed to upload image to Cloudinary');
+        }
+      } else if (!kIsWeb && finalMediaFile != null) {
+        // Upload video/image with progress
+        if (finalMediaType == 'video') {
+          // Get video duration
+          final controller = VideoPlayerController.file(finalMediaFile);
+          await controller.initialize();
+          videoDuration = controller.value.duration.inSeconds.toDouble();
+          await controller.dispose();
+
+          // Upload video using VideoUploadService
+          // Note: finalMediaFile is guaranteed to be non-null here due to outer if condition
+          final videoUploadService = VideoUploadService();
+          final videoQualities = await videoUploadService.uploadVideoWithMultipleQualities(
+            finalMediaFile,
+            onProgress: (progress) {
+              final totalProgress = 0.5 + (progress * 0.4); // 50-90%
+              final elapsed = DateTime.now().difference(uploadStartTime);
+              final fileSize = finalMediaFile.lengthSync();
+              
+              uploadProgressService.updateUploadMetrics(
+                uploadId: uploadId,
+                bytesUploaded: (fileSize * progress).round(),
+                totalBytes: fileSize,
+                elapsedTime: elapsed,
+              );
+              uploadProgressService.updateProgress(
+                uploadId: uploadId,
+                progress: totalProgress,
+                currentStep: 'Uploading to server...',
+              );
+              uploadNotificationService.updateUploadProgress(
+                uploadId: uploadId,
+                progress: totalProgress,
+                currentStep: 'Uploading...',
+              );
+            },
+          );
+
+          if (videoQualities == null || videoQualities['videoUrl'] == null) {
+            throw Exception('Failed to upload video to Cloudinary');
+          }
+          mediaUrl = videoQualities['videoUrl']!;
+          
+          // Generate thumbnail for video
+          try {
+            final thumbnailData = await video_thumbnail.VideoThumbnail.thumbnailData(
+              video: finalMediaFile.path,
+              imageFormat: video_thumbnail.ImageFormat.JPEG,
+              maxWidth: 400,
+              quality: 75,
+            );
+            if (thumbnailData != null) {
+              final tempDir = await getTemporaryDirectory();
+              final thumbnailFile = File(path.join(
+                tempDir.path,
+                'thumb_${DateTime.now().millisecondsSinceEpoch}.jpg',
+              ));
+              await thumbnailFile.writeAsBytes(thumbnailData);
+              thumbnailUrl = await CloudinaryService.uploadImageFromFile(thumbnailFile);
+              await thumbnailFile.delete();
+            }
+          } catch (e) {
+            debugPrint('StoryCreatorScreen: Error generating thumbnail: $e');
+          }
+        } else {
+          // Upload image
+          mediaUrl = await CloudinaryService.uploadImageFromFile(
+            finalMediaFile,
+            onProgress: (progress) {
+              final totalProgress = 0.5 + (progress * 0.4); // 50-90%
+              uploadProgressService.updateProgress(
+                uploadId: uploadId,
+                progress: totalProgress,
+                currentStep: 'Uploading to server...',
+              );
+              uploadNotificationService.updateUploadProgress(
+                uploadId: uploadId,
+                progress: totalProgress,
+                currentStep: 'Uploading...',
+              );
+            },
+          ) ?? '';
+        }
+
+        if (mediaUrl.isEmpty) {
+          throw Exception('Failed to upload media to Cloudinary');
+        }
+      } else {
+        throw Exception('No media available');
+      }
+
+      uploadProgressService.updateProgress(
+        uploadId: uploadId,
+        state: UploadState.finalizing,
+        progress: 0.9,
+        currentStep: 'Finalizing...',
+      );
+
+      // Step 3: Create story in Firestore
+      if (kIsWeb && _selectedMediaBytes != null) {
         await _storyRepository.createStoryFromBytes(
           userId: currentUser.uid,
           mediaBytes: _selectedMediaBytes!,
           mediaType: _mediaType,
           textOverlays: _textOverlays.isNotEmpty ? _textOverlays : null,
           drawings: _drawings.isNotEmpty ? _drawings : null,
-          stickerIds: _stickerIds.isNotEmpty ? _stickerIds : null,
           stickerOverlays:
               _stickerOverlays.isNotEmpty ? _stickerOverlays : null,
         );
-      } else if (!kIsWeb && _selectedMedia != null) {
+      } else if (!kIsWeb) {
         await _storyRepository.createStory(
           userId: currentUser.uid,
-          mediaFile: _selectedMedia!,
-          mediaType: _mediaType,
+          mediaType: finalMediaType,
+          videoDuration: videoDuration,
           textOverlays: _textOverlays.isNotEmpty ? _textOverlays : null,
           drawings: _drawings.isNotEmpty ? _drawings : null,
-          stickerIds: _stickerIds.isNotEmpty ? _stickerIds : null,
           stickerOverlays:
               _stickerOverlays.isNotEmpty ? _stickerOverlays : null,
+          preUploadedMediaUrl: mediaUrl,
+          preUploadedVideoQualities: videoQualities,
+          preUploadedThumbnailUrl: thumbnailUrl,
         );
-      } else {
-        throw Exception('No media available');
       }
+
+      // Complete upload
+      uploadProgressService.completeUpload(uploadId);
+      uploadNotificationService.showUploadComplete(uploadId: uploadId);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -527,11 +943,14 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
             _videoPreviewController = null;
             _textOverlays = [];
             _drawings = [];
-            _stickerIds = [];
             _stickerOverlays = [];
             _activeTool = 'none';
             _drawingColor = Colors.white;
             _drawingStrokeWidth = 5.0;
+            // Audio state variables disabled
+            // _selectedAudioPath = null;
+            // _audioStartTime = null;
+            // _audioDuration = null;
           });
           // Show media picker again
           _showMediaPicker();
@@ -541,6 +960,9 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
       }
     } catch (e) {
       debugPrint('Error sharing story: $e');
+      uploadProgressService.failUpload(uploadId, e.toString());
+      uploadNotificationService.showUploadFailed(uploadId: uploadId, errorMessage: e.toString());
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error sharing story: $e')),
@@ -704,8 +1126,7 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
                             height: double.infinity,
                           )
                         : const Center(
-                            child:
-                                CircularProgressIndicator(color: Colors.white),
+                            child: AppProgressIndicator(color: Colors.white),
                           )
                 : _videoPreviewController != null &&
                         _videoPreviewController!.value.isInitialized
@@ -720,7 +1141,7 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
                         ),
                       )
                     : const Center(
-                        child: CircularProgressIndicator(color: Colors.white),
+                        child: AppProgressIndicator(color: Colors.white),
                       ),
           ),
 
@@ -790,89 +1211,37 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
             );
           }),
 
-          // Drawing toolbar (when drawing tool is active)
+          // Drawing tools (when drawing tool is active)
           if (_activeTool == 'draw')
-            Positioned(
-              bottom: 100,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: DrawingToolbar(
-                  selectedColor: _drawingColor,
-                  selectedStrokeWidth: _drawingStrokeWidth,
-                  onColorSelected: (color) {
-                    setState(() {
-                      _drawingColor = color;
-                    });
-                  },
-                  onStrokeWidthSelected: (width) {
-                    setState(() {
-                      _drawingStrokeWidth = width;
-                    });
-                  },
-                ),
-              ),
+            StoryDrawingTools(
+              selectedColor: _drawingColor,
+              selectedStrokeWidth: _drawingStrokeWidth,
+              onColorSelected: (color) {
+                setState(() {
+                  _drawingColor = color;
+                });
+              },
+              onStrokeWidthSelected: (width) {
+                setState(() {
+                  _drawingStrokeWidth = width;
+                });
+              },
             ),
 
           // Top-right toolbar (Text, Draw, Stickers)
           if (_selectedMedia != null || _selectedMediaBytes != null)
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 8,
-              right: 8,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildToolButton(
-                      theme: theme,
-                      icon: Icons.text_fields,
-                      isActive: _activeTool == 'text',
-                      onTap: () {
-                        setState(() {
-                          _activeTool = _activeTool == 'text' ? 'none' : 'text';
-                        });
-                        if (_activeTool == 'text') {
-                          _addTextOverlay();
-                        }
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    _buildToolButton(
-                      theme: theme,
-                      icon: Icons.edit,
-                      isActive: _activeTool == 'draw',
-                      onTap: () {
-                        setState(() {
-                          _activeTool = _activeTool == 'draw' ? 'none' : 'draw';
-                        });
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    _buildToolButton(
-                      theme: theme,
-                      icon: Icons.emoji_emotions,
-                      isActive: _activeTool == 'stickers',
-                      onTap: () {
-                        if (_activeTool == 'stickers') {
-                          setState(() {
-                            _activeTool = 'none';
-                          });
-                        } else {
-                          setState(() {
-                            _activeTool = 'stickers';
-                          });
-                          _showStickerPicker();
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
+            StoryEditorToolbar(
+              activeTool: _activeTool,
+              onToolChanged: (tool) {
+                setState(() {
+                  _activeTool = tool;
+                });
+                if (tool == 'text') {
+                  _addTextOverlay();
+                } else if (tool == 'stickers') {
+                  _showStickerPicker();
+                }
+              },
             ),
 
           // Bottom-right Share button
@@ -890,27 +1259,31 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
                       child: const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(
+                        child: AppProgressIndicator(
                           strokeWidth: 2,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
+                          color: Colors.white,
                         ),
                       ),
                     )
                   : FilledButton.icon(
                       onPressed: _shareStory,
                       style: FilledButton.styleFrom(
-                        backgroundColor: theme.colorScheme.primary,
-                        foregroundColor: theme.colorScheme.onPrimary,
+                        backgroundColor: SonarPulseTheme.primaryAccent,
+                        foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
+                          horizontal: DesignTokens.spaceLG,
+                          vertical: DesignTokens.spaceMD,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
                         ),
                       ),
-                      icon: const Icon(Icons.send, size: 18),
+                      icon: const Icon(Icons.send, size: DesignTokens.iconMD),
                       label: Text(
                         'Share',
-                        style: theme.textTheme.labelLarge,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
             ),
@@ -920,31 +1293,10 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
 
     // Show loading or picker
     return const Center(
-      child: CircularProgressIndicator(color: Colors.white),
+      child: AppProgressIndicator(color: Colors.white),
     );
   }
 
-  Widget _buildToolButton({
-    required ThemeData theme,
-    required IconData icon,
-    required bool isActive,
-    required VoidCallback onTap,
-  }) {
-    return IconButton(
-      onPressed: onTap,
-      icon: Icon(
-        icon,
-        color:
-            isActive ? theme.colorScheme.primary : theme.colorScheme.onPrimary,
-        size: 24,
-      ),
-      style: IconButton.styleFrom(
-        backgroundColor: isActive
-            ? theme.colorScheme.primary.withOpacity(0.2)
-            : Colors.transparent,
-      ),
-    );
-  }
 
   void _addTextOverlay() {
     // Add a new text overlay at center
@@ -1121,8 +1473,9 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => StickerPickerSheet(
+      builder: (context) => StoryStickerPicker(
         onStickerSelected: (stickerId) {
+          Navigator.of(context).pop();
           setState(() {
             _stickerOverlays.add(
               StickerOverlay(
@@ -1133,9 +1486,33 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
                 rotation: 0.0,
               ),
             );
+            _activeTool = 'none';
           });
         },
       ),
     );
+  }
+
+  // Audio import feature temporarily disabled - FFmpegKit compatibility issues
+  // Method kept for future re-implementation but currently unused
+  // ignore: unused_element
+  Future<void> _showAudioImport() async {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Audio import feature is temporarily unavailable. Video trimming is still available.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  // Audio merging feature temporarily disabled - FFmpegKit compatibility issues
+  // Method kept for future re-implementation but currently unused
+  // ignore: unused_element
+  Future<File?> _mergeAudioWithMedia(File mediaFile) async {
+    // Feature disabled - return original file without merging
+    debugPrint('StoryCreatorScreen: Audio merging disabled - returning original media file');
+    return mediaFile;
   }
 }

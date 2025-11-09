@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:freegram/widgets/island_popup.dart';
 
 /// Enhanced message input area with multi-line support and attachments
@@ -82,14 +83,14 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
 
             // Input row
             Padding(
-              padding: EdgeInsets.all(DesignTokens.spaceSM),
+              padding: const EdgeInsets.all(DesignTokens.spaceSM),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   // Attachment button
                   _buildAttachmentButton(),
 
-                  SizedBox(width: DesignTokens.spaceSM),
+                  const SizedBox(width: DesignTokens.spaceSM),
 
                   // Text input
                   Expanded(
@@ -100,7 +101,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
                       ),
                       decoration: BoxDecoration(
                         color:
-                            theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                            theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
                         borderRadius:
                             BorderRadius.circular(DesignTokens.radiusXL),
                         border: Border.all(
@@ -129,7 +130,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
                                   fontSize: DesignTokens.fontSizeMD,
                                 ),
                                 border: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(
+                                contentPadding: const EdgeInsets.symmetric(
                                   horizontal: DesignTokens.spaceMD,
                                   vertical: DesignTokens.spaceSM,
                                 ),
@@ -158,7 +159,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
                     ),
                   ),
 
-                  SizedBox(width: DesignTokens.spaceSM),
+                  const SizedBox(width: DesignTokens.spaceSM),
 
                   // Send button (morphs from voice)
                   _buildSendButton(),
@@ -175,7 +176,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
     final theme = Theme.of(context);
 
     return Container(
-      padding: EdgeInsets.all(DesignTokens.spaceMD),
+      padding: const EdgeInsets.all(DesignTokens.spaceMD),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary.withOpacity(0.1),
         border: Border(
@@ -196,7 +197,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
             size: DesignTokens.iconSM,
             color: theme.colorScheme.primary,
           ),
-          SizedBox(width: DesignTokens.spaceSM),
+          const SizedBox(width: DesignTokens.spaceSM),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -278,7 +279,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
       ),
       builder: (context) => SafeArea(
         child: Padding(
-          padding: EdgeInsets.all(DesignTokens.spaceLG),
+          padding: const EdgeInsets.all(DesignTokens.spaceLG),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -286,7 +287,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
               Container(
                 width: 40,
                 height: 4,
-                margin: EdgeInsets.only(bottom: DesignTokens.spaceMD),
+                margin: const EdgeInsets.only(bottom: DesignTokens.spaceMD),
                 decoration: BoxDecoration(
                   color: Colors.grey[300],
                   borderRadius: BorderRadius.circular(2),
@@ -347,14 +348,11 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
           color: theme.colorScheme.primary,
           borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
         ),
-        child: Center(
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
+        child: const Center(
+          child: AppProgressIndicator(
+            size: 24,
+            strokeWidth: 2,
+            color: Colors.white,
           ),
         ),
       );
@@ -434,7 +432,7 @@ class _AttachmentOption extends StatelessWidget {
               size: DesignTokens.iconLG,
             ),
           ),
-          SizedBox(height: DesignTokens.spaceXS),
+          const SizedBox(height: DesignTokens.spaceXS),
           Text(
             label,
             style: TextStyle(

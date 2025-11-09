@@ -119,9 +119,9 @@ class NearbyFeedBloc extends Bloc<NearbyFeedEvent, NearbyFeedState> {
         _getNearbyReels(event.userId, limit: 5),
       ]);
 
-      final nearbyPosts = results[0] as List<PostModel>;
-      final nearbyTrendingPosts = results[1] as List<PostModel>;
-      final nearbyReelsPosts = results[2] as List<PostModel>;
+      final nearbyPosts = results[0];
+      final nearbyTrendingPosts = results[1];
+      final nearbyReelsPosts = results[2];
 
       // Update hasMore
       _hasMore = nearbyPosts.length == 10;

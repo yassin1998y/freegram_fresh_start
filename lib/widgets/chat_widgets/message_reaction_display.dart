@@ -34,7 +34,7 @@ class MessageReactionDisplay extends StatelessWidget {
             _showReactionDetails(context);
           },
       child: Container(
-        padding: EdgeInsets.symmetric(
+        padding: const EdgeInsets.symmetric(
           horizontal: DesignTokens.spaceSM,
           vertical: DesignTokens.spaceXS,
         ),
@@ -95,7 +95,7 @@ class MessageReactionDisplay extends StatelessWidget {
       ),
       builder: (context) => SafeArea(
         child: Padding(
-          padding: EdgeInsets.all(DesignTokens.spaceLG),
+          padding: const EdgeInsets.all(DesignTokens.spaceLG),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,7 +105,7 @@ class MessageReactionDisplay extends StatelessWidget {
                 child: Container(
                   width: 40,
                   height: 4,
-                  margin: EdgeInsets.only(bottom: DesignTokens.spaceMD),
+                  margin: const EdgeInsets.only(bottom: DesignTokens.spaceMD),
                   decoration: BoxDecoration(
                     color: Colors.grey[300],
                     borderRadius: BorderRadius.circular(2),
@@ -119,19 +119,19 @@ class MessageReactionDisplay extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
               ),
-              SizedBox(height: DesignTokens.spaceMD),
+              const SizedBox(height: DesignTokens.spaceMD),
 
               // List of reactions
               ...reactions.entries.map((entry) {
                 return Padding(
-                  padding: EdgeInsets.only(bottom: DesignTokens.spaceSM),
+                  padding: const EdgeInsets.only(bottom: DesignTokens.spaceSM),
                   child: Row(
                     children: [
                       Text(
                         entry.value,
                         style: const TextStyle(fontSize: 24),
                       ),
-                      SizedBox(width: DesignTokens.spaceMD),
+                      const SizedBox(width: DesignTokens.spaceMD),
                       Expanded(
                         child: Text(
                           entry.key == reactions.entries.first.key
@@ -151,6 +151,14 @@ class MessageReactionDisplay extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
 
 
 

@@ -8,6 +8,7 @@ import 'package:freegram/repositories/post_repository.dart';
 import 'package:freegram/models/post_model.dart';
 import 'package:freegram/widgets/feed_widgets/post_card.dart';
 import 'package:freegram/models/feed_item_model.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class HashtagExploreScreen extends StatefulWidget {
   final String hashtag;
@@ -33,6 +34,7 @@ class _HashtagExploreScreenState extends State<HashtagExploreScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: hashtag_explore_screen.dart');
     _loadPosts();
     _loadStats();
   }
@@ -163,7 +165,7 @@ class _HashtagExploreScreenState extends State<HashtagExploreScreen> {
             // Posts list
             if (_isLoading && _posts.isEmpty)
               const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator()),
+                child: Center(child: AppProgressIndicator()),
               )
             else if (_posts.isEmpty)
               SliverFillRemaining(
@@ -200,7 +202,7 @@ class _HashtagExploreScreenState extends State<HashtagExploreScreen> {
                         return const Center(
                           child: Padding(
                             padding: EdgeInsets.all(16),
-                            child: CircularProgressIndicator(),
+                            child: AppProgressIndicator(),
                           ),
                         );
                       }

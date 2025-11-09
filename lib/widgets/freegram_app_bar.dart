@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:freegram/widgets/common/app_button.dart';
 
 /// Consistent Freegram branded AppBar for all screens
 /// Uses system theme (light/dark mode) and design tokens
@@ -58,7 +59,7 @@ class FreegramAppBar extends StatelessWidget implements PreferredSizeWidget {
       leading: leading ??
           (showBackButton
               ? IconButton(
-                  icon: Icon(
+                  icon: const Icon(
                     Icons.arrow_back_ios_new_rounded,
                     size: 20,
                   ),
@@ -88,7 +89,7 @@ class FreegramAppBar extends StatelessWidget implements PreferredSizeWidget {
                         letterSpacing: -0.5,
                       ),
                     ),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Container(
                       width: 2,
                       height: 20,
@@ -97,7 +98,7 @@ class FreegramAppBar extends StatelessWidget implements PreferredSizeWidget {
                         borderRadius: BorderRadius.circular(1),
                       ),
                     ),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Flexible(
                       child: Text(
                         title!,
@@ -123,7 +124,7 @@ class FreegramAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: actions != null
           ? [
               ...actions!,
-              SizedBox(width: 4), // Right padding
+              const SizedBox(width: 4), // Right padding
             ]
           : null,
       bottom: bottom,
@@ -132,6 +133,10 @@ class FreegramAppBar extends StatelessWidget implements PreferredSizeWidget {
 }
 
 /// Professional action button for AppBar
+/// 
+/// DEPRECATED: Use AppIconButton from app_button.dart instead
+/// This class is kept for backward compatibility but delegates to AppIconButton
+@Deprecated('Use AppIconButton from app_button.dart instead')
 class AppBarActionButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onPressed;
@@ -152,71 +157,13 @@ class AppBarActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final buttonColor = color ?? theme.colorScheme.onSurface;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                onPressed();
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: buttonColor.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  size: 22,
-                  color: buttonColor,
-                ),
-              ),
-            ),
-          ),
-          if (showBadge)
-            Positioned(
-              right: -4,
-              top: -4,
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: badgeText != null ? 6 : 8,
-                  vertical: badgeText != null ? 2 : 8,
-                ),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.error,
-                  shape:
-                      badgeText != null ? BoxShape.rectangle : BoxShape.circle,
-                  borderRadius:
-                      badgeText != null ? BorderRadius.circular(10) : null,
-                  border: Border.all(
-                    color: theme.scaffoldBackgroundColor,
-                    width: 2,
-                  ),
-                ),
-                child: badgeText != null
-                    ? Text(
-                        badgeText!,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )
-                    : null,
-              ),
-            ),
-        ],
-      ),
+    return AppIconButton(
+      icon: icon,
+      onPressed: onPressed,
+      tooltip: tooltip,
+      color: color,
+      badge: showBadge ? (badgeText ?? '') : null,
+      showBadgeDot: showBadge && badgeText == null,
     );
   }
 }

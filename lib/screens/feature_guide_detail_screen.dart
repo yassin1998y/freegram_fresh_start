@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/repositories/feature_guide_repository.dart';
 import 'package:freegram/models/feature_guide_model.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class FeatureGuideDetailScreen extends StatefulWidget {
   final FeatureGuideModel guide;
@@ -29,6 +30,7 @@ class _FeatureGuideDetailScreenState extends State<FeatureGuideDetailScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: feature_guide_detail_screen.dart');
     _isCompleted = widget.isCompleted;
   }
 
@@ -120,11 +122,11 @@ class _FeatureGuideDetailScreenState extends State<FeatureGuideDetailScreen> {
                 color: Colors.green.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.check_circle, color: Colors.green, size: 16),
-                  const SizedBox(width: 4),
+                  SizedBox(width: 4),
                   Text(
                     'Completed',
                     style: TextStyle(
@@ -354,7 +356,7 @@ class _FeatureGuideDetailScreenState extends State<FeatureGuideDetailScreen> {
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: AppProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.check_circle),
                   label: Text(

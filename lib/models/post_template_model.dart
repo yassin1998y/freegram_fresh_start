@@ -14,7 +14,7 @@ class PostTemplateModel extends Equatable {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  PostTemplateModel({
+  const PostTemplateModel({
     required this.templateId,
     required this.userId,
     required this.name,

@@ -12,6 +12,7 @@ import 'package:freegram/repositories/page_repository.dart';
 import 'package:freegram/models/post_model.dart';
 import 'package:freegram/models/page_model.dart';
 import 'package:intl/intl.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class ModerationDashboardScreen extends StatefulWidget {
   const ModerationDashboardScreen({Key? key}) : super(key: key);
@@ -47,6 +48,7 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: moderation_dashboard_screen.dart');
     _tabController = TabController(
         length: 5, vsync: this); // 4 report tabs + 1 verification tab
     _checkAdminAccess();
@@ -611,7 +613,7 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
     if (_checkingAdmin) {
       return Scaffold(
         appBar: AppBar(title: const Text('Moderation Dashboard')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const Center(child: AppProgressIndicator()),
       );
     }
 
@@ -741,7 +743,7 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
         // Reports list
         Expanded(
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(child: AppProgressIndicator())
               : _reports.isEmpty
                   ? Center(
                       child: Column(
@@ -874,7 +876,7 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
         // Verification requests list
         Expanded(
           child: _isLoadingVerifications
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(child: AppProgressIndicator())
               : _verificationRequests.isEmpty
                   ? Center(
                       child: Column(

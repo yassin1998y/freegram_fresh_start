@@ -39,6 +39,14 @@ class AppRoutes {
   // Other Routes
   static const String store = '/store';
   static const String matchAnimation = '/matchAnimation';
+  
+  // Reels Routes
+  static const String reels = '/reels';
+  static const String createReel = '/createReel';
+
+  // Story Routes
+  static const String storyCreator = '/storyCreator';
+  static const String textStoryCreator = '/textStoryCreator';
 }
 
 /// Type-safe route arguments

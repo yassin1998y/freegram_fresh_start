@@ -19,8 +19,10 @@ import 'package:freegram/screens/store_screen.dart';
 import 'package:freegram/services/ad_helper.dart';
 import 'package:freegram/utils/match_screen_constants.dart';
 import 'package:freegram/widgets/draggable_card.dart';
-import 'package:freegram/widgets/match_action_button.dart';
+import 'package:freegram/widgets/common/app_button.dart';
+import 'package:freegram/widgets/match_action_button.dart' show Debouncer;
 import 'package:freegram/widgets/offline_overlay.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 import 'match_animation_screen.dart';
 
@@ -61,7 +63,7 @@ class _MatchScreenState extends State<MatchScreen>
   AdHelper? _adHelper;
   bool _isAdReady = false;
   bool _isFirstTime = true;
-  List<CardItem> _undoStack = [];
+  final List<CardItem> _undoStack = [];
   int _swipeCount = 0;
   DateTime? _lastAdTime;
   int _adCooldownSeconds = 0;
@@ -76,6 +78,7 @@ class _MatchScreenState extends State<MatchScreen>
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: match_screen.dart');
     _buttonDebouncer = Debouncer(
       delay: MatchScreenConstants.buttonDebounceDuration,
     );
@@ -539,16 +542,16 @@ class _MatchScreenState extends State<MatchScreen>
                             });
                             setDialogState(() => _isAdReady = false);
                             _adHelper!.loadRewardedAd(onAdLoaded: () {
-                              if (mounted)
+                              if (mounted) {
                                 setDialogState(() => _isAdReady = true);
+                              }
                             });
                           },
                     icon: _isAdReady && canWatchAd
                         ? const Icon(Icons.play_arrow, size: 20)
-                        : const SizedBox(
-                            height: 16,
-                            width: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                        : const AppProgressIndicator(
+                            size: 16,
+                            strokeWidth: 2,
                           ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
@@ -611,7 +614,7 @@ class _MatchScreenState extends State<MatchScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: MatchScreenConstants.likeColor,
-            content: Row(
+            content: const Row(
               children: [
                 Icon(
                   Icons.star,
@@ -637,7 +640,7 @@ class _MatchScreenState extends State<MatchScreen>
               ),
             ),
             duration: MatchScreenConstants.snackBarDuration,
-            margin: EdgeInsets.all(MatchScreenConstants.rewardSnackBarMargin),
+            margin: const EdgeInsets.all(MatchScreenConstants.rewardSnackBarMargin),
           ),
         );
       }
@@ -709,11 +712,9 @@ class _MatchScreenState extends State<MatchScreen>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(
+                    AppProgressIndicator(
                       strokeWidth: 3,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Theme.of(context).primaryColor,
-                      ),
+                      color: Theme.of(context).primaryColor,
                     ),
                     const SizedBox(height: 24),
                     Text(
@@ -834,7 +835,7 @@ class _MatchScreenState extends State<MatchScreen>
                         // Progress indicator
                         if (cardItems.length > 1)
                           Container(
-                            padding: EdgeInsets.symmetric(
+                            padding: const EdgeInsets.symmetric(
                               horizontal: MatchScreenConstants
                                   .progressIndicatorPaddingHorizontal,
                               vertical: MatchScreenConstants
@@ -848,19 +849,17 @@ class _MatchScreenState extends State<MatchScreen>
                                       MatchScreenConstants
                                           .progressIndicatorRadius,
                                     ),
-                                    child: LinearProgressIndicator(
+                                    child: AppLinearProgressIndicator(
                                       value: _swipeCount /
                                           (_swipeCount + cardItems.length),
                                       backgroundColor: Colors.grey[300],
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        Theme.of(context).primaryColor,
-                                      ),
+                                      color: Theme.of(context).primaryColor,
                                       minHeight: MatchScreenConstants
                                           .progressIndicatorHeight,
                                     ),
                                   ),
                                 ),
-                                SizedBox(
+                                const SizedBox(
                                     width: MatchScreenConstants
                                         .progressTextSpacing),
                                 Text(
@@ -878,7 +877,7 @@ class _MatchScreenState extends State<MatchScreen>
                         // Card stack with proper padding
                         Expanded(
                           child: Padding(
-                            padding: EdgeInsets.fromLTRB(
+                            padding: const EdgeInsets.fromLTRB(
                               MatchScreenConstants.cardPaddingHorizontal,
                               MatchScreenConstants.cardPaddingTop,
                               MatchScreenConstants.cardPaddingHorizontal,
@@ -977,19 +976,15 @@ class _MatchScreenState extends State<MatchScreen>
                       color: Colors.black54,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
+                        AppProgressIndicator(
+                          size: 12,
+                          strokeWidth: 2,
+                          color: Colors.white,
                         ),
-                        const SizedBox(width: 6),
+                        SizedBox(width: 6),
                         Text(
                           'Loading ad',
                           style: TextStyle(
@@ -1023,7 +1018,7 @@ class _MatchScreenState extends State<MatchScreen>
     return Semantics(
       label: MatchScreenConstants.semanticLabelActionButtons,
       child: Padding(
-        padding: EdgeInsets.only(
+        padding: const EdgeInsets.only(
           left: MatchScreenConstants.actionButtonRowPaddingHorizontal,
           right: MatchScreenConstants.actionButtonRowPaddingHorizontal,
           bottom: MatchScreenConstants.actionButtonRowPaddingBottom,
@@ -1033,32 +1028,28 @@ class _MatchScreenState extends State<MatchScreen>
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             // Undo button
-            MatchActionButton(
-              config: MatchActionButtonConfig(
-                icon: Icons.replay,
-                color: MatchScreenConstants.undoColor,
-                label: MatchScreenConstants.labelUndo,
-                tooltip: MatchScreenConstants.tooltipUndo,
-                size: MatchScreenConstants.buttonSizeUndo,
-                iconSize: MatchScreenConstants.iconSizeUndo,
-                onPressed: _undoStack.isEmpty ? null : _handleUndoPress,
-                hapticType: HapticFeedbackType.medium,
-              ),
+            AppActionButton(
+              icon: Icons.replay,
+              color: MatchScreenConstants.undoColor,
+              label: MatchScreenConstants.labelUndo,
+              tooltip: MatchScreenConstants.tooltipUndo,
+              size: MatchScreenConstants.buttonSizeUndo,
+              iconSize: MatchScreenConstants.iconSizeUndo,
+              onPressed: _undoStack.isEmpty ? null : _handleUndoPress,
+              hapticType: AppButtonHapticType.medium,
               animationDuration: MatchScreenConstants.buttonAnimationDuration,
             ),
 
             // Pass button
-            MatchActionButton(
-              config: MatchActionButtonConfig(
-                icon: Icons.close,
-                color: MatchScreenConstants.passColor,
-                label: MatchScreenConstants.labelPass,
-                tooltip: MatchScreenConstants.tooltipPass,
-                size: MatchScreenConstants.buttonSizePass,
-                iconSize: MatchScreenConstants.iconSizePass,
-                onPressed: _handlePassPress,
-                hapticType: HapticFeedbackType.selection,
-              ),
+            AppActionButton(
+              icon: Icons.close,
+              color: MatchScreenConstants.passColor,
+              label: MatchScreenConstants.labelPass,
+              tooltip: MatchScreenConstants.tooltipPass,
+              size: MatchScreenConstants.buttonSizePass,
+              iconSize: MatchScreenConstants.iconSizePass,
+              onPressed: _handlePassPress,
+              hapticType: AppButtonHapticType.selection,
               animationDuration: MatchScreenConstants.buttonAnimationDuration,
             ),
 
@@ -1066,22 +1057,20 @@ class _MatchScreenState extends State<MatchScreen>
             ValueListenableBuilder<int>(
               valueListenable: _superLikesCount,
               builder: (context, superLikes, _) {
-                return MatchActionButton(
-                  config: MatchActionButtonConfig(
-                    icon: Icons.star,
-                    color: MatchScreenConstants.superLikeColor,
-                    label: MatchScreenConstants.labelSuperLike,
-                    tooltip: superLikes == 0
-                        ? MatchScreenConstants.tooltipOutOfSuperLikes
-                        : MatchScreenConstants.tooltipSuperLike,
-                    size: MatchScreenConstants.buttonSizeSuperLike,
-                    iconSize: MatchScreenConstants.iconSizeSuperLike,
-                    onPressed: superLikes > 0 ? _handleSuperLikePress : null,
-                    badge: superLikes > 0 ? '$superLikes' : null,
-                    isDisabled: superLikes == 0,
-                    isPrimary: true,
-                    hapticType: HapticFeedbackType.heavy,
-                  ),
+                return AppActionButton(
+                  icon: Icons.star,
+                  color: MatchScreenConstants.superLikeColor,
+                  label: MatchScreenConstants.labelSuperLike,
+                  tooltip: superLikes == 0
+                      ? MatchScreenConstants.tooltipOutOfSuperLikes
+                      : MatchScreenConstants.tooltipSuperLike,
+                  size: MatchScreenConstants.buttonSizeSuperLike,
+                  iconSize: MatchScreenConstants.iconSizeSuperLike,
+                  onPressed: superLikes > 0 ? _handleSuperLikePress : null,
+                  badge: superLikes > 0 ? '$superLikes' : null,
+                  isDisabled: superLikes == 0,
+                  isPrimary: true,
+                  hapticType: AppButtonHapticType.heavy,
                   animationDuration:
                       MatchScreenConstants.buttonAnimationDuration,
                 );
@@ -1089,32 +1078,28 @@ class _MatchScreenState extends State<MatchScreen>
             ),
 
             // Like button
-            MatchActionButton(
-              config: MatchActionButtonConfig(
-                icon: Icons.favorite,
-                color: MatchScreenConstants.likeColor,
-                label: MatchScreenConstants.labelLike,
-                tooltip: MatchScreenConstants.tooltipLike,
-                size: MatchScreenConstants.buttonSizeLike,
-                iconSize: MatchScreenConstants.iconSizeLike,
-                onPressed: _handleLikePress,
-                hapticType: HapticFeedbackType.selection,
-              ),
+            AppActionButton(
+              icon: Icons.favorite,
+              color: MatchScreenConstants.likeColor,
+              label: MatchScreenConstants.labelLike,
+              tooltip: MatchScreenConstants.tooltipLike,
+              size: MatchScreenConstants.buttonSizeLike,
+              iconSize: MatchScreenConstants.iconSizeLike,
+              onPressed: _handleLikePress,
+              hapticType: AppButtonHapticType.selection,
               animationDuration: MatchScreenConstants.buttonAnimationDuration,
             ),
 
             // Info button
-            MatchActionButton(
-              config: MatchActionButtonConfig(
-                icon: Icons.info_outline,
-                color: MatchScreenConstants.infoColor,
-                label: MatchScreenConstants.labelInfo,
-                tooltip: MatchScreenConstants.tooltipInfo,
-                size: MatchScreenConstants.buttonSizeInfo,
-                iconSize: MatchScreenConstants.iconSizeInfo,
-                onPressed: _handleInfoPress,
-                hapticType: HapticFeedbackType.light,
-              ),
+            AppActionButton(
+              icon: Icons.info_outline,
+              color: MatchScreenConstants.infoColor,
+              label: MatchScreenConstants.labelInfo,
+              tooltip: MatchScreenConstants.tooltipInfo,
+              size: MatchScreenConstants.buttonSizeInfo,
+              iconSize: MatchScreenConstants.iconSizeInfo,
+              onPressed: _handleInfoPress,
+              hapticType: AppButtonHapticType.light,
               animationDuration: MatchScreenConstants.buttonAnimationDuration,
             ),
           ],
@@ -1248,11 +1233,11 @@ class _RewardCelebrationDialogState extends State<_RewardCelebrationDialog>
             child: Transform.rotate(
               angle: _rotationAnimation.value,
               child: Container(
-                margin: EdgeInsets.symmetric(
+                margin: const EdgeInsets.symmetric(
                   horizontal:
                       MatchScreenConstants.celebrationDialogHorizontalMargin,
                 ),
-                padding: EdgeInsets.all(
+                padding: const EdgeInsets.all(
                   MatchScreenConstants.celebrationDialogPadding,
                 ),
                 decoration: BoxDecoration(
@@ -1272,7 +1257,7 @@ class _RewardCelebrationDialogState extends State<_RewardCelebrationDialog>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      padding: EdgeInsets.all(
+                      padding: const EdgeInsets.all(
                         MatchScreenConstants.celebrationIconPadding,
                       ),
                       decoration: BoxDecoration(
@@ -1280,14 +1265,14 @@ class _RewardCelebrationDialogState extends State<_RewardCelebrationDialog>
                             .withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
+                      child: const Icon(
                         Icons.star,
                         size: MatchScreenConstants.celebrationIconSize,
                         color: MatchScreenConstants.superLikeColor,
                       ),
                     ),
                     const SizedBox(height: 20),
-                    Text(
+                    const Text(
                       'Awesome!',
                       style: TextStyle(
                         fontSize: MatchScreenConstants.celebrationTitleFontSize,
@@ -1307,7 +1292,7 @@ class _RewardCelebrationDialogState extends State<_RewardCelebrationDialog>
                     ),
                     const SizedBox(height: 12),
                     Container(
-                      padding: EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: MatchScreenConstants
                             .celebrationBadgePaddingHorizontal,
                         vertical: MatchScreenConstants
@@ -1319,7 +1304,7 @@ class _RewardCelebrationDialogState extends State<_RewardCelebrationDialog>
                           MatchScreenConstants.celebrationBadgeRadius,
                         ),
                       ),
-                      child: Row(
+                      child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
@@ -1327,7 +1312,7 @@ class _RewardCelebrationDialogState extends State<_RewardCelebrationDialog>
                             color: MatchScreenConstants.likeColor,
                             size: MatchScreenConstants.celebrationBadgeIconSize,
                           ),
-                          const SizedBox(width: 8),
+                          SizedBox(width: 8),
                           Text(
                             'Reward Unlocked!',
                             style: TextStyle(
@@ -1426,11 +1411,9 @@ class _MatchCardState extends State<MatchCard> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            CircularProgressIndicator(
+                            AppProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Theme.of(context).primaryColor,
-                              ),
+                              color: Theme.of(context).primaryColor,
                             ),
                             const SizedBox(height: 12),
                             Text(
@@ -1571,7 +1554,7 @@ class _MatchCardState extends State<MatchCard> {
                               const SizedBox(width: 6),
                               Container(
                                 padding: const EdgeInsets.all(3),
-                                decoration: BoxDecoration(
+                                decoration: const BoxDecoration(
                                   color: Colors.blue,
                                   shape: BoxShape.circle,
                                 ),
@@ -1607,7 +1590,7 @@ class _MatchCardState extends State<MatchCard> {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        Icon(Icons.work_outline,
+                        const Icon(Icons.work_outline,
                             color: Colors.white70, size: 16),
                         const SizedBox(width: 6),
                         Expanded(
@@ -1627,7 +1610,7 @@ class _MatchCardState extends State<MatchCard> {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        Icon(Icons.location_on,
+                        const Icon(Icons.location_on,
                             color: Colors.white70, size: 16),
                         const SizedBox(width: 6),
                         Text(

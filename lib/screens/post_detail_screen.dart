@@ -7,6 +7,7 @@ import 'package:freegram/models/post_model.dart';
 import 'package:freegram/widgets/feed_widgets/post_card.dart';
 import 'package:freegram/models/feed_item_model.dart';
 import 'package:freegram/widgets/feed_widgets/comments_sheet.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final String postId;
@@ -30,6 +31,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: post_detail_screen.dart');
     _loadPost();
   }
 
@@ -82,7 +84,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         title: const Text('Post'),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AppProgressIndicator())
           : _post == null
               ? Center(
                   child: Column(

@@ -87,7 +87,7 @@ class DrawingToolbar extends StatelessWidget {
           child: Container(
             width: width,
             height: width,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: Colors.black,
               shape: BoxShape.circle,
             ),

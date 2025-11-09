@@ -9,7 +9,7 @@ class ReactionModel extends Equatable {
   final String reactionType; // For now, only 'heart' (like)
   final DateTime timestamp;
 
-  ReactionModel({
+  const ReactionModel({
     required this.userId,
     this.reactionType = 'heart', // Default to heart/like
     required this.timestamp,

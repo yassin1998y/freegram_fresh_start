@@ -256,7 +256,7 @@ class PresenceBadge extends StatelessWidget {
 
         return Container(
           padding: padding ??
-              EdgeInsets.symmetric(
+              const EdgeInsets.symmetric(
                 horizontal: ChatPresenceConstants.lastSeenBadgePadding,
                 vertical: ChatPresenceConstants.lastSeenBadgePadding / 2,
               ),

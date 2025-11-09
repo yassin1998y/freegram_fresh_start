@@ -71,7 +71,7 @@ class _ShimmerChatSkeletonState extends State<ShimmerChatSkeleton>
     final messageWidth = 100.0 + random.nextDouble() * 150;
 
     return Container(
-      padding: EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         horizontal: DesignTokens.spaceMD,
         vertical: DesignTokens.spaceSM,
       ),
@@ -97,7 +97,7 @@ class _ShimmerChatSkeletonState extends State<ShimmerChatSkeleton>
             },
           ),
 
-          SizedBox(width: DesignTokens.spaceMD),
+          const SizedBox(width: DesignTokens.spaceMD),
 
           // Content
           Expanded(
@@ -116,7 +116,7 @@ class _ShimmerChatSkeletonState extends State<ShimmerChatSkeleton>
                   },
                 ),
 
-                SizedBox(height: DesignTokens.spaceSM),
+                const SizedBox(height: DesignTokens.spaceSM),
 
                 // Message preview
                 AnimatedBuilder(
@@ -133,7 +133,7 @@ class _ShimmerChatSkeletonState extends State<ShimmerChatSkeleton>
             ),
           ),
 
-          SizedBox(width: DesignTokens.spaceSM),
+          const SizedBox(width: DesignTokens.spaceSM),
 
           // Time
           AnimatedBuilder(
@@ -179,6 +179,14 @@ class _ShimmerChatSkeletonState extends State<ShimmerChatSkeleton>
     );
   }
 }
+
+
+
+
+
+
+
+
 
 
 

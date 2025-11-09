@@ -345,11 +345,13 @@ class UserRepository {
         // Bug #1 fix: Re-verify documents exist after transaction read
         if (!fromUserDoc.exists || !toUserDoc.exists) {
           if (kDebugMode) {
-            if (!fromUserDoc.exists)
+            if (!fromUserDoc.exists) {
               debugPrint(
                   "[UserRepository] Error: Sender $fromUserId not found.");
-            if (!toUserDoc.exists)
+            }
+            if (!toUserDoc.exists) {
               debugPrint("[UserRepository] Error: Target $toUserId not found.");
+            }
           }
           throw Exception("One or both users not found.");
         }
@@ -370,16 +372,19 @@ class UserRepository {
 
         // Bug #4 fix: Strict idempotency check
         if (fromFriends.contains(toUserId)) throw Exception("Already friends.");
-        if (fromSent.contains(toUserId))
+        if (fromSent.contains(toUserId)) {
           throw Exception("Request already sent - idempotency check.");
+        }
         if (fromReceived.contains(toUserId)) {
           throw Exception(
               "User has already sent you a request. Check your requests list.");
         }
-        if (fromBlocked.contains(toUserId))
+        if (fromBlocked.contains(toUserId)) {
           throw Exception("You have blocked this user.");
-        if (toBlocked.contains(fromUserId))
+        }
+        if (toBlocked.contains(fromUserId)) {
           throw Exception("This user has blocked you.");
+        }
 
         transaction.update(fromUserRef, {
           'friendRequestsSent': FieldValue.arrayUnion([toUserId])
@@ -790,8 +795,9 @@ class UserRepository {
         final userDoc = await transaction.get(userRef);
         if (!userDoc.exists) throw Exception("Current user not found.");
         final user = UserModel.fromDoc(userDoc);
-        if (user.superLikes < 1)
+        if (user.superLikes < 1) {
           throw Exception("You have no Super Likes left.");
+        }
         transaction.update(userRef, {'superLikes': FieldValue.increment(-1)});
       });
     }
@@ -965,11 +971,11 @@ class UserRepository {
     if (kDebugMode) {
       debugPrint("[UserRepository] Searching users with query '$query'");
     }
-    if (query.isEmpty) return Stream.empty();
+    if (query.isEmpty) return const Stream.empty();
 
     // Bug #16 fix: Sanitize search query to prevent injection and handle special chars
     final sanitizedQuery = query.trim().replaceAll(RegExp(r'[^\w\s]'), '');
-    if (sanitizedQuery.isEmpty) return Stream.empty();
+    if (sanitizedQuery.isEmpty) return const Stream.empty();
 
     return _db
         .collection('users')
@@ -1012,6 +1018,107 @@ class UserRepository {
     } catch (e) {
       debugPrint('UserRepository: Error checking if following page: $e');
       return false;
+    }
+  }
+
+  /// Get friend suggestions for a user
+  /// Returns users with mutual friends, similar interests, or location-based suggestions
+  Future<List<UserModel>> getFriendSuggestions(String userId, {int limit = 10}) async {
+    try {
+      debugPrint("UserRepository: Getting friend suggestions for $userId");
+      
+      final userDoc = await _db.collection('users').doc(userId).get();
+      if (!userDoc.exists) {
+        return [];
+      }
+
+      final userData = userDoc.data()!;
+      final currentUserFriends = List<String>.from(userData['friends'] ?? []);
+      final currentUserInterests = List<String>.from(userData['interests'] ?? []);
+      final blockedUsers = List<String>.from(userData['blockedUsers'] ?? []);
+      final friendRequestsSent = List<String>.from(userData['friendRequestsSent'] ?? []);
+      final friendRequestsReceived = List<String>.from(userData['friendRequestsReceived'] ?? []);
+
+      // Exclude current user, friends, blocked users, and pending requests
+      final excludedIds = {
+        userId,
+        ...currentUserFriends,
+        ...blockedUsers,
+        ...friendRequestsSent,
+        ...friendRequestsReceived,
+      };
+
+      // Get users with similar interests
+      List<UserModel> candidates = [];
+      if (currentUserInterests.isNotEmpty) {
+        try {
+          final similarUsersSnapshot = await _db
+              .collection('users')
+              .where('interests', arrayContainsAny: currentUserInterests)
+              .limit(50)
+              .get();
+
+          candidates = similarUsersSnapshot.docs
+              .where((doc) => !excludedIds.contains(doc.id))
+              .map((doc) => UserModel.fromDoc(doc))
+              .toList();
+        } catch (e) {
+          debugPrint("UserRepository: Error getting users by interests: $e");
+        }
+      }
+
+      // If not enough candidates, get random users
+      if (candidates.length < limit) {
+        try {
+          final randomUsersSnapshot = await _db
+              .collection('users')
+              .limit(30)
+              .get();
+
+          final randomUsers = randomUsersSnapshot.docs
+              .where((doc) => !excludedIds.contains(doc.id))
+              .map((doc) => UserModel.fromDoc(doc))
+              .toList();
+
+          // Add unique users
+          final existingIds = candidates.map((u) => u.id).toSet();
+          for (final user in randomUsers) {
+            if (!existingIds.contains(user.id)) {
+              candidates.add(user);
+            }
+          }
+        } catch (e) {
+          debugPrint("UserRepository: Error getting random users: $e");
+        }
+      }
+
+      // Score candidates by mutual friends and shared interests
+      candidates.sort((a, b) {
+        final aMutualFriends = a.friends
+            .where((id) => currentUserFriends.contains(id))
+            .length;
+        final bMutualFriends = b.friends
+            .where((id) => currentUserFriends.contains(id))
+            .length;
+
+        if (aMutualFriends != bMutualFriends) {
+          return bMutualFriends.compareTo(aMutualFriends);
+        }
+
+        final aSharedInterests = a.interests
+            .where((i) => currentUserInterests.contains(i))
+            .length;
+        final bSharedInterests = b.interests
+            .where((i) => currentUserInterests.contains(i))
+            .length;
+
+        return bSharedInterests.compareTo(aSharedInterests);
+      });
+
+      return candidates.take(limit).toList();
+    } catch (e) {
+      debugPrint("UserRepository Error: Failed to get friend suggestions: $e");
+      return [];
     }
   }
 }

@@ -1,5 +1,6 @@
 // lib/widgets/feed_widgets/post_card.dart
 
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,7 +11,7 @@ import 'package:freegram/widgets/feed_widgets/comments_sheet.dart';
 import 'package:freegram/widgets/feed_widgets/liked_by_list.dart';
 import 'package:freegram/widgets/feed_widgets/ad_card.dart';
 import 'package:freegram/widgets/feed_widgets/suggestion_carousel.dart';
-import 'package:freegram/widgets/common/sonar_verified_badge.dart';
+import 'package:freegram/widgets/common/media_header.dart';
 import 'package:freegram/utils/location_utils.dart';
 import 'package:freegram/repositories/post_repository.dart';
 import 'package:freegram/repositories/user_repository.dart';
@@ -27,18 +28,23 @@ import 'package:freegram/models/report_model.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:freegram/services/analytics_service.dart';
 import 'package:freegram/services/boost_analytics_service.dart';
+import 'package:freegram/widgets/lqip_image.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class PostCard extends StatefulWidget {
   final FeedItem item;
+  final bool loadMedia; // Phase 3.3: Lazy loading flag
+  final GeoPoint? userLocation; // CRITICAL FIX: Accept cached location from parent
 
   const PostCard({
     Key? key,
     required this.item,
+    this.loadMedia = true, // Default to true for backward compatibility
+    this.userLocation, // Optional, fallback to fetching if not provided
   }) : super(key: key);
 
   @override
@@ -55,6 +61,7 @@ class _PostCardState extends State<PostCard> {
   final BoostAnalyticsService _boostAnalytics = BoostAnalyticsService();
   late PageController _pageController;
   int _currentPage = 0;
+  bool _isDisposed = false;
 
   @override
   void initState() {
@@ -64,7 +71,14 @@ class _PostCardState extends State<PostCard> {
     // Track boost impression and load location only for post items
     if (widget.item is PostFeedItem) {
       final postItem = widget.item as PostFeedItem;
-      _loadUserLocation();
+      
+      // CRITICAL FIX: Use cached location if provided, otherwise fetch
+      if (widget.userLocation != null) {
+        _userLocation = widget.userLocation;
+      } else {
+        _loadUserLocation();
+      }
+      
       if (postItem.post.isBoosted) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _trackBoostImpression(postItem.post);
@@ -77,7 +91,16 @@ class _PostCardState extends State<PostCard> {
 
   @override
   void dispose() {
-    _pageController.dispose();
+    if (!_isDisposed) {
+      _isDisposed = true;
+      // Cleanup: Dispose page controller
+      _pageController.dispose();
+      
+      // Clear any cached data for this post
+      // Note: Image cache is handled by CachedNetworkImage automatically
+      
+      debugPrint('🧹 PostCard: Disposed post ${widget.item is PostFeedItem ? (widget.item as PostFeedItem).post.id : "unknown"}');
+    }
     super.dispose();
   }
 
@@ -162,7 +185,7 @@ class _PostCardState extends State<PostCard> {
     final theme = Theme.of(context);
 
     return Card(
-      margin: EdgeInsets.symmetric(
+      margin: const EdgeInsets.symmetric(
         horizontal: DesignTokens.spaceSM,
         vertical: DesignTokens.spaceXS,
       ),
@@ -176,14 +199,14 @@ class _PostCardState extends State<PostCard> {
           // CONTENT SECTION
           if (post.content.isNotEmpty)
             Padding(
-              padding: EdgeInsets.all(DesignTokens.spaceMD),
+              padding: const EdgeInsets.all(DesignTokens.spaceMD),
               child: _buildRichContent(context, post),
             ),
 
           // MEDIA SECTION - Use reasonable max height to prevent overflow
           if (post.mediaItems.isNotEmpty) ...[
             ConstrainedBox(
-              constraints: BoxConstraints(
+              constraints: const BoxConstraints(
                 maxHeight:
                     500, // Fixed reasonable max height instead of 85% screen
               ),
@@ -192,13 +215,13 @@ class _PostCardState extends State<PostCard> {
             // Page indicator dots
             if (post.mediaItems.length > 1)
               Padding(
-                padding: EdgeInsets.symmetric(vertical: DesignTokens.spaceSM),
+                padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSM),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
                     post.mediaItems.length,
                     (index) => Container(
-                      margin: EdgeInsets.symmetric(
+                      margin: const EdgeInsets.symmetric(
                         horizontal: DesignTokens.spaceXS,
                       ),
                       width: DesignTokens.spaceSM,
@@ -217,7 +240,7 @@ class _PostCardState extends State<PostCard> {
               ),
           ] else if (post.mediaUrls.isNotEmpty)
             ConstrainedBox(
-              constraints: BoxConstraints(
+              constraints: const BoxConstraints(
                 maxHeight: 500, // Fixed reasonable max height
               ),
               child: _buildMediaGrid(context, post),
@@ -226,7 +249,7 @@ class _PostCardState extends State<PostCard> {
           // Hashtags (as clickable chips)
           if (post.hashtags.isNotEmpty)
             Padding(
-              padding: EdgeInsets.symmetric(
+              padding: const EdgeInsets.symmetric(
                 horizontal: DesignTokens.spaceMD,
                 vertical: DesignTokens.spaceSM,
               ),
@@ -267,7 +290,7 @@ class _PostCardState extends State<PostCard> {
 
           // ACTIONS SECTION (Like, Comment, Share)
           Padding(
-            padding: EdgeInsets.symmetric(
+            padding: const EdgeInsets.symmetric(
               horizontal: DesignTokens.spaceXS,
               vertical: DesignTokens.spaceSM,
             ),
@@ -288,7 +311,7 @@ class _PostCardState extends State<PostCard> {
                     },
                     borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
                     child: Padding(
-                      padding: EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: DesignTokens.spaceSM,
                         vertical: DesignTokens.spaceXS,
                       ),
@@ -300,7 +323,7 @@ class _PostCardState extends State<PostCard> {
                             size: DesignTokens.iconLG,
                             color: theme.iconTheme.color,
                           ),
-                          SizedBox(width: DesignTokens.spaceXS),
+                          const SizedBox(width: DesignTokens.spaceXS),
                           if (post.commentCount > 0)
                             Text(
                               post.commentCount.toString(),
@@ -327,7 +350,7 @@ class _PostCardState extends State<PostCard> {
           // ENGAGEMENT SECTION (Likes count, comments)
           if (post.reactionCount > 0 || post.commentCount > 0)
             Padding(
-              padding: EdgeInsets.symmetric(
+              padding: const EdgeInsets.symmetric(
                 horizontal: DesignTokens.spaceMD,
                 vertical: DesignTokens.spaceXS,
               ),
@@ -355,7 +378,7 @@ class _PostCardState extends State<PostCard> {
                     ),
                   if (post.reactionCount > 0 && post.commentCount > 0)
                     Padding(
-                      padding: EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: DesignTokens.spaceSM,
                       ),
                       child: Text(
@@ -390,317 +413,193 @@ class _PostCardState extends State<PostCard> {
     PostDisplayType displayType,
   ) {
     final theme = Theme.of(context);
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final isOwner = currentUserId == post.authorId;
 
-    return Padding(
-      padding: EdgeInsets.all(DesignTokens.spaceMD - DesignTokens.spaceXS),
-      child: Row(
-        children: [
-          // Avatar
-          GestureDetector(
-            onTap: () => _navigateToProfile(context, post),
-            child: CircleAvatar(
-              radius: DesignTokens.avatarSize / 2,
-              backgroundImage: NetworkImage(
-                post.pagePhotoUrl ?? post.authorPhotoUrl,
+    // Build action button (Boost/Insights) for post owner
+    Widget? actionButton;
+    if (isOwner) {
+      final isBoosted = post.isBoosted &&
+          post.boostEndTime != null &&
+          post.boostEndTime!.toDate().isAfter(DateTime.now());
+
+      if (isBoosted) {
+        // Show "View Insights" for active boosts
+        actionButton = TextButton.icon(
+          onPressed: () => _navigateToBoostInsights(context, post),
+          icon: Icon(
+            Icons.insights,
+            size: DesignTokens.iconSM,
+            color: theme.colorScheme.primary,
+          ),
+          label: Text(
+            'View Insights',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          style: TextButton.styleFrom(
+            foregroundColor: theme.colorScheme.primary,
+            padding: const EdgeInsets.symmetric(
+              horizontal: DesignTokens.spaceSM,
+              vertical: DesignTokens.spaceXS,
+            ),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        );
+      } else {
+        // Show "Boost" for non-boosted posts
+        actionButton = TextButton.icon(
+          onPressed: () => _navigateToBoostPost(context, post),
+          icon: Icon(
+            Icons.trending_up,
+            size: DesignTokens.iconSM,
+            color: theme.colorScheme.primary,
+          ),
+          label: Text(
+            'Boost',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          style: TextButton.styleFrom(
+            foregroundColor: theme.colorScheme.primary,
+            padding: const EdgeInsets.symmetric(
+              horizontal: DesignTokens.spaceSM,
+              vertical: DesignTokens.spaceXS,
+            ),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        );
+      }
+    }
+
+    // Build menu items
+    final menuItems = <PopupMenuEntry<String>>[
+      if (isOwner)
+        PopupMenuItem(
+          value: 'edit',
+          child: Row(
+            children: [
+              Icon(
+                Icons.edit,
+                size: DesignTokens.iconMD,
+                color: theme.iconTheme.color,
               ),
-            ),
+              const SizedBox(width: DesignTokens.spaceSM),
+              Text('Edit', style: theme.textTheme.bodyMedium),
+            ],
           ),
-          SizedBox(width: DesignTokens.spaceMD - DesignTokens.spaceXS),
-
-          // Author info + badges
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    // Name with badge - flexible to respect text length
-                    Flexible(
-                      child: GestureDetector(
-                        onTap: () => _navigateToProfile(context, post),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                post.pageName ?? post.authorUsername,
-                                style: theme.textTheme.titleMedium,
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                              ),
-                            ),
-                            // Verified badge right after the name
-                            if (post.pageIsVerified == true) ...[
-                              SizedBox(width: DesignTokens.spaceXS),
-                              const SonarVerifiedBadge(),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Display type badge - flexible but can shrink
-                    if (displayType != PostDisplayType.organic) ...[
-                      SizedBox(width: DesignTokens.spaceXS),
-                      Flexible(
-                        child: _buildDisplayTypeBadge(displayType),
-                      ),
-                    ],
-                  ],
-                ),
-                // Location or timestamp
-                Row(
-                  children: [
-                    if (post.locationInfo != null &&
-                        post.locationInfo!['placeName'] != null) ...[
-                      Icon(
-                        Icons.location_on,
-                        size: DesignTokens.iconSM,
-                        color: theme.colorScheme.onSurface.withOpacity(
-                          DesignTokens.opacityMedium,
-                        ),
-                      ),
-                      SizedBox(width: DesignTokens.spaceXS),
-                      Expanded(
-                        child: Text(
-                          post.locationInfo!['placeName'] ?? 'Location',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(
-                              DesignTokens.opacityMedium,
-                            ),
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                      SizedBox(width: DesignTokens.spaceSM),
-                      Text(
-                        '•',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(
-                            DesignTokens.opacityMedium,
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: DesignTokens.spaceSM),
-                    ],
-                    Expanded(
-                      child: Text(
-                        _formatTimestamp(post.timestamp),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(
-                            DesignTokens.opacityMedium,
-                          ),
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                    if (post.edited)
-                      Padding(
-                        padding: EdgeInsets.only(left: DesignTokens.spaceXS),
-                        child: Text(
-                          '(Edited)',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(
-                              DesignTokens.opacityMedium,
-                            ),
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
+        ),
+      if (isOwner)
+        PopupMenuItem(
+          value: post.isPinned ? 'unpin' : 'pin',
+          child: Row(
+            children: [
+              Icon(
+                post.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                size: DesignTokens.iconMD,
+                color: theme.iconTheme.color,
+              ),
+              const SizedBox(width: DesignTokens.spaceSM),
+              Text(
+                post.isPinned ? 'Unpin' : 'Pin',
+                style: theme.textTheme.bodyMedium,
+              ),
+            ],
           ),
-
-          // Boost Post / View Insights button (only for post owner)
-          if (FirebaseAuth.instance.currentUser?.uid == post.authorId) ...[
-            Builder(
-              builder: (context) {
-                final isBoosted = post.isBoosted &&
-                    post.boostEndTime != null &&
-                    post.boostEndTime!.toDate().isAfter(DateTime.now());
-
-                if (isBoosted) {
-                  // Show "View Insights" for active boosts
-                  return TextButton.icon(
-                    onPressed: () => _navigateToBoostInsights(context, post),
-                    icon: Icon(
-                      Icons.insights,
-                      size: DesignTokens.iconSM,
-                      color: theme.colorScheme.primary,
-                    ),
-                    label: Text(
-                      'View Insights',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: theme.colorScheme.primary,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: DesignTokens.spaceSM,
-                        vertical: DesignTokens.spaceXS,
-                      ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  );
-                } else {
-                  // Show "Boost" for non-boosted posts
-                  return TextButton.icon(
-                    onPressed: () => _navigateToBoostPost(context, post),
-                    icon: Icon(
-                      Icons.trending_up,
-                      size: DesignTokens.iconSM,
-                      color: theme.colorScheme.primary,
-                    ),
-                    label: Text(
-                      'Boost',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: theme.colorScheme.primary,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: DesignTokens.spaceSM,
-                        vertical: DesignTokens.spaceXS,
-                      ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  );
-                }
-              },
-            ),
-            SizedBox(width: DesignTokens.spaceXS),
-          ],
-
-          // More options menu
-          PopupMenuButton<String>(
-            icon: Icon(
-              Icons.more_vert,
+        ),
+      PopupMenuItem(
+        value: 'share',
+        child: Row(
+          children: [
+            Icon(
+              Icons.share,
               size: DesignTokens.iconMD,
               color: theme.iconTheme.color,
             ),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            onSelected: (value) {
-              if (value == 'edit') {
-                _navigateToEditPost(context, post);
-              } else if (value == 'pin') {
-                _pinPost(context, post);
-              } else if (value == 'unpin') {
-                _unpinPost(context, post);
-              } else if (value == 'delete') {
-                _deletePost(context, post);
-              } else if (value == 'share') {
-                _sharePost(context, post);
-              } else if (value == 'report') {
-                _reportPost(context, post);
-              }
-            },
-            itemBuilder: (context) {
-              final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-              final isOwner = currentUserId == post.authorId;
-
-              return [
-                if (isOwner)
-                  PopupMenuItem(
-                    value: 'edit',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.edit,
-                          size: DesignTokens.iconMD,
-                          color: theme.iconTheme.color,
-                        ),
-                        SizedBox(width: DesignTokens.spaceSM),
-                        Text('Edit', style: theme.textTheme.bodyMedium),
-                      ],
-                    ),
-                  ),
-                if (isOwner)
-                  PopupMenuItem(
-                    value: post.isPinned ? 'unpin' : 'pin',
-                    child: Row(
-                      children: [
-                        Icon(
-                          post.isPinned
-                              ? Icons.push_pin
-                              : Icons.push_pin_outlined,
-                          size: DesignTokens.iconMD,
-                          color: theme.iconTheme.color,
-                        ),
-                        SizedBox(width: DesignTokens.spaceSM),
-                        Text(
-                          post.isPinned ? 'Unpin' : 'Pin',
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ),
-                PopupMenuItem(
-                  value: 'share',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.share,
-                        size: DesignTokens.iconMD,
-                        color: theme.iconTheme.color,
-                      ),
-                      SizedBox(width: DesignTokens.spaceSM),
-                      Text('Share', style: theme.textTheme.bodyMedium),
-                    ],
-                  ),
-                ),
-                if (isOwner)
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.delete,
-                          size: DesignTokens.iconMD,
-                          color: DesignTokens.errorColor,
-                        ),
-                        SizedBox(width: DesignTokens.spaceSM),
-                        Text(
-                          'Delete',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: DesignTokens.errorColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (!isOwner)
-                  PopupMenuItem(
-                    value: 'report',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.flag,
-                          size: DesignTokens.iconMD,
-                          color: DesignTokens.warningColor,
-                        ),
-                        SizedBox(width: DesignTokens.spaceSM),
-                        Text(
-                          'Report',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: DesignTokens.warningColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ];
-            },
-          ),
-        ],
+            const SizedBox(width: DesignTokens.spaceSM),
+            Text('Share', style: theme.textTheme.bodyMedium),
+          ],
+        ),
       ),
+      if (isOwner)
+        PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              const Icon(
+                Icons.delete,
+                size: DesignTokens.iconMD,
+                color: DesignTokens.errorColor,
+              ),
+              const SizedBox(width: DesignTokens.spaceSM),
+              Text(
+                'Delete',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: DesignTokens.errorColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      if (!isOwner)
+        PopupMenuItem(
+          value: 'report',
+          child: Row(
+            children: [
+              const Icon(
+                Icons.flag,
+                size: DesignTokens.iconMD,
+                color: DesignTokens.warningColor,
+              ),
+              const SizedBox(width: DesignTokens.spaceSM),
+              Text(
+                'Report',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: DesignTokens.warningColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+    ];
+
+    // Build display type badge
+    Widget? displayTypeBadge;
+    if (displayType != PostDisplayType.organic) {
+      displayTypeBadge = _buildDisplayTypeBadge(displayType);
+    }
+
+    return MediaHeader(
+      avatarUrl: post.pagePhotoUrl ?? post.authorPhotoUrl,
+      username: post.pageName ?? post.authorUsername,
+      timestamp: post.timestamp,
+      location: post.locationInfo?['placeName'],
+      isVerified: post.pageIsVerified == true,
+      isEdited: post.edited,
+      onAvatarTap: () => _navigateToProfile(context, post),
+      onUsernameTap: () => _navigateToProfile(context, post),
+      badge: displayTypeBadge,
+      actionButton: actionButton,
+      menuItems: menuItems,
+      onMenuSelected: (value) {
+        if (value == 'edit') {
+          _navigateToEditPost(context, post);
+        } else if (value == 'pin') {
+          _pinPost(context, post);
+        } else if (value == 'unpin') {
+          _unpinPost(context, post);
+        } else if (value == 'delete') {
+          _deletePost(context, post);
+        } else if (value == 'share') {
+          _sharePost(context, post);
+        } else if (value == 'report') {
+          _reportPost(context, post);
+        }
+      },
     );
   }
 
@@ -772,7 +671,7 @@ class _PostCardState extends State<PostCard> {
     return Semantics(
       label: semanticLabel,
       child: Container(
-        padding: EdgeInsets.symmetric(
+        padding: const EdgeInsets.symmetric(
           horizontal: DesignTokens.spaceXS + 2,
           vertical: DesignTokens.spaceXS / 2,
         ),
@@ -793,7 +692,7 @@ class _PostCardState extends State<PostCard> {
                 size: DesignTokens.iconSM,
                 color: color,
               ),
-              SizedBox(width: DesignTokens.spaceXS),
+              const SizedBox(width: DesignTokens.spaceXS),
             ],
             Flexible(
               child: Text(
@@ -819,7 +718,7 @@ class _PostCardState extends State<PostCard> {
     return Semantics(
       label: 'Sponsored advertisement',
       child: Card(
-        margin: EdgeInsets.symmetric(
+        margin: const EdgeInsets.symmetric(
           horizontal: DesignTokens.spaceSM,
           vertical: DesignTokens.spaceXS,
         ),
@@ -830,13 +729,13 @@ class _PostCardState extends State<PostCard> {
             Semantics(
               label: 'Sponsored content',
               child: Container(
-                padding: EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: DesignTokens.spaceMD - DesignTokens.spaceXS,
                   vertical: DesignTokens.spaceXS,
                 ),
                 decoration: BoxDecoration(
                   color: DesignTokens.infoColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.only(
+                  borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(DesignTokens.radiusMD),
                     topRight: Radius.circular(DesignTokens.radiusMD),
                   ),
@@ -844,12 +743,12 @@ class _PostCardState extends State<PostCard> {
                 width: double.infinity,
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.campaign,
                       size: DesignTokens.iconSM,
                       color: DesignTokens.infoColor,
                     ),
-                    SizedBox(width: DesignTokens.spaceXS),
+                    const SizedBox(width: DesignTokens.spaceXS),
                     Flexible(
                       child: Text(
                         'Sponsored',
@@ -868,7 +767,7 @@ class _PostCardState extends State<PostCard> {
                       child: TextButton(
                         onPressed: () => _showAdDisclosure(context),
                         style: TextButton.styleFrom(
-                          padding: EdgeInsets.symmetric(
+                          padding: const EdgeInsets.symmetric(
                             horizontal: DesignTokens.spaceSM,
                             vertical: DesignTokens.spaceXS,
                           ),
@@ -960,32 +859,49 @@ class _PostCardState extends State<PostCard> {
             child: SizedBox(
               height: maxHeight,
               width: screenWidth,
-              child: Stack(
-                children: [
-                  Center(
-                    child: Hero(
-                      tag: mediaItem.url,
-                      child: CachedNetworkImage(
-                        imageUrl: mediaItem.url,
-                        fit: BoxFit.contain,
-                        width: screenWidth,
-                        placeholder: (context, url) => Container(
-                          width: screenWidth,
-                          height: 300,
-                          color: Colors.grey[200],
-                          child: const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          width: screenWidth,
-                          height: 300,
-                          color: Colors.grey[300],
-                          child: const Icon(Icons.broken_image),
-                        ),
+              child: VisibilityDetector(
+                key: Key('media_${post.id}_${mediaItem.url}'),
+                onVisibilityChanged: (info) {
+                  // Track visibility for analytics/optimization
+                  if (info.visibleFraction > 0.5 && kDebugMode) {
+                    debugPrint('Post ${post.id} media is ${(info.visibleFraction * 100).toStringAsFixed(0)}% visible');
+                  }
+                },
+                child: Stack(
+                  children: [
+                    Center(
+                      child: Hero(
+                        tag: mediaItem.url,
+                        child: widget.loadMedia
+                            ? CachedNetworkImage(
+                                imageUrl: mediaItem.url,
+                                fit: BoxFit.contain,
+                                width: screenWidth,
+                                placeholder: (context, url) => Container(
+                                  width: screenWidth,
+                                  height: 300,
+                                  color: Colors.grey[200],
+                                  child: const Center(
+                                    child: AppProgressIndicator(),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  width: screenWidth,
+                                  height: 300,
+                                  color: Colors.grey[300],
+                                  child: const Icon(Icons.broken_image),
+                                ),
+                              )
+                            : Container(
+                                width: screenWidth,
+                                height: 300,
+                                color: Colors.grey[100], // Lighter placeholder color
+                                child: const Center(
+                                  child: AppProgressIndicator(), // Show loading indicator instead of icon
+                                ),
+                              ),
                       ),
                     ),
-                  ),
                   if (mediaItem.caption != null &&
                       mediaItem.caption!.isNotEmpty)
                     Positioned(
@@ -1017,7 +933,8 @@ class _PostCardState extends State<PostCard> {
                         ),
                       ),
                     ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
@@ -1083,7 +1000,7 @@ class _PostCardState extends State<PostCard> {
                               child: Container(
                                 color: Colors.grey[200],
                                 child: const Center(
-                                  child: CircularProgressIndicator(),
+                                  child: AppProgressIndicator(),
                                 ),
                               ),
                             ),
@@ -1162,21 +1079,20 @@ class _PostCardState extends State<PostCard> {
             tag: post.mediaUrls.first,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8.0),
-              child: CachedNetworkImage(
-                imageUrl: post.mediaUrls.first,
-                fit: BoxFit.cover,
+              child: SizedBox(
                 width: double.infinity,
                 height: 300,
-                placeholder: (context, url) => Container(
-                  height: 300,
-                  color: Colors.grey[200],
-                  child: const Center(child: CircularProgressIndicator()),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  height: 300,
-                  color: Colors.grey[300],
-                  child: const Icon(Icons.broken_image),
-                ),
+                child: widget.loadMedia
+                    ? LQIPImage(
+                        imageUrl: post.mediaUrls.first,
+                        fit: BoxFit.cover,
+                      )
+                    : Container(
+                        color: Colors.grey[100], // Lighter placeholder color
+                        child: const Center(
+                          child: AppProgressIndicator(), // Show loading indicator instead of icon
+                        ),
+                      ),
               ),
             ),
           ),
@@ -1209,21 +1125,29 @@ class _PostCardState extends State<PostCard> {
                 ),
               );
             },
-            child: Hero(
-              tag: post.mediaUrls[index],
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: CachedNetworkImage(
-                  imageUrl: post.mediaUrls[index],
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
-                    color: Colors.grey[200],
-                    child: const Center(child: CircularProgressIndicator()),
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.broken_image),
-                  ),
+            child: VisibilityDetector(
+              key: Key('media_grid_${post.id}_$index'),
+              onVisibilityChanged: (info) {
+                // Track visibility for analytics/optimization
+                if (info.visibleFraction > 0.5 && kDebugMode) {
+                  debugPrint('Post ${post.id} media grid item $index is ${(info.visibleFraction * 100).toStringAsFixed(0)}% visible');
+                }
+              },
+              child: Hero(
+                tag: post.mediaUrls[index],
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8.0),
+                  child: widget.loadMedia
+                      ? LQIPImage(
+                          imageUrl: post.mediaUrls[index],
+                          fit: BoxFit.cover,
+                        )
+                      : Container(
+                          color: Colors.grey[100], // Lighter placeholder color
+                          child: const Center(
+                            child: AppProgressIndicator(), // Show loading indicator instead of icon
+                          ),
+                        ),
                 ),
               ),
             ),
@@ -1449,8 +1373,8 @@ class _PostCardState extends State<PostCard> {
       if (boosted == true && context.mounted) {
         // Refresh feed or show success message
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Post boosted successfully!'),
+          const SnackBar(
+            content: Text('Post boosted successfully!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -1467,20 +1391,4 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
-  String _formatTimestamp(DateTime timestamp) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
-
-    if (difference.inDays > 7) {
-      return DateFormat('MMM d, y').format(timestamp);
-    } else if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
-    } else {
-      return 'Just now';
-    }
-  }
 }

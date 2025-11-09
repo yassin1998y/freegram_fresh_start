@@ -38,8 +38,8 @@ class ProfessionalChatListItem extends StatefulWidget {
 class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
     with SingleTickerProviderStateMixin {
   late AnimationController _swipeController;
-  bool _isPinned = false;
-  bool _isMuted = false;
+  final bool _isPinned = false;
+  final bool _isMuted = false;
 
   @override
   void initState() {
@@ -156,7 +156,7 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
                 );
               },
               child: Container(
-                padding: EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: DesignTokens.spaceMD,
                   vertical: DesignTokens.spaceSM,
                 ),
@@ -181,7 +181,7 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
                       otherUserId,
                     ),
 
-                    SizedBox(width: DesignTokens.spaceMD),
+                    const SizedBox(width: DesignTokens.spaceMD),
 
                     // Chat info
                     Expanded(
@@ -218,7 +218,7 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
                               ),
                             ],
                           ),
-                          SizedBox(height: DesignTokens.spaceXS),
+                          const SizedBox(height: DesignTokens.spaceXS),
                           isTyping
                               ? const ProfessionalTypingIndicator()
                               : Text(
@@ -245,7 +245,7 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
                       ),
                     ),
 
-                    SizedBox(width: DesignTokens.spaceSM),
+                    const SizedBox(width: DesignTokens.spaceSM),
 
                     // Trailing (time & unread badge)
                     Column(
@@ -279,7 +279,7 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
                           ],
                         ),
                         if (isUnread) ...[
-                          SizedBox(height: DesignTokens.spaceXS),
+                          const SizedBox(height: DesignTokens.spaceXS),
                           _buildUnreadBadge(unreadCount),
                         ],
                       ],
@@ -411,7 +411,7 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
     return Container(
       color: color,
       alignment: alignment,
-      padding: EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
+      padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

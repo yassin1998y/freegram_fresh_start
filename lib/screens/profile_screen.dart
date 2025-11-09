@@ -23,6 +23,8 @@ import 'package:freegram/screens/create_page_screen.dart';
 import 'package:freegram/screens/page_profile_screen.dart';
 import 'package:freegram/widgets/feed_widgets/post_card.dart';
 import 'package:freegram/models/feed_item_model.dart';
+import 'package:freegram/widgets/reels/user_reels_tab.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String userId;
@@ -30,6 +32,7 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('📱 SCREEN: profile_screen.dart');
     // Keep FriendsBloc for friend status actions
     return BlocProvider(
       create: (context) => FriendsBloc(
@@ -48,17 +51,23 @@ class _ProfileScreenView extends StatefulWidget {
   State<_ProfileScreenView> createState() => _ProfileScreenViewState();
 }
 
-// Removed SingleTickerProviderStateMixin as TabController is removed
-class _ProfileScreenViewState extends State<_ProfileScreenView> {
-  // Removed TabController initialization and disposal
+class _ProfileScreenViewState extends State<_ProfileScreenView> with SingleTickerProviderStateMixin {
   final PageRepository _pageRepository = locator<PageRepository>();
   List<PageModel> _myPages = [];
   bool _loadingPages = false;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _loadMyPagesIfOwnProfile();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadMyPagesIfOwnProfile() async {
@@ -247,7 +256,7 @@ class _ProfileScreenViewState extends State<_ProfileScreenView> {
           if (userSnapshot.connectionState == ConnectionState.waiting) {
             return Scaffold(
               backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              body: const Center(child: CircularProgressIndicator()),
+              body: const Center(child: AppProgressIndicator()),
             );
           }
           if (!userSnapshot.hasData) {
@@ -265,94 +274,120 @@ class _ProfileScreenViewState extends State<_ProfileScreenView> {
 
           final user = userSnapshot.data!;
 
-          // Modern CustomScrollView with professional design
-          return CustomScrollView(
-            slivers: [
-              SliverAppBar(
-                // Match FreegramAppBar branding style
-                title: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Full "Freegram" branding
-                    Text(
-                      'Freegram',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: SonarPulseTheme.primaryAccent,
-                        letterSpacing: -0.5,
+          // Modern NestedScrollView with tabs for Posts and Reels
+          return NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) {
+              return [
+                SliverAppBar(
+                  // Match FreegramAppBar branding style
+                  title: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Full "Freegram" branding
+                      const Text(
+                        'Freegram',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: SonarPulseTheme.primaryAccent,
+                          letterSpacing: -0.5,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      width: 2,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(1),
+                      const SizedBox(width: 12),
+                      Container(
+                        width: 2,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(1),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'Profile',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Profile',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
+                    ],
+                  ),
+                  centerTitle: true,
+                  floating: true,
+                  pinned: true,
+                  expandedHeight: 0, // No extra height
+                  actions: [
+                    if (isCurrentUserProfile)
+                      IconButton(
+                        icon: const Icon(Icons.storefront_outlined),
+                        tooltip: 'Pages',
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          _openPagesMenu(context);
+                        },
+                      ),
+                    if (isCurrentUserProfile)
+                      IconButton(
+                        icon: const Icon(Icons.qr_code_2_outlined),
+                        tooltip: 'My QR Code',
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          locator<NavigationService>().navigateTo(
+                            QrDisplayScreen(user: user),
+                            transition: PageTransition.scale,
+                          );
+                        },
+                      )
+                    else
+                      // Options menu for other users
+                      IconButton(
+                        icon: const Icon(Icons.more_vert_rounded),
+                        tooltip: 'More options',
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          _showProfileOptions(context, user);
+                        },
+                      ),
+                    const SizedBox(width: 4),
                   ],
                 ),
-                centerTitle: true,
-                floating: true,
-                pinned: true,
-                expandedHeight: 0, // No extra height
-                actions: [
-                  if (isCurrentUserProfile)
-                    IconButton(
-                      icon: const Icon(Icons.storefront_outlined),
-                      tooltip: 'Pages',
-                      onPressed: () {
-                        HapticFeedback.lightImpact();
-                        _openPagesMenu(context);
-                      },
-                    ),
-                  if (isCurrentUserProfile)
-                    IconButton(
-                      icon: const Icon(Icons.qr_code_2_outlined),
-                      tooltip: 'My QR Code',
-                      onPressed: () {
-                        HapticFeedback.lightImpact();
-                        locator<NavigationService>().navigateTo(
-                          QrDisplayScreen(user: user),
-                          transition: PageTransition.scale,
-                        );
-                      },
-                    )
-                  else
-                    // Options menu for other users
-                    IconButton(
-                      icon: const Icon(Icons.more_vert_rounded),
-                      tooltip: 'More options',
-                      onPressed: () {
-                        HapticFeedback.lightImpact();
-                        _showProfileOptions(context, user);
-                      },
-                    ),
-                  const SizedBox(width: 4),
-                ],
-              ),
-              SliverToBoxAdapter(
-                child: _ModernProfileHeader(
-                  user: user,
-                  isCurrentUserProfile: isCurrentUserProfile,
-                  onStartChat: () => _startChat(context, user),
+                SliverToBoxAdapter(
+                  child: _ModernProfileHeader(
+                    user: user,
+                    isCurrentUserProfile: isCurrentUserProfile,
+                    onStartChat: () => _startChat(context, user),
+                  ),
                 ),
-              ),
-              // Posts section
-              SliverToBoxAdapter(
-                child: _UserPostsSection(userId: widget.userId),
-              ),
-            ],
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _SliverTabBarDelegate(
+                    TabBar(
+                      controller: _tabController,
+                      tabs: const [
+                        Tab(text: 'Posts'),
+                        Tab(text: 'Reels'),
+                      ],
+                      indicatorColor: SonarPulseTheme.primaryAccent,
+                      labelColor: SonarPulseTheme.primaryAccent,
+                      unselectedLabelColor: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withOpacity(DesignTokens.opacityMedium),
+                      labelStyle: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ),
+                ),
+              ];
+            },
+            body: TabBarView(
+              controller: _tabController,
+              children: [
+                // Posts tab - Use ListView for proper scrolling
+                _UserPostsSection(userId: widget.userId),
+                // Reels tab
+                UserReelsTab(userId: widget.userId),
+              ],
+            ),
           );
         },
       ),
@@ -400,7 +435,7 @@ class _ProfileScreenViewState extends State<_ProfileScreenView> {
                   const Center(
                       child: Padding(
                     padding: EdgeInsets.all(12.0),
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: AppProgressIndicator(strokeWidth: 2),
                   ))
                 else ...[
                   if (_myPages.isEmpty)
@@ -526,7 +561,7 @@ class _UserPostsSectionState extends State<_UserPostsSection> {
     if (_isLoading) {
       return const Padding(
         padding: EdgeInsets.all(16.0),
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(child: AppProgressIndicator()),
       );
     }
 
@@ -552,8 +587,8 @@ class _UserPostsSectionState extends State<_UserPostsSection> {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return ListView(
+      padding: EdgeInsets.zero,
       children: [
         // Pinned posts section
         if (_pinnedPosts.isNotEmpty) ...[
@@ -638,22 +673,22 @@ class _ModernProfileHeader extends StatelessWidget {
         // Hero Section - Avatar and Name
         _buildHeroSection(context),
 
-        SizedBox(height: DesignTokens.spaceXL),
+        const SizedBox(height: DesignTokens.spaceXL),
 
         // Action Buttons
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
+          padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
           child: isCurrentUserProfile
               ? _buildCurrentUserActions(context)
               : _buildOtherUserActions(context),
         ),
 
-        SizedBox(height: DesignTokens.spaceXL),
+        const SizedBox(height: DesignTokens.spaceXL),
 
         // Stats Card
         _buildStatsCard(context),
 
-        SizedBox(height: DesignTokens.spaceMD),
+        const SizedBox(height: DesignTokens.spaceMD),
 
         // Mutual Friends/Interests Card (for other users)
         if (!isCurrentUserProfile)
@@ -666,26 +701,26 @@ class _ModernProfileHeader extends StatelessWidget {
             },
           ),
 
-        if (!isCurrentUserProfile) SizedBox(height: DesignTokens.spaceMD),
+        if (!isCurrentUserProfile) const SizedBox(height: DesignTokens.spaceMD),
 
         // Bio Card (if available)
         if (user.bio.isNotEmpty) ...[
           _buildBioCard(context),
-          SizedBox(height: DesignTokens.spaceMD),
+          const SizedBox(height: DesignTokens.spaceMD),
         ],
 
         // Info Card
         _buildInfoCard(context),
 
-        SizedBox(height: DesignTokens.spaceMD),
+        const SizedBox(height: DesignTokens.spaceMD),
 
         // Interests Card (if available)
         if (user.interests.isNotEmpty) ...[
           _buildInterestsCard(context),
-          SizedBox(height: DesignTokens.spaceMD),
+          const SizedBox(height: DesignTokens.spaceMD),
         ],
 
-        SizedBox(height: DesignTokens.spaceXL),
+        const SizedBox(height: DesignTokens.spaceXL),
       ],
     );
   }
@@ -693,7 +728,7 @@ class _ModernProfileHeader extends StatelessWidget {
   /// Hero section with centered avatar and username
   Widget _buildHeroSection(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(DesignTokens.spaceXL),
+      padding: const EdgeInsets.all(DesignTokens.spaceXL),
       child: Column(
         children: [
           // Profile Avatar
@@ -731,7 +766,7 @@ class _ModernProfileHeader extends StatelessWidget {
             ),
           ),
 
-          SizedBox(height: DesignTokens.spaceMD),
+          const SizedBox(height: DesignTokens.spaceMD),
 
           // Username
           Text(
@@ -744,7 +779,7 @@ class _ModernProfileHeader extends StatelessWidget {
           ),
 
           if (user.country.isNotEmpty) ...[
-            SizedBox(height: DesignTokens.spaceSM),
+            const SizedBox(height: DesignTokens.spaceSM),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -754,7 +789,7 @@ class _ModernProfileHeader extends StatelessWidget {
                   color:
                       Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                 ),
-                SizedBox(width: DesignTokens.spaceXS),
+                const SizedBox(width: DesignTokens.spaceXS),
                 Text(
                   user.country,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -785,7 +820,7 @@ class _ModernProfileHeader extends StatelessWidget {
       icon: const Icon(Icons.edit_outlined, size: 20),
       label: const Text('Edit Profile'),
       style: ElevatedButton.styleFrom(
-        padding: EdgeInsets.symmetric(
+        padding: const EdgeInsets.symmetric(
           horizontal: DesignTokens.spaceLG,
           vertical: DesignTokens.spaceMD,
         ),
@@ -848,7 +883,7 @@ class _ModernProfileHeader extends StatelessWidget {
               label: const Text('Unblock'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Theme.of(context).colorScheme.error,
-                padding: EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: DesignTokens.spaceLG,
                   vertical: DesignTokens.spaceMD,
                 ),
@@ -869,7 +904,7 @@ class _ModernProfileHeader extends StatelessWidget {
               label: const Text('Accept Friend Request'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
-                padding: EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: DesignTokens.spaceLG,
                   vertical: DesignTokens.spaceMD,
                 ),
@@ -897,7 +932,7 @@ class _ModernProfileHeader extends StatelessWidget {
                         ),
                         label: Text(isFriend ? 'Friends' : 'Pending'),
                         style: OutlinedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(
+                          padding: const EdgeInsets.symmetric(
                             horizontal: DesignTokens.spaceMD,
                             vertical: DesignTokens.spaceMD,
                           ),
@@ -917,7 +952,7 @@ class _ModernProfileHeader extends StatelessWidget {
                         icon: const Icon(Icons.person_add_outlined, size: 20),
                         label: const Text('Add Friend'),
                         style: ElevatedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(
+                          padding: const EdgeInsets.symmetric(
                             horizontal: DesignTokens.spaceMD,
                             vertical: DesignTokens.spaceMD,
                           ),
@@ -928,7 +963,7 @@ class _ModernProfileHeader extends StatelessWidget {
                         ),
                       ),
               ),
-              SizedBox(width: DesignTokens.spaceMD),
+              const SizedBox(width: DesignTokens.spaceMD),
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () {
@@ -938,7 +973,7 @@ class _ModernProfileHeader extends StatelessWidget {
                   icon: const Icon(Icons.chat_bubble_outline, size: 20),
                   label: const Text('Message'),
                   style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(
+                    padding: const EdgeInsets.symmetric(
                       horizontal: DesignTokens.spaceMD,
                       vertical: DesignTokens.spaceMD,
                     ),
@@ -955,7 +990,7 @@ class _ModernProfileHeader extends StatelessWidget {
 
         // Only show loading spinner for initial load or actual loading state
         if (state is FriendsLoading || state is FriendsInitial) {
-          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+          return const Center(child: AppProgressIndicator(strokeWidth: 2));
         }
 
         // For error state, show a simplified button layout
@@ -964,7 +999,7 @@ class _ModernProfileHeader extends StatelessWidget {
           icon: const Icon(Icons.error_outline, size: 20),
           label: const Text('Unable to load'),
           style: ElevatedButton.styleFrom(
-            padding: EdgeInsets.symmetric(
+            padding: const EdgeInsets.symmetric(
               horizontal: DesignTokens.spaceLG,
               vertical: DesignTokens.spaceMD,
             ),
@@ -1008,8 +1043,8 @@ class _ModernProfileHeader extends StatelessWidget {
   /// Stats card with friends count
   Widget _buildStatsCard(BuildContext context) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
-      padding: EdgeInsets.all(DesignTokens.spaceLG),
+      margin: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
+      padding: const EdgeInsets.all(DesignTokens.spaceLG),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
@@ -1074,14 +1109,14 @@ class _ModernProfileHeader extends StatelessWidget {
           size: 28,
           color: SonarPulseTheme.primaryAccent,
         ),
-        SizedBox(height: DesignTokens.spaceXS),
+        const SizedBox(height: DesignTokens.spaceXS),
         Text(
           value,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
         ),
-        SizedBox(height: DesignTokens.spaceXS),
+        const SizedBox(height: DesignTokens.spaceXS),
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -1095,8 +1130,8 @@ class _ModernProfileHeader extends StatelessWidget {
   /// Bio card
   Widget _buildBioCard(BuildContext context) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
-      padding: EdgeInsets.all(DesignTokens.spaceLG),
+      margin: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
+      padding: const EdgeInsets.all(DesignTokens.spaceLG),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
@@ -1113,12 +1148,12 @@ class _ModernProfileHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.info_outline,
                 size: 20,
                 color: SonarPulseTheme.primaryAccent,
               ),
-              SizedBox(width: DesignTokens.spaceSM),
+              const SizedBox(width: DesignTokens.spaceSM),
               Text(
                 'About',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -1127,7 +1162,7 @@ class _ModernProfileHeader extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: DesignTokens.spaceMD),
+          const SizedBox(height: DesignTokens.spaceMD),
           Text(
             user.bio,
             style: Theme.of(context).textTheme.bodyMedium,
@@ -1140,8 +1175,8 @@ class _ModernProfileHeader extends StatelessWidget {
   /// Info card with personal details
   Widget _buildInfoCard(BuildContext context) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
-      padding: EdgeInsets.all(DesignTokens.spaceLG),
+      margin: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
+      padding: const EdgeInsets.all(DesignTokens.spaceLG),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
@@ -1158,12 +1193,12 @@ class _ModernProfileHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.badge_outlined,
                 size: 20,
                 color: SonarPulseTheme.primaryAccent,
               ),
-              SizedBox(width: DesignTokens.spaceSM),
+              const SizedBox(width: DesignTokens.spaceSM),
               Text(
                 'Information',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -1172,7 +1207,7 @@ class _ModernProfileHeader extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: DesignTokens.spaceMD),
+          const SizedBox(height: DesignTokens.spaceMD),
           _buildInfoRow(
             context,
             icon: Icons.person_outline,
@@ -1180,7 +1215,7 @@ class _ModernProfileHeader extends StatelessWidget {
             value: user.username,
           ),
           if (user.age > 0) ...[
-            SizedBox(height: DesignTokens.spaceSM),
+            const SizedBox(height: DesignTokens.spaceSM),
             _buildInfoRow(
               context,
               icon: Icons.cake_outlined,
@@ -1189,7 +1224,7 @@ class _ModernProfileHeader extends StatelessWidget {
             ),
           ],
           if (user.gender.isNotEmpty) ...[
-            SizedBox(height: DesignTokens.spaceSM),
+            const SizedBox(height: DesignTokens.spaceSM),
             _buildInfoRow(
               context,
               icon: user.gender.toLowerCase() == 'male'
@@ -1202,7 +1237,7 @@ class _ModernProfileHeader extends StatelessWidget {
             ),
           ],
           if (user.country.isNotEmpty) ...[
-            SizedBox(height: DesignTokens.spaceSM),
+            const SizedBox(height: DesignTokens.spaceSM),
             _buildInfoRow(
               context,
               icon: Icons.location_on_outlined,
@@ -1228,14 +1263,14 @@ class _ModernProfileHeader extends StatelessWidget {
           size: 18,
           color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
         ),
-        SizedBox(width: DesignTokens.spaceSM),
+        const SizedBox(width: DesignTokens.spaceSM),
         Text(
           '$label:',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
               ),
         ),
-        SizedBox(width: DesignTokens.spaceXS),
+        const SizedBox(width: DesignTokens.spaceXS),
         Expanded(
           child: Text(
             value,
@@ -1261,8 +1296,8 @@ class _ModernProfileHeader extends StatelessWidget {
     }
 
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
-      padding: EdgeInsets.all(DesignTokens.spaceLG),
+      margin: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
+      padding: const EdgeInsets.all(DesignTokens.spaceLG),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -1283,12 +1318,12 @@ class _ModernProfileHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.favorite,
                 size: 20,
                 color: SonarPulseTheme.primaryAccent,
               ),
-              SizedBox(width: DesignTokens.spaceSM),
+              const SizedBox(width: DesignTokens.spaceSM),
               Text(
                 'You Have in Common',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -1299,7 +1334,7 @@ class _ModernProfileHeader extends StatelessWidget {
             ],
           ),
 
-          SizedBox(height: DesignTokens.spaceMD),
+          const SizedBox(height: DesignTokens.spaceMD),
 
           // Mutual friends
           if (mutualFriendsCount > 0) ...[
@@ -1310,7 +1345,7 @@ class _ModernProfileHeader extends StatelessWidget {
                   size: 16,
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
-                SizedBox(width: DesignTokens.spaceSM),
+                const SizedBox(width: DesignTokens.spaceSM),
                 Text(
                   MutualFriendsHelper.formatMutualFriendsText(
                       mutualFriendsCount),
@@ -1324,7 +1359,7 @@ class _ModernProfileHeader extends StatelessWidget {
 
           // Mutual interests
           if (mutualInterests.isNotEmpty) ...[
-            if (mutualFriendsCount > 0) SizedBox(height: DesignTokens.spaceMD),
+            if (mutualFriendsCount > 0) const SizedBox(height: DesignTokens.spaceMD),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1333,7 +1368,7 @@ class _ModernProfileHeader extends StatelessWidget {
                   size: 16,
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
-                SizedBox(width: DesignTokens.spaceSM),
+                const SizedBox(width: DesignTokens.spaceSM),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1345,13 +1380,13 @@ class _ModernProfileHeader extends StatelessWidget {
                               fontWeight: FontWeight.w600,
                             ),
                       ),
-                      SizedBox(height: DesignTokens.spaceSM),
+                      const SizedBox(height: DesignTokens.spaceSM),
                       Wrap(
                         spacing: DesignTokens.spaceSM,
                         runSpacing: DesignTokens.spaceSM,
                         children: mutualInterests.take(5).map((interest) {
                           return Container(
-                            padding: EdgeInsets.symmetric(
+                            padding: const EdgeInsets.symmetric(
                               horizontal: DesignTokens.spaceMD,
                               vertical: DesignTokens.spaceXS,
                             ),
@@ -1375,7 +1410,7 @@ class _ModernProfileHeader extends StatelessWidget {
                         }).toList(),
                       ),
                       if (mutualInterests.length > 5) ...[
-                        SizedBox(height: DesignTokens.spaceXS),
+                        const SizedBox(height: DesignTokens.spaceXS),
                         Text(
                           '+${mutualInterests.length - 5} more',
                           style:
@@ -1401,8 +1436,8 @@ class _ModernProfileHeader extends StatelessWidget {
   /// Interests card
   Widget _buildInterestsCard(BuildContext context) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
-      padding: EdgeInsets.all(DesignTokens.spaceLG),
+      margin: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
+      padding: const EdgeInsets.all(DesignTokens.spaceLG),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
@@ -1419,12 +1454,12 @@ class _ModernProfileHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.favorite_outline,
                 size: 20,
                 color: SonarPulseTheme.primaryAccent,
               ),
-              SizedBox(width: DesignTokens.spaceSM),
+              const SizedBox(width: DesignTokens.spaceSM),
               Text(
                 'Interests',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -1433,13 +1468,13 @@ class _ModernProfileHeader extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: DesignTokens.spaceMD),
+          const SizedBox(height: DesignTokens.spaceMD),
           Wrap(
             spacing: DesignTokens.spaceSM,
             runSpacing: DesignTokens.spaceSM,
             children: user.interests.map((interest) {
               return Container(
-                padding: EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: DesignTokens.spaceMD,
                   vertical: DesignTokens.spaceSM,
                 ),
@@ -1463,5 +1498,32 @@ class _ModernProfileHeader extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Delegate for SliverPersistentHeader to show TabBar
+class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final TabBar tabBar;
+
+  _SliverTabBarDelegate(this.tabBar);
+
+  @override
+  double get minExtent => tabBar.preferredSize.height;
+
+  @override
+  double get maxExtent => tabBar.preferredSize.height;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: tabBar,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
+    return tabBar != oldDelegate.tabBar;
   }
 }

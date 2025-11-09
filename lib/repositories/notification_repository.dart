@@ -42,10 +42,12 @@ class NotificationRepository {
 
     // Map legacy types to current enum string representation before saving
     String finalTypeString = type;
-    if (type == 'friend_request_received')
+    if (type == 'friend_request_received') {
       finalTypeString = NotificationType.friendRequest.name;
-    if (type == 'request_accepted')
+    }
+    if (type == 'request_accepted') {
       finalTypeString = NotificationType.requestAccepted.name;
+    }
     if (type == 'super_like') finalTypeString = NotificationType.superLike.name;
 
     final data = <String, dynamic>{
@@ -118,8 +120,9 @@ class NotificationRepository {
     // Get only unread notifications
     final unreadNotifications =
         await notificationsRef.where('read', isEqualTo: false).get();
-    if (unreadNotifications.docs.isEmpty)
+    if (unreadNotifications.docs.isEmpty) {
       return false; // No unread notifications
+    }
 
     // Use a batch write for efficiency
     final batch = _db.batch();

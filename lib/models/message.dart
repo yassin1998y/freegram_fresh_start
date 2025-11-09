@@ -20,6 +20,14 @@ class Message {
   final String? replyToImageUrl;
   final String? replyToSender;
 
+  // Story reply context (Facebook-style private story replies)
+  final String? storyReplyId;
+  final String? storyThumbnailUrl;
+  final String? storyMediaUrl;
+  final String? storyMediaType; // 'image' | 'video'
+  final String? storyAuthorId;
+  final String? storyAuthorUsername;
+
   // Client-side status for Optimistic UI
   final MessageStatus status;
 
@@ -35,6 +43,12 @@ class Message {
     this.replyToMessageText,
     this.replyToImageUrl,
     this.replyToSender,
+    this.storyReplyId,
+    this.storyThumbnailUrl,
+    this.storyMediaUrl,
+    this.storyMediaType,
+    this.storyAuthorId,
+    this.storyAuthorUsername,
     this.status = MessageStatus.sent, // Default to sent
   });
 
@@ -65,6 +79,12 @@ class Message {
       replyToMessageText: data['replyToMessageText'],
       replyToImageUrl: data['replyToImageUrl'],
       replyToSender: data['replyToSender'],
+      storyReplyId: data['storyReplyId'],
+      storyThumbnailUrl: data['storyThumbnailUrl'],
+      storyMediaUrl: data['storyMediaUrl'],
+      storyMediaType: data['storyMediaType'],
+      storyAuthorId: data['storyAuthorId'],
+      storyAuthorUsername: data['storyAuthorUsername'],
       status: currentStatus,
     );
   }
@@ -78,6 +98,12 @@ class Message {
     String? replyToMessageText,
     String? replyToImageUrl,
     String? replyToSender,
+    String? storyReplyId,
+    String? storyThumbnailUrl,
+    String? storyMediaUrl,
+    String? storyMediaType,
+    String? storyAuthorId,
+    String? storyAuthorUsername,
   }) {
     return Message(
       id: const Uuid().v4(), // Generate a unique temporary ID
@@ -90,6 +116,12 @@ class Message {
       replyToMessageText: replyToMessageText,
       replyToImageUrl: replyToImageUrl,
       replyToSender: replyToSender,
+      storyReplyId: storyReplyId,
+      storyThumbnailUrl: storyThumbnailUrl,
+      storyMediaUrl: storyMediaUrl,
+      storyMediaType: storyMediaType,
+      storyAuthorId: storyAuthorId,
+      storyAuthorUsername: storyAuthorUsername,
     );
   }
 }

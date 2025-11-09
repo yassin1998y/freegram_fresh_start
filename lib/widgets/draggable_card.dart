@@ -236,7 +236,7 @@ class DraggableCardState extends State<DraggableCard>
     if (_animationController.isAnimating) return;
 
     const wiggleAmount = 15.0;
-    final wiggleDuration = const Duration(milliseconds: 80);
+    const wiggleDuration = Duration(milliseconds: 80);
 
     // Create a wiggle sequence
     _animateWiggle(wiggleAmount, wiggleDuration);

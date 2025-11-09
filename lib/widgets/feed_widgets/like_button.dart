@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/models/post_model.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/repositories/post_repository.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class LikeButton extends StatefulWidget {
   final PostModel post;
@@ -168,10 +169,9 @@ class _LikeButtonState extends State<LikeButton>
           mainAxisSize: MainAxisSize.min,
           children: [
             _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                ? const AppProgressIndicator(
+                    size: 20,
+                    strokeWidth: 2,
                   )
                 : ScaleTransition(
                     scale: _scaleAnimation,

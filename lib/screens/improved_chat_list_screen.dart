@@ -18,6 +18,8 @@ import 'package:freegram/widgets/chat_widgets/shimmer_chat_skeleton.dart';
 import 'package:freegram/widgets/island_popup.dart';
 import 'package:freegram/widgets/freegram_app_bar.dart';
 import 'package:freegram/utils/app_constants.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/widgets/common/app_button.dart';
 
 class ImprovedChatListScreen extends StatefulWidget {
   const ImprovedChatListScreen({super.key});
@@ -59,6 +61,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: improved_chat_list_screen.dart');
     _searchController.addListener(_onSearchChanged);
   }
 
@@ -94,7 +97,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
         title: 'Chats',
         showBackButton: false,
         actions: [
-          AppBarActionButton(
+          AppIconButton(
             icon: Icons.search_rounded,
             tooltip: 'Search chats',
             onPressed: () {
@@ -136,7 +139,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
     final theme = Theme.of(context);
 
     return Container(
-      padding: EdgeInsets.fromLTRB(
+      padding: const EdgeInsets.fromLTRB(
         DesignTokens.spaceMD,
         DesignTokens.spaceSM,
         DesignTokens.spaceMD,
@@ -195,12 +198,12 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
                   },
                 ),
           filled: true,
-          fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+          fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
           ),
-          contentPadding: EdgeInsets.symmetric(
+          contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 12,
           ),
@@ -216,7 +219,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
   Widget _buildFilterChips() {
     return Container(
       height: 56,
-      padding: EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         horizontal: DesignTokens.spaceMD,
         vertical: DesignTokens.spaceSM,
       ),
@@ -233,7 +236,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
                 setState(() => _showUnreadOnly = false);
               },
             ),
-          SizedBox(width: DesignTokens.spaceSM),
+          const SizedBox(width: DesignTokens.spaceSM),
           _buildFilterChip(
             label: 'Recent',
             icon: Icons.access_time,
@@ -243,7 +246,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
               setState(() => _sortBy = 'recent');
             },
           ),
-          SizedBox(width: DesignTokens.spaceSM),
+          const SizedBox(width: DesignTokens.spaceSM),
           _buildFilterChip(
             label: 'Name',
             icon: Icons.sort_by_alpha,
@@ -272,7 +275,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
         onTap: onTap,
         borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
         child: Container(
-          padding: EdgeInsets.symmetric(
+          padding: const EdgeInsets.symmetric(
             horizontal: DesignTokens.spaceMD,
             vertical: DesignTokens.spaceXS,
           ),
@@ -293,7 +296,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
                 size: DesignTokens.iconSM,
                 color: isActive ? Colors.white : Colors.grey[700],
               ),
-              SizedBox(width: DesignTokens.spaceXS),
+              const SizedBox(width: DesignTokens.spaceXS),
               Text(
                 label,
                 style: TextStyle(
@@ -443,7 +446,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
       stream: userRepository.searchUsers(_searchQuery),
       builder: (context, userSnapshot) {
         if (userSnapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+          return const Center(child: AppProgressIndicator(strokeWidth: 2));
         }
 
         if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
@@ -484,7 +487,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
             context: context,
             barrierDismissible: false,
             builder: (context) => const Center(
-              child: CircularProgressIndicator(),
+              child: AppProgressIndicator(),
             ),
           );
 
@@ -516,7 +519,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
           }
         },
         child: Container(
-          padding: EdgeInsets.symmetric(
+          padding: const EdgeInsets.symmetric(
             horizontal: DesignTokens.spaceMD,
             vertical: DesignTokens.spaceSM,
           ),
@@ -547,7 +550,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
                       )
                     : null,
               ),
-              SizedBox(width: DesignTokens.spaceMD),
+              const SizedBox(width: DesignTokens.spaceMD),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -591,7 +594,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
             size: 64,
             color: Colors.grey[400],
           ),
-          SizedBox(height: DesignTokens.spaceMD),
+          const SizedBox(height: DesignTokens.spaceMD),
           Text(
             message ?? 'No active chats',
             style: TextStyle(
@@ -600,7 +603,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
               fontWeight: FontWeight.w500,
             ),
           ),
-          SizedBox(height: DesignTokens.spaceSM),
+          const SizedBox(height: DesignTokens.spaceSM),
           Text(
             'Start a conversation with someone!',
             style: TextStyle(
@@ -623,7 +626,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
             size: 64,
             color: Colors.red[400],
           ),
-          SizedBox(height: DesignTokens.spaceMD),
+          const SizedBox(height: DesignTokens.spaceMD),
           Text(
             message,
             style: TextStyle(

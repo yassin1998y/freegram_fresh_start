@@ -1,6 +1,5 @@
 // lib/widgets/chat_widgets/professional_message_bubble.dart
 
-import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +8,7 @@ import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/models/message.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/widgets/chat_widgets/message_reaction_display.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 /// Professional Message Bubble with gradients, clustering, and animations
@@ -98,8 +98,9 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
   // Message clustering logic
   bool get _isFirstInCluster {
     if (widget.previousMessage == null) return true;
-    if (widget.previousMessage!.senderId != widget.message.senderId)
+    if (widget.previousMessage!.senderId != widget.message.senderId) {
       return true;
+    }
 
     final timeDiff = widget.message.timestamp != null &&
             widget.previousMessage!.timestamp != null
@@ -261,7 +262,7 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
                 : null,
             color: widget.isMe
                 ? null
-                : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
             borderRadius: _getBubbleBorderRadius(),
             boxShadow: [
               BoxShadow(
@@ -274,6 +275,10 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Story reply preview (Facebook-style)
+              if (widget.message.storyReplyId != null)
+                _buildStoryReplyPreview(context),
+
               // Reply preview
               if (widget.message.replyToMessageId != null)
                 _buildReplyPreview(context),
@@ -322,6 +327,149 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildStoryReplyPreview(BuildContext context) {
+    final theme = Theme.of(context);
+    final storyThumbnail = widget.message.storyThumbnailUrl ?? widget.message.storyMediaUrl;
+    final isVideo = widget.message.storyMediaType == 'video';
+
+    return GestureDetector(
+      onTap: () {
+        // Navigate to story viewer if needed
+        // TODO: Implement story viewer navigation
+        HapticFeedback.lightImpact();
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: DesignTokens.spaceSM),
+        padding: const EdgeInsets.all(DesignTokens.spaceSM),
+        decoration: BoxDecoration(
+          color: widget.isMe
+              ? Colors.white.withOpacity(0.2)
+              : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+          border: Border.all(
+            color: widget.isMe
+                ? Colors.white.withOpacity(0.3)
+                : theme.colorScheme.outline.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            // Story thumbnail
+            if (storyThumbnail != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
+                child: Stack(
+                  children: [
+                    CachedNetworkImage(
+                      imageUrl: storyThumbnail,
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        width: 50,
+                        height: 50,
+                        color: Colors.grey[300],
+                        child: const Center(
+                          child: AppProgressIndicator(
+                            size: 20,
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        width: 50,
+                        height: 50,
+                        color: Colors.grey[300],
+                        child: Icon(
+                          Icons.auto_stories,
+                          size: 24,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ),
+                    // Video play icon overlay
+                    if (isVideo)
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
+                          ),
+                          child: const Icon(
+                            Icons.play_arrow,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              )
+            else
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
+                ),
+                child: Icon(
+                  Icons.auto_stories,
+                  size: 24,
+                  color: Colors.grey[600],
+                ),
+              ),
+            const SizedBox(width: DesignTokens.spaceSM),
+            // Story info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.auto_stories,
+                        size: DesignTokens.iconXS,
+                        color: widget.isMe
+                            ? Colors.white70
+                            : theme.colorScheme.onSurface.withOpacity(0.7),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Story',
+                        style: TextStyle(
+                          fontSize: DesignTokens.fontSizeXS,
+                          fontWeight: FontWeight.bold,
+                          color: widget.isMe
+                              ? Colors.white
+                              : theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  if (widget.message.storyAuthorUsername != null)
+                    Text(
+                      widget.message.storyAuthorUsername!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: DesignTokens.fontSizeXS,
+                        color: widget.isMe
+                            ? Colors.white70
+                            : theme.colorScheme.onSurface.withOpacity(0.7),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -437,7 +585,7 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
                 height: 200,
                 color: Colors.grey[200],
                 child: const Center(
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: AppProgressIndicator(strokeWidth: 2),
                 ),
               ),
               errorWidget: (context, url, error) => Container(
@@ -475,9 +623,10 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
               SizedBox(
                 width: 12,
                 height: 12,
-                child: CircularProgressIndicator(
+                child: AppProgressIndicator(
+                  size: 12,
                   strokeWidth: 1.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[600]!),
+                  color: Colors.grey[600]!,
                 ),
               ),
               const SizedBox(width: 4),
@@ -503,11 +652,11 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
               const Icon(Icons.done_all, size: 16, color: Color(0xFF3498DB));
           break;
         case MessageStatus.error:
-          statusWidget = Row(
+          statusWidget = const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 16, color: Colors.red),
-              const SizedBox(width: 4),
+              Icon(Icons.error_outline, size: 16, color: Colors.red),
+              SizedBox(width: 4),
               Text(
                 'Failed',
                 style: TextStyle(
@@ -594,7 +743,7 @@ class _EnhancedImageViewer extends StatelessWidget {
             maxScale: 4.0,
             child: CachedNetworkImage(
               imageUrl: imageUrl,
-              placeholder: (context, url) => const CircularProgressIndicator(),
+              placeholder: (context, url) => const AppProgressIndicator(),
               errorWidget: (context, url, error) => const Icon(
                 Icons.error,
                 color: Colors.white,

@@ -13,6 +13,8 @@ import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/navigation/app_routes.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/widgets/island_popup.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/widgets/common/app_button.dart';
 
 /// Professional Status Chip Component
 /// Displays status with glassmorphic design and animations
@@ -92,7 +94,7 @@ class _ProfessionalStatusChipState extends State<ProfessionalStatusChip>
             onTapCancel: _handleTapCancel,
             onTap: widget.onTap,
             child: Container(
-              padding: EdgeInsets.symmetric(
+              padding: const EdgeInsets.symmetric(
                 horizontal: DesignTokens.spaceMD,
                 vertical: DesignTokens.spaceSM,
               ),
@@ -119,7 +121,7 @@ class _ProfessionalStatusChipState extends State<ProfessionalStatusChip>
                       size: DesignTokens.iconSM,
                       color: widget.textColor ?? Colors.white,
                     ),
-                    SizedBox(width: DesignTokens.spaceXS),
+                    const SizedBox(width: DesignTokens.spaceXS),
                   ],
                   Flexible(
                     child: Text(
@@ -320,7 +322,7 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
       top: DesignTokens.spaceSM,
       left: DesignTokens.spaceSM,
       child: Container(
-        padding: EdgeInsets.symmetric(
+        padding: const EdgeInsets.symmetric(
           horizontal: DesignTokens.spaceSM,
           vertical: DesignTokens.spaceXS,
         ),
@@ -357,14 +359,15 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
   }
 
   Widget _buildStatusIndicator() {
-    if (!widget.isNew && !widget.isRecentlyActive)
+    if (!widget.isNew && !widget.isRecentlyActive) {
       return const SizedBox.shrink();
+    }
 
     return Positioned(
       top: DesignTokens.spaceSM,
       right: DesignTokens.spaceSM,
       child: Container(
-        padding: EdgeInsets.symmetric(
+        padding: const EdgeInsets.symmetric(
           horizontal: DesignTokens.spaceSM,
           vertical: DesignTokens.spaceXS,
         ),
@@ -383,10 +386,10 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
               color: Colors.white,
               size: DesignTokens.iconXS,
             ),
-            SizedBox(width: DesignTokens.spaceXS),
+            const SizedBox(width: DesignTokens.spaceXS),
             Text(
               widget.isNew ? 'NEW' : 'ACTIVE',
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: DesignTokens.fontSizeXS,
                 fontWeight: FontWeight.w700,
@@ -408,13 +411,13 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
       child: AnimatedContainer(
         duration: DesignTokens.durationFast,
         curve: DesignTokens.curveEaseInOut,
-        padding: EdgeInsets.all(DesignTokens.spaceXS),
+        padding: const EdgeInsets.all(DesignTokens.spaceXS),
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.8),
           shape: BoxShape.circle,
           boxShadow: DesignTokens.shadowLight,
         ),
-        child: Icon(
+        child: const Icon(
           Icons.cloud_download_outlined,
           color: Colors.white70,
           size: DesignTokens.iconSM,
@@ -505,12 +508,12 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
                               child: GestureDetector(
                                 onTap: widget.onDelete,
                                 child: Container(
-                                  padding: EdgeInsets.all(DesignTokens.spaceXS),
+                                  padding: const EdgeInsets.all(DesignTokens.spaceXS),
                                   decoration: BoxDecoration(
                                     color: Colors.black.withOpacity(0.6),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: Icon(
+                                  child: const Icon(
                                     Icons.close,
                                     color: Colors.white,
                                     size: DesignTokens.iconSM,
@@ -525,7 +528,7 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
                             left: 0,
                             right: 0,
                             child: Padding(
-                              padding: EdgeInsets.all(DesignTokens.spaceMD),
+                              padding: const EdgeInsets.all(DesignTokens.spaceMD),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -549,7 +552,7 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
                                   ),
                                   if (widget.statusMessage != null &&
                                       widget.statusMessage!.isNotEmpty) ...[
-                                    SizedBox(height: DesignTokens.spaceXS),
+                                    const SizedBox(height: DesignTokens.spaceXS),
                                     Text(
                                       widget.statusMessage!,
                                       style:
@@ -772,7 +775,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
                             controller: scrollController,
                             physics: const BouncingScrollPhysics(),
                             child: Padding(
-                              padding: EdgeInsets.all(DesignTokens.spaceLG)
+                              padding: const EdgeInsets.all(DesignTokens.spaceLG)
                                   .copyWith(bottom: DesignTokens.spaceXXXL),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
@@ -789,7 +792,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
                                     ),
                                   ),
 
-                                  SizedBox(height: DesignTokens.spaceLG),
+                                  const SizedBox(height: DesignTokens.spaceLG),
 
                                   // Username with Animation
                                   FadeTransition(
@@ -803,7 +806,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
                                     ),
                                   ),
 
-                                  SizedBox(height: DesignTokens.spaceMD),
+                                  const SizedBox(height: DesignTokens.spaceMD),
 
                                   // Status Message with Animation
                                   if (widget
@@ -847,7 +850,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
                                       ),
                                     ),
 
-                                  SizedBox(height: DesignTokens.spaceLG),
+                                  const SizedBox(height: DesignTokens.spaceLG),
 
                                   // Action Buttons with Animation
                                   FadeTransition(
@@ -867,7 +870,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
                                     ),
                                   ),
 
-                                  SizedBox(height: DesignTokens.spaceLG),
+                                  const SizedBox(height: DesignTokens.spaceLG),
 
                                   // View Full Profile Button with Animation
                                   FadeTransition(
@@ -902,7 +905,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
                           borderRadius:
                               BorderRadius.circular(DesignTokens.radiusSM),
                           child: Container(
-                            padding: EdgeInsets.all(DesignTokens.spaceSM),
+                            padding: const EdgeInsets.all(DesignTokens.spaceSM),
                             decoration: BoxDecoration(
                               color: Theme.of(context)
                                   .scaffoldBackgroundColor
@@ -954,10 +957,10 @@ class _UserActionsModalState extends State<_UserActionsModal>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(
+            AppProgressIndicator(
               color: Theme.of(context).colorScheme.primary,
             ),
-            SizedBox(height: DesignTokens.spaceMD),
+            const SizedBox(height: DesignTokens.spaceMD),
             Text(
               'Loading profile...',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -1017,9 +1020,9 @@ class _UserActionsModalState extends State<_UserActionsModal>
               ),
           textAlign: TextAlign.center,
         ),
-        SizedBox(height: DesignTokens.spaceXS),
+        const SizedBox(height: DesignTokens.spaceXS),
         Container(
-          padding: EdgeInsets.symmetric(
+          padding: const EdgeInsets.symmetric(
             horizontal: DesignTokens.spaceMD,
             vertical: DesignTokens.spaceXS,
           ),
@@ -1047,7 +1050,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
 
   Widget _buildStatusMessageSection(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(DesignTokens.spaceMD),
+      padding: const EdgeInsets.all(DesignTokens.spaceMD),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
@@ -1064,7 +1067,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
             size: DesignTokens.iconSM,
             color: Theme.of(context).iconTheme.color?.withOpacity(0.6),
           ),
-          SizedBox(width: DesignTokens.spaceSM),
+          const SizedBox(width: DesignTokens.spaceSM),
           Expanded(
             child: Text(
               '"${widget.user.nearbyStatusMessage}" ${widget.user.nearbyStatusEmoji}',
@@ -1084,7 +1087,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
   Widget _buildMutualFriendsSection(
       BuildContext context, List<String> mutualFriends) {
     return Container(
-      padding: EdgeInsets.all(DesignTokens.spaceMD),
+      padding: const EdgeInsets.all(DesignTokens.spaceMD),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
@@ -1096,12 +1099,12 @@ class _UserActionsModalState extends State<_UserActionsModal>
       ),
       child: Row(
         children: [
-          Icon(
+          const Icon(
             Icons.people_outline,
             size: DesignTokens.iconSM,
             color: DesignTokens.successColor,
           ),
-          SizedBox(width: DesignTokens.spaceSM),
+          const SizedBox(width: DesignTokens.spaceSM),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1113,7 +1116,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
                         fontSize: DesignTokens.fontSizeSM,
                       ),
                 ),
-                SizedBox(height: DesignTokens.spaceXS),
+                const SizedBox(height: DesignTokens.spaceXS),
                 Text(
                   'You both know ${mutualFriends.length} ${mutualFriends.length > 1 ? 'people' : 'person'}.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -1131,7 +1134,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
   Widget _buildSharedInterestsSection(
       BuildContext context, List<String> sharedInterests) {
     return Container(
-      padding: EdgeInsets.all(DesignTokens.spaceMD),
+      padding: const EdgeInsets.all(DesignTokens.spaceMD),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
@@ -1146,12 +1149,12 @@ class _UserActionsModalState extends State<_UserActionsModal>
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.favorite_border,
                 size: DesignTokens.iconSM,
                 color: DesignTokens.errorColor,
               ),
-              SizedBox(width: DesignTokens.spaceSM),
+              const SizedBox(width: DesignTokens.spaceSM),
               Text(
                 'Shared Interests',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -1161,13 +1164,13 @@ class _UserActionsModalState extends State<_UserActionsModal>
               ),
             ],
           ),
-          SizedBox(height: DesignTokens.spaceSM),
+          const SizedBox(height: DesignTokens.spaceSM),
           Wrap(
             spacing: DesignTokens.spaceSM,
             runSpacing: DesignTokens.spaceSM,
             children: sharedInterests
                 .map((interest) => Container(
-                      padding: EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: DesignTokens.spaceSM,
                         vertical: DesignTokens.spaceXS,
                       ),
@@ -1209,7 +1212,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
         style: ElevatedButton.styleFrom(
           backgroundColor: Theme.of(context).colorScheme.primary,
           foregroundColor: Colors.white,
-          padding: EdgeInsets.symmetric(
+          padding: const EdgeInsets.symmetric(
             horizontal: DesignTokens.spaceLG,
             vertical: DesignTokens.spaceMD,
           ),
@@ -1228,11 +1231,11 @@ class _UserActionsModalState extends State<_UserActionsModal>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               Icons.person_outline,
               size: DesignTokens.iconSM,
             ),
-            SizedBox(width: DesignTokens.spaceSM),
+            const SizedBox(width: DesignTokens.spaceSM),
             Text(
               isProfileSynced ? 'View Full Profile' : 'Profile Syncing...',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -1461,7 +1464,7 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
     return BlocBuilder<FriendsBloc, FriendsState>(
       builder: (context, friendsBlocState) {
         if (friendsBlocState is! FriendsLoaded) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: AppProgressIndicator());
         }
 
         final currentUserData = friendsBlocState.user;
@@ -1484,7 +1487,7 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
                         fontSize: DesignTokens.fontSizeLG,
                       ),
                 ),
-                SizedBox(height: DesignTokens.spaceMD),
+                const SizedBox(height: DesignTokens.spaceMD),
                 Wrap(
                   spacing: DesignTokens.spaceMD,
                   runSpacing: DesignTokens.spaceMD,
@@ -1539,7 +1542,7 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
             borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
             child: Container(
               width: 80,
-              padding: EdgeInsets.all(DesignTokens.spaceMD),
+              padding: const EdgeInsets.all(DesignTokens.spaceMD),
               decoration: BoxDecoration(
                 color: isOnline
                     ? Theme.of(context).cardColor
@@ -1593,7 +1596,7 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
                                   width: 1.5,
                                 ),
                               ),
-                              child: Icon(
+                              child: const Icon(
                                 Icons.wifi_off,
                                 color: Colors.white,
                                 size: 6,
@@ -1603,7 +1606,7 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
                       ],
                     ),
                   ),
-                  SizedBox(height: DesignTokens.spaceSM),
+                  const SizedBox(height: DesignTokens.spaceSM),
                   Text(
                     'Chat',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -1633,6 +1636,7 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
     bool isLoading = false,
   }) {
     final isDisabled = onTap == null;
+    final theme = Theme.of(context);
 
     return FadeTransition(
       opacity: animation,
@@ -1645,16 +1649,16 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
             borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
             child: Container(
               width: 80,
-              padding: EdgeInsets.all(DesignTokens.spaceMD),
+              padding: const EdgeInsets.all(DesignTokens.spaceMD),
               decoration: BoxDecoration(
                 color: isDisabled
-                    ? Theme.of(context).dividerColor.withOpacity(0.3)
-                    : Theme.of(context).cardColor,
+                    ? theme.dividerColor.withOpacity(0.3)
+                    : theme.cardColor,
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
                 border: Border.all(
                   color: isDisabled
-                      ? Theme.of(context).dividerColor.withOpacity(0.3)
-                      : Theme.of(context).dividerColor,
+                      ? theme.dividerColor.withOpacity(0.3)
+                      : theme.dividerColor,
                   width: 0.5,
                 ),
                 boxShadow: isDisabled ? null : DesignTokens.shadowLight,
@@ -1662,45 +1666,34 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: isDisabled
-                          ? Theme.of(context).dividerColor.withOpacity(0.3)
-                          : Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: isLoading
-                        ? Center(
-                            child: SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                          )
-                        : Icon(
-                            icon,
-                            color: isDisabled
-                                ? Colors.grey[500]
-                                : Theme.of(context).colorScheme.primary,
-                            size: DesignTokens.iconLG,
-                          ),
+                  // Use AppActionButton but extract just the button part
+                  // We'll customize it to match the card design
+                  AppActionButton(
+                    icon: icon,
+                    label: label,
+                    onPressed: isLoading || isDisabled ? null : onTap,
+                    isLoading: isLoading,
+                    isDisabled: isDisabled,
+                    size: 48,
+                    iconSize: DesignTokens.iconLG,
+                    showLabel: false, // We'll add the label separately to match original layout
+                    backgroundColor: isDisabled
+                        ? theme.dividerColor.withOpacity(0.3)
+                        : theme.colorScheme.primary.withOpacity(0.1),
+                    color: isDisabled
+                        ? Colors.grey[500]
+                        : theme.colorScheme.primary,
+                    hapticType: AppButtonHapticType.light,
+                    animationDuration: const Duration(milliseconds: 150),
                   ),
-                  SizedBox(height: DesignTokens.spaceSM),
+                  const SizedBox(height: DesignTokens.spaceSM),
                   Text(
                     label,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: isDisabled ? Colors.grey[500] : null,
-                          fontWeight: FontWeight.w600,
-                          fontSize: DesignTokens.fontSizeXS,
-                        ),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: isDisabled ? Colors.grey[500] : null,
+                      fontWeight: FontWeight.w600,
+                      fontSize: DesignTokens.fontSizeXS,
+                    ),
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

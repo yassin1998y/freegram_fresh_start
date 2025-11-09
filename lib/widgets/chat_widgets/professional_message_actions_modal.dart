@@ -179,7 +179,7 @@ class _ProfessionalMessageActionsModalState
                           Container(
                             width: 40,
                             height: 4,
-                            margin: EdgeInsets.symmetric(
+                            margin: const EdgeInsets.symmetric(
                               vertical: DesignTokens.spaceMD,
                             ),
                             decoration: BoxDecoration(
@@ -201,7 +201,7 @@ class _ProfessionalMessageActionsModalState
                           // Action buttons
                           _buildActionButtons(),
 
-                          SizedBox(height: DesignTokens.spaceLG),
+                          const SizedBox(height: DesignTokens.spaceLG),
                         ],
                       ),
                     ),
@@ -217,11 +217,11 @@ class _ProfessionalMessageActionsModalState
 
   Widget _buildMessagePreview() {
     return Container(
-      margin: EdgeInsets.symmetric(
+      margin: const EdgeInsets.symmetric(
         horizontal: DesignTokens.spaceLG,
         vertical: DesignTokens.spaceMD,
       ),
-      padding: EdgeInsets.all(DesignTokens.spaceMD),
+      padding: const EdgeInsets.all(DesignTokens.spaceMD),
       decoration: BoxDecoration(
         color: Colors.grey[100],
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
@@ -235,7 +235,7 @@ class _ProfessionalMessageActionsModalState
             color: Colors.grey[600],
             size: DesignTokens.iconMD,
           ),
-          SizedBox(width: DesignTokens.spaceMD),
+          const SizedBox(width: DesignTokens.spaceMD),
           Expanded(
             child: Text(
               widget.message.text ?? 'Photo',
@@ -251,7 +251,7 @@ class _ProfessionalMessageActionsModalState
 
   Widget _buildQuickReactions() {
     return Padding(
-      padding: EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         horizontal: DesignTokens.spaceLG,
         vertical: DesignTokens.spaceMD,
       ),
@@ -571,14 +571,14 @@ class _ActionTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: EdgeInsets.symmetric(
+          padding: const EdgeInsets.symmetric(
             horizontal: DesignTokens.spaceLG,
             vertical: DesignTokens.spaceMD,
           ),
           child: Row(
             children: [
               Icon(icon, color: color, size: DesignTokens.iconLG),
-              SizedBox(width: DesignTokens.spaceLG),
+              const SizedBox(width: DesignTokens.spaceLG),
               Expanded(
                 child: Text(
                   label,
@@ -595,6 +595,14 @@ class _ActionTile extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
 
 
 

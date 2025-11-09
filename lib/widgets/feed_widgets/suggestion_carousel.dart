@@ -28,14 +28,14 @@ class SuggestionCarouselWidget extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      margin: EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
+      margin: const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header with title and dismiss button
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
+            padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -75,7 +75,7 @@ class SuggestionCarouselWidget extends StatelessWidget {
             height: 140,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.symmetric(horizontal: DesignTokens.spaceSM),
+              padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceSM),
               itemCount: suggestions.length,
               itemBuilder: (context, index) {
                 return SuggestionCardWidget(

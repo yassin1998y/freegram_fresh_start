@@ -30,6 +30,9 @@ import 'package:freegram/widgets/offline_overlay.dart';
 import 'package:hive/hive.dart';
 import 'package:freegram/widgets/guided_overlay.dart';
 import 'package:freegram/services/navigation_service.dart';
+import 'package:freegram/services/upload_progress_service.dart';
+import 'package:freegram/widgets/common/upload_progress_indicator.dart';
+import 'package:freegram/models/upload_progress_model.dart';
 
 const bool _enableBlurEffects = true; // Keep blur toggle
 
@@ -129,6 +132,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('📱 SCREEN: main_screen.dart');
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         // If we become unauthenticated, immediately disable all interactions
@@ -154,7 +158,7 @@ class _MainScreenState extends State<MainScreen> {
           // CRITICAL: Use Scaffold with background color to prevent black screen during logout transition
           return Scaffold(
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            body: SizedBox.shrink(),
+            body: const SizedBox.shrink(),
           );
         }
 
@@ -166,7 +170,7 @@ class _MainScreenState extends State<MainScreen> {
               "MainScreen: WARNING - Authenticated state but FirebaseAuth has no user. Returning empty scaffold.");
           return Scaffold(
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            body: SizedBox.shrink(),
+            body: const SizedBox.shrink(),
           );
         }
 
@@ -178,6 +182,8 @@ class _MainScreenState extends State<MainScreen> {
           children: [
             Scaffold(
               extendBody: true, // Body behind bottom bar
+              resizeToAvoidBottomInset: true, // Allow keyboard to resize content
+              extendBodyBehindAppBar: false,
               appBar: AppBar(
                 // No back button - use device hardware back button
                 automaticallyImplyLeading: false,
@@ -279,6 +285,82 @@ class _MainScreenState extends State<MainScreen> {
                     },
                   ),
                   // --- END: Notification Action Update ---
+                  // Upload Progress Indicator (if active upload)
+                  // CRITICAL FIX: Wrap in RepaintBoundary and use fixed-size container
+                  ListenableBuilder(
+                    listenable: UploadProgressService(),
+                    builder: (context, _) {
+                      final uploadService = UploadProgressService();
+                      if (uploadService.hasActiveUploads) {
+                        final activeUploads = uploadService.uploads.values
+                            .where((u) => u.state != UploadState.completed && 
+                                          u.state != UploadState.failed)
+                            .toList();
+                        if (activeUploads.isNotEmpty) {
+                          final primaryUpload = activeUploads.first;
+                          return RepaintBoundary(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                              child: GestureDetector(
+                                onTap: () {
+                                  // Show upload status card
+                                  showModalBottomSheet(
+                                    context: context,
+                                    backgroundColor: Colors.transparent,
+                                    builder: (context) => Container(
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).scaffoldBackgroundColor,
+                                        borderRadius: const BorderRadius.vertical(
+                                          top: Radius.circular(20),
+                                        ),
+                                      ),
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'Uploading Story',
+                                            style: Theme.of(context).textTheme.titleLarge,
+                                          ),
+                                          const SizedBox(height: 16),
+                                          UploadProgressIndicator(
+                                            progress: primaryUpload.progress,
+                                            size: 80.0,
+                                            strokeWidth: 6.0,
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            primaryUpload.currentStep,
+                                            style: Theme.of(context).textTheme.bodyMedium,
+                                          ),
+                                          if (primaryUpload.uploadSpeed != null)
+                                            Text(
+                                              '${primaryUpload.uploadSpeed!.toStringAsFixed(1)} MB/s',
+                                              style: Theme.of(context).textTheme.bodySmall,
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: SizedBox(
+                                  width: 32.0,
+                                  height: 32.0,
+                                  child: UploadProgressIndicator(
+                                    progress: primaryUpload.progress,
+                                    size: 32.0,
+                                    strokeWidth: 3.0,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                      // CRITICAL FIX: Return fixed-size empty container to prevent layout shifts
+                      return const SizedBox(width: 0, height: 0);
+                    },
+                  ),
                   const SizedBox(width: 8), // Padding
                 ],
               ),
@@ -287,6 +369,11 @@ class _MainScreenState extends State<MainScreen> {
               backgroundColor: Theme.of(context).scaffoldBackgroundColor,
               body: Container(
                 // Explicit container with background to prevent black screen
+                // Add bottom padding to prevent content from going behind bottom nav bar
+                // Bottom nav bar height: 65px + safe area padding + 8px margin
+                padding: EdgeInsets.only(
+                  bottom: 65.0 + MediaQuery.of(context).padding.bottom + 8.0,
+                ),
                 color: Theme.of(context).scaffoldBackgroundColor,
                 child: IndexedStack(
                   index: _selectedIndex,
@@ -320,7 +407,14 @@ class _MainScreenState extends State<MainScreen> {
                   ],
                 ),
               ),
-              bottomNavigationBar: _buildFlatBottomNavBar(context, currentUser),
+              // Remove bottomNavigationBar from Scaffold - we'll position it with Stack
+            ),
+            // Position bottom nav bar absolutely outside Scaffold layout
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _buildFlatBottomNavBar(context, currentUser),
             ),
             if (_showGuide)
               GuidedOverlay(
@@ -385,9 +479,13 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildFlatBottomNavBar(BuildContext context, User currentUser) {
+    // Positioned absolutely, so keyboard won't affect it
+    final mediaQuery = MediaQuery.of(context);
+    final bottomPadding = mediaQuery.padding.bottom;
+    
     return SafeArea(
       top: false,
-      minimum: const EdgeInsets.only(bottom: 8.0),
+      minimum: EdgeInsets.only(bottom: bottomPadding + 8.0),
       child: Container(
         constraints: const BoxConstraints(minHeight: 65),
         decoration: BoxDecoration(
@@ -413,7 +511,7 @@ class _MainScreenState extends State<MainScreen> {
                 _FlatBottomNavIcon(
                   key: _guideFeedKey,
                   showcaseKey: _guideFeedKey,
-                  showcaseDescription: 'See what’s new in the feed',
+                  showcaseDescription: 'See what\'s new in the feed',
                   icon: Icons.public,
                   label: 'Feed',
                   isSelected: _selectedIndex == 1,
@@ -629,7 +727,7 @@ class _GlassmorphicCenterButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final accentColor = SonarPulseTheme.primaryAccent;
+    const accentColor = SonarPulseTheme.primaryAccent;
 
     Widget content = Material(
       type: MaterialType.transparency,

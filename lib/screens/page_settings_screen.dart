@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/repositories/page_repository.dart';
+import 'package:freegram/widgets/common/keyboard_safe_area.dart';
 import 'package:freegram/models/page_model.dart';
 import 'package:freegram/screens/page_analytics_screen.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class PageSettingsScreen extends StatefulWidget {
   final String pageId;
@@ -29,6 +31,7 @@ class _PageSettingsScreenState extends State<PageSettingsScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: page_settings_screen.dart');
     _loadPage();
   }
 
@@ -99,7 +102,7 @@ class _PageSettingsScreenState extends State<PageSettingsScreen> {
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Page Settings')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const Center(child: AppProgressIndicator()),
       );
     }
 
@@ -111,132 +114,138 @@ class _PageSettingsScreenState extends State<PageSettingsScreen> {
     }
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('Page Settings'),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          // Verification Section
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        _page!.verificationStatus == VerificationStatus.verified
-                            ? Icons.verified
-                            : _page!.verificationStatus ==
-                                    VerificationStatus.pending
-                                ? Icons.pending
-                                : Icons.verified_user_outlined,
-                        color: _page!.verificationStatus ==
-                                VerificationStatus.verified
-                            ? Colors.blue
-                            : Colors.grey,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Verification Status',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+      body: KeyboardSafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16.0),
+          children: [
+            // Verification Section
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          _page!.verificationStatus ==
+                                  VerificationStatus.verified
+                              ? Icons.verified
+                              : _page!.verificationStatus ==
+                                      VerificationStatus.pending
+                                  ? Icons.pending
+                                  : Icons.verified_user_outlined,
+                          color: _page!.verificationStatus ==
+                                  VerificationStatus.verified
+                              ? Colors.blue
+                              : Colors.grey,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Verification Status',
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _page!.verificationStatus == VerificationStatus.verified
+                          ? 'Verified ✓'
+                          : _page!.verificationStatus ==
+                                  VerificationStatus.pending
+                              ? 'Verification pending review'
+                              : 'Not verified',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    if (_page!.verificationStatus !=
+                        VerificationStatus.verified) ...[
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _requestVerification,
+                          icon: const Icon(Icons.check_circle_outline),
+                          label: const Text('Request Verification'),
+                        ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _page!.verificationStatus == VerificationStatus.verified
-                        ? 'Verified ✓'
-                        : _page!.verificationStatus ==
-                                VerificationStatus.pending
-                            ? 'Verification pending review'
-                            : 'Not verified',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  if (_page!.verificationStatus !=
-                      VerificationStatus.verified) ...[
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _requestVerification,
-                        icon: const Icon(Icons.check_circle_outline),
-                        label: const Text('Request Verification'),
-                      ),
-                    ),
                   ],
-                ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          // Analytics Section
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.analytics),
-              title: const Text('Page Analytics'),
-              subtitle: const Text('View detailed analytics and insights'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        PageAnalyticsScreen(pageId: widget.pageId),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Admin Management (Owner only)
-          if (_isOwner()) ...[
+            // Analytics Section
             Card(
               child: ListTile(
-                leading: const Icon(Icons.admin_panel_settings),
-                title: const Text('Manage Admins'),
-                subtitle: const Text('Add or remove page administrators'),
+                leading: const Icon(Icons.analytics),
+                title: const Text('Page Analytics'),
+                subtitle: const Text('View detailed analytics and insights'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
-                  // TODO: Navigate to admin management screen
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Admin management coming soon')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          PageAnalyticsScreen(pageId: widget.pageId),
+                    ),
                   );
                 },
               ),
             ),
             const SizedBox(height: 16),
-          ],
 
-          // Danger Zone (Owner only)
-          if (_isOwner()) ...[
-            const Divider(),
-            Card(
-              color: Colors.red.shade50,
-              child: ListTile(
-                leading: const Icon(Icons.warning, color: Colors.red),
-                title: const Text(
-                  'Delete Page',
-                  style: TextStyle(color: Colors.red),
+            // Admin Management (Owner only)
+            if (_isOwner()) ...[
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.admin_panel_settings),
+                  title: const Text('Manage Admins'),
+                  subtitle: const Text('Add or remove page administrators'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    // TODO: Navigate to admin management screen
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Admin management coming soon')),
+                    );
+                  },
                 ),
-                subtitle: const Text('Permanently delete this page'),
-                onTap: () {
-                  // TODO: Implement delete confirmation
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Page deletion coming soon')),
-                  );
-                },
               ),
-            ),
+              const SizedBox(height: 16),
+            ],
+
+            // Danger Zone (Owner only)
+            if (_isOwner()) ...[
+              const Divider(),
+              Card(
+                color: Colors.red.shade50,
+                child: ListTile(
+                  leading: const Icon(Icons.warning, color: Colors.red),
+                  title: const Text(
+                    'Delete Page',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                  subtitle: const Text('Permanently delete this page'),
+                  onTap: () {
+                    // TODO: Implement delete confirmation
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Page deletion coming soon')),
+                    );
+                  },
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -388,7 +397,7 @@ class _VerificationRequestDialogState
               const Center(
                 child: Padding(
                   padding: EdgeInsets.all(8.0),
-                  child: CircularProgressIndicator(),
+                  child: AppProgressIndicator(),
                 ),
               ),
             ],
@@ -437,7 +446,7 @@ class _VerificationRequestDialogState
               ? const SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: AppProgressIndicator(strokeWidth: 2),
                 )
               : const Text('Submit'),
         ),

@@ -1,5 +1,6 @@
 // lib/services/loading_overlay_service.dart
 import 'package:flutter/material.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 /// Professional Loading Overlay Service
 /// Provides unified loading indicators with smooth animations
@@ -152,7 +153,7 @@ class _LoadingOverlayWidgetState extends State<_LoadingOverlayWidget>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(
+                      AppProgressIndicator(
                         color: widget.indicatorColor ??
                             Theme.of(context).colorScheme.primary,
                         strokeWidth: 3,

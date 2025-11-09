@@ -13,6 +13,8 @@ import 'package:freegram/screens/profile_screen.dart';
 import 'package:freegram/screens/post_detail_screen.dart';
 import 'package:freegram/widgets/freegram_app_bar.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/widgets/common/app_button.dart';
 
 class NotificationsScreen extends StatelessWidget {
   // --- Added parameters for Modal Bottom Sheet (Fix #5) ---
@@ -29,6 +31,7 @@ class NotificationsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('📱 SCREEN: notifications_screen.dart');
     // Provide the NotificationBloc to the widget subtree
     return BlocProvider(
       create: (context) => Bloc.NotificationBloc(
@@ -56,7 +59,7 @@ class NotificationsScreen extends StatelessWidget {
                         hasUnread = state.notifications.any((n) => !n.isRead);
                       }
                       // Render the button, disable if no unread notifications
-                      return AppBarActionButton(
+                      return AppIconButton(
                         icon: Icons.mark_chat_read_outlined,
                         tooltip: 'Mark All As Read',
                         onPressed: hasUnread
@@ -69,6 +72,7 @@ class NotificationsScreen extends StatelessWidget {
                         color: hasUnread
                             ? null
                             : Colors.grey, // Gray when disabled
+                        isDisabled: !hasUnread,
                       );
                     },
                   ),
@@ -97,7 +101,7 @@ class _NotificationsView extends StatelessWidget {
         // Show loading indicator
         if (state is Bloc.NotificationLoading) {
           // Use alias
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: AppProgressIndicator());
         }
         // Show error message
         if (state is Bloc.NotificationError) {

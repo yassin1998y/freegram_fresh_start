@@ -10,6 +10,10 @@ import 'package:freegram/models/comment_model.dart';
 import 'package:freegram/widgets/feed_widgets/comment_tile.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/repositories/post_repository.dart';
+import 'package:freegram/widgets/common/keyboard_safe_area.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/widgets/common/app_bottom_sheet.dart';
+import 'package:freegram/theme/design_tokens.dart';
 
 class CommentsSheet extends StatefulWidget {
   final PostModel post;
@@ -268,241 +272,226 @@ class _CommentsSheetState extends State<CommentsSheet> {
     });
   }
 
+  Widget _buildHeader(BuildContext context, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: DesignTokens.spaceMD,
+        vertical: DesignTokens.spaceSM,
+      ),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: theme.dividerColor.withOpacity(0.5),
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Comments',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          if (_localCommentCount > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: DesignTokens.spaceSM,
+                vertical: DesignTokens.spaceXS,
+              ),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+              ),
+              child: Text(
+                '$_localCommentCount',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 24),
+            onPressed: () => Navigator.pop(context),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter(BuildContext context, ThemeData theme) {
+    return KeyboardAwareInput(
+      child: Container(
+        padding: const EdgeInsets.all(DesignTokens.spaceSM),
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  TextField(
+                    controller: _commentController,
+                    decoration: InputDecoration(
+                      hintText: 'Add a comment...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: theme.colorScheme.surface.withOpacity(0.5),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: DesignTokens.spaceMD,
+                        vertical: DesignTokens.spaceSM,
+                      ),
+                      counterText: '', // Hide default counter
+                    ),
+                    maxLines: null,
+                    maxLength: _maxCommentLength,
+                    textCapitalization: TextCapitalization.sentences,
+                    onSubmitted: (_) => _addComment(),
+                  ),
+                  // Custom character counter
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                    child: Text(
+                      '${_commentController.text.length}/$_maxCommentLength',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: _commentController.text.length >
+                                _maxCommentLength * 0.9
+                            ? Colors.orange
+                            : Colors.grey[600],
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: DesignTokens.spaceSM),
+            IconButton(
+              icon: const Icon(Icons.send),
+              color: theme.colorScheme.primary,
+              onPressed: _commentController.text.trim().isEmpty ||
+                      _commentController.text.length > _maxCommentLength
+                  ? null
+                  : _addComment,
+              tooltip: 'Post comment',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
+    final theme = Theme.of(context);
+    
+    return AppBottomSheet(
+      isDraggable: true,
       initialChildSize: 0.9,
       minChildSize: 0.5,
       maxChildSize: 0.95,
-      builder: (context, scrollController) {
-        // Merge our scroll controller with the draggable one
-        return NotificationListener<ScrollNotification>(
-          onNotification: (notification) {
-            if (notification is ScrollUpdateNotification) {
-              _scrollController.position.copyWith(
-                pixels: scrollController.position.pixels,
-              );
+      adjustForKeyboard: true,
+      header: _buildHeader(context, theme),
+      footer: _buildFooter(context, theme),
+      isComplexLayout: true,
+      childBuilder: (scrollController) {
+        // Use the scrollController from DraggableScrollableSheet if available
+        final effectiveScrollController = scrollController ?? _scrollController;
+        
+        // Update our scroll controller listener to work with the provided one
+        if (scrollController != null && scrollController != _scrollController) {
+          // Sync pagination listener
+          scrollController.addListener(() {
+            if (scrollController.position.pixels >=
+                    scrollController.position.maxScrollExtent * 0.8 &&
+                _hasMore &&
+                !_isLoading) {
+              _loadComments();
             }
-            return false;
-          },
-          child: Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).scaffoldBackgroundColor,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Column(
-              children: [
-                // Handle bar
-                Container(
-                  margin: const EdgeInsets.symmetric(vertical: 12),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-
-                // Header
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        color: Colors.grey[300]!,
-                        width: 0.5,
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Comments',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                            ),
-                      ),
-                      if (_localCommentCount > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '$_localCommentCount',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                        ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 24),
-                        onPressed: () => Navigator.pop(context),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Comments list
-                Expanded(
-                  child: _isLoading && _comments.isEmpty
-                      ? const Center(child: CircularProgressIndicator())
-                      : _comments.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.comment_outlined,
-                                      size: 64, color: Colors.grey[400]),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'No comments yet',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyLarge
-                                        ?.copyWith(color: Colors.grey),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Be the first to comment!',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(color: Colors.grey),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : ListView.builder(
-                              controller: scrollController,
-                              itemCount: _comments.length + (_hasMore ? 1 : 0),
-                              itemBuilder: (context, index) {
-                                if (index == _comments.length) {
-                                  if (!_isLoading) {
-                                    WidgetsBinding.instance
-                                        .addPostFrameCallback((_) {
-                                      _loadComments();
-                                    });
-                                  }
-                                  return const Center(
-                                    child: Padding(
-                                      padding: EdgeInsets.all(16),
-                                      child: CircularProgressIndicator(),
-                                    ),
-                                  );
-                                }
-
-                                return CommentTile(
-                                  comment: _comments[index],
-                                  postId: widget.post.id,
-                                  onDeleted: _onCommentDeleted,
-                                  onEdited: _onCommentEdited,
-                                );
-                              },
-                            ),
-                ),
-
-                // Input field
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).scaffoldBackgroundColor,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 4,
-                        offset: const Offset(0, -2),
-                      ),
-                    ],
-                  ),
-                  child: SafeArea(
-                    top: false,
-                    child: Row(
+          });
+        }
+        
+        return _isLoading && _comments.isEmpty
+            ? const Center(child: AppProgressIndicator())
+            : _comments.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              TextField(
-                                controller: _commentController,
-                                decoration: InputDecoration(
-                                  hintText: 'Add a comment...',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(24),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  filled: true,
-                                  fillColor: Theme.of(context)
-                                      .colorScheme
-                                      .surface
-                                      .withOpacity(0.5),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 12),
-                                  counterText: '', // Hide default counter
-                                ),
-                                maxLines: null,
-                                maxLength: _maxCommentLength,
-                                textCapitalization:
-                                    TextCapitalization.sentences,
-                                onSubmitted: (_) => _addComment(),
-                              ),
-                              // Custom character counter
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12.0),
-                                child: Text(
-                                  '${_commentController.text.length}/$_maxCommentLength',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                        color: _commentController.text.length >
-                                                _maxCommentLength * 0.9
-                                            ? Colors.orange
-                                            : Colors.grey[600],
-                                        fontSize: 11,
-                                      ),
-                                ),
-                              ),
-                            ],
+                        Icon(
+                          Icons.comment_outlined,
+                          size: DesignTokens.iconXXL,
+                          color: theme.colorScheme.onSurface.withOpacity(
+                            DesignTokens.opacityMedium,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.send),
-                          color: Theme.of(context).colorScheme.primary,
-                          onPressed: _commentController.text.trim().isEmpty ||
-                                  _commentController.text.length >
-                                      _maxCommentLength
-                              ? null
-                              : _addComment,
-                          tooltip: 'Post comment',
+                        const SizedBox(height: DesignTokens.spaceMD),
+                        Text(
+                          'No comments yet',
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: theme.colorScheme.onSurface.withOpacity(
+                              DesignTokens.opacityMedium,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: DesignTokens.spaceSM),
+                        Text(
+                          'Be the first to comment!',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withOpacity(
+                              DesignTokens.opacityMedium,
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+                  )
+                : ListView.builder(
+                    controller: effectiveScrollController,
+                    itemCount: _comments.length + (_hasMore ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index == _comments.length) {
+                        if (!_isLoading) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            _loadComments();
+                          });
+                        }
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(DesignTokens.spaceMD),
+                            child: AppProgressIndicator(),
+                          ),
+                        );
+                      }
+
+                      return CommentTile(
+                        comment: _comments[index],
+                        postId: widget.post.id,
+                        onDeleted: _onCommentDeleted,
+                        onEdited: _onCommentEdited,
+                      );
+                    },
+                  );
       },
+      child: const SizedBox.shrink(), // Not used when childBuilder is provided
     );
   }
 }

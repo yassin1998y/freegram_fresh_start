@@ -71,7 +71,7 @@ class PostModel extends Equatable {
   /// Post type classification (for content weight calculation)
   final PostContentType contentType;
 
-  PostModel({
+  const PostModel({
     required this.id,
     required this.authorId,
     required this.authorUsername,

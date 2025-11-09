@@ -131,11 +131,11 @@ class _CelebrationMatchBadgeState extends State<CelebrationMatchBadge>
                 child: Transform.rotate(
                   angle: sin(_rotationAnimation.value * pi) * 0.05,
                   child: Container(
-                    padding: EdgeInsets.symmetric(
+                    padding: const EdgeInsets.symmetric(
                       horizontal: DesignTokens.spaceLG,
                       vertical: DesignTokens.spaceMD,
                     ),
-                    margin: EdgeInsets.symmetric(
+                    margin: const EdgeInsets.symmetric(
                       vertical: DesignTokens.spaceLG,
                     ),
                     decoration: BoxDecoration(
@@ -163,7 +163,7 @@ class _CelebrationMatchBadgeState extends State<CelebrationMatchBadge>
                           color: Colors.white,
                           size: 24,
                         ),
-                        SizedBox(width: DesignTokens.spaceSM),
+                        const SizedBox(width: DesignTokens.spaceSM),
                         Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,7 +187,7 @@ class _CelebrationMatchBadgeState extends State<CelebrationMatchBadge>
                             ),
                           ],
                         ),
-                        SizedBox(width: DesignTokens.spaceSM),
+                        const SizedBox(width: DesignTokens.spaceSM),
                         const Icon(
                           Icons.favorite,
                           color: Colors.white,
@@ -221,6 +221,14 @@ class _Confetti {
     required this.size,
   });
 }
+
+
+
+
+
+
+
+
 
 
 

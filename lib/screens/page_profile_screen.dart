@@ -12,6 +12,7 @@ import 'package:freegram/screens/page_settings_screen.dart';
 import 'package:freegram/services/page_analytics_service.dart';
 import 'package:freegram/services/cloudinary_service.dart';
 import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -43,6 +44,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: page_profile_screen.dart');
     _tabController = TabController(length: 4, vsync: this);
     _loadPage();
   }
@@ -61,8 +63,8 @@ class _PageProfileScreenState extends State<PageProfileScreen>
       if (page == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Page not found'),
+            const SnackBar(
+              content: Text('Page not found'),
               backgroundColor: DesignTokens.errorColor,
             ),
           );
@@ -192,16 +194,13 @@ class _PageProfileScreenState extends State<PageProfileScreen>
       // Show uploading indicator
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Row(
               children: [
-                SizedBox(
-                  width: DesignTokens.iconMD,
-                  height: DesignTokens.iconMD,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
+                AppProgressIndicator(
+                  size: DesignTokens.iconMD,
+                  strokeWidth: 2,
+                  color: Colors.white,
                 ),
                 SizedBox(width: DesignTokens.spaceMD),
                 Text('Uploading cover image...'),
@@ -237,7 +236,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Cover image updated successfully!'),
             backgroundColor: DesignTokens.successColor,
           ),
@@ -270,16 +269,13 @@ class _PageProfileScreenState extends State<PageProfileScreen>
       // Show uploading indicator
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Row(
               children: [
-                SizedBox(
-                  width: DesignTokens.iconMD,
-                  height: DesignTokens.iconMD,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
+                AppProgressIndicator(
+                  size: DesignTokens.iconMD,
+                  strokeWidth: 2,
+                  color: Colors.white,
                 ),
                 SizedBox(width: DesignTokens.spaceMD),
                 Text('Uploading profile picture...'),
@@ -315,7 +311,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Profile picture updated successfully!'),
             backgroundColor: DesignTokens.successColor,
           ),
@@ -351,7 +347,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
           ),
         ),
         body: Center(
-          child: CircularProgressIndicator(
+          child: AppProgressIndicator(
             color: theme.colorScheme.primary,
           ),
         ),
@@ -438,8 +434,8 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                               DesignTokens.radiusMD,
                             ),
                             child: Container(
-                              padding: EdgeInsets.all(DesignTokens.spaceSM),
-                              child: Icon(
+                              padding: const EdgeInsets.all(DesignTokens.spaceSM),
+                              child: const Icon(
                                 Icons.camera_alt,
                                 color: Colors.white,
                                 size: DesignTokens.iconMD,
@@ -480,7 +476,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
           children: [
             // Info Block Section
             Padding(
-              padding: EdgeInsets.all(DesignTokens.spaceMD),
+              padding: const EdgeInsets.all(DesignTokens.spaceMD),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -516,15 +512,15 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                               right: 0,
                               child: Material(
                                 color: theme.colorScheme.primary,
-                                shape: CircleBorder(),
+                                shape: const CircleBorder(),
                                 child: InkWell(
                                   onTap: _isUploadingImage
                                       ? null
                                       : _pickProfileImage,
-                                  customBorder: CircleBorder(),
+                                  customBorder: const CircleBorder(),
                                   child: Container(
                                     padding:
-                                        EdgeInsets.all(DesignTokens.spaceXS),
+                                        const EdgeInsets.all(DesignTokens.spaceXS),
                                     child: Icon(
                                       Icons.camera_alt,
                                       color: theme.colorScheme.onPrimary,
@@ -536,7 +532,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                             ),
                         ],
                       ),
-                      SizedBox(width: DesignTokens.spaceMD),
+                      const SizedBox(width: DesignTokens.spaceMD),
                       // Page Name and Handle
                       Expanded(
                         child: Column(
@@ -552,7 +548,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                                 ),
                                 if (_page!.verificationStatus ==
                                     VerificationStatus.verified) ...[
-                                  SizedBox(width: DesignTokens.spaceSM),
+                                  const SizedBox(width: DesignTokens.spaceSM),
                                   Icon(
                                     Icons.verified,
                                     color: theme.colorScheme.primary,
@@ -561,7 +557,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                                 ],
                               ],
                             ),
-                            SizedBox(height: DesignTokens.spaceXS),
+                            const SizedBox(height: DesignTokens.spaceXS),
                             Text(
                               '@${_page!.pageHandle}',
                               style: theme.textTheme.bodyMedium?.copyWith(
@@ -574,7 +570,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                         ),
                     ],
                   ),
-                  SizedBox(height: DesignTokens.spaceMD),
+                  const SizedBox(height: DesignTokens.spaceMD),
                   // Follower Count
                   Text(
                     '${_page!.followerCount} followers',
@@ -583,7 +579,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                           .withOpacity(DesignTokens.opacityMedium),
                     ),
                   ),
-                  SizedBox(height: DesignTokens.spaceMD),
+                  const SizedBox(height: DesignTokens.spaceMD),
                   // Action Buttons Row
                   Row(
                     children: [
@@ -602,13 +598,10 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                                 width: 100,
                                 height: DesignTokens.buttonHeight,
                                 child: Center(
-                                  child: SizedBox(
-                                    width: DesignTokens.iconMD,
-                                    height: DesignTokens.iconMD,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: theme.colorScheme.primary,
-                                    ),
+                                  child: AppProgressIndicator(
+                                    size: DesignTokens.iconMD,
+                                    strokeWidth: 2,
+                                    color: theme.colorScheme.primary,
                                   ),
                                 ),
                               );
@@ -619,7 +612,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                               return Expanded(
                                 child: OutlinedButton.icon(
                                   onPressed: () => _toggleFollow(true),
-                                  icon: Icon(
+                                  icon: const Icon(
                                     Icons.check,
                                     size: DesignTokens.iconSM,
                                   ),
@@ -630,11 +623,11 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor:
                                         theme.colorScheme.onSurface,
-                                    padding: EdgeInsets.symmetric(
+                                    padding: const EdgeInsets.symmetric(
                                       horizontal: DesignTokens.spaceMD,
                                       vertical: DesignTokens.spaceSM,
                                     ),
-                                    minimumSize: Size(
+                                    minimumSize: const Size(
                                       0,
                                       DesignTokens.buttonHeight,
                                     ),
@@ -654,7 +647,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                               return Expanded(
                                 child: FilledButton.icon(
                                   onPressed: () => _toggleFollow(false),
-                                  icon: Icon(
+                                  icon: const Icon(
                                     Icons.add,
                                     size: DesignTokens.iconSM,
                                   ),
@@ -666,11 +659,11 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                                     backgroundColor: theme.colorScheme.primary,
                                     foregroundColor:
                                         theme.colorScheme.onPrimary,
-                                    padding: EdgeInsets.symmetric(
+                                    padding: const EdgeInsets.symmetric(
                                       horizontal: DesignTokens.spaceMD,
                                       vertical: DesignTokens.spaceSM,
                                     ),
-                                    minimumSize: Size(
+                                    minimumSize: const Size(
                                       0,
                                       DesignTokens.buttonHeight,
                                     ),
@@ -685,11 +678,11 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                             }
                           },
                         ),
-                      SizedBox(width: DesignTokens.spaceSM),
+                      const SizedBox(width: DesignTokens.spaceSM),
                       // Message Button (IconButton)
                       if (currentUser != null && !isAdmin)
                         IconButton(
-                          icon: Icon(
+                          icon: const Icon(
                             Icons.message_outlined,
                             size: DesignTokens.iconMD,
                           ),
@@ -713,7 +706,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
               unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(
                 DesignTokens.opacityMedium,
               ),
-              tabs: [
+              tabs: const [
                 Tab(
                   icon: Icon(
                     Icons.article_outlined,
@@ -770,7 +763,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(
-            child: CircularProgressIndicator(
+            child: AppProgressIndicator(
               color: theme.colorScheme.primary,
             ),
           );
@@ -781,12 +774,12 @@ class _PageProfileScreenState extends State<PageProfileScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
+                const Icon(
                   Icons.error_outline,
                   size: DesignTokens.iconXXL,
                   color: DesignTokens.errorColor,
                 ),
-                SizedBox(height: DesignTokens.spaceMD),
+                const SizedBox(height: DesignTokens.spaceMD),
                 Text(
                   'Error: ${snapshot.error}',
                   style: theme.textTheme.bodyMedium?.copyWith(
@@ -813,7 +806,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                     DesignTokens.opacityMedium,
                   ),
                 ),
-                SizedBox(height: DesignTokens.spaceMD),
+                const SizedBox(height: DesignTokens.spaceMD),
                 Text(
                   'No posts yet',
                   style: theme.textTheme.bodyLarge?.copyWith(
@@ -847,7 +840,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
     final theme = Theme.of(context);
 
     return SingleChildScrollView(
-      padding: EdgeInsets.all(DesignTokens.spaceMD),
+      padding: const EdgeInsets.all(DesignTokens.spaceMD),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -858,12 +851,12 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                     fontWeight: FontWeight.bold,
                   ),
             ),
-            SizedBox(height: DesignTokens.spaceMD),
+            const SizedBox(height: DesignTokens.spaceMD),
             Text(
               _page!.description,
               style: theme.textTheme.bodyMedium,
             ),
-            SizedBox(height: DesignTokens.spaceLG),
+            const SizedBox(height: DesignTokens.spaceLG),
           ],
           if (_page!.category.isNotEmpty) ...[
             Text(
@@ -872,7 +865,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                     fontWeight: FontWeight.bold,
                   ),
             ),
-            SizedBox(height: DesignTokens.spaceMD),
+            const SizedBox(height: DesignTokens.spaceMD),
             Chip(
               label: Text(_page!.category),
               avatar: Icon(
@@ -884,7 +877,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                 size: DesignTokens.iconSM,
               ),
             ),
-            SizedBox(height: DesignTokens.spaceLG),
+            const SizedBox(height: DesignTokens.spaceLG),
           ],
           if (_page!.website != null && _page!.website!.isNotEmpty) ...[
             Text(
@@ -893,7 +886,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                     fontWeight: FontWeight.bold,
                   ),
             ),
-            SizedBox(height: DesignTokens.spaceMD),
+            const SizedBox(height: DesignTokens.spaceMD),
             InkWell(
               onTap: () async {
                 final uri = Uri.parse(_page!.website!);
@@ -917,7 +910,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                     size: DesignTokens.iconSM,
                     color: theme.colorScheme.primary,
                   ),
-                  SizedBox(width: DesignTokens.spaceSM),
+                  const SizedBox(width: DesignTokens.spaceSM),
                   Expanded(
               child: Text(
                 _page!.website!,
@@ -930,7 +923,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                 ],
               ),
             ),
-            SizedBox(height: DesignTokens.spaceLG),
+            const SizedBox(height: DesignTokens.spaceLG),
           ],
           if (_page!.contactEmail != null &&
               _page!.contactEmail!.isNotEmpty) ...[
@@ -940,7 +933,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                 fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(height: DesignTokens.spaceMD),
+            const SizedBox(height: DesignTokens.spaceMD),
             Row(
               children: [
                 Icon(
@@ -950,7 +943,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                     DesignTokens.opacityMedium,
                   ),
                 ),
-                SizedBox(width: DesignTokens.spaceSM),
+                const SizedBox(width: DesignTokens.spaceSM),
                 Expanded(
                   child: Text(
                     _page!.contactEmail!,
@@ -959,7 +952,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                 ),
               ],
             ),
-            SizedBox(height: DesignTokens.spaceLG),
+            const SizedBox(height: DesignTokens.spaceLG),
           ],
           if (_page!.contactPhone != null &&
               _page!.contactPhone!.isNotEmpty) ...[
@@ -969,7 +962,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                     fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(height: DesignTokens.spaceMD),
+            const SizedBox(height: DesignTokens.spaceMD),
             Row(
               children: [
                 Icon(
@@ -979,7 +972,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                     DesignTokens.opacityMedium,
                   ),
                 ),
-                SizedBox(width: DesignTokens.spaceSM),
+                const SizedBox(width: DesignTokens.spaceSM),
                 Expanded(
                   child: Text(
                     _page!.contactPhone!,
@@ -988,7 +981,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                 ),
               ],
             ),
-            SizedBox(height: DesignTokens.spaceLG),
+            const SizedBox(height: DesignTokens.spaceLG),
           ],
         ],
       ),
@@ -1009,7 +1002,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
               DesignTokens.opacityMedium,
             ),
           ),
-          SizedBox(height: DesignTokens.spaceMD),
+          const SizedBox(height: DesignTokens.spaceMD),
           Text(
             'Shop Coming Soon',
             style: theme.textTheme.bodyLarge?.copyWith(
@@ -1018,7 +1011,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
               ),
             ),
           ),
-          SizedBox(height: DesignTokens.spaceSM),
+          const SizedBox(height: DesignTokens.spaceSM),
           Text(
             'This feature will be available soon!',
             style: theme.textTheme.bodySmall?.copyWith(
@@ -1046,7 +1039,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
               DesignTokens.opacityMedium,
             ),
           ),
-          SizedBox(height: DesignTokens.spaceMD),
+          const SizedBox(height: DesignTokens.spaceMD),
           Text(
             'Events Coming Soon',
             style: theme.textTheme.bodyLarge?.copyWith(
@@ -1055,7 +1048,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
               ),
             ),
           ),
-          SizedBox(height: DesignTokens.spaceSM),
+          const SizedBox(height: DesignTokens.spaceSM),
           Text(
             'This feature will be available soon!',
             style: theme.textTheme.bodySmall?.copyWith(

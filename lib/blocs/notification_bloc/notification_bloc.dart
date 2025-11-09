@@ -7,7 +7,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart'; // For debugPrint
 import 'package:freegram/models/notification_model.dart';
 import 'package:freegram/repositories/notification_repository.dart';
-import 'package:meta/meta.dart';
 
 // Link event and state files
 part 'notification_event.dart';

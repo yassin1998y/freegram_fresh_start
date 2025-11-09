@@ -8,7 +8,9 @@ import 'package:freegram/locator.dart';
 import 'package:freegram/repositories/page_repository.dart';
 import 'package:freegram/models/page_model.dart';
 import 'package:freegram/services/cloudinary_service.dart';
+import 'package:freegram/widgets/common/keyboard_safe_area.dart';
 import 'package:freegram/screens/page_profile_screen.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class CreatePageScreen extends StatefulWidget {
   const CreatePageScreen({Key? key}) : super(key: key);
@@ -235,245 +237,250 @@ class _CreatePageScreenState extends State<CreatePageScreen> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('📱 SCREEN: create_page_screen.dart');
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('Create Page'),
       ),
       body: _isCreating
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Profile and Cover Images
-                    Row(
-                      children: [
-                        // Profile Image
-                        GestureDetector(
-                          onTap: _pickProfileImage,
-                          child: Container(
-                            width: 100,
-                            height: 100,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.grey[300],
-                              border: Border.all(color: Colors.grey, width: 2),
-                            ),
-                            child: _profileImage != null
-                                ? ClipOval(
-                                    child: Image.file(
-                                      File(_profileImage!.path),
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                        return const Icon(Icons.person,
-                                            size: 50);
-                                      },
-                                    ),
-                                  )
-                                : const Icon(Icons.add_photo_alternate,
-                                    size: 40),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        // Cover Image
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: _pickCoverImage,
+          ? const Center(child: AppProgressIndicator())
+          : KeyboardSafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Profile and Cover Images
+                      Row(
+                        children: [
+                          // Profile Image
+                          GestureDetector(
+                            onTap: _pickProfileImage,
                             child: Container(
+                              width: 100,
                               height: 100,
                               decoration: BoxDecoration(
+                                shape: BoxShape.circle,
                                 color: Colors.grey[300],
-                                borderRadius: BorderRadius.circular(8),
                                 border:
                                     Border.all(color: Colors.grey, width: 2),
                               ),
-                              child: _coverImage != null
-                                  ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
+                              child: _profileImage != null
+                                  ? ClipOval(
                                       child: Image.file(
-                                        File(_coverImage!.path),
+                                        File(_profileImage!.path),
                                         fit: BoxFit.cover,
                                         errorBuilder:
                                             (context, error, stackTrace) {
-                                          return const Center(
-                                            child: Icon(
-                                                Icons.add_photo_alternate,
-                                                size: 40),
-                                          );
+                                          return const Icon(Icons.person,
+                                              size: 50);
                                         },
                                       ),
                                     )
-                                  : const Center(
-                                      child: Icon(Icons.add_photo_alternate,
-                                          size: 40),
-                                    ),
+                                  : const Icon(Icons.add_photo_alternate,
+                                      size: 40),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Page Name
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Page Name *',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter a page name';
-                        }
-                        if (value.length < 3) {
-                          return 'Page name must be at least 3 characters';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Page Handle
-                    TextFormField(
-                      controller: _handleController,
-                      decoration: InputDecoration(
-                        labelText: 'Page Handle (@handle)',
-                        hintText: 'my-page',
-                        border: const OutlineInputBorder(),
-                        prefixText: '@',
-                        suffixIcon: _isCheckingHandle
-                            ? const Padding(
-                                padding: EdgeInsets.all(12.0),
-                                child: SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
+                          const SizedBox(width: 16),
+                          // Cover Image
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: _pickCoverImage,
+                              child: Container(
+                                height: 100,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(8),
+                                  border:
+                                      Border.all(color: Colors.grey, width: 2),
                                 ),
-                              )
-                            : null,
-                        errorText: _handleError,
+                                child: _coverImage != null
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.file(
+                                          File(_coverImage!.path),
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return const Center(
+                                              child: Icon(
+                                                  Icons.add_photo_alternate,
+                                                  size: 40),
+                                            );
+                                          },
+                                        ),
+                                      )
+                                    : const Center(
+                                        child: Icon(Icons.add_photo_alternate,
+                                            size: 40),
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      onChanged: (_) {
-                        // Debounce handle checking
-                        Future.delayed(const Duration(milliseconds: 500), () {
-                          if (mounted) {
-                            _checkHandleAvailability();
-                          }
-                        });
-                      },
-                      textCapitalization: TextCapitalization.none,
-                    ),
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 24),
 
-                    // Page Type
-                    DropdownButtonFormField<PageType>(
-                      value: _selectedPageType,
-                      decoration: const InputDecoration(
-                        labelText: 'Page Type *',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: PageType.values.map((type) {
-                        return DropdownMenuItem(
-                          value: type,
-                          child: Text(
-                              type.toString().split('.').last.toUpperCase()),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => _selectedPageType = value);
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Category
-                    DropdownButtonFormField<String>(
-                      value: _categoryController.text.isEmpty
-                          ? null
-                          : _categoryController.text,
-                      decoration: const InputDecoration(
-                        labelText: 'Category',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: _categories.map((category) {
-                        return DropdownMenuItem(
-                          value: category,
-                          child: Text(category),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          _categoryController.text = value;
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Description
-                    TextFormField(
-                      controller: _descriptionController,
-                      decoration: const InputDecoration(
-                        labelText: 'Description',
-                        border: OutlineInputBorder(),
-                      ),
-                      maxLines: 4,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Website
-                    TextFormField(
-                      controller: _websiteController,
-                      decoration: const InputDecoration(
-                        labelText: 'Website',
-                        border: OutlineInputBorder(),
-                        hintText: 'https://example.com',
-                      ),
-                      keyboardType: TextInputType.url,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Contact Email
-                    TextFormField(
-                      controller: _contactEmailController,
-                      decoration: const InputDecoration(
-                        labelText: 'Contact Email',
-                        border: OutlineInputBorder(),
-                        hintText: 'contact@example.com',
-                      ),
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Contact Phone
-                    TextFormField(
-                      controller: _contactPhoneController,
-                      decoration: const InputDecoration(
-                        labelText: 'Contact Phone',
-                        border: OutlineInputBorder(),
-                        hintText: '+1234567890',
-                      ),
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Create Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isCreating ? null : _createPage,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                      // Page Name
+                      TextFormField(
+                        controller: _nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Page Name *',
+                          border: OutlineInputBorder(),
                         ),
-                        child: const Text('Create Page'),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter a page name';
+                          }
+                          if (value.length < 3) {
+                            return 'Page name must be at least 3 characters';
+                          }
+                          return null;
+                        },
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+
+                      // Page Handle
+                      TextFormField(
+                        controller: _handleController,
+                        decoration: InputDecoration(
+                          labelText: 'Page Handle (@handle)',
+                          hintText: 'my-page',
+                          border: const OutlineInputBorder(),
+                          prefixText: '@',
+                          suffixIcon: _isCheckingHandle
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12.0),
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: AppProgressIndicator(
+                                        strokeWidth: 2),
+                                  ),
+                                )
+                              : null,
+                          errorText: _handleError,
+                        ),
+                        onChanged: (_) {
+                          // Debounce handle checking
+                          Future.delayed(const Duration(milliseconds: 500), () {
+                            if (mounted) {
+                              _checkHandleAvailability();
+                            }
+                          });
+                        },
+                        textCapitalization: TextCapitalization.none,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Page Type
+                      DropdownButtonFormField<PageType>(
+                        initialValue: _selectedPageType,
+                        decoration: const InputDecoration(
+                          labelText: 'Page Type *',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: PageType.values.map((type) {
+                          return DropdownMenuItem(
+                            value: type,
+                            child: Text(
+                                type.toString().split('.').last.toUpperCase()),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() => _selectedPageType = value);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Category
+                      DropdownButtonFormField<String>(
+                        initialValue: _categoryController.text.isEmpty
+                            ? null
+                            : _categoryController.text,
+                        decoration: const InputDecoration(
+                          labelText: 'Category',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: _categories.map((category) {
+                          return DropdownMenuItem(
+                            value: category,
+                            child: Text(category),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            _categoryController.text = value;
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Description
+                      TextFormField(
+                        controller: _descriptionController,
+                        decoration: const InputDecoration(
+                          labelText: 'Description',
+                          border: OutlineInputBorder(),
+                        ),
+                        maxLines: 4,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Website
+                      TextFormField(
+                        controller: _websiteController,
+                        decoration: const InputDecoration(
+                          labelText: 'Website',
+                          border: OutlineInputBorder(),
+                          hintText: 'https://example.com',
+                        ),
+                        keyboardType: TextInputType.url,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Contact Email
+                      TextFormField(
+                        controller: _contactEmailController,
+                        decoration: const InputDecoration(
+                          labelText: 'Contact Email',
+                          border: OutlineInputBorder(),
+                          hintText: 'contact@example.com',
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Contact Phone
+                      TextFormField(
+                        controller: _contactPhoneController,
+                        decoration: const InputDecoration(
+                          labelText: 'Contact Phone',
+                          border: OutlineInputBorder(),
+                          hintText: '+1234567890',
+                        ),
+                        keyboardType: TextInputType.phone,
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Create Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _isCreating ? null : _createPage,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: const Text('Create Page'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

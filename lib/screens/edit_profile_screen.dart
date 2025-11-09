@@ -13,6 +13,9 @@ import 'package:freegram/repositories/user_repository.dart';
 import 'package:freegram/screens/main_screen.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/widgets/freegram_app_bar.dart';
+import 'package:freegram/widgets/common/keyboard_safe_area.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/widgets/common/app_button.dart';
 import 'package:freegram/widgets/island_popup.dart';
 import 'package:hive/hive.dart';
 import 'package:image_picker/image_picker.dart';
@@ -67,6 +70,7 @@ class EditProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('📱 SCREEN: edit_profile_screen.dart');
     return BlocProvider(
       create: (context) => ProfileBloc(
         userRepository: locator<UserRepository>(),
@@ -174,7 +178,7 @@ class _EditProfileViewState extends State<_EditProfileView> {
               Container(
                 width: 40,
                 height: 4,
-                margin: EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
+                margin: const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
                 decoration: BoxDecoration(
                   color: Colors.grey[300],
                   borderRadius: BorderRadius.circular(2),
@@ -190,7 +194,7 @@ class _EditProfileViewState extends State<_EditProfileView> {
                 title: const Text('Gallery'),
                 onTap: () => Navigator.of(context).pop(ImageSource.gallery),
               ),
-              SizedBox(height: DesignTokens.spaceMD),
+              const SizedBox(height: DesignTokens.spaceMD),
             ],
           ),
         ),
@@ -342,19 +346,16 @@ class _EditProfileViewState extends State<_EditProfileView> {
                     state is ProfileLoading || state is ProfileImageUploading;
 
                 if (isLoading) {
-                  return Padding(
+                  return const Padding(
                     padding: EdgeInsets.all(DesignTokens.spaceMD),
-                    child: const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                      ),
+                    child: AppProgressIndicator(
+                      size: 20,
+                      strokeWidth: 2,
                     ),
                   );
                 }
 
-                return AppBarActionButton(
+                return AppIconButton(
                   icon: Icons.check,
                   tooltip: 'Save Changes',
                   onPressed: _updateProfile,
@@ -363,97 +364,100 @@ class _EditProfileViewState extends State<_EditProfileView> {
             ),
           ],
         ),
-        body: BlocListener<ProfileBloc, ProfileState>(
-          listener: (context, state) {
-            if (state is ProfileImageUploading) {
-              // Show upload progress
-              final percentage = (state.progress * 100).toInt();
-              if (percentage < 100) {
+        resizeToAvoidBottomInset: true,
+        body: KeyboardSafeArea(
+          child: BlocListener<ProfileBloc, ProfileState>(
+            listener: (context, state) {
+              if (state is ProfileImageUploading) {
+                // Show upload progress
+                final percentage = (state.progress * 100).toInt();
+                if (percentage < 100) {
+                  showIslandPopup(
+                    context: context,
+                    message: 'Uploading image... $percentage%',
+                    icon: Icons.cloud_upload_outlined,
+                  );
+                }
+              }
+
+              if (state is ProfileUpdateSuccess) {
                 showIslandPopup(
                   context: context,
-                  message: 'Uploading image... $percentage%',
-                  icon: Icons.cloud_upload_outlined,
+                  message: 'Profile updated successfully!',
+                  icon: Icons.check_circle_outline,
+                );
+
+                // Mark profile as complete for this user
+                final currentUser = FirebaseAuth.instance.currentUser;
+                if (currentUser != null && widget.isCompletingProfile) {
+                  final settingsBox = Hive.box('settings');
+                  final userProfileKey = 'profileComplete_${currentUser.uid}';
+                  settingsBox.put(userProfileKey, true);
+                  debugPrint(
+                    "Profile marked as complete for user ${currentUser.uid}",
+                  );
+                }
+
+                // Navigate based on context
+                if (widget.isCompletingProfile) {
+                  // Replace entire stack with MainScreen
+                  locator<NavigationService>().navigateTo(
+                    const MainScreen(),
+                    clearStack: true,
+                  );
+                } else if (locator<NavigationService>().navigator?.canPop() ??
+                    false) {
+                  Navigator.of(context).pop();
+                }
+              }
+
+              if (state is ProfileError) {
+                showIslandPopup(
+                  context: context,
+                  message: state.message,
+                  icon: Icons.error_outline,
                 );
               }
-            }
+            },
+            child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(DesignTokens.spaceXL),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Welcome message for new users
+                    if (widget.isCompletingProfile) ...[
+                      Text(
+                        'Welcome! Please provide a few more details to get started.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(color: Colors.black54),
+                      ),
+                      const SizedBox(height: DesignTokens.spaceXL),
+                    ],
 
-            if (state is ProfileUpdateSuccess) {
-              showIslandPopup(
-                context: context,
-                message: 'Profile updated successfully!',
-                icon: Icons.check_circle_outline,
-              );
+                    // Profile picture
+                    _buildProfilePicture(),
+                    const SizedBox(height: DesignTokens.spaceXL),
 
-              // Mark profile as complete for this user
-              final currentUser = FirebaseAuth.instance.currentUser;
-              if (currentUser != null && widget.isCompletingProfile) {
-                final settingsBox = Hive.box('settings');
-                final userProfileKey = 'profileComplete_${currentUser.uid}';
-                settingsBox.put(userProfileKey, true);
-                debugPrint(
-                  "Profile marked as complete for user ${currentUser.uid}",
-                );
-              }
+                    // Public profile section
+                    _buildPublicProfileSection(),
+                    const SizedBox(height: DesignTokens.spaceXL),
 
-              // Navigate based on context
-              if (widget.isCompletingProfile) {
-                // Replace entire stack with MainScreen
-                locator<NavigationService>().navigateTo(
-                  const MainScreen(),
-                  clearStack: true,
-                );
-              } else if (locator<NavigationService>().navigator?.canPop() ??
-                  false) {
-                Navigator.of(context).pop();
-              }
-            }
+                    // Interests section
+                    _buildInterestsSection(),
 
-            if (state is ProfileError) {
-              showIslandPopup(
-                context: context,
-                message: state.message,
-                icon: Icons.error_outline,
-              );
-            }
-          },
-          child: Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(DesignTokens.spaceXL),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Welcome message for new users
-                  if (widget.isCompletingProfile) ...[
-                    Text(
-                      'Welcome! Please provide a few more details to get started.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(color: Colors.black54),
-                    ),
-                    SizedBox(height: DesignTokens.spaceXL),
+                    const Divider(height: 48),
+
+                    // Nearby profile section
+                    _buildNearbyProfileSection(),
+
+                    const SizedBox(height: DesignTokens.spaceXL),
                   ],
-
-                  // Profile picture
-                  _buildProfilePicture(),
-                  SizedBox(height: DesignTokens.spaceXL),
-
-                  // Public profile section
-                  _buildPublicProfileSection(),
-                  SizedBox(height: DesignTokens.spaceXL),
-
-                  // Interests section
-                  _buildInterestsSection(),
-
-                  const Divider(height: 48),
-
-                  // Nearby profile section
-                  _buildNearbyProfileSection(),
-
-                  SizedBox(height: DesignTokens.spaceXL),
-                ],
+                ),
               ),
             ),
           ),
@@ -492,7 +496,7 @@ class _EditProfileViewState extends State<_EditProfileView> {
                   ],
                 ),
               ),
-              SizedBox(height: DesignTokens.spaceSM),
+              const SizedBox(height: DesignTokens.spaceSM),
               Text(
                 isUploading ? 'Uploading...' : 'Tap to change photo',
                 style: TextStyle(
@@ -512,11 +516,11 @@ class _EditProfileViewState extends State<_EditProfileView> {
     if (isUploading) {
       // Show upload progress
       final progress = state is ProfileImageUploading ? state.progress : 0.0;
-      return CircularProgressIndicator(
+      return AppProgressIndicator(
         value: progress,
         strokeWidth: 3,
         backgroundColor: Colors.white.withOpacity(0.3),
-        valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+        color: Colors.white,
       );
     }
 
@@ -539,7 +543,7 @@ class _EditProfileViewState extends State<_EditProfileView> {
           "Public Profile",
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        SizedBox(height: DesignTokens.spaceMD),
+        const SizedBox(height: DesignTokens.spaceMD),
 
         // Username field
         TextFormField(
@@ -553,7 +557,7 @@ class _EditProfileViewState extends State<_EditProfileView> {
               ? 'Please enter a username'
               : null,
         ),
-        SizedBox(height: DesignTokens.spaceMD),
+        const SizedBox(height: DesignTokens.spaceMD),
 
         // Bio field with character counter
         TextFormField(
@@ -567,11 +571,11 @@ class _EditProfileViewState extends State<_EditProfileView> {
           maxLines: 3,
           maxLength: _maxBioLength,
         ),
-        SizedBox(height: DesignTokens.spaceMD),
+        const SizedBox(height: DesignTokens.spaceMD),
 
         // Age dropdown
         DropdownButtonFormField<int>(
-          value: _selectedAge,
+          initialValue: _selectedAge,
           decoration: const InputDecoration(
             labelText: 'Age',
             border: OutlineInputBorder(),
@@ -586,7 +590,7 @@ class _EditProfileViewState extends State<_EditProfileView> {
           onChanged: (newValue) => setState(() => _selectedAge = newValue),
           validator: (value) => value == null ? 'Please select your age' : null,
         ),
-        SizedBox(height: DesignTokens.spaceMD),
+        const SizedBox(height: DesignTokens.spaceMD),
 
         // Country picker
         InkWell(
@@ -620,11 +624,11 @@ class _EditProfileViewState extends State<_EditProfileView> {
             ),
           ),
         ),
-        SizedBox(height: DesignTokens.spaceMD),
+        const SizedBox(height: DesignTokens.spaceMD),
 
         // Gender dropdown
         DropdownButtonFormField<String>(
-          value: _selectedGender,
+          initialValue: _selectedGender,
           decoration: const InputDecoration(
             labelText: 'Gender',
             border: OutlineInputBorder(),
@@ -667,7 +671,7 @@ class _EditProfileViewState extends State<_EditProfileView> {
             ),
           ],
         ),
-        SizedBox(height: DesignTokens.spaceSM),
+        const SizedBox(height: DesignTokens.spaceSM),
         Wrap(
           spacing: DesignTokens.spaceSM,
           runSpacing: DesignTokens.spaceSM,
@@ -712,12 +716,12 @@ class _EditProfileViewState extends State<_EditProfileView> {
           "Nearby Profile",
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        SizedBox(height: DesignTokens.spaceSM),
+        const SizedBox(height: DesignTokens.spaceSM),
         const Text(
           "This is only shown to users you discover via Sonar.",
           style: TextStyle(color: Colors.grey, fontSize: 13),
         ),
-        SizedBox(height: DesignTokens.spaceMD),
+        const SizedBox(height: DesignTokens.spaceMD),
         Row(
           children: [
             Expanded(
@@ -731,7 +735,7 @@ class _EditProfileViewState extends State<_EditProfileView> {
                 ),
               ),
             ),
-            SizedBox(width: DesignTokens.spaceSM),
+            const SizedBox(width: DesignTokens.spaceSM),
             SizedBox(
               width: 80,
               child: TextFormField(

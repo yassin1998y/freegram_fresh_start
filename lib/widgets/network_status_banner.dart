@@ -25,7 +25,7 @@ class NetworkStatusBanner extends StatelessWidget {
         return AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
-          padding: EdgeInsets.symmetric(
+          padding: const EdgeInsets.symmetric(
             horizontal: DesignTokens.spaceMD,
             vertical: DesignTokens.spaceSM,
           ),
@@ -39,15 +39,15 @@ class NetworkStatusBanner extends StatelessWidget {
               ),
             ],
           ),
-          child: Row(
+          child: const Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.cloud_off,
                 color: Colors.white,
                 size: 18,
               ),
               SizedBox(width: DesignTokens.spaceSM),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'You\'re offline. Actions will sync when you reconnect.',
                   style: TextStyle(

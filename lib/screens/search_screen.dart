@@ -14,12 +14,14 @@ import 'package:freegram/models/feed_item_model.dart';
 import 'package:freegram/screens/profile_screen.dart';
 import 'package:freegram/screens/page_profile_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class SearchScreen extends StatelessWidget {
   const SearchScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('📱 SCREEN: search_screen.dart');
     return BlocProvider(
       create: (context) => SearchBloc(
         searchRepository: locator<SearchRepository>(),
@@ -122,7 +124,7 @@ class _SearchScreenViewState extends State<_SearchScreenView>
                 if (state is SearchInitial) {
                   return _buildInitialView(context, state);
                 } else if (state is SearchLoading) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: AppProgressIndicator());
                 } else if (state is SearchResultsLoaded) {
                   return _buildResultsView(context, state);
                 } else if (state is SearchError) {

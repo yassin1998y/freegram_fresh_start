@@ -9,7 +9,7 @@ class MiuiBleHelpDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Row(
+      title: const Row(
         children: [
           Icon(Icons.bluetooth_disabled, color: Colors.orange, size: 28),
           SizedBox(width: 12),
@@ -27,7 +27,7 @@ class MiuiBleHelpDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.red.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
@@ -35,8 +35,8 @@ class MiuiBleHelpDialog extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.warning, color: Colors.red, size: 20),
-                  SizedBox(width: 8),
+                  const Icon(Icons.warning, color: Colors.red, size: 20),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'MIUI limits Bluetooth advertising slots to 3-5 system-wide',
@@ -50,19 +50,19 @@ class MiuiBleHelpDialog extends StatelessWidget {
                 ],
               ),
             ),
-            SizedBox(height: 16),
-            Text(
+            const SizedBox(height: 16),
+            const Text(
               'Step 1: Close These Apps',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             _buildAppList(),
-            SizedBox(height: 16),
-            Text(
+            const SizedBox(height: 16),
+            const Text(
               'Step 2: Clear Bluetooth Cache',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             _buildStep(
               '1.',
               'Go to Settings → Apps → Show system apps',
@@ -75,12 +75,12 @@ class MiuiBleHelpDialog extends StatelessWidget {
               '3.',
               'Tap "Clear cache" (NOT Clear data)',
             ),
-            SizedBox(height: 16),
-            Text(
+            const SizedBox(height: 16),
+            const Text(
               'Step 3: Restart Bluetooth',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             _buildStep(
               '1.',
               'Turn Bluetooth OFF',
@@ -93,12 +93,12 @@ class MiuiBleHelpDialog extends StatelessWidget {
               '3.',
               'Turn Bluetooth ON',
             ),
-            SizedBox(height: 16),
-            Text(
+            const SizedBox(height: 16),
+            const Text(
               'Step 4: Restart Freegram',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             _buildStep(
               '1.',
               'Close Freegram completely (swipe away from recent apps)',
@@ -111,14 +111,14 @@ class MiuiBleHelpDialog extends StatelessWidget {
               '3.',
               'Try scanning again',
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Container(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.blue.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Row(
+              child: const Row(
                 children: [
                   Icon(Icons.info_outline, color: Colors.blue, size: 20),
                   SizedBox(width: 8),
@@ -137,14 +137,14 @@ class MiuiBleHelpDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text('Later'),
+          child: const Text('Later'),
         ),
         ElevatedButton(
           onPressed: () {
             Navigator.pop(context);
             // TODO: Could open app settings here
           },
-          child: Text('I Did This'),
+          child: const Text('I Did This'),
         ),
       ],
     );
@@ -160,7 +160,7 @@ class MiuiBleHelpDialog extends StatelessWidget {
     ];
 
     return Container(
-      padding: EdgeInsets.all(12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.grey.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
@@ -169,10 +169,10 @@ class MiuiBleHelpDialog extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: apps
             .map((app) => Padding(
-                  padding: EdgeInsets.symmetric(vertical: 4),
+                  padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Text(
                     app,
-                    style: TextStyle(fontSize: 13),
+                    style: const TextStyle(fontSize: 13),
                   ),
                 ))
             .toList(),
@@ -182,21 +182,21 @@ class MiuiBleHelpDialog extends StatelessWidget {
 
   Widget _buildStep(String number, String text) {
     return Padding(
-      padding: EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 24,
             height: 24,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: Colors.blue,
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Text(
                 number,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
@@ -204,13 +204,13 @@ class MiuiBleHelpDialog extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Expanded(
             child: Padding(
-              padding: EdgeInsets.only(top: 2),
+              padding: const EdgeInsets.only(top: 2),
               child: Text(
                 text,
-                style: TextStyle(fontSize: 13),
+                style: const TextStyle(fontSize: 13),
               ),
             ),
           ),

@@ -9,6 +9,7 @@ import 'package:freegram/models/nearby_message.dart';
 import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/nearby_chat_repository.dart';
 import 'package:freegram/widgets/freegram_app_bar.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 class NearbyChatScreen extends StatelessWidget {
@@ -23,6 +24,7 @@ class NearbyChatScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('📱 SCREEN: nearby_chat_screen.dart');
     final myId = FirebaseAuth.instance.currentUser!.uid;
     final ids = [myId, targetUser.id]..sort();
     final chatId = ids.join('_');
@@ -79,7 +81,7 @@ class _NearbyChatViewState extends State<_NearbyChatView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: FreegramAppBar(
-        title: '${widget.targetUser.username}',
+        title: widget.targetUser.username,
         showBackButton: true,
       ),
       body: Column(
@@ -88,17 +90,17 @@ class _NearbyChatViewState extends State<_NearbyChatView> {
             child: BlocBuilder<NearbyChatBloc, NearbyChatState>(
               builder: (context, state) {
                 if (state is NearbyChatLoading) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: AppProgressIndicator());
                 }
                 if (state is NearbyChatLoaded) {
                   if (state.messages.isEmpty) {
-                    return Center(
+                    return const Center(
                       child: Padding(
-                        padding: const EdgeInsets.all(16.0),
+                        padding: EdgeInsets.all(16.0),
                         child: Text(
                           "Nearby Chat is temporarily disabled while we improve discovery. Saved messages are shown here.",
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.grey),
+                          style: TextStyle(color: Colors.grey),
                         ),
                       ),
                     );
@@ -138,7 +140,7 @@ class _NearbyChatViewState extends State<_NearbyChatView> {
                     enabled: false, // Disabled
                   ),
                 ),
-                IconButton(
+                const IconButton(
                   icon: Icon(Icons.send, color: Colors.grey),
                   onPressed: null, // Disabled
                 ),

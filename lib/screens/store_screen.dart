@@ -7,12 +7,14 @@ import 'package:freegram/repositories/user_repository.dart'; // Keep
 import 'package:freegram/services/ad_helper.dart'; // Keep
 import 'package:freegram/services/in_app_purchase_service.dart'; // Keep
 import 'package:freegram/widgets/freegram_app_bar.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class StoreScreen extends StatelessWidget {
   const StoreScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('📱 SCREEN: store_screen.dart');
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       // Handle not logged in state
@@ -26,10 +28,10 @@ class StoreScreen extends StatelessWidget {
     return DefaultTabController(
       length: 2, // "Get Items" and "Get Coins"
       child: Scaffold(
-        appBar: FreegramAppBar(
+        appBar: const FreegramAppBar(
           title: 'Store',
           showBackButton: true,
-          bottom: const TabBar(
+          bottom: TabBar(
             tabs: [
               Tab(text: "Get Items"),
               Tab(text: "Get Coins"),
@@ -224,7 +226,7 @@ class _GetCoinsTabState extends State<_GetCoinsTab> {
   Widget build(BuildContext context) {
     // Show loading indicator while IAP service initializes
     if (_iapLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: AppProgressIndicator());
     }
 
     // Keep ListView structure for coin packs
@@ -308,12 +310,10 @@ class _StoreItemCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
               child: isLoading
-                  ? const SizedBox(
-                      // Show spinner inside button
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                  ? AppProgressIndicator(
+                      size: 20,
+                      strokeWidth: 2,
+                      color: Colors.white,
                     )
                   : Text(buttonText),
             ),

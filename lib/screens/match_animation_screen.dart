@@ -34,6 +34,7 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: match_animation_screen.dart');
 
     // Haptic celebration
     HapticFeedback.heavyImpact();
@@ -171,7 +172,7 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
                             return LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: [
+                              colors: const [
                                 Colors.pinkAccent,
                                 Colors.purpleAccent,
                                 Colors.blueAccent,
@@ -242,7 +243,7 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.favorite,
+                                const Icon(Icons.favorite,
                                     color: Colors.pinkAccent, size: 20),
                                 const SizedBox(width: 8),
                                 Text(

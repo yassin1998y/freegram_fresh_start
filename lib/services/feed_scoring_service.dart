@@ -51,7 +51,7 @@ class FeedScoringService {
       return UnifiedFeedScore(
         score: 10000.0 - ageInMinutes, // Higher score for newer posts
         badgeType: PostDisplayType.organic, // No badge for own posts
-        reason: 'User own recent post (${ageInMinutes} min old)',
+        reason: 'User own recent post ($ageInMinutes min old)',
       );
     }
 

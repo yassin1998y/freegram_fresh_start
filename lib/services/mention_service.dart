@@ -2,7 +2,6 @@
 
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:freegram/repositories/user_repository.dart';
@@ -143,8 +142,8 @@ class MentionService {
   }) {
     final List<TextSpan> spans = [];
     defaultStyle ??= const TextStyle();
-    mentionStyle ??= TextStyle(color: Colors.blue, fontWeight: FontWeight.w500);
-    hashtagStyle ??= TextStyle(color: Colors.blue, fontWeight: FontWeight.w500);
+    mentionStyle ??= const TextStyle(color: Colors.blue, fontWeight: FontWeight.w500);
+    hashtagStyle ??= const TextStyle(color: Colors.blue, fontWeight: FontWeight.w500);
 
     // Regex to match both mentions and hashtags
     final pattern = RegExp(r'(@\w+|#\w+)', caseSensitive: false);

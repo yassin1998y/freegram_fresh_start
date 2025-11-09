@@ -34,8 +34,8 @@ class ChatDateSeparator extends StatelessWidget {
 
     return Center(
       child: Container(
-        margin: EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
-        padding: EdgeInsets.symmetric(
+        margin: const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
+        padding: const EdgeInsets.symmetric(
           horizontal: DesignTokens.spaceMD,
           vertical: DesignTokens.spaceSM,
         ),
@@ -145,7 +145,7 @@ class _UnreadMessagesDividerState extends State<UnreadMessagesDivider>
       child: SlideTransition(
         position: _slideAnimation,
         child: Padding(
-          padding: EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
+          padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
           child: Row(
             children: [
               Expanded(
@@ -162,9 +162,9 @@ class _UnreadMessagesDividerState extends State<UnreadMessagesDivider>
                 ),
               ),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: DesignTokens.spaceSM),
+                padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceSM),
                 child: Container(
-                  padding: EdgeInsets.symmetric(
+                  padding: const EdgeInsets.symmetric(
                     horizontal: DesignTokens.spaceMD,
                     vertical: DesignTokens.spaceXS,
                   ),
@@ -220,6 +220,14 @@ class _UnreadMessagesDividerState extends State<UnreadMessagesDivider>
     );
   }
 }
+
+
+
+
+
+
+
+
 
 
 

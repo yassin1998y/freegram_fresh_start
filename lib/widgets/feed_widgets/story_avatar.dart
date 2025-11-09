@@ -21,7 +21,7 @@ class StoryAvatarWidget extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: DesignTokens.spaceXS),
+      padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceXS),
       child: GestureDetector(
         onTap: onTap,
         child: Column(
@@ -38,7 +38,7 @@ class StoryAvatarWidget extends StatelessWidget {
                     Container(
                       width: 64,
                       height: 64,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: SonarPulseTheme.appLinearGradient,
                       ),
@@ -82,7 +82,7 @@ class StoryAvatarWidget extends StatelessWidget {
                 ],
               ),
             ),
-            SizedBox(height: DesignTokens.spaceXS / 2 + 1),
+            const SizedBox(height: DesignTokens.spaceXS / 2 + 1),
             Text(
               storyItem.username,
               style: theme.textTheme.bodySmall?.copyWith(

@@ -1,5 +1,7 @@
 // lib/screens/feed/for_you_feed_tab.dart
 
+import 'dart:async';
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,10 +12,22 @@ import 'package:freegram/widgets/feed_widgets/suggestion_carousel.dart';
 import 'package:freegram/widgets/feed_widgets/stories_tray.dart';
 import 'package:freegram/widgets/feed_widgets/create_post_widget.dart';
 import 'package:freegram/widgets/feed_widgets/trending_post_card.dart';
+import 'package:freegram/widgets/feed_widgets/trending_reels_carousel.dart';
+import 'package:freegram/widgets/feed_widgets/boosted_posts_section.dart';
 import 'package:freegram/models/feed_item_model.dart';
 import 'package:freegram/utils/enums.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/services/feed_scoring_service.dart';
+import 'package:freegram/services/media_prefetch_service.dart';
+import 'package:freegram/services/network_quality_service.dart';
+import 'package:freegram/locator.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/widgets/skeletons/feed_loading_skeleton.dart';
+import 'package:freegram/blocs/connectivity_bloc.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:freegram/services/widget_cache_service.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 final GlobalKey<ForYouFeedTabState> kForYouFeedTabKey =
     GlobalKey<ForYouFeedTabState>();
@@ -29,6 +43,70 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
     with AutomaticKeepAliveClientMixin {
   final ScrollController _scrollController = ScrollController();
   final _auth = FirebaseAuth.instance;
+  late MediaPrefetchService _prefetchService;
+  late NetworkQualityService _networkService;
+  
+  // CRITICAL FIX: Cache user location to prevent multiple Geolocator calls
+  // Location is fetched once and shared across all PostCard widgets
+  GeoPoint? _cachedUserLocation;
+  bool _isLocationFetching = false;
+  
+  // Track visible item indices for lazy media loading
+  int _firstVisibleIndex = 0;
+  int _lastVisibleIndex = 0;
+  static const int _prefetchAheadCount = 5; // CRITICAL FIX: Increased from 3 to 5 to prevent placeholder flash
+  static const int _prefetchBehindCount = 2; // Also load 2 items behind for smoother scrolling
+  
+  // Debouncing for scroll listener
+  Timer? _scrollDebounceTimer;
+  Timer? _visibilityUpdateTimer;
+  static const Duration _scrollDebounceDuration = Duration(milliseconds: 150);
+  
+  // Scroll-to-top button visibility
+  bool _showScrollToTop = false;
+  static const double _scrollToTopThreshold = 3.0; // Show after 3 screen heights
+  
+  // Track viewed posts to update lastViewedTime
+  final Set<String> _viewedPostIds = {};
+  
+  // Performance tracking
+  DateTime? _lastScrollLogTime;
+  
+  // Memory management
+  final WidgetCacheService _widgetCache = WidgetCacheService(maxSize: 20);
+  final Map<String, DateTime> _postAccessTimes = {};
+  
+  // Stream subscription tracking for memory leak prevention
+  StreamSubscription<UnifiedFeedState>? _feedUpdateSubscription;
+  
+  // Prefetch tracking to avoid duplicate prefetches
+  final Set<String> _prefetchedUrls = {};
+  
+  /// Cleanup widgets that are far from viewport
+  void _cleanupDistantWidgets(int currentFirstIndex, int currentLastIndex) {
+    // Clean up posts not accessed in last 30 seconds
+    final toRemove = <String>[];
+    
+    for (final entry in _postAccessTimes.entries) {
+      // Remove posts not accessed recently
+      final age = DateTime.now().difference(entry.value);
+      if (age.inSeconds > 30) {
+        toRemove.add(entry.key);
+      }
+    }
+    
+    for (final key in toRemove) {
+      _postAccessTimes.remove(key);
+    }
+    
+    // Clear cache periodically
+    if (toRemove.isNotEmpty) {
+      _widgetCache.clear();
+      if (kDebugMode) {
+        debugPrint('🧹 Feed: Cleaned up ${toRemove.length} distant widgets');
+      }
+    }
+  }
 
   @override
   bool get wantKeepAlive => true;
@@ -59,46 +137,348 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
   @override
   void initState() {
     super.initState();
-    // Load initial feed - BLoC is now provided by FeedScreen parent
+    // Get services from locator
+    _prefetchService = locator<MediaPrefetchService>();
+    _networkService = NetworkQualityService();
+
+    // CRITICAL FIX: Fetch user location once for all posts
+    _fetchUserLocationOnce();
+
+    // Feed loading is now handled by FeedScreen parent
+    // Only load if BLoC is not already loaded (fallback safety)
     final userId = _auth.currentUser?.uid;
     if (userId != null) {
       // Use WidgetsBinding to ensure context is available after frame
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && context.mounted) {
-          context.read<UnifiedFeedBloc>().add(
-                LoadUnifiedFeedEvent(
-                  userId: userId,
-                  refresh: true,
-                  timeFilter: TimeFilter.allTime,
-                ),
-              );
+          final currentState = context.read<UnifiedFeedBloc>().state;
+          // Only load if not already loaded
+          if (currentState is! UnifiedFeedLoaded) {
+            context.read<UnifiedFeedBloc>().add(
+                  LoadUnifiedFeedEvent(
+                    userId: userId,
+                    refresh: false, // Don't refresh if already loaded
+                    timeFilter: TimeFilter.allTime,
+                  ),
+                );
+          }
         }
       });
     }
 
     // Infinite scroll detection
     _scrollController.addListener(_onScroll);
+    
+    // Update visible indices when scroll position changes
+    _scrollController.addListener(_updateVisibleIndices);
+  }
+
+  /// CRITICAL FIX: Fetch user location once and cache it
+  /// Prevents 20+ location requests when rendering multiple PostCards
+  Future<void> _fetchUserLocationOnce() async {
+    if (_cachedUserLocation != null || _isLocationFetching) return;
+    
+    _isLocationFetching = true;
+    try {
+      // Check if location service is enabled
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _isLocationFetching = false;
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        _isLocationFetching = false;
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.low,
+      );
+
+      if (mounted) {
+        setState(() {
+          _cachedUserLocation = GeoPoint(position.latitude, position.longitude);
+          _isLocationFetching = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Feed: Error loading user location: $e');
+      _isLocationFetching = false;
+    }
+  }
+
+  void _updateVisibleIndices() {
+    if (!_scrollController.hasClients) return;
+    
+    final position = _scrollController.position;
+    if (!position.hasContentDimensions) return;
+    
+    // Estimate visible item range based on scroll position
+    // Average post height is approximately 500-600 pixels
+    const estimatedItemHeight = 550.0;
+    final viewportHeight = position.viewportDimension;
+    final scrollOffset = position.pixels;
+    
+    // Calculate first and last visible indices
+    // CRITICAL FIX: Use more conservative estimation to ensure we don't miss items
+    // Subtract a small buffer to account for variable post heights
+    final firstVisible = ((scrollOffset - 100) / estimatedItemHeight).floor(); // Buffer for variable heights
+    final itemsInViewport = ((viewportHeight + 200) / estimatedItemHeight).ceil(); // Extra buffer
+    final lastVisible = firstVisible + itemsInViewport;
+    
+    // CRITICAL FIX: Only update state if values actually changed
+    // This prevents excessive setState() calls during scrolling
+    final newFirstIndex = firstVisible.clamp(0, double.infinity).toInt();
+    final newLastIndex = lastVisible;
+    
+    // CRITICAL FIX: Always update if indices changed, even slightly
+    // This ensures media starts loading as soon as posts approach viewport
+    if (newFirstIndex != _firstVisibleIndex || newLastIndex != _lastVisibleIndex) {
+      if (mounted) {
+        final oldFirstIndex = _firstVisibleIndex;
+        final oldLastIndex = _lastVisibleIndex;
+        
+        setState(() {
+          _firstVisibleIndex = newFirstIndex;
+          _lastVisibleIndex = newLastIndex;
+        });
+        
+        // Cleanup distant widgets when viewport changes significantly
+        if ((newFirstIndex - oldFirstIndex).abs() > 5 || 
+            (newLastIndex - oldLastIndex).abs() > 5) {
+          _cleanupDistantWidgets(_firstVisibleIndex, _lastVisibleIndex);
+        }
+      }
+    }
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent * 0.8) {
+    // Performance: Track scroll performance (only in debug mode)
+    if (kDebugMode && _scrollController.hasClients) {
+      final now = DateTime.now();
+      if (_lastScrollLogTime == null || 
+          now.difference(_lastScrollLogTime!).inSeconds > 5) {
+        debugPrint('📊 Feed: Scroll position: ${_scrollController.position.pixels.toInt()}px, '
+            'Max: ${_scrollController.position.maxScrollExtent.toInt()}px');
+        _lastScrollLogTime = now;
+      }
+    }
+    
+    // Update scroll-to-top button visibility
+    if (_scrollController.hasClients) {
+      final position = _scrollController.position;
+      final viewportHeight = position.viewportDimension;
+      final shouldShow = position.pixels > viewportHeight * _scrollToTopThreshold;
+      
+      if (_showScrollToTop != shouldShow) {
+        setState(() {
+          _showScrollToTop = shouldShow;
+        });
+      }
+    }
+    
+    // CRITICAL FIX: Update visibility immediately on scroll start, then throttle
+    // This ensures media starts loading as soon as scrolling begins
+    _updateVisibleIndices(); // Immediate update for responsive feel
+    
+    // Then throttle subsequent updates to prevent excessive setState calls
+    if (_visibilityUpdateTimer == null || !_visibilityUpdateTimer!.isActive) {
+      _visibilityUpdateTimer = Timer(const Duration(milliseconds: 150), () {
+        _updateVisibleIndices(); // Final update after scroll settles
+        _visibilityUpdateTimer = null;
+      });
+    }
+    
+    // Debounce load-more check to reduce BLoC events
+    _scrollDebounceTimer?.cancel();
+    _scrollDebounceTimer = Timer(_scrollDebounceDuration, () {
+      if (!_scrollController.hasClients) return;
+      
+      final position = _scrollController.position;
+      if (position.pixels >= position.maxScrollExtent * 0.8) {
       final userId = _auth.currentUser?.uid;
       if (userId != null) {
+        // Load more posts
         context.read<UnifiedFeedBloc>().add(
               LoadMoreUnifiedFeedEvent(
                 userId: userId,
                 timeFilter: TimeFilter.allTime,
               ),
             );
+
+        // Prefetch images for posts that are about to become visible
+        if (_networkService.shouldPrefetchImages()) {
+          _prefetchUpcomingImages();
+        }
       }
+      }
+    });
+  }
+  
+  /// Determines if media should be loaded for an item at the given index
+  /// CRITICAL FIX: More aggressive prefetching to prevent placeholder flash when scrolling
+  bool _shouldLoadMedia(int itemIndex, UnifiedFeedLoaded state) {
+    // Always load media for header sections (stories, create post, trending, etc.)
+    // These are always visible when feed is shown
+    final headerSections = 3; // Stories, Create Post, Trending Posts
+    if (itemIndex < headerSections) {
+      return true;
+    }
+    
+    // Calculate feed item index (accounting for optional sections)
+    int feedItemStartIndex = headerSections;
+    if (state.trendingReels.isNotEmpty) feedItemStartIndex++;
+    if (state.boostedPosts.isNotEmpty) feedItemStartIndex++;
+    if (state.friendSuggestions.isNotEmpty) feedItemStartIndex++;
+    
+    // If this is a header section, always load
+    if (itemIndex < feedItemStartIndex) {
+      return true;
+    }
+    
+    // For feed items, check if within expanded viewport range
+    // CRITICAL FIX: Increased prefetch range to prevent placeholder flash
+    // Load items behind and ahead of viewport for smoother scrolling
+    final feedItemIndex = itemIndex - feedItemStartIndex;
+    final shouldLoad = feedItemIndex >= (_firstVisibleIndex - _prefetchBehindCount).clamp(0, double.infinity).toInt() && 
+                      feedItemIndex <= _lastVisibleIndex + _prefetchAheadCount;
+    
+    // CRITICAL FIX: Also always load first 10 items to prevent initial placeholder flash
+    // This ensures the first visible posts always have media loaded
+    if (feedItemIndex < 10) {
+      return true;
+    }
+    
+    return shouldLoad;
+  }
+
+  /// Waits for feed to update after refresh, with timeout
+  /// CRITICAL FIX: Properly track and cancel subscription to prevent memory leaks
+  Future<void> _waitForFeedUpdate() async {
+    // Cancel previous subscription if exists (prevents multiple subscriptions)
+    await _feedUpdateSubscription?.cancel();
+    
+    final completer = Completer<void>();
+    _feedUpdateSubscription = context.read<UnifiedFeedBloc>().stream.listen((state) {
+      if (state is UnifiedFeedLoaded && !state.isLoading) {
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
+      }
+    });
+    
+    try {
+      // Timeout after 10 seconds
+      await completer.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('Feed refresh timeout');
+        },
+      );
+    } finally {
+      // Always cancel subscription to prevent memory leaks
+      await _feedUpdateSubscription?.cancel();
+      _feedUpdateSubscription = null;
+    }
+  }
+
+  /// Prefetches images for posts that are about to scroll into view.
+  /// 
+  /// CRITICAL FIX: Track prefetched URLs to avoid duplicate prefetches,
+  /// limit prefetch count, and reduce network/memory pressure.
+  void _prefetchUpcomingImages() {
+    // Get current state
+    final state = context.read<UnifiedFeedBloc>().state;
+    if (state is! UnifiedFeedLoaded) return;
+
+    // Adjust prefetch count based on network quality
+    final networkQuality = _networkService.currentQuality;
+    if (networkQuality == NetworkQuality.offline || networkQuality == NetworkQuality.poor) {
+      return; // Don't prefetch on poor/offline connection
+    }
+    
+    int prefetchCount;
+    switch (networkQuality) {
+      case NetworkQuality.excellent:
+        prefetchCount = 10; // Reduced from 15 to limit memory usage
+        break;
+      case NetworkQuality.good:
+        prefetchCount = 5; // Reduced from 10
+        break;
+      case NetworkQuality.fair:
+        prefetchCount = 2; // Reduced from 5
+        break;
+      default:
+        return;
+    }
+
+    // Get the last N posts based on network quality
+    final items = state.items;
+    final startIndex = items.length > prefetchCount ? items.length - prefetchCount : 0;
+    final itemsToPrefetch = items.sublist(startIndex);
+
+    // Extract image URLs from posts (only those not already prefetched)
+    final imageUrls = <String>[];
+    for (final item in itemsToPrefetch) {
+      if (item is PostFeedItem) {
+        final post = item.post;
+        // Prefetch images from mediaItems
+        for (final mediaItem in post.mediaItems) {
+          if (mediaItem.type == 'image' && 
+              mediaItem.url.isNotEmpty &&
+              !_prefetchedUrls.contains(mediaItem.url)) {
+            imageUrls.add(mediaItem.url);
+            _prefetchedUrls.add(mediaItem.url); // Mark as prefetched
+          }
+        }
+        // Also check legacy mediaUrls for backward compatibility
+        if (post.mediaUrls.isNotEmpty && post.mediaTypes.isNotEmpty) {
+          for (int i = 0; i < post.mediaUrls.length; i++) {
+            if (i < post.mediaTypes.length &&
+                post.mediaTypes[i] == 'image' &&
+                post.mediaUrls[i].isNotEmpty &&
+                !_prefetchedUrls.contains(post.mediaUrls[i])) {
+              imageUrls.add(post.mediaUrls[i]);
+              _prefetchedUrls.add(post.mediaUrls[i]); // Mark as prefetched
+            }
+          }
+        }
+      }
+    }
+
+    // Limit concurrent prefetches to prevent memory pressure
+    if (imageUrls.isNotEmpty) {
+      final urlsToPrefetch = imageUrls.take(10).toList(); // Limit to 10 at a time
+      _prefetchService.prefetchImages(urlsToPrefetch);
     }
   }
 
   @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
+    _scrollController.removeListener(_updateVisibleIndices);
+    _scrollDebounceTimer?.cancel();
+    _visibilityUpdateTimer?.cancel();
+    
+    // CRITICAL FIX: Cancel stream subscription to prevent memory leaks
+    _feedUpdateSubscription?.cancel();
+    _feedUpdateSubscription = null;
+    
     _scrollController.dispose();
+    
+    // Cleanup memory
+    _widgetCache.clear();
+    _postAccessTimes.clear();
+    _viewedPostIds.clear();
+    _prefetchedUrls.clear(); // Clear prefetch tracking
+    
+    if (kDebugMode) {
+      debugPrint('🧹 Feed: Disposed and cleaned up memory');
+    }
+    
     super.dispose();
   }
 
@@ -113,55 +493,65 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
         }
 
         if (state is UnifiedFeedError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                const SizedBox(height: 16),
-                Text('Error: ${state.error}'),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () {
-                    final userId = _auth.currentUser?.uid;
-                    if (userId != null) {
-                      context.read<UnifiedFeedBloc>().add(
-                            LoadUnifiedFeedEvent(
-                              userId: userId,
-                              refresh: true,
-                              timeFilter: TimeFilter.allTime,
-                            ),
-                          );
-                    }
-                  },
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
-          );
+          return _buildEnhancedErrorState(context, state.error);
         }
 
         if (state is UnifiedFeedLoaded) {
           if (state.items.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.explore, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No content to discover yet',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                ],
-              ),
-            );
+            return _buildEnhancedEmptyState(context);
           }
 
-          return RefreshIndicator(
+          // Prefetch images for the first batch of posts when feed loads
+          if (_networkService.shouldPrefetchImages()) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _prefetchUpcomingImages();
+            });
+          }
+
+          return Stack(
+            children: [
+              // CRITICAL FIX: Use BlocSelector to reduce rebuilds
+              // Only rebuilds when connectivity state changes to/from offline
+              BlocSelector<ConnectivityBloc, ConnectivityState, bool>(
+                selector: (state) => state is Offline,
+                builder: (context, isOffline) {
+                  if (isOffline) {
+                    return Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: _buildOfflineBanner(context),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+              
+              // New posts indicator banner (below offline banner)
+              if (state.getNewPostsCount() > 0)
+                Positioned(
+                  top: 60, // Below offline banner
+                  left: 0,
+                  right: 0,
+                  child: _buildNewPostsBanner(context, state),
+                ),
+              
+              RefreshIndicator(
             onRefresh: () async {
               final userId = _auth.currentUser?.uid;
               if (userId != null) {
+                    // Update lastViewedTime before refresh to track new posts
+                    final currentState = context.read<UnifiedFeedBloc>().state;
+                    if (currentState is UnifiedFeedLoaded) {
+                      // Mark current time as last viewed before refresh
+                      context.read<UnifiedFeedBloc>().add(
+                            LoadUnifiedFeedEvent(
+                              userId: userId,
+                              refresh: true,
+                              timeFilter: state.timeFilter,
+                            ),
+                          );
+                    } else {
                 context.read<UnifiedFeedBloc>().add(
                       LoadUnifiedFeedEvent(
                         userId: userId,
@@ -170,53 +560,79 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
                       ),
                     );
               }
-              await Future.delayed(const Duration(milliseconds: 500));
+                    // Wait for actual data instead of fixed delay
+                    await _waitForFeedUpdate();
+                  }
             },
             child: ListView.builder(
               controller: _scrollController,
-              itemCount: 3 + state.items.length + (state.isLoading ? 1 : 0),
-              itemBuilder: (context, index) {
-                // Header 0: Stories Tray (at the top)
-                if (index == 0) {
-                  return Padding(
-                    padding: EdgeInsets.only(
-                      top: DesignTokens.spaceSM,
-                      bottom: DesignTokens.spaceXS,
-                    ),
-                    child: const StoriesTrayWidget(),
-                  );
-                }
-                // Header 1: Create Post Widget
-                if (index == 1) {
-                  return const CreatePostWidget();
-                }
-                // Header 2: Trending horizontal
-                if (index == 2) {
-                  return _buildTrendingSection();
-                }
-
-                final adjustedIndex = index - 3;
-                // Show loading indicator at the end
-                if (adjustedIndex == state.items.length) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                }
-
-                // Handle different FeedItem types
-                final item = state.items[adjustedIndex];
-                return _buildFeedItem(item);
-              },
-            ),
+                  itemCount: _calculateItemCount(state),
+                  // Optimize ListView for better performance and memory
+                  addAutomaticKeepAlives: false, // Don't keep off-screen widgets alive
+                  addRepaintBoundaries: true, // Add repaint boundaries for performance
+                  cacheExtent: 500, // Cache 500px worth of items
+                  // Memory optimization: Reduce cache extent on low memory devices
+                  // Note: Flutter handles this automatically, but we can tune cacheExtent
+                  itemBuilder: (context, index) {
+                    // CRITICAL FIX: Pre-calculate shouldLoadMedia before building
+                    // This ensures media loading decision is made immediately, not after build
+                    final shouldLoadMedia = _shouldLoadMedia(index, state);
+                    
+                    // Wrap in RepaintBoundary for better performance
+                    final item = _buildFeedItemAtIndex(context, state, index, shouldLoadMedia: shouldLoadMedia);
+                    return RepaintBoundary(
+                      child: item,
+                    );
+                  },
+                ),
+              ),
+              // Floating scroll-to-top button
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                bottom: _showScrollToTop ? 20.0 : -80.0,
+                right: 20.0,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: _showScrollToTop ? 1.0 : 0.0,
+                  child: FloatingActionButton(
+                    onPressed: () {
+                      scrollToTopAndRefresh();
+                    },
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    child: const Icon(Icons.arrow_upward),
+                    tooltip: 'Scroll to top',
+                  ),
+                ),
+              ),
+            ],
           );
         }
 
         return const Center(child: Text('Initializing feed...'));
       },
     );
+  }
+
+  bool _hasTrendingPosts(UnifiedFeedLoaded state) {
+    final trendingPosts = state.items
+        .whereType<PostFeedItem>()
+        .where((item) => item.displayType == PostDisplayType.trending)
+        .take(8)
+        .toList();
+    
+    if (trendingPosts.isNotEmpty) return true;
+    
+    // Check if we have any high-scoring posts to show as trending
+    final userId = _auth.currentUser?.uid;
+    if (userId != null) {
+      final allPosts = state.items
+          .whereType<PostFeedItem>()
+          .where((item) => item.post.authorId != userId)
+          .toList();
+      return allPosts.isNotEmpty;
+    }
+    return false;
   }
 
   Widget _buildTrendingSection() {
@@ -284,7 +700,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: DesignTokens.spaceMD,
                   vertical: DesignTokens.spaceSM,
                 ),
@@ -295,7 +711,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
                       size: DesignTokens.iconMD,
                       color: Theme.of(context).colorScheme.error,
                     ),
-                    SizedBox(width: DesignTokens.spaceSM),
+                    const SizedBox(width: DesignTokens.spaceSM),
                     Text(
                       'Trending',
                       style: Theme.of(context)
@@ -310,7 +726,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
                 height: 160,
                 child: ListView.separated(
                   padding:
-                      EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
+                      const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
                   scrollDirection: Axis.horizontal,
                   itemBuilder: (_, i) => Container(
                     width: 220,
@@ -338,9 +754,9 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
                             ),
                           ),
                         ),
-                        SizedBox(height: DesignTokens.spaceSM),
+                        const SizedBox(height: DesignTokens.spaceSM),
                         Padding(
-                          padding: EdgeInsets.symmetric(
+                          padding: const EdgeInsets.symmetric(
                             horizontal: DesignTokens.spaceSM,
                             vertical: DesignTokens.spaceSM,
                           ),
@@ -361,7 +777,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
                     ),
                   ),
                   separatorBuilder: (_, __) =>
-                      SizedBox(width: DesignTokens.spaceMD),
+                      const SizedBox(width: DesignTokens.spaceMD),
                   itemCount: 4,
                 ),
               ),
@@ -374,24 +790,36 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: EdgeInsets.symmetric(
+              padding: const EdgeInsets.symmetric(
                 horizontal: DesignTokens.spaceMD,
                 vertical: DesignTokens.spaceSM,
               ),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
                 children: [
                   Icon(
                     Icons.local_fire_department,
                     size: DesignTokens.iconMD,
                     color: Theme.of(context).colorScheme.error,
                   ),
-                  SizedBox(width: DesignTokens.spaceSM),
+                  const SizedBox(width: DesignTokens.spaceSM),
                   Text(
                     'Trending',
                     style: Theme.of(context)
                         .textTheme
                         .titleMedium
                         ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      // TODO: Navigate to full trending posts screen
+                      debugPrint('See All trending posts');
+                    },
+                    child: const Text('See All'),
                   ),
                 ],
               ),
@@ -408,7 +836,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
                 },
                 child: ListView.separated(
                   padding:
-                      EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
+                      const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
                   scrollDirection: Axis.horizontal,
                   physics: const ClampingScrollPhysics(),
                   itemBuilder: (context, i) {
@@ -416,7 +844,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
                     return TrendingPostCard(item: post);
                   },
                   separatorBuilder: (_, __) =>
-                      SizedBox(width: DesignTokens.spaceMD),
+                      const SizedBox(width: DesignTokens.spaceMD),
                   itemCount: trendingPosts.length,
                 ),
               ),
@@ -427,13 +855,186 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
     );
   }
 
-  Widget _buildFeedItem(FeedItem item) {
+  int _calculateItemCount(UnifiedFeedLoaded state) {
+    int count = 3; // Stories, Create Post, Trending Posts (always shown)
+    
+    if (state.trendingReels.isNotEmpty) count++;
+    if (state.boostedPosts.isNotEmpty) count++;
+    if (state.friendSuggestions.isNotEmpty) count++;
+    
+    count += state.items.length; // Regular feed items
+    if (state.isLoading) count++; // Loading indicator
+    
+    return count;
+  }
+
+  Widget _buildFeedItemAtIndex(
+    BuildContext context,
+    UnifiedFeedLoaded state,
+    int index, {
+    bool? shouldLoadMedia, // Optional pre-calculated value for better performance
+  }) {
+    final hasTrendingReels = state.trendingReels.isNotEmpty;
+    final hasBoostedPosts = state.boostedPosts.isNotEmpty;
+    final hasFriendSuggestions = state.friendSuggestions.isNotEmpty;
+
+    int currentIndex = 0;
+
+    // 0: Stories Tray
+    if (index == currentIndex++) {
+      return const Padding(
+        padding: EdgeInsets.only(
+          top: DesignTokens.spaceSM,
+          bottom: DesignTokens.spaceXS,
+        ),
+        child: StoriesTrayWidget(),
+      );
+    }
+
+    // 1: Create Post Widget
+    if (index == currentIndex++) {
+      return const CreatePostWidget();
+    }
+
+    // 2: Trending Posts (horizontal) - only show if not empty
+    if (index == currentIndex++) {
+      final hasTrendingPosts = _hasTrendingPosts(state);
+      if (!hasTrendingPosts) {
+        // Skip trending section if empty
+        currentIndex--;
+      } else {
+        return _buildTrendingSection();
+      }
+    }
+
+    // 3: Trending Reels (horizontal with Create Reel card)
+    if (index == currentIndex++) {
+      if (hasTrendingReels) {
+        return TrendingReelsCarouselWidget(reels: state.trendingReels);
+      }
+      // If no trending reels, skip this section
+      currentIndex--;
+    }
+
+    // 4: Boosted Posts Section (max 3 posts)
+    if (index == currentIndex++) {
+      if (hasBoostedPosts) {
+        return BoostedPostsSectionWidget(boostedPosts: state.boostedPosts);
+      }
+      // If no boosted posts, skip this section
+      currentIndex--;
+    }
+
+    // 5: Friends Suggestions (horizontal)
+    if (index == currentIndex++) {
+      if (hasFriendSuggestions) {
+        return SuggestionCarouselWidget(
+          type: SuggestionType.friends,
+          suggestions: state.friendSuggestions,
+          onDismiss: () {
+            // TODO: Implement dismiss logic
+            debugPrint('Dismissing friends suggestions');
+          },
+        );
+      }
+      // If no friend suggestions, skip this section
+      currentIndex--;
+    }
+
+    // Regular feed items (posts, ads, page suggestions)
+    final feedItemIndex = index - currentIndex;
+    if (feedItemIndex >= 0 && feedItemIndex < state.items.length) {
+      final item = state.items[feedItemIndex];
+      // Use pre-calculated value if provided, otherwise calculate
+      final loadMedia = shouldLoadMedia ?? _shouldLoadMedia(index, state);
+      
+      // Check if post is new
+      bool isNewPost = false;
     if (item is PostFeedItem) {
-      return PostCard(item: item);
+        final postId = item.post.id;
+        isNewPost = state.getNewPostIds().contains(postId);
+        // Track viewed post
+        _viewedPostIds.add(postId);
+        // Track access for memory management
+        _postAccessTimes[postId] = DateTime.now();
+        _widgetCache.markAccessed(postId);
+      }
+      
+      return _buildFeedItem(
+        item, 
+        loadMedia: loadMedia, // Use pre-calculated value
+        isNewPost: isNewPost,
+        userLocation: _cachedUserLocation, // CRITICAL FIX: Pass cached location
+      );
+    }
+
+    // Loading indicator at the end (subtle for load more)
+    if (feedItemIndex == state.items.length && state.isLoading) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
+        child: Column(
+          children: [
+            const AppProgressIndicator(),
+            const SizedBox(height: DesignTokens.spaceSM),
+            Text(
+              'Loading more posts...',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildFeedItem(
+    FeedItem item, {
+    bool loadMedia = true,
+    bool isNewPost = false,
+    GeoPoint? userLocation,
+  }) {
+    Widget widget;
+    if (item is PostFeedItem) {
+      widget = Stack(
+        children: [
+          PostCard(
+            item: item,
+            loadMedia: loadMedia,
+            userLocation: userLocation, // CRITICAL FIX: Pass cached location
+          ),
+          // New post badge
+          if (isNewPost)
+            Positioned(
+              top: DesignTokens.spaceSM,
+              right: DesignTokens.spaceSM,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spaceXS,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+                ),
+                child: Text(
+                  'NEW',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                      ),
+                ),
+              ),
+            ),
+        ],
+      );
     } else if (item is AdFeedItem) {
-      return AdCard(adCacheKey: item.cacheKey);
+      widget = AdCard(adCacheKey: item.cacheKey);
     } else if (item is SuggestionCarouselFeedItem) {
-      return SuggestionCarouselWidget(
+      widget = SuggestionCarouselWidget(
         type: item.type,
         suggestions: item.suggestions,
         onDismiss: () {
@@ -441,65 +1042,603 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
           debugPrint('Dismissing suggestion carousel');
         },
       );
+    } else {
+      return const SizedBox.shrink();
     }
-    return const SizedBox.shrink();
+    
+    // Add fade-in animation for new posts
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 10 * (1 - value)),
+            child: child,
+          ),
+        );
+      },
+      child: widget,
+    );
   }
 
+  /// Enhanced loading skeleton that accurately reflects the feed structure
+  /// Shows: Stories tray, Create Post, Trending Posts, Trending Reels, 
+  /// Suggestions, and Regular posts skeletons
   Widget _buildLoadingSkeleton() {
-    return ListView.builder(
-      itemCount: 5,
-      itemBuilder: (context, index) {
-        return Container(
-          margin: const EdgeInsets.all(8),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.grey[200],
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+    return const FeedLoadingSkeleton();
+  }
+
+  /// Builds a banner showing new posts count and last update time
+  Widget _buildNewPostsBanner(BuildContext context, UnifiedFeedLoaded state) {
+    final theme = Theme.of(context);
+    final newPostsCount = state.getNewPostsCount();
+    final lastUpdateTime = state.lastUpdateTime;
+    
+    if (newPostsCount == 0) return const SizedBox.shrink();
+    
+    return SafeArea(
+      bottom: false,
+      child: Container(
+        margin: const EdgeInsets.all(DesignTokens.spaceSM),
+        padding: const EdgeInsets.symmetric(
+          horizontal: DesignTokens.spaceMD,
+          vertical: DesignTokens.spaceSM,
+        ),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(DesignTokens.spaceXS),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.fiber_new,
+                size: 16,
+                color: theme.colorScheme.onPrimary,
+              ),
+            ),
+            const SizedBox(width: DesignTokens.spaceSM),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: Colors.grey[400],
+                  Text(
+                    '$newPostsCount ${newPostsCount == 1 ? 'new post' : 'new posts'}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      height: 16,
-                      color: Colors.grey[400],
+                  if (lastUpdateTime != null)
+                    Text(
+                      'Updated ${_formatLastUpdateTime(lastUpdateTime)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onPrimaryContainer.withOpacity(0.7),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, size: 20),
+              color: theme.colorScheme.onPrimaryContainer,
+              onPressed: () {
+                // Update lastViewedTime to dismiss banner
+                final userId = _auth.currentUser?.uid;
+                if (userId != null) {
+                  final currentState = context.read<UnifiedFeedBloc>().state;
+                  if (currentState is UnifiedFeedLoaded) {
+                    // Update state to mark all posts as viewed
+                    context.read<UnifiedFeedBloc>().add(
+                          LoadUnifiedFeedEvent(
+                            userId: userId,
+                            refresh: false,
+                            timeFilter: currentState.timeFilter,
+                          ),
+                        );
+                  }
+                }
+              },
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatLastUpdateTime(DateTime time) {
+    final now = DateTime.now();
+    final difference = now.difference(time);
+    
+    if (difference.inMinutes < 1) {
+      return 'just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else {
+      return '${difference.inDays}d ago';
+    }
+  }
+
+  /// Builds offline mode banner
+  Widget _buildOfflineBanner(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return SafeArea(
+      bottom: false,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+          horizontal: DesignTokens.spaceMD,
+          vertical: DesignTokens.spaceSM,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.orange,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.wifi_off,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: DesignTokens.spaceSM),
+            Expanded(
+              child: Text(
+                'You\'re offline. Showing cached content.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Enhanced error state with error type detection and contextual messages
+  Widget _buildEnhancedErrorState(BuildContext context, String error) {
+    final theme = Theme.of(context);
+    
+    // Detect error type from error message
+    final isNetworkError = error.toLowerCase().contains('network') ||
+        error.toLowerCase().contains('connection') ||
+        error.toLowerCase().contains('socket') ||
+        error.toLowerCase().contains('timeout') ||
+        error.toLowerCase().contains('failed host lookup');
+    final isTimeoutError = error.toLowerCase().contains('timeout');
+    final isServerError = error.toLowerCase().contains('server') ||
+        error.toLowerCase().contains('500') ||
+        error.toLowerCase().contains('503');
+    
+    // Get connectivity state
+    return BlocBuilder<ConnectivityBloc, ConnectivityState>(
+      builder: (context, connectivityState) {
+        final isOffline = connectivityState is Offline;
+        
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(DesignTokens.spaceXL),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Error icon based on type
+                Icon(
+                  isOffline || isNetworkError
+                      ? Icons.wifi_off
+                      : isTimeoutError
+                          ? Icons.timer_off
+                          : isServerError
+                              ? Icons.cloud_off
+                              : Icons.error_outline,
+                  size: 64,
+                  color: isOffline || isNetworkError
+                      ? Colors.orange
+                      : isTimeoutError
+                          ? Colors.amber
+                          : Colors.red,
+                ),
+                const SizedBox(height: DesignTokens.spaceMD),
+                
+                // Error title
+                Text(
+                  isOffline
+                      ? 'You\'re Offline'
+                      : isNetworkError
+                          ? 'Connection Problem'
+                          : isTimeoutError
+                              ? 'Request Timed Out'
+                              : isServerError
+                                  ? 'Server Error'
+                                  : 'Something Went Wrong',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: DesignTokens.spaceSM),
+                
+                // Error message
+                Text(
+                  isOffline
+                      ? 'Please check your internet connection and try again.'
+                      : isNetworkError
+                          ? 'Unable to connect to the server. Please check your internet connection.'
+                          : isTimeoutError
+                              ? 'The request took too long. Please try again.'
+                              : isServerError
+                                  ? 'Our servers are experiencing issues. Please try again later.'
+                                  : 'We encountered an error loading your feed.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                
+                // Offline mode indicator
+                if (isOffline) ...[
+                  const SizedBox(height: DesignTokens.spaceMD),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: DesignTokens.spaceMD,
+                      vertical: DesignTokens.spaceSM,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                      border: Border.all(
+                        color: Colors.orange.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 16,
+                          color: Colors.orange[700],
+                        ),
+                        const SizedBox(width: DesignTokens.spaceSM),
+                        Text(
+                          'Offline Mode',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.orange[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                
+                const SizedBox(height: DesignTokens.spaceXL),
+                
+                // Action buttons
+                Wrap(
+                  spacing: DesignTokens.spaceSM,
+                  runSpacing: DesignTokens.spaceSM,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        final userId = _auth.currentUser?.uid;
+                        if (userId != null) {
+                          context.read<UnifiedFeedBloc>().add(
+                                LoadUnifiedFeedEvent(
+                                  userId: userId,
+                                  refresh: true,
+                                  timeFilter: TimeFilter.allTime,
+                                ),
+                              );
+                        }
+                      },
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('Retry'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: DesignTokens.spaceLG,
+                          vertical: DesignTokens.spaceSM,
+                        ),
+                      ),
+                    ),
+                    if (isOffline)
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          // Check connectivity
+                          final connectivity = Connectivity();
+                          final result = await connectivity.checkConnectivity();
+                          if (result != ConnectivityResult.none) {
+                            // Retry if connection is available
+                            final userId = _auth.currentUser?.uid;
+                            if (userId != null) {
+                              context.read<UnifiedFeedBloc>().add(
+                                    LoadUnifiedFeedEvent(
+                                      userId: userId,
+                                      refresh: true,
+                                      timeFilter: TimeFilter.allTime,
+                                    ),
+                                  );
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.wifi, size: 18),
+                        label: const Text('Check Connection'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: DesignTokens.spaceLG,
+                            vertical: DesignTokens.spaceSM,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                
+                // Last update timestamp (if available)
+                if (!isOffline) ...[
+                  const SizedBox(height: DesignTokens.spaceMD),
+                  Text(
+                    'Last attempt: ${DateTime.now().toString().substring(0, 16)}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Enhanced empty state with illustrations, actionable suggestions, and discover button
+  Widget _buildEnhancedEmptyState(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(DesignTokens.spaceXL),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Illustration icon
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.explore_outlined,
+                size: 64,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: DesignTokens.spaceXL),
+            
+            // Title
+            Text(
+              'Your Feed is Empty',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: DesignTokens.spaceSM),
+            
+            // Description
+            Text(
+              'Start following people and pages to see posts in your feed',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: DesignTokens.spaceXL),
+            
+            // Actionable suggestions
+            Container(
+              padding: const EdgeInsets.all(DesignTokens.spaceMD),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
+                border: Border.all(
+                  color: theme.dividerColor,
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.lightbulb_outline,
+                        size: 20,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: DesignTokens.spaceSM),
+                      Text(
+                        'Suggestions',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: DesignTokens.spaceMD),
+                  
+                  // Suggestion items
+                  _buildSuggestionItem(
+                    context,
+                    icon: Icons.people_outline,
+                    title: 'Follow Friends',
+                    description: 'Connect with people you know',
+                    onTap: () {
+                      // Refresh feed - friend suggestions will be shown
+                      final userId = _auth.currentUser?.uid;
+                      if (userId != null) {
+                        context.read<UnifiedFeedBloc>().add(
+                              LoadUnifiedFeedEvent(
+                                userId: userId,
+                                refresh: true,
+                                timeFilter: TimeFilter.allTime,
+                              ),
+                            );
+                      }
+                    },
+                  ),
+                  const SizedBox(height: DesignTokens.spaceMD),
+                  
+                  _buildSuggestionItem(
+                    context,
+                    icon: Icons.trending_up,
+                    title: 'Explore Trending',
+                    description: 'Discover popular posts and topics',
+                    onTap: () {
+                      // Refresh feed to load trending posts
+                      final userId = _auth.currentUser?.uid;
+                      if (userId != null) {
+                        context.read<UnifiedFeedBloc>().add(
+                              LoadUnifiedFeedEvent(
+                                userId: userId,
+                                refresh: true,
+                                timeFilter: TimeFilter.allTime,
+                              ),
+                            );
+                      }
+                    },
+                  ),
+                  const SizedBox(height: DesignTokens.spaceMD),
+                  
+                  _buildSuggestionItem(
+                    context,
+                    icon: Icons.radar,
+                    title: 'Discover Nearby',
+                    description: 'Find people and content around you',
+                    onTap: () {
+                      // Navigate to Nearby screen
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: DesignTokens.spaceXL),
+            
+            // Discover button
+            ElevatedButton.icon(
+              onPressed: () {
+                // Navigate to Nearby/Discover screen
+                final userId = _auth.currentUser?.uid;
+                if (userId != null) {
+                  // Try to navigate to nearby screen
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                }
+              },
+              icon: const Icon(Icons.explore),
+              label: const Text('Discover Content'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spaceXL,
+                  vertical: DesignTokens.spaceMD,
+                ),
+                minimumSize: const Size(200, 48),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuggestionItem(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String description,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+      child: Padding(
+        padding: const EdgeInsets.all(DesignTokens.spaceSM),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+              ),
+              child: Icon(
+                icon,
+                size: 20,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(width: DesignTokens.spaceMD),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    description,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Container(
-                height: 12,
-                width: double.infinity,
-                color: Colors.grey[400],
-              ),
-              const SizedBox(height: 8),
-              Container(
-                height: 12,
-                width: 200,
-                color: Colors.grey[400],
-              ),
-              const SizedBox(height: 12),
-              Container(
-                height: 200,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: theme.colorScheme.onSurface.withOpacity(0.4),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

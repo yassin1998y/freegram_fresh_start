@@ -41,17 +41,17 @@ class ProfessionalResponsiveGrid extends StatelessWidget {
           crossAxisCount = 2;
           spacing = DesignTokens.spaceMD;
           aspectRatio = childAspectRatio ?? 0.75;
-          gridPadding = padding ?? EdgeInsets.all(DesignTokens.spaceLG);
+          gridPadding = padding ?? const EdgeInsets.all(DesignTokens.spaceLG);
         } else if (isTablet) {
           crossAxisCount = 3;
           spacing = DesignTokens.spaceLG;
           aspectRatio = childAspectRatio ?? 0.8;
-          gridPadding = padding ?? EdgeInsets.all(DesignTokens.spaceXL);
+          gridPadding = padding ?? const EdgeInsets.all(DesignTokens.spaceXL);
         } else {
           crossAxisCount = 4;
           spacing = DesignTokens.spaceXL;
           aspectRatio = childAspectRatio ?? 0.85;
-          gridPadding = padding ?? EdgeInsets.all(DesignTokens.spaceXXL);
+          gridPadding = padding ?? const EdgeInsets.all(DesignTokens.spaceXXL);
         }
         
         return Container(
@@ -114,7 +114,7 @@ class ProfessionalGlassmorphicContainer extends StatelessWidget {
             sigmaY: blurIntensity ?? DesignTokens.blurMedium,
           ),
           child: Container(
-            padding: padding ?? EdgeInsets.all(DesignTokens.spaceLG),
+            padding: padding ?? const EdgeInsets.all(DesignTokens.spaceLG),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(borderRadius ?? DesignTokens.radiusLG),
               gradient: LinearGradient(
@@ -247,7 +247,7 @@ class ProfessionalEmptyState extends StatelessWidget {
     
     return Center(
       child: Padding(
-        padding: EdgeInsets.all(DesignTokens.spaceXXL),
+        padding: const EdgeInsets.all(DesignTokens.spaceXXL),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -271,7 +271,7 @@ class ProfessionalEmptyState extends StatelessWidget {
               ),
             ),
             
-            SizedBox(height: DesignTokens.spaceXL),
+            const SizedBox(height: DesignTokens.spaceXL),
             
             // Title
             Text(
@@ -284,7 +284,7 @@ class ProfessionalEmptyState extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             
-            SizedBox(height: DesignTokens.spaceMD),
+            const SizedBox(height: DesignTokens.spaceMD),
             
             // Subtitle
             Text(
@@ -298,7 +298,7 @@ class ProfessionalEmptyState extends StatelessWidget {
             ),
             
             if (actionLabel != null && onAction != null) ...[
-              SizedBox(height: DesignTokens.spaceXL),
+              const SizedBox(height: DesignTokens.spaceXL),
               
               // Action Button
               ElevatedButton(
@@ -306,7 +306,7 @@ class ProfessionalEmptyState extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: theme.colorScheme.primary,
                   foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(
+                  padding: const EdgeInsets.symmetric(
                     horizontal: DesignTokens.spaceXL,
                     vertical: DesignTokens.spaceMD,
                   ),
@@ -317,7 +317,7 @@ class ProfessionalEmptyState extends StatelessWidget {
                 ),
                 child: Text(
                   actionLabel!,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: DesignTokens.fontSizeMD,
                   ),

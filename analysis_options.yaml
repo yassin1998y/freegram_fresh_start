@@ -26,3 +26,15 @@ linter:
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
+
+# NOTE: dart_code_metrics configuration commented out due to dependency conflicts
+# Use built-in dart analyze and IDE "Locate Duplicates" feature instead
+# dart_code_metrics:
+#   anti-patterns:
+#     - long-method
+#     - long-parameter-list
+#   metrics:
+#     cyclomatic-complexity: 20
+#     maximum-nesting-level: 5
+#     number-of-parameters: 4
+#     source-lines-of-code: 50

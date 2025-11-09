@@ -17,7 +17,7 @@ class CommentModel extends Equatable {
   final Map<String, String> reactions; // userId -> reactionType
   final bool deleted;
 
-  CommentModel({
+  const CommentModel({
     required this.commentId,
     required this.postId,
     required this.userId,

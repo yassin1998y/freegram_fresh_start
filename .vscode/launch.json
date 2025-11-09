@@ -5,6 +5,38 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "freegram_fresh_start",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "Debug on Samsung SM A155F",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "R58X20FBRJX",
+            "program": "${workspaceFolder}/lib/main.dart",
+            "args": [
+                "--verbose"
+            ],
+            "hotReloadOnSave": "never",
+            "hotRestartOnSave": false,
+            "flutterMode": "debug"
+        },
+        {
+            "name": "Debug on Android Device",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "android",
+            "program": "${workspaceFolder}/lib/main.dart"
+        },
+        {
+            "name": "Debug on Chrome",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "chrome",
+            "program": "${workspaceFolder}/lib/main.dart"
+        },
+        {
             "type": "chrome",
             "request": "launch",
             "name": "Launch Chrome against localhost",

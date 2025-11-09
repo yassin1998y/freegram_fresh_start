@@ -10,7 +10,6 @@ import 'package:freegram/repositories/action_queue_repository.dart';
 import 'package:freegram/repositories/user_repository.dart';
 import 'package:freegram/services/friend_cache_service.dart';
 import 'package:freegram/services/friend_request_rate_limiter.dart';
-import 'package:meta/meta.dart';
 
 part 'friends_event.dart';
 part 'friends_state.dart';
@@ -99,7 +98,7 @@ class FriendsBloc extends Bloc<FriendsEvent, FriendsState> {
       return;
     }
 
-    if (!(state is FriendsLoaded)) return;
+    if (state is! FriendsLoaded) return;
 
     // Bug #9 fix: Prevent rapid-fire duplicate requests
     if (_pendingRequests.contains(event.toUserId)) {
@@ -215,7 +214,7 @@ class FriendsBloc extends Bloc<FriendsEvent, FriendsState> {
       return;
     }
 
-    if (!(state is FriendsLoaded)) return;
+    if (state is! FriendsLoaded) return;
 
     final currentState = state as FriendsLoaded;
 

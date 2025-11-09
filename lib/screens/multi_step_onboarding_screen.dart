@@ -6,7 +6,6 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/auth_bloc.dart';
 import 'package:freegram/blocs/profile_bloc.dart';
@@ -15,6 +14,7 @@ import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/user_repository.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/widgets/island_popup.dart';
+import 'package:freegram/widgets/common/keyboard_safe_area.dart';
 import 'package:freegram/widgets/freegram_app_bar.dart';
 import 'package:freegram/utils/auth_constants.dart';
 import 'package:hive/hive.dart';
@@ -23,6 +23,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 /// Animated input field that moves above keyboard with blur effect
 class AnimatedInputField extends StatefulWidget {
@@ -282,6 +283,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: multi_step_onboarding_screen.dart');
 
     // Initialize scroll controllers for keyboard-aware scrolling
     for (int i = 0; i < _totalSteps; i++) {
@@ -838,7 +840,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
               Container(
                 width: 40,
                 height: 4,
-                margin: EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
+                margin: const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
                 decoration: BoxDecoration(
                   color: Colors.grey[300],
                   borderRadius: BorderRadius.circular(2),
@@ -854,7 +856,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                 title: const Text('Gallery'),
                 onTap: () => Navigator.of(context).pop(ImageSource.gallery),
               ),
-              SizedBox(height: DesignTokens.spaceMD),
+              const SizedBox(height: DesignTokens.spaceMD),
             ],
           ),
         ),
@@ -1226,8 +1228,8 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
 
               // Wait for Firestore to propagate the update, then verify navigation happens
               // The StreamBuilder in AuthWrapper should automatically rebuild when the stream emits
-              // Add a small delay to ensure Firestore has time to propagate the update
-              Future.delayed(const Duration(milliseconds: 100), () async {
+              // Add a delay to ensure Firestore has time to propagate the update
+              Future.delayed(const Duration(milliseconds: 500), () async {
                 if (!mounted) return;
 
                 // Verify the update was successful by checking Firestore
@@ -1244,18 +1246,39 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                   if (isProfileComplete && mounted) {
                     debugPrint(
                       'MultiStepOnboardingScreen: Profile update confirmed in Firestore. '
-                      'Waiting for AuthWrapper stream to update and navigate...',
+                      'Profile data: age=${updatedUser.age}, country=${updatedUser.country}, '
+                      'gender=${updatedUser.gender}, username=${updatedUser.username}',
                     );
 
-                    // Give AuthWrapper time to detect the stream update and navigate
-                    // If after 3 seconds we're still showing the success screen, log a warning
-                    Future.delayed(const Duration(seconds: 3), () {
-                      if (mounted && _showSuccessScreen) {
+                    // The StreamBuilder in AuthWrapper should automatically detect the Firestore update
+                    // However, Firestore streams can have delays. If the stream doesn't update within
+                    // 1.5 seconds, we'll trigger a manual refresh by writing a dummy field to Firestore
+                    // and immediately removing it. This forces the stream to emit a new value.
+                    Future.delayed(const Duration(milliseconds: 1500), () async {
+                      if (!mounted || !_showSuccessScreen) return;
+                      
+                      debugPrint(
+                        'MultiStepOnboardingScreen: Stream update delay detected. '
+                        'Attempting to force stream refresh...',
+                      );
+                      
+                      try {
+                        // Force the Firestore stream to emit by updating a timestamp field
+                        // This is a common technique to force stream updates when the stream
+                        // doesn't detect changes immediately after an update
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(currentUser.uid)
+                            .update({
+                          'lastProfileUpdate': DateTime.now().toIso8601String(),
+                        });
                         debugPrint(
-                          'MultiStepOnboardingScreen: WARNING - Still showing success screen after 3 seconds. '
-                          'AuthWrapper should have navigated by now. This might indicate a stream update delay. '
-                          'Profile data: age=${updatedUser.age}, country=${updatedUser.country}, '
-                          'gender=${updatedUser.gender}, username=${updatedUser.username}',
+                          'MultiStepOnboardingScreen: Triggered stream refresh update. '
+                          'AuthWrapper should rebuild shortly.',
+                        );
+                      } catch (e) {
+                        debugPrint(
+                          'MultiStepOnboardingScreen: Error forcing stream refresh: $e',
                         );
                       }
                     });
@@ -1441,14 +1464,17 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
 
                               // Page content - adjust height when keyboard is visible
                               Expanded(
-                                child: PageView(
-                                  controller: _pageController,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  children: [
-                                    _buildStep1(),
-                                    _buildStep2(),
-                                    _buildStep3(),
-                                  ],
+                                child: KeyboardSafeArea(
+                                  child: PageView(
+                                    controller: _pageController,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    children: [
+                                      _buildStep1(),
+                                      _buildStep2(),
+                                      _buildStep3(),
+                                    ],
+                                  ),
                                 ),
                               ),
 
@@ -1635,7 +1661,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
           ),
           if (_imageFile != null || _uploadedImageUrl != null) ...[
             const SizedBox(height: DesignTokens.spaceSM),
-            Text(
+            const Text(
               'Photo selected ✓',
               style: TextStyle(
                 color: DesignTokens.successColor,
@@ -1660,7 +1686,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                   ),
                   prefixIcon: const Icon(Icons.person_outline),
                   suffixIcon: _nameValidated
-                      ? Icon(
+                      ? const Icon(
                           Icons.check_circle,
                           color: DesignTokens.successColor,
                         )
@@ -1751,7 +1777,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                   ),
                   prefixIcon: const Icon(Icons.calendar_today),
                   suffixIcon: _dobValidated
-                      ? Icon(
+                      ? const Icon(
                           Icons.check_circle,
                           color: DesignTokens.successColor,
                         )
@@ -1780,7 +1806,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
           Tooltip(
             message: 'Select your gender identity',
             child: DropdownButtonFormField<String>(
-              value: _selectedGender,
+              initialValue: _selectedGender,
               decoration: InputDecoration(
                 labelText: 'Gender',
                 border: OutlineInputBorder(
@@ -1797,7 +1823,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                 ),
                 prefixIcon: const Icon(Icons.person_outline),
                 suffixIcon: _genderValidated
-                    ? Icon(
+                    ? const Icon(
                         Icons.check_circle,
                         color: DesignTokens.successColor,
                       )
@@ -1840,11 +1866,9 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                   ? SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(
+                      child: AppProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Theme.of(context).colorScheme.primary,
-                        ),
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     )
                   : Icon(
@@ -1897,7 +1921,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
               ),
               child: Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.check_circle,
                     color: DesignTokens.successColor,
                     size: 20,
@@ -1906,7 +1930,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                   Expanded(
                     child: Text(
                       'Country: $_selectedCountry',
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: DesignTokens.successColor,
                         fontWeight: FontWeight.w500,
                       ),
@@ -2195,11 +2219,9 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                 SizedBox(
                   width: 36,
                   height: 36,
-                  child: CircularProgressIndicator(
+                  child: AppProgressIndicator(
                     strokeWidth: 3,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Theme.of(context).colorScheme.primary,
-                    ),
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
                 const SizedBox(height: DesignTokens.spaceMD),

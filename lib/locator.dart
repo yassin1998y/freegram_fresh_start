@@ -24,7 +24,11 @@ import 'package:freegram/services/sonar/sonar_controller.dart'; // Keep
 import 'package:freegram/services/cache_manager_service.dart'; // Keep
 import 'package:freegram/services/sync_manager.dart'; // Keep
 import 'package:freegram/services/network_quality_service.dart'; // Chat improvements
+import 'package:freegram/services/media_prefetch_service.dart';
+// Note: IntelligentPrefetchService is initialized manually in MainScreenWrapper
+// after SharedPreferences is ready, so we don't import it here
 import 'package:freegram/services/friend_cache_service.dart'; // Friends caching
+import 'package:freegram/services/feed_cache_service.dart'; // Feed caching for offline
 import 'package:freegram/services/friend_request_rate_limiter.dart'; // Rate limiting
 import 'package:freegram/services/friend_action_retry_service.dart'; // Offline retry
 import 'package:freegram/services/fcm_token_service.dart'; // FCM push notifications
@@ -36,7 +40,9 @@ import 'package:freegram/services/hashtag_service.dart'; // Hashtag System
 import 'package:freegram/services/mention_service.dart'; // Mention System
 import 'package:freegram/services/moderation_service.dart'; // Moderation System
 import 'package:freegram/repositories/search_repository.dart'; // Search & Discovery
+import 'package:freegram/repositories/reel_repository.dart'; // Reels Feature
 import 'package:freegram/services/ad_service.dart'; // Ad Service
+import 'package:freegram/services/gallery_service.dart'; // Gallery Service for Stories
 import 'package:get_it/get_it.dart';
 
 final GetIt locator = GetIt.instance;
@@ -65,6 +71,7 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
       () => FeatureGuideRepository()); // Feature Discovery
   locator.registerLazySingleton(() => SearchRepository()); // Search & Discovery
   locator.registerLazySingleton(() => StoryRepository()); // Stories Feature
+  locator.registerLazySingleton(() => ReelRepository()); // Reels Feature
 
   // --- Register Repositories with Dependencies ---
   // UserRepository: Remove GamificationRepository dependency, keep NotificationRepository
@@ -80,6 +87,15 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
 
   // --- Register Core Services ---
   locator.registerLazySingleton(() => CacheManagerService());
+  
+  // Network Quality Service - Register as singleton (it uses factory pattern internally)
+  locator.registerLazySingleton<NetworkQualityService>(() => NetworkQualityService());
+  
+  // Media Prefetch Service - Prefetches videos/images for better performance
+  locator.registerLazySingleton(() => MediaPrefetchService(
+        networkService: locator<NetworkQualityService>(), // Use GetIt instead of direct instantiation
+        cacheService: locator<CacheManagerService>(),
+      ));
   locator.registerLazySingleton(
       () => SyncManager(connectivityBloc: connectivityBloc));
 
@@ -89,6 +105,9 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
 
   // Friend Cache Service
   locator.registerLazySingleton(() => FriendCacheService());
+  
+  // Feed Cache Service
+  locator.registerLazySingleton(() => FeedCacheService());
 
   // Friend Request Rate Limiter
   locator.registerLazySingleton(() => FriendRequestRateLimiter());
@@ -114,8 +133,15 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
   // Moderation Service
   locator.registerLazySingleton(() => ModerationService());
 
+  // Gallery Service
+  locator.registerLazySingleton(() => GalleryService());
+
+  // Phase 1.3: Intelligent Prefetch Service
+  // Note: This service is initialized manually in MainScreenWrapper
+  // after SharedPreferences is ready, so we don't register it here
+
   // Initialize Services
-  NetworkQualityService().init();
+  locator<NetworkQualityService>().init(); // Use GetIt instead of direct instantiation
   locator<FriendCacheService>().init();
   locator<FriendRequestRateLimiter>().init();
   locator<FriendActionRetryService>().initialize();

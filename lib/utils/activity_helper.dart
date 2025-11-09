@@ -36,7 +36,7 @@ class ActivityHelper {
 
     final years = (now.year - lastSeen.year);
     if (years == 1) return 'Active 1 year ago';
-    if (years > 1) return 'Active ${years} years ago';
+    if (years > 1) return 'Active $years years ago';
 
     return 'Inactive';
   }

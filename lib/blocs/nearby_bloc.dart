@@ -6,7 +6,6 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart'; // <<<--- ADDED THIS IMPORT for debugPrint
 import 'package:freegram/locator.dart'; // To get SonarController
 import 'package:freegram/services/sonar/sonar_controller.dart'; // To start/stop
-import 'package:meta/meta.dart';
 import 'package:freegram/services/sonar/bluetooth_service.dart';
 
 part 'nearby_event.dart';

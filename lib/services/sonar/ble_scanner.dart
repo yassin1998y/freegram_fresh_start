@@ -50,9 +50,10 @@ class BleScanner {
 
   String _bytesToUidShort(List<int> bytes) {
     // ... (implementation remains the same)
-    if (bytes.length < 4)
+    if (bytes.length < 4) {
       throw ArgumentError(
           'Byte list must contain at least 4 bytes for uidShort');
+    }
     return bytes
         .sublist(0, 4)
         .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
@@ -273,9 +274,9 @@ class BleScanner {
       }
 
       // Process Xiaomi alternative advertisements (minimal data)
-      const int ALTERNATIVE_MANUFACTURER_ID = 0xFFFC;
-      if (manufData.containsKey(ALTERNATIVE_MANUFACTURER_ID)) {
-        final payload = manufData[ALTERNATIVE_MANUFACTURER_ID]!;
+      const int alternativeManufacturerId = 0xFFFC;
+      if (manufData.containsKey(alternativeManufacturerId)) {
+        final payload = manufData[alternativeManufacturerId]!;
         debugPrint(
             "BLE Scanner: Found Xiaomi alternative advertisement with payload length: ${payload.length}");
         if (payload.length >= 3) {

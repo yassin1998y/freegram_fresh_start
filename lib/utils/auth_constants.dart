@@ -18,5 +18,5 @@ class AuthConstants {
 
   // Standard onboarding key
   static String getOnboardingKey(String userId) =>
-      '${onboardingCompletePrefix}$userId';
+      '$onboardingCompletePrefix$userId';
 }

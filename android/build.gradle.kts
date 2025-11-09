@@ -2,6 +2,10 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // JitPack is needed for ffmpeg-kit dependencies
+        maven { url = uri("https://jitpack.io") }
+        // Sonatype Snapshots (sometimes used for newer releases)
+        maven { url = uri("https://oss.sonatype.org/content/repositories/snapshots/") }
     }
 }
 
@@ -18,6 +22,8 @@ subprojects {
 subprojects {
     project.evaluationDependsOn(":app")
 }
+
+
 
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)

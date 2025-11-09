@@ -6,6 +6,7 @@ import 'package:freegram/locator.dart';
 import 'package:freegram/repositories/feature_guide_repository.dart';
 import 'package:freegram/models/feature_guide_model.dart';
 import 'package:freegram/screens/feature_guide_detail_screen.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class FeatureDiscoveryScreen extends StatefulWidget {
   const FeatureDiscoveryScreen({Key? key}) : super(key: key);
@@ -43,6 +44,7 @@ class _FeatureDiscoveryScreenState extends State<FeatureDiscoveryScreen>
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: feature_discovery_screen.dart');
     _tabController = TabController(length: _categories.length + 1, vsync: this);
     _loadData();
   }
@@ -115,7 +117,7 @@ class _FeatureDiscoveryScreenState extends State<FeatureDiscoveryScreen>
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AppProgressIndicator())
           : Column(
               children: [
                 // Progress card
@@ -139,7 +141,7 @@ class _FeatureDiscoveryScreenState extends State<FeatureDiscoveryScreen>
                                   ),
                         ),
                         const SizedBox(height: 8),
-                        LinearProgressIndicator(
+                        AppLinearProgressIndicator(
                           value: (_progressStats['percentage'] ?? 0) / 100,
                           backgroundColor: Colors.grey[300],
                         ),
@@ -254,7 +256,7 @@ class _FeatureDiscoveryScreenState extends State<FeatureDiscoveryScreen>
                               ),
                             ),
                             if (isCompleted)
-                              Icon(
+                              const Icon(
                                 Icons.check_circle,
                                 color: Colors.green,
                                 size: 20,

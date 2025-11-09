@@ -7,6 +7,7 @@ import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/services/fcm_token_service.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/widgets/island_popup.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -31,6 +32,7 @@ class _NotificationSettingsScreenState
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: notification_settings_screen.dart');
     _loadPreferences();
     _checkNotificationStatus();
   }
@@ -138,24 +140,24 @@ class _NotificationSettingsScreenState
         elevation: 0,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AppProgressIndicator())
           : ListView(
-              padding: EdgeInsets.all(DesignTokens.spaceMD),
+              padding: const EdgeInsets.all(DesignTokens.spaceMD),
               children: [
                 // Notification Status Card
                 _buildStatusCard(theme),
 
-                SizedBox(height: DesignTokens.spaceLG),
+                const SizedBox(height: DesignTokens.spaceLG),
 
                 // Master Switch
                 _buildMasterSwitch(theme),
 
-                SizedBox(height: DesignTokens.spaceMD),
+                const SizedBox(height: DesignTokens.spaceMD),
 
                 // Individual Notification Types
                 _buildNotificationTypeSection(theme),
 
-                SizedBox(height: DesignTokens.spaceLG),
+                const SizedBox(height: DesignTokens.spaceLG),
 
                 // Debug Info (only in debug mode)
                 if (_fcmToken != null) _buildDebugInfo(theme),
@@ -171,7 +173,7 @@ class _NotificationSettingsScreenState
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
       ),
       child: Padding(
-        padding: EdgeInsets.all(DesignTokens.spaceMD),
+        padding: const EdgeInsets.all(DesignTokens.spaceMD),
         child: Row(
           children: [
             Icon(
@@ -183,7 +185,7 @@ class _NotificationSettingsScreenState
                   : theme.colorScheme.error,
               size: 40,
             ),
-            SizedBox(width: DesignTokens.spaceMD),
+            const SizedBox(width: DesignTokens.spaceMD),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,7 +201,7 @@ class _NotificationSettingsScreenState
                           : theme.colorScheme.error,
                     ),
                   ),
-                  SizedBox(height: DesignTokens.spaceSM),
+                  const SizedBox(height: DesignTokens.spaceSM),
                   Text(
                     _notificationsEnabled
                         ? 'You will receive push notifications'
@@ -239,7 +241,7 @@ class _NotificationSettingsScreenState
                 _savePreferences();
               }
             : null,
-        activeColor: theme.colorScheme.primary,
+        activeThumbColor: theme.colorScheme.primary,
       ),
     );
   }
@@ -254,7 +256,7 @@ class _NotificationSettingsScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: EdgeInsets.all(DesignTokens.spaceMD),
+            padding: const EdgeInsets.all(DesignTokens.spaceMD),
             child: Text(
               'Notification Types',
               style: theme.textTheme.titleSmall?.copyWith(
@@ -353,14 +355,14 @@ class _NotificationSettingsScreenState
       ),
       value: value,
       onChanged: isEnabled ? onChanged : null,
-      activeColor: theme.colorScheme.primary,
+      activeThumbColor: theme.colorScheme.primary,
     );
   }
 
   Widget _buildDebugInfo(ThemeData theme) {
     return Card(
       elevation: 1,
-      color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
       ),
@@ -373,7 +375,7 @@ class _NotificationSettingsScreenState
         ),
         children: [
           Padding(
-            padding: EdgeInsets.all(DesignTokens.spaceMD),
+            padding: const EdgeInsets.all(DesignTokens.spaceMD),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -383,14 +385,14 @@ class _NotificationSettingsScreenState
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: DesignTokens.spaceSM),
+                const SizedBox(height: DesignTokens.spaceSM),
                 SelectableText(
                   _fcmToken ?? 'No token available',
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontFamily: 'monospace',
                   ),
                 ),
-                SizedBox(height: DesignTokens.spaceMD),
+                const SizedBox(height: DesignTokens.spaceMD),
                 ElevatedButton.icon(
                   onPressed: () async {
                     try {

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/repositories/post_repository.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class LikedByList extends StatefulWidget {
   final String postId;
@@ -20,8 +21,8 @@ class LikedByList extends StatefulWidget {
 }
 
 class _LikedByListState extends State<LikedByList> {
-  List<String> _likedUserIds = [];
-  Map<String, Map<String, dynamic>> _userData = {};
+  final List<String> _likedUserIds = [];
+  final Map<String, Map<String, dynamic>> _userData = {};
   bool _isLoading = true;
   DocumentSnapshot? _lastDocument;
   bool _hasMore = true;
@@ -111,7 +112,7 @@ class _LikedByListState extends State<LikedByList> {
               ),
               child: Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.favorite,
                     color: Colors.red,
                     size: 24,
@@ -141,7 +142,7 @@ class _LikedByListState extends State<LikedByList> {
                   ? const Center(
                       child: Padding(
                         padding: EdgeInsets.all(32),
-                        child: CircularProgressIndicator(),
+                        child: const AppProgressIndicator(),
                       ),
                     )
                   : _likedUserIds.isEmpty
@@ -178,7 +179,7 @@ class _LikedByListState extends State<LikedByList> {
                                 padding: const EdgeInsets.all(16),
                                 child: _isLoading
                                     ? const Center(
-                                        child: CircularProgressIndicator(),
+                                        child: const AppProgressIndicator(),
                                       )
                                     : TextButton(
                                         onPressed: _loadLikedUsers,

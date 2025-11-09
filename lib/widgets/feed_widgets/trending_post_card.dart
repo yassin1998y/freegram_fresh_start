@@ -5,6 +5,7 @@ import 'package:freegram/models/feed_item_model.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:freegram/models/post_model.dart';
 import 'package:freegram/models/media_item_model.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 /// Compact card widget for horizontal trending sections
 /// Shows only the media with minimal overlay info
@@ -200,7 +201,7 @@ class TrendingPostCard extends StatelessWidget {
       placeholder: (context, url) => Container(
         color: Colors.grey[300],
         child: const Center(
-          child: CircularProgressIndicator(strokeWidth: 2),
+          child: AppProgressIndicator(strokeWidth: 2),
         ),
       ),
       errorWidget: (context, url, error) => _buildPlaceholder(context, post),
@@ -225,7 +226,7 @@ class TrendingPostCard extends StatelessWidget {
           placeholder: (context, url) => Container(
             color: Colors.grey[800],
             child: const Center(
-              child: CircularProgressIndicator(
+              child: AppProgressIndicator(
                 strokeWidth: 2,
                 color: Colors.white,
               ),

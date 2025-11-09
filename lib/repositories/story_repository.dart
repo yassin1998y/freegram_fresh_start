@@ -1,16 +1,18 @@
 // lib/repositories/story_repository.dart
 
+import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data' show Uint8List;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:freegram/models/story_media_model.dart';
-import 'package:freegram/models/story_tray_item_model.dart';
 import 'package:freegram/models/story_tray_data_model.dart';
 import 'package:freegram/models/text_overlay_model.dart';
 import 'package:freegram/models/drawing_path_model.dart';
 import 'package:freegram/models/sticker_overlay_model.dart';
 import 'package:freegram/services/cloudinary_service.dart';
+import 'package:freegram/services/video_upload_service.dart';
+import 'package:freegram/repositories/chat_repository.dart';
+import 'package:freegram/locator.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
@@ -26,7 +28,7 @@ class StoryRepository {
   /// Create a new story
   Future<String> createStory({
     required String userId,
-    required File mediaFile,
+    File? mediaFile,
     required String mediaType, // 'image' or 'video'
     String? caption,
     List<TextOverlay>? textOverlays,
@@ -34,21 +36,39 @@ class StoryRepository {
     List<String>? stickerIds,
     List<StickerOverlay>? stickerOverlays,
     double? videoDuration,
+    String? audioUrl, // Audio track URL (optional, for stories with audio)
+    String? preUploadedMediaUrl, // Pre-uploaded media URL (optional, to skip upload)
+    Map<String, String>? preUploadedVideoQualities, // Pre-uploaded video qualities (optional)
+    String? preUploadedThumbnailUrl, // Pre-uploaded thumbnail URL (optional)
   }) async {
     // Store original videoDuration for later use
     double? finalVideoDuration = videoDuration;
     try {
-      // 1. Upload media to Cloudinary
+      // 1. Upload media to Cloudinary (or use pre-uploaded URLs)
       String mediaUrl;
       String? thumbnailUrl;
+      Map<String, String>? videoQualities; // For multi-quality video URLs (Phase 2.2)
 
-      if (mediaType == 'video') {
+      if (preUploadedMediaUrl != null) {
+        // Use pre-uploaded URLs
+        mediaUrl = preUploadedMediaUrl;
+        thumbnailUrl = preUploadedThumbnailUrl;
+        videoQualities = preUploadedVideoQualities;
+      } else if (mediaFile != null) {
+        if (mediaType == 'video') {
         // Generate thumbnail first (before upload)
+        // Add timeout to prevent infinite loops from transcoder library
         final thumbnailData = await VideoThumbnail.thumbnailData(
           video: mediaFile.path,
           imageFormat: ImageFormat.JPEG,
           maxWidth: 400,
           quality: 75,
+        ).timeout(
+          const Duration(seconds: 30), // 30 second timeout for thumbnail generation
+          onTimeout: () {
+            debugPrint('StoryRepository: Thumbnail generation timeout');
+            return null; // Return null on timeout, thumbnail is optional
+          },
         );
 
         if (thumbnailData != null) {
@@ -75,17 +95,24 @@ class StoryRepository {
           }
         }
 
-        // Upload video to Cloudinary
-        mediaUrl = await CloudinaryService.uploadVideoFromFile(mediaFile) ?? '';
-        if (mediaUrl.isEmpty) {
+        // Upload video to Cloudinary with multiple qualities (Phase 2.2 - ABR support)
+        final videoUploadService = VideoUploadService();
+        videoQualities = await videoUploadService.uploadVideoWithMultipleQualities(mediaFile);
+        
+        if (videoQualities == null || videoQualities['videoUrl'] == null || videoQualities['videoUrl']!.isEmpty) {
           throw Exception('Failed to upload video to Cloudinary');
         }
-      } else {
-        // Upload image
-        mediaUrl = await CloudinaryService.uploadImageFromFile(mediaFile) ?? '';
-        if (mediaUrl.isEmpty) {
-          throw Exception('Failed to upload image to Cloudinary');
+        
+        mediaUrl = videoQualities['videoUrl']!;
+        } else {
+          // Upload image
+          mediaUrl = await CloudinaryService.uploadImageFromFile(mediaFile) ?? '';
+          if (mediaUrl.isEmpty) {
+            throw Exception('Failed to upload image to Cloudinary');
+          }
         }
+      } else {
+        throw Exception('Either mediaFile or preUploadedMediaUrl must be provided');
       }
 
       // 2. Create story document in Firestore
@@ -95,7 +122,7 @@ class StoryRepository {
         DateTime.now().add(const Duration(hours: 24)),
       );
 
-      await storyRef.set({
+      final storyData = <String, dynamic>{
         'storyId': storyRef.id,
         'authorId': userId,
         'mediaUrl': mediaUrl,
@@ -112,7 +139,23 @@ class StoryRepository {
         'viewerCount': 0,
         'replyCount': 0,
         'isActive': true,
-      });
+        if (audioUrl != null) 'audioUrl': audioUrl,
+      };
+
+      // Add multi-quality video URLs if available (Phase 2.2 - ABR support)
+      if (mediaType == 'video' && videoQualities != null) {
+        if (videoQualities['videoUrl360p'] != null) {
+          storyData['videoUrl360p'] = videoQualities['videoUrl360p'];
+        }
+        if (videoQualities['videoUrl720p'] != null) {
+          storyData['videoUrl720p'] = videoQualities['videoUrl720p'];
+        }
+        if (videoQualities['videoUrl1080p'] != null) {
+          storyData['videoUrl1080p'] = videoQualities['videoUrl1080p'];
+        }
+      }
+
+      await storyRef.set(storyData);
 
       debugPrint(
           'StoryRepository: Story created successfully with ID: ${storyRef.id}');
@@ -207,7 +250,7 @@ class StoryRepository {
           .snapshots()
           .asyncExpand((userDoc) {
         if (!userDoc.exists) {
-          return Stream.value(StoryTrayData(
+          return Stream.value(const StoryTrayData(
             unreadStories: [],
             seenStories: [],
             userAvatars: {},
@@ -217,10 +260,10 @@ class StoryRepository {
 
         final userData = userDoc.data()!;
         final friends = List<String>.from(userData['friends'] ?? []);
-        final allUserIds = <String>[userId]..addAll(friends);
+        final allUserIds = <String>[userId, ...friends];
 
         if (allUserIds.isEmpty) {
-          return Stream.value(StoryTrayData(
+          return Stream.value(const StoryTrayData(
             unreadStories: [],
             seenStories: [],
             userAvatars: {},
@@ -388,7 +431,7 @@ class StoryRepository {
         });
       }).handleError((error) {
         debugPrint('StoryRepository: Error in story tray data stream: $error');
-        return StoryTrayData(
+        return const StoryTrayData(
           unreadStories: [],
           seenStories: [],
           userAvatars: {},
@@ -397,231 +440,12 @@ class StoryRepository {
       });
     } catch (e) {
       debugPrint('StoryRepository: Error getting story tray data stream: $e');
-      return Stream.value(StoryTrayData(
+      return Stream.value(const StoryTrayData(
         unreadStories: [],
         seenStories: [],
         userAvatars: {},
         usernames: {},
       ));
-    }
-  }
-
-  /// Get story tray stream (active stories from followed users)
-  /// Uses real-time Firestore listeners instead of polling
-  /// @deprecated Use getStoryTrayDataStream instead
-  Stream<List<StoryTrayItem>> getStoryTrayStream(String userId) {
-    try {
-      // Get user's friends list first
-      return _db
-          .collection('users')
-          .doc(userId)
-          .snapshots()
-          .asyncExpand((userDoc) {
-        if (!userDoc.exists) {
-          return Stream.value(<StoryTrayItem>[]);
-        }
-
-        final userData = userDoc.data()!;
-        final friends = List<String>.from(userData['friends'] ?? []);
-        final allUserIds = <String>[userId]..addAll(friends);
-
-        if (allUserIds.isEmpty) {
-          return Stream.value(<StoryTrayItem>[]);
-        }
-
-        // Limit to 50 most recent active stories to manage costs
-        // Use snapshots() for real-time updates
-        return _db
-            .collection('story_media')
-            .where('isActive', isEqualTo: true)
-            .orderBy('createdAt', descending: true)
-            .limit(50)
-            .snapshots()
-            .asyncMap((snapshot) async {
-          // Filter stories by friends and expiration
-          final now = Timestamp.now();
-          final storiesByAuthor = <String, List<StoryMedia>>{};
-
-          for (var doc in snapshot.docs) {
-            try {
-              final story = StoryMedia.fromDoc(doc);
-              // Only include stories from friends or self
-              if (allUserIds.contains(story.authorId) &&
-                  story.expiresAt.isAfter(now.toDate())) {
-                storiesByAuthor
-                    .putIfAbsent(story.authorId, () => [])
-                    .add(story);
-              }
-            } catch (e) {
-              debugPrint('StoryRepository: Error parsing story ${doc.id}: $e');
-            }
-          }
-
-          // Build tray items - ALWAYS include user's own story item so UI can detect it
-          final trayItems = <StoryTrayItem>[];
-          final processedAuthors = <String>{};
-
-          // Batch fetch user info for all authors
-          final authorIds = storiesByAuthor.keys.toList();
-          final userDocs = <String, Map<String, dynamic>>{};
-
-          if (authorIds.isNotEmpty) {
-            try {
-              // Batch fetch user documents (limit to 10 at a time due to Firestore limits)
-              final batches = <List<String>>[];
-              for (var i = 0; i < authorIds.length; i += 10) {
-                batches.add(authorIds.sublist(
-                  i,
-                  i + 10 > authorIds.length ? authorIds.length : i + 10,
-                ));
-              }
-
-              for (final batch in batches) {
-                final futures = batch.map((authorId) => _db
-                    .collection('users')
-                    .doc(authorId)
-                    .get()
-                    .then((doc) =>
-                        MapEntry(authorId, doc.exists ? doc.data() : null)));
-                final results = await Future.wait(futures);
-                for (final entry in results) {
-                  if (entry.value != null) {
-                    userDocs[entry.key] = entry.value!;
-                  }
-                }
-              }
-            } catch (e) {
-              debugPrint('StoryRepository: Error batch fetching user info: $e');
-            }
-          }
-
-          // Process user's own stories first
-          final userStories = storiesByAuthor[userId] ?? [];
-          if (userStories.isNotEmpty) {
-            final userData = userDocs[userId];
-            if (userData != null) {
-              final photoUrl = userData['photoUrl'];
-              // Validate URL - must be HTTP/HTTPS or empty string
-              final validatedUrl = (photoUrl != null &&
-                      photoUrl is String &&
-                      photoUrl.isNotEmpty &&
-                      photoUrl.trim().isNotEmpty &&
-                      (photoUrl.startsWith('http://') ||
-                          photoUrl.startsWith('https://')))
-                  ? photoUrl.trim()
-                  : '';
-              trayItems.add(StoryTrayItem(
-                userId: userId,
-                username: userData['username'] ?? 'Unknown',
-                userAvatarUrl: validatedUrl,
-                hasUnreadStory: false, // Own stories are never unread
-                storyCount: userStories.length,
-              ));
-              processedAuthors.add(userId);
-            }
-          }
-
-          // Batch check viewer status for all stories
-          final storyIds = <String>[];
-          for (final stories in storiesByAuthor.values) {
-            for (final story in stories) {
-              storyIds.add(story.storyId);
-            }
-          }
-
-          final viewedStoryIds = <String>{};
-          if (storyIds.isNotEmpty) {
-            try {
-              // Batch check viewer documents (limit to 10 at a time)
-              final batches = <List<String>>[];
-              for (var i = 0; i < storyIds.length; i += 10) {
-                batches.add(storyIds.sublist(
-                  i,
-                  i + 10 > storyIds.length ? storyIds.length : i + 10,
-                ));
-              }
-
-              for (final batch in batches) {
-                final futures = batch.map((storyId) => _db
-                    .collection('story_media')
-                    .doc(storyId)
-                    .collection('viewers')
-                    .doc(userId)
-                    .get()
-                    .then((doc) => MapEntry(storyId, doc.exists)));
-                final results = await Future.wait(futures);
-                for (final entry in results) {
-                  if (entry.value) {
-                    viewedStoryIds.add(entry.key);
-                  }
-                }
-              }
-            } catch (e) {
-              debugPrint(
-                  'StoryRepository: Error batch checking viewer status: $e');
-            }
-          }
-
-          // Process friends' stories
-          for (final authorId in allUserIds) {
-            if (processedAuthors.contains(authorId)) continue;
-            final stories = storiesByAuthor[authorId] ?? [];
-            if (stories.isEmpty) continue;
-
-            processedAuthors.add(authorId);
-
-            final authorData = userDocs[authorId];
-            if (authorData == null) continue;
-
-            // Check if current user has viewed all stories
-            bool hasUnread = false;
-            for (final story in stories) {
-              if (!viewedStoryIds.contains(story.storyId)) {
-                hasUnread = true;
-                break;
-              }
-            }
-
-            final photoUrl = authorData['photoUrl'];
-            // Validate URL - must be HTTP/HTTPS or empty string
-            final validatedUrl = (photoUrl != null &&
-                    photoUrl is String &&
-                    photoUrl.isNotEmpty &&
-                    photoUrl.trim().isNotEmpty &&
-                    (photoUrl.startsWith('http://') ||
-                        photoUrl.startsWith('https://')))
-                ? photoUrl.trim()
-                : '';
-            trayItems.add(StoryTrayItem(
-              userId: authorId,
-              username: authorData['username'] ?? 'Unknown',
-              userAvatarUrl: validatedUrl,
-              hasUnreadStory: hasUnread,
-              storyCount: stories.length,
-            ));
-          }
-
-          // Sort friends' stories (but keep user's own story first)
-          if (trayItems.length > 1) {
-            final ownStory = trayItems.removeAt(0);
-            trayItems.sort((a, b) {
-              if (a.hasUnreadStory != b.hasUnreadStory) {
-                return a.hasUnreadStory ? -1 : 1;
-              }
-              return b.storyCount.compareTo(a.storyCount);
-            });
-            trayItems.insert(0, ownStory);
-          }
-
-          return trayItems;
-        });
-      }).handleError((error) {
-        debugPrint('StoryRepository: Error in story tray stream: $error');
-        return <StoryTrayItem>[];
-      });
-    } catch (e) {
-      debugPrint('StoryRepository: Error getting story tray stream: $e');
-      return Stream.value(<StoryTrayItem>[]);
     }
   }
 
@@ -733,7 +557,7 @@ class StoryRepository {
     }
   }
 
-  /// Reply to a story
+  /// Reply to a story (Facebook-style: Creates a private message instead of public reply)
   Future<void> replyToStory({
     required String storyId,
     required String replierId,
@@ -741,7 +565,7 @@ class StoryRepository {
     required String replyType, // 'text' | 'emoji'
   }) async {
     try {
-      // Get story to find author
+      // Get story to find author and story details
       final storyDoc = await _db.collection('story_media').doc(storyId).get();
       if (!storyDoc.exists) {
         throw Exception('Story not found');
@@ -750,62 +574,59 @@ class StoryRepository {
       final story = StoryMedia.fromDoc(storyDoc);
       final authorId = story.authorId;
 
-      // Create reply document
-      final replyRef = _db
-          .collection('story_media')
-          .doc(storyId)
-          .collection('replies')
-          .doc();
-
-      await replyRef.set({
-        'replyId': replyRef.id,
-        'replierId': replierId,
-        'replyType': replyType,
-        'content': content,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      // Update reply count
-      await _db.collection('story_media').doc(storyId).update({
-        'replyCount': FieldValue.increment(1),
-      });
-
-      // Also create DM message in chats collection
-      // Find or create chat between author and replier
-      final chatId = _getChatId(authorId, replierId);
-      final chatRef = _db.collection('chats').doc(chatId);
-
-      // Check if chat exists
-      final chatDoc = await chatRef.get();
-      if (!chatDoc.exists) {
-        // Create chat
-        await chatRef.set({
-          'chatId': chatId,
-          'users': [authorId, replierId],
-          'lastMessage': content,
-          'lastMessageTime': FieldValue.serverTimestamp(),
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      } else {
-        // Update chat
-        await chatRef.update({
-          'lastMessage': content,
-          'lastMessageTime': FieldValue.serverTimestamp(),
-        });
+      // Don't allow replying to your own story
+      if (authorId == replierId) {
+        throw Exception('Cannot reply to your own story');
       }
 
-      // Create message in chat
-      final messageRef = chatRef.collection('messages').doc();
-      await messageRef.set({
-        'messageId': messageRef.id,
-        'senderId': replierId,
-        'text': content,
-        'type': replyType == 'emoji' ? 'emoji' : 'text',
-        'storyReplyId': storyId, // Reference to the story
-        'timestamp': FieldValue.serverTimestamp(),
-      });
+      // Get author's username for story context
+      final authorDoc = await _db.collection('users').doc(authorId).get();
+      final authorUsername = authorDoc.data()?['username'] ?? 'Unknown';
+
+      // Get replier's username for chat creation
+      final replierDoc = await _db.collection('users').doc(replierId).get();
+      final replierUsername = replierDoc.data()?['username'] ?? 'Unknown';
+
+      // Import ChatRepository to use its methods
+      // Note: We'll use locator to avoid circular dependencies
+      final chatRepository = locator<ChatRepository>();
+
+      // Create chat ID manually (same way ChatRepository does it)
+      // Since startOrGetChat uses FirebaseAuth.currentUser, we need to create the chat manually
+      final ids = [authorId, replierId]..sort();
+      final chatId = ids.join('_');
+      final chatRef = _db.collection('chats').doc(chatId);
+      final chatDoc = await chatRef.get();
+
+      if (!chatDoc.exists) {
+        // Create chat with proper structure matching ChatRepository
+        await chatRef.set({
+          'users': [authorId, replierId],
+          'usernames': {
+            authorId: authorUsername,
+            replierId: replierUsername,
+          },
+          'chatType': 'friend', // Story replies are between friends
+          'unreadFor': [],
+          'createdAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+
+      // Send private message with story context
+      await chatRepository.sendMessage(
+        chatId: chatId,
+        senderId: replierId,
+        text: content,
+        storyReplyId: storyId,
+        storyThumbnailUrl: story.thumbnailUrl,
+        storyMediaUrl: story.mediaUrl,
+        storyMediaType: story.mediaType,
+        storyAuthorId: authorId,
+        storyAuthorUsername: authorUsername,
+      );
 
       // Cloud Function will send notification
+      debugPrint('StoryRepository: Story reply sent as private message to chat $chatId');
     } catch (e) {
       debugPrint('StoryRepository: Error replying to story: $e');
       rethrow;
@@ -851,9 +672,4 @@ class StoryRepository {
     }
   }
 
-  /// Helper method to generate consistent chat ID
-  String _getChatId(String userId1, String userId2) {
-    final ids = [userId1, userId2]..sort();
-    return '${ids[0]}_${ids[1]}';
-  }
 }

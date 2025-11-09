@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // === Entry Function (with optional tap callback) ===
@@ -129,7 +128,7 @@ class _IslandPopupState extends State<IslandPopup>
     final primaryAccent = colorScheme.primary;
 
     final screenWidth = MediaQuery.of(context).size.width;
-    final collapsedWidth = 120.0;
+    const collapsedWidth = 120.0;
     final expandedWidth = screenWidth * 0.85;
 
     return Positioned(

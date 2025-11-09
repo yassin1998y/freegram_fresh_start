@@ -1,7 +1,7 @@
 // lib/screens/nearby_screen.dart
 import 'dart:async';
 import 'dart:io'; // For Platform check
-import 'dart:ui'; // For ImageFilter and BackdropFilter
+// For ImageFilter and BackdropFilter
 import 'package:app_settings/app_settings.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -108,6 +108,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: nearby_screen.dart');
     if (!_isWeb) {
       WidgetsBinding.instance.addObserver(this); // Observe app lifecycle
 
@@ -341,7 +342,9 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
   Future<void> _checkAndShowBatteryOptimizationDialog() async {
     if (!mounted ||
         !Platform.isAndroid ||
-        _settingsBox.get('hasSeenBatteryDialog', defaultValue: false)) return;
+        _settingsBox.get('hasSeenBatteryDialog', defaultValue: false)) {
+      return;
+    }
 
     // Use the new MIUI Permission Helper
     final miuiHelper = MiuiPermissionHelper();
@@ -366,12 +369,15 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
   String _getStatusMessage(NearbyState state) {
     // Prioritize hardware/permission issues reported by the StatusService
     final currentServiceStatus = BluetoothStatusService().currentStatus;
-    if (currentServiceStatus == NearbyStatus.permissionsPermanentlyDenied)
+    if (currentServiceStatus == NearbyStatus.permissionsPermanentlyDenied) {
       return "Enable Permissions in Settings.";
-    if (currentServiceStatus == NearbyStatus.permissionsDenied)
+    }
+    if (currentServiceStatus == NearbyStatus.permissionsDenied) {
       return "Enable Permissions to start.";
-    if (currentServiceStatus == NearbyStatus.adapterOff)
+    }
+    if (currentServiceStatus == NearbyStatus.adapterOff) {
       return "Enable Bluetooth to start.";
+    }
 
     // Use BLoC state for operational status
     if (state is NearbyError) {
@@ -396,8 +402,9 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
         }
         return "Actively searching..."; // Use service status
       }
-      if (currentServiceStatus == NearbyStatus.userFound)
+      if (currentServiceStatus == NearbyStatus.userFound) {
         return "Discovery active..."; // Use service status
+      }
     }
     // Default/Idle state message
     return "Tap your picture to begin scanning."; // Updated idle message
@@ -424,7 +431,8 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
           // Build UI based on permission/hardware status first
           if (currentServiceStatus ==
               NearbyStatus.permissionsPermanentlyDenied) {
-            bodyContent = _PermissionDeniedState(isPermanentlyDenied: true);
+            bodyContent =
+                const _PermissionDeniedState(isPermanentlyDenied: true);
           } else if (currentServiceStatus == NearbyStatus.permissionsDenied) {
             bodyContent =
                 _PermissionDeniedState(onRetry: _handlePermissionRequest);
@@ -485,8 +493,8 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                   ),
                 ),
               ),
-              SizedBox(width: DesignTokens.spaceMD),
-              Expanded(
+              const SizedBox(width: DesignTokens.spaceMD),
+              const Expanded(
                 child: ProfessionalStatusChip(
                   label: "Rankings",
                   icon: Icons.leaderboard_outlined,
@@ -501,7 +509,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
         Expanded(
           child: ProfessionalGlassmorphicContainer(
             padding: EdgeInsets.zero,
-            margin: EdgeInsets.all(DesignTokens.spaceLG),
+            margin: const EdgeInsets.all(DesignTokens.spaceLG),
             borderRadius: DesignTokens.radiusLG,
             blurIntensity: DesignTokens.blurMedium,
             child: GestureDetector(
@@ -534,7 +542,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: Theme.of(context)
                           .colorScheme
-                          .onBackground
+                          .onSurface
                           .withOpacity(0.8),
                       fontSize: DesignTokens.fontSizeMD,
                       fontWeight: FontWeight.w500,
@@ -543,7 +551,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                 textAlign: TextAlign.center,
               ),
 
-              SizedBox(height: DesignTokens.spaceLG),
+              const SizedBox(height: DesignTokens.spaceLG),
 
               // Found users section - always show if users exist in cache
               if (userCount > 0) _buildProfessionalFoundUsersSection(),
@@ -650,7 +658,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
           children: [
             // Professional header with count and expand button
             Padding(
-              padding: EdgeInsets.symmetric(
+              padding: const EdgeInsets.symmetric(
                 horizontal: DesignTokens.spaceLG,
                 vertical: DesignTokens.spaceSM,
               ),
@@ -664,7 +672,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                         size: DesignTokens.iconMD,
                         color: Theme.of(context).colorScheme.primary,
                       ),
-                      SizedBox(width: DesignTokens.spaceSM),
+                      const SizedBox(width: DesignTokens.spaceSM),
                       Text(
                         'Found ${nearbyUsers.length} User${nearbyUsers.length > 1 ? 's' : ''}',
                         style: Theme.of(context)
@@ -672,14 +680,14 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                             .titleMedium
                             ?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onBackground,
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontSize: DesignTokens.fontSizeLG,
                             ),
                       ),
                       if (_unsyncedCount > 0) ...[
-                        SizedBox(width: DesignTokens.spaceSM),
+                        const SizedBox(width: DesignTokens.spaceSM),
                         Container(
-                          padding: EdgeInsets.symmetric(
+                          padding: const EdgeInsets.symmetric(
                             horizontal: DesignTokens.spaceSM,
                             vertical: DesignTokens.spaceXS,
                           ),
@@ -689,7 +697,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                                 BorderRadius.circular(DesignTokens.radiusSM),
                           ),
                           child: Text(
-                            '${_unsyncedCount} syncing...',
+                            '$_unsyncedCount syncing...',
                             style:
                                 Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: Colors.white,
@@ -708,7 +716,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                       });
                     },
                     child: Container(
-                      padding: EdgeInsets.all(DesignTokens.spaceSM),
+                      padding: const EdgeInsets.all(DesignTokens.spaceSM),
                       decoration: BoxDecoration(
                         color: Theme.of(context)
                             .colorScheme
@@ -735,8 +743,8 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                 height: DesignTokens.spaceXXXL * 1.5,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  padding:
-                      EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: DesignTokens.spaceLG),
                   itemCount: nearbyUsers.length,
                   itemBuilder: (context, index) {
                     final nearbyUser = nearbyUsers[index];
@@ -779,7 +787,8 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                     onTap: () => _showFoundUsersBottomSheet(context),
                     child: Container(
                       width: DesignTokens.spaceXXXL * 1.2,
-                      margin: EdgeInsets.only(right: DesignTokens.spaceMD),
+                      margin:
+                          const EdgeInsets.only(right: DesignTokens.spaceMD),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.center,
@@ -822,7 +831,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                                         border: Border.all(
                                             color: Colors.white, width: 2),
                                       ),
-                                      child: Icon(
+                                      child: const Icon(
                                         Icons.cloud_download_outlined,
                                         size: DesignTokens.iconXS,
                                         color: Colors.white,
@@ -853,7 +862,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                               ],
                             ),
                           ),
-                          SizedBox(height: DesignTokens.spaceXS),
+                          const SizedBox(height: DesignTokens.spaceXS),
                           // Username text with better constraints
                           SizedBox(
                             width: DesignTokens.spaceXXXL * 1.2,
@@ -1280,7 +1289,7 @@ class _ProfessionalFoundUsersModalState
                         controller: scrollController,
                         physics: const BouncingScrollPhysics(),
                         child: Padding(
-                          padding: EdgeInsets.all(DesignTokens.spaceLG)
+                          padding: const EdgeInsets.all(DesignTokens.spaceLG)
                               .copyWith(bottom: DesignTokens.spaceXXXL),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -1297,7 +1306,7 @@ class _ProfessionalFoundUsersModalState
                                 ),
                               ),
 
-                              SizedBox(height: DesignTokens.spaceLG),
+                              const SizedBox(height: DesignTokens.spaceLG),
 
                               // Refresh and Sync Section with Animation
                               FadeTransition(
@@ -1311,7 +1320,7 @@ class _ProfessionalFoundUsersModalState
                                 ),
                               ),
 
-                              SizedBox(height: DesignTokens.spaceLG),
+                              const SizedBox(height: DesignTokens.spaceLG),
 
                               // User Grid with Animation
                               FadeTransition(
@@ -1346,7 +1355,7 @@ class _ProfessionalFoundUsersModalState
                       borderRadius:
                           BorderRadius.circular(DesignTokens.radiusSM),
                       child: Container(
-                        padding: EdgeInsets.all(DesignTokens.spaceSM),
+                        padding: const EdgeInsets.all(DesignTokens.spaceSM),
                         decoration: BoxDecoration(
                           color: Theme.of(context)
                               .scaffoldBackgroundColor
@@ -1384,7 +1393,7 @@ class _ProfessionalFoundUsersModalState
         final userCount = nearbyUsers.length;
 
         return Container(
-          padding: EdgeInsets.all(DesignTokens.spaceLG),
+          padding: const EdgeInsets.all(DesignTokens.spaceLG),
           decoration: BoxDecoration(
             color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
@@ -1397,7 +1406,7 @@ class _ProfessionalFoundUsersModalState
           child: Row(
             children: [
               Container(
-                padding: EdgeInsets.all(DesignTokens.spaceMD),
+                padding: const EdgeInsets.all(DesignTokens.spaceMD),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
@@ -1408,7 +1417,7 @@ class _ProfessionalFoundUsersModalState
                   color: Theme.of(context).colorScheme.primary,
                 ),
               ),
-              SizedBox(width: DesignTokens.spaceMD),
+              const SizedBox(width: DesignTokens.spaceMD),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1422,7 +1431,7 @@ class _ProfessionalFoundUsersModalState
                                 letterSpacing: DesignTokens.letterSpacingTight,
                               ),
                     ),
-                    SizedBox(height: DesignTokens.spaceXS),
+                    const SizedBox(height: DesignTokens.spaceXS),
                     Text(
                       userCount == 0
                           ? 'No users discovered yet'
@@ -1436,7 +1445,7 @@ class _ProfessionalFoundUsersModalState
                 ),
               ),
               Container(
-                padding: EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: DesignTokens.spaceMD,
                   vertical: DesignTokens.spaceSM,
                 ),
@@ -1467,7 +1476,7 @@ class _ProfessionalFoundUsersModalState
 
   Widget _buildRefreshSection(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(DesignTokens.spaceLG),
+      padding: const EdgeInsets.all(DesignTokens.spaceLG),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
@@ -1480,7 +1489,7 @@ class _ProfessionalFoundUsersModalState
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(DesignTokens.spaceMD),
+            padding: const EdgeInsets.all(DesignTokens.spaceMD),
             decoration: BoxDecoration(
               color: _isSyncing
                   ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
@@ -1503,7 +1512,7 @@ class _ProfessionalFoundUsersModalState
               },
             ),
           ),
-          SizedBox(width: DesignTokens.spaceMD),
+          const SizedBox(width: DesignTokens.spaceMD),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1515,7 +1524,7 @@ class _ProfessionalFoundUsersModalState
                         fontSize: DesignTokens.fontSizeMD,
                       ),
                 ),
-                SizedBox(height: DesignTokens.spaceXS),
+                const SizedBox(height: DesignTokens.spaceXS),
                 Text(
                   _isSyncing
                       ? 'Updating user information...'
@@ -1534,7 +1543,7 @@ class _ProfessionalFoundUsersModalState
               onTap: _isSyncing ? null : _handleRefresh,
               borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
               child: Container(
-                padding: EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: DesignTokens.spaceLG,
                   vertical: DesignTokens.spaceMD,
                 ),
@@ -1580,7 +1589,7 @@ class _ProfessionalFoundUsersModalState
 
   Widget _buildEmptyState(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(DesignTokens.spaceXXXL),
+      padding: const EdgeInsets.all(DesignTokens.spaceXXXL),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
@@ -1593,7 +1602,7 @@ class _ProfessionalFoundUsersModalState
       child: Column(
         children: [
           Container(
-            padding: EdgeInsets.all(DesignTokens.spaceXL),
+            padding: const EdgeInsets.all(DesignTokens.spaceXL),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
               shape: BoxShape.circle,
@@ -1604,7 +1613,7 @@ class _ProfessionalFoundUsersModalState
               color: Theme.of(context).colorScheme.primary,
             ),
           ),
-          SizedBox(height: DesignTokens.spaceLG),
+          const SizedBox(height: DesignTokens.spaceLG),
           Text(
             'No Users Nearby',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -1613,7 +1622,7 @@ class _ProfessionalFoundUsersModalState
                 ),
             textAlign: TextAlign.center,
           ),
-          SizedBox(height: DesignTokens.spaceMD),
+          const SizedBox(height: DesignTokens.spaceMD),
           Text(
             'Keep scanning to discover people around you. Make sure Bluetooth is enabled and you\'re in a populated area.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -1623,14 +1632,14 @@ class _ProfessionalFoundUsersModalState
                 ),
             textAlign: TextAlign.center,
           ),
-          SizedBox(height: DesignTokens.spaceLG),
+          const SizedBox(height: DesignTokens.spaceLG),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: DesignTokens.spaceLG,
                   vertical: DesignTokens.spaceMD,
                 ),
@@ -1647,11 +1656,11 @@ class _ProfessionalFoundUsersModalState
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.radar,
                     size: DesignTokens.iconSM,
                   ),
-                  SizedBox(width: DesignTokens.spaceSM),
+                  const SizedBox(width: DesignTokens.spaceSM),
                   Text(
                     'Start Scanning',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -1748,8 +1757,8 @@ class _ProfessionalFoundUsersModalState
     }).toList();
 
     return ProfessionalResponsiveGrid(
+      padding: const EdgeInsets.all(DesignTokens.spaceLG),
       children: userCards,
-      padding: EdgeInsets.all(DesignTokens.spaceLG),
     );
   }
 }

@@ -61,6 +61,13 @@ class ChatRepository {
     String? replyToMessageText,
     String? replyToImageUrl,
     String? replyToSender,
+    // Story reply context (Facebook-style private story replies)
+    String? storyReplyId,
+    String? storyThumbnailUrl,
+    String? storyMediaUrl,
+    String? storyMediaType,
+    String? storyAuthorId,
+    String? storyAuthorUsername,
   }) async {
     final connectivityResult = await Connectivity().checkConnectivity();
     if (connectivityResult == ConnectivityResult.none) {
@@ -74,6 +81,12 @@ class ChatRepository {
         'replyToMessageText': replyToMessageText,
         'replyToImageUrl': replyToImageUrl,
         'replyToSender': replyToSender,
+        'storyReplyId': storyReplyId,
+        'storyThumbnailUrl': storyThumbnailUrl,
+        'storyMediaUrl': storyMediaUrl,
+        'storyMediaType': storyMediaType,
+        'storyAuthorId': storyAuthorId,
+        'storyAuthorUsername': storyAuthorUsername,
       };
       await _actionQueueRepository.addAction(
           type: 'send_online_message', payload: payload);
@@ -125,6 +138,13 @@ class ChatRepository {
       'replyToMessageText': replyToMessageText,
       'replyToImageUrl': replyToImageUrl,
       'replyToSender': replyToSender,
+      // Story reply context
+      if (storyReplyId != null) 'storyReplyId': storyReplyId,
+      if (storyThumbnailUrl != null) 'storyThumbnailUrl': storyThumbnailUrl,
+      if (storyMediaUrl != null) 'storyMediaUrl': storyMediaUrl,
+      if (storyMediaType != null) 'storyMediaType': storyMediaType,
+      if (storyAuthorId != null) 'storyAuthorId': storyAuthorId,
+      if (storyAuthorUsername != null) 'storyAuthorUsername': storyAuthorUsername,
     });
 
     // Update the main chat document for previews and unread status
@@ -132,7 +152,14 @@ class ChatRepository {
         .firstWhere((id) => id != senderId, orElse: () => '');
 
     // Determine last message preview text
-    final lastMessagePreview = imageUrl != null ? '📷 Photo' : text ?? '';
+    String lastMessagePreview;
+    if (storyReplyId != null) {
+      lastMessagePreview = '📸 Story reply';
+    } else if (imageUrl != null) {
+      lastMessagePreview = '📷 Photo';
+    } else {
+      lastMessagePreview = text ?? '';
+    }
 
     if (otherUserId.isNotEmpty) {
       await chatRef.update({
@@ -217,8 +244,9 @@ class ChatRepository {
   // markMultipleMessagesAsSeen remains the same
   Future<void> markMultipleMessagesAsSeen(
       String chatId, List<String> messageIds) {
-    if (messageIds.isEmpty)
+    if (messageIds.isEmpty) {
       return Future.value(); // No need for batch if list is empty
+    }
     final batch = _db.batch();
     for (final messageId in messageIds) {
       final messageRef = _db

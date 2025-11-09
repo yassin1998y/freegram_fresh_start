@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:freegram/services/page_analytics_service.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class PageAnalyticsScreen extends StatefulWidget {
   final String pageId;
@@ -25,6 +26,7 @@ class _PageAnalyticsScreenState extends State<PageAnalyticsScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: page_analytics_screen.dart');
     _loadAnalytics();
   }
 
@@ -54,7 +56,7 @@ class _PageAnalyticsScreenState extends State<PageAnalyticsScreen> {
         title: const Text('Page Analytics'),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AppProgressIndicator())
           : _analytics == null
               ? const Center(child: Text('No analytics data available'))
               : RefreshIndicator(
@@ -152,7 +154,7 @@ class _PageAnalyticsScreenState extends State<PageAnalyticsScreen> {
                                 _buildMetricRow(
                                   context,
                                   'Avg Engagement/Post',
-                                  '${_analytics!.averageEngagementPerPost.toStringAsFixed(1)}',
+                                  _analytics!.averageEngagementPerPost.toStringAsFixed(1),
                                   Icons.bar_chart,
                                 ),
                               ],
@@ -347,7 +349,7 @@ class _PageAnalyticsScreenState extends State<PageAnalyticsScreen> {
 
     return LineChart(
       LineChartData(
-        gridData: FlGridData(show: true),
+        gridData: const FlGridData(show: true),
         titlesData: FlTitlesData(
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
@@ -376,10 +378,10 @@ class _PageAnalyticsScreenState extends State<PageAnalyticsScreen> {
               },
             ),
           ),
-          rightTitles: AxisTitles(
+          rightTitles: const AxisTitles(
             sideTitles: SideTitles(showTitles: false),
           ),
-          topTitles: AxisTitles(
+          topTitles: const AxisTitles(
             sideTitles: SideTitles(showTitles: false),
           ),
         ),
@@ -393,7 +395,7 @@ class _PageAnalyticsScreenState extends State<PageAnalyticsScreen> {
             color: Colors.blue,
             barWidth: 3,
             isStrokeCapRound: true,
-            dotData: FlDotData(show: true),
+            dotData: const FlDotData(show: true),
             belowBarData: BarAreaData(show: false),
           ),
         ],
@@ -417,7 +419,7 @@ class _PageAnalyticsScreenState extends State<PageAnalyticsScreen> {
 
     return BarChart(
       BarChartData(
-        gridData: FlGridData(show: true),
+        gridData: const FlGridData(show: true),
         titlesData: FlTitlesData(
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
@@ -446,10 +448,10 @@ class _PageAnalyticsScreenState extends State<PageAnalyticsScreen> {
               },
             ),
           ),
-          rightTitles: AxisTitles(
+          rightTitles: const AxisTitles(
             sideTitles: SideTitles(showTitles: false),
           ),
-          topTitles: AxisTitles(
+          topTitles: const AxisTitles(
             sideTitles: SideTitles(showTitles: false),
           ),
         ),

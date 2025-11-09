@@ -63,8 +63,9 @@ class ConnectivityBloc extends Bloc<ConnectivityEvent, ConnectivityState> {
 
   /// Checks actual internet connectivity by attempting to reach Google DNS
   Future<bool> _checkActualInternetConnectivity() async {
-    if (_isCheckingInternet)
+    if (_isCheckingInternet) {
       return state is Online; // Prevent concurrent checks
+    }
 
     _isCheckingInternet = true;
     try {

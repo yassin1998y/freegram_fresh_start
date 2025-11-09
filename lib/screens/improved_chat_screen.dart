@@ -28,6 +28,8 @@ import 'package:freegram/widgets/island_popup.dart';
 import 'package:freegram/widgets/freegram_app_bar.dart';
 import 'package:freegram/services/presence_manager.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/widgets/common/app_button.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/friends_bloc/friends_bloc.dart';
@@ -47,6 +49,7 @@ class ImprovedChatScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('📱 SCREEN: improved_chat_screen.dart');
     // Wrap with FriendsBloc for block functionality
     return BlocProvider(
       create: (context) => FriendsBloc(
@@ -89,7 +92,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
   StreamSubscription? _connectivitySubscription;
   Timer? _typingTimer;
   Timer? _draftSaveTimer;
-  bool _isUploading = false;
+  final bool _isUploading = false;
   static const Duration _sendTimeout = Duration(seconds: 8);
 
   bool get _isOffline {
@@ -110,7 +113,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
 
   // Performance optimization
   static const int _initialMessageCount = 50;
-  bool _hasMoreMessages = true;
+  final bool _hasMoreMessages = true;
   bool _isLoadingMore = false;
 
   @override
@@ -487,7 +490,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                     width: 40,
                     height: 4,
                     margin:
-                        EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
+                        const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
                     decoration: BoxDecoration(
                       color: Colors.grey[300],
                       borderRadius: BorderRadius.circular(2),
@@ -503,7 +506,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                     title: const Text('Gallery'),
                     onTap: () => Navigator.of(context).pop(ImageSource.gallery),
                   ),
-                  SizedBox(height: DesignTokens.spaceMD),
+                  const SizedBox(height: DesignTokens.spaceMD),
                 ],
               ),
             ),
@@ -836,7 +839,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
           showBackButton: true,
         ),
         body: const Center(
-          child: CircularProgressIndicator(),
+          child: AppProgressIndicator(),
         ),
       );
     }
@@ -955,7 +958,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                     Container(
                       width: 38,
                       height: 38,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                       ),
                       child: CircleAvatar(
@@ -991,7 +994,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                   ],
                 ),
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               // Name and status
               Flexible(
                 child: Column(
@@ -1007,7 +1010,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: 1),
+                    const SizedBox(height: 1),
                     // Professional presence text
                     ProfessionalPresenceText(
                       presenceStream: presenceStream,
@@ -1023,7 +1026,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
       ),
       actions: [
         // More options
-        AppBarActionButton(
+        AppIconButton(
           icon: Icons.more_vert_rounded,
           tooltip: 'More options',
           onPressed: () {
@@ -1044,13 +1047,13 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
         return Container(
           decoration: BoxDecoration(
             color: theme.scaffoldBackgroundColor,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: SafeArea(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 Container(
                   width: 40,
                   height: 4,
@@ -1059,7 +1062,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 _buildOptionTile(
                   context,
                   icon: Icons.person_outline,
@@ -1095,7 +1098,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                     _confirmBlockUser(context, userId);
                   },
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
               ],
             ),
           ),
@@ -1219,7 +1222,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
     return ListView.builder(
       reverse: true,
       controller: _scrollController,
-      padding: EdgeInsets.all(DesignTokens.spaceSM),
+      padding: const EdgeInsets.all(DesignTokens.spaceSM),
       physics: const BouncingScrollPhysics(),
       itemCount: _messages.length +
           (matchTimestamp != null ? 1 : 0) +
@@ -1228,10 +1231,10 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
         // Loading indicator at bottom
         if (_isLoadingMore &&
             index == _messages.length + (matchTimestamp != null ? 1 : 0)) {
-          return Center(
+          return const Center(
             child: Padding(
               padding: EdgeInsets.all(DesignTokens.spaceMD),
-              child: const CircularProgressIndicator(strokeWidth: 2),
+              child: AppProgressIndicator(strokeWidth: 2),
             ),
           );
         }
@@ -1315,7 +1318,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                   size: 64,
                   color: Theme.of(context).colorScheme.error,
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Text(
                   message,
                   textAlign: TextAlign.center,
@@ -1339,9 +1342,9 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
       appBar: FreegramAppBar(
         title: widget.otherUsername,
       ),
-      body: SafeArea(
-        child: const Center(
-          child: CircularProgressIndicator(),
+      body: const SafeArea(
+        child: Center(
+          child: AppProgressIndicator(),
         ),
       ),
     );
@@ -1365,8 +1368,8 @@ class _SenderInfoBanner extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      margin: EdgeInsets.only(bottom: 8),
-      padding: EdgeInsets.symmetric(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(
         horizontal: DesignTokens.spaceMD,
         vertical: 12,
       ),
@@ -1382,7 +1385,7 @@ class _SenderInfoBanner extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(8),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: iconColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
@@ -1393,7 +1396,7 @@ class _SenderInfoBanner extends StatelessWidget {
               size: 18,
             ),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               'You can send up to 2 messages. Once they reply or accept, you can chat freely.',

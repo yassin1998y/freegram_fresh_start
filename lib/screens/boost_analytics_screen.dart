@@ -15,6 +15,7 @@ class BoostAnalyticsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('📱 SCREEN: boost_analytics_screen.dart');
     final theme = Theme.of(context);
     final boostStats = post.boostStats ?? {};
     final impressions = boostStats['impressions'] as int? ?? 0;
@@ -48,7 +49,7 @@ class BoostAnalyticsScreen extends StatelessWidget {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(DesignTokens.spaceMD),
+        padding: const EdgeInsets.all(DesignTokens.spaceMD),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -61,7 +62,7 @@ class BoostAnalyticsScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
               ),
               child: Padding(
-                padding: EdgeInsets.all(DesignTokens.spaceMD),
+                padding: const EdgeInsets.all(DesignTokens.spaceMD),
                 child: Row(
                   children: [
                     Icon(
@@ -73,7 +74,7 @@ class BoostAnalyticsScreen extends StatelessWidget {
                             ),
                       size: DesignTokens.iconLG,
                     ),
-                    SizedBox(width: DesignTokens.spaceMD),
+                    const SizedBox(width: DesignTokens.spaceMD),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -102,7 +103,7 @@ class BoostAnalyticsScreen extends StatelessWidget {
                 ),
               ),
             ),
-            SizedBox(height: DesignTokens.spaceLG),
+            const SizedBox(height: DesignTokens.spaceLG),
 
             // Metrics Overview
             Text(
@@ -111,7 +112,7 @@ class BoostAnalyticsScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(height: DesignTokens.spaceMD),
+            const SizedBox(height: DesignTokens.spaceMD),
 
             // Metrics Grid
             Row(
@@ -125,7 +126,7 @@ class BoostAnalyticsScreen extends StatelessWidget {
                     theme.colorScheme.primary,
                   ),
                 ),
-                SizedBox(width: DesignTokens.spaceSM),
+                const SizedBox(width: DesignTokens.spaceSM),
                 Expanded(
                   child: _buildMetricCard(
                     theme,
@@ -137,7 +138,7 @@ class BoostAnalyticsScreen extends StatelessWidget {
                 ),
               ],
             ),
-            SizedBox(height: DesignTokens.spaceSM),
+            const SizedBox(height: DesignTokens.spaceSM),
             Row(
               children: [
                 Expanded(
@@ -149,7 +150,7 @@ class BoostAnalyticsScreen extends StatelessWidget {
                     DesignTokens.warningColor,
                   ),
                 ),
-                SizedBox(width: DesignTokens.spaceSM),
+                const SizedBox(width: DesignTokens.spaceSM),
                 Expanded(
                   child: _buildMetricCard(
                     theme,
@@ -161,7 +162,7 @@ class BoostAnalyticsScreen extends StatelessWidget {
                 ),
               ],
             ),
-            SizedBox(height: DesignTokens.spaceLG),
+            const SizedBox(height: DesignTokens.spaceLG),
 
             // Engagement Rate & CTR
             Text(
@@ -170,14 +171,14 @@ class BoostAnalyticsScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(height: DesignTokens.spaceMD),
+            const SizedBox(height: DesignTokens.spaceMD),
 
             Card(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
               ),
               child: Padding(
-                padding: EdgeInsets.all(DesignTokens.spaceMD),
+                padding: const EdgeInsets.all(DesignTokens.spaceMD),
                 child: Column(
                   children: [
                     _buildStatRow(
@@ -201,7 +202,7 @@ class BoostAnalyticsScreen extends StatelessWidget {
                 ),
               ),
             ),
-            SizedBox(height: DesignTokens.spaceLG),
+            const SizedBox(height: DesignTokens.spaceLG),
 
             // Breakdown Section
             Text(
@@ -210,14 +211,14 @@ class BoostAnalyticsScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(height: DesignTokens.spaceMD),
+            const SizedBox(height: DesignTokens.spaceMD),
 
             Card(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
               ),
               child: Padding(
-                padding: EdgeInsets.all(DesignTokens.spaceMD),
+                padding: const EdgeInsets.all(DesignTokens.spaceMD),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -227,21 +228,21 @@ class BoostAnalyticsScreen extends StatelessWidget {
                       _formatNumber(impressions),
                       Icons.remove_red_eye,
                     ),
-                    SizedBox(height: DesignTokens.spaceMD),
+                    const SizedBox(height: DesignTokens.spaceMD),
                     _buildBreakdownRow(
                       theme,
                       'Unique Reach',
                       _formatNumber(reach),
                       Icons.person_outline,
                     ),
-                    SizedBox(height: DesignTokens.spaceMD),
+                    const SizedBox(height: DesignTokens.spaceMD),
                     _buildBreakdownRow(
                       theme,
                       'Total Clicks',
                       _formatNumber(clicks),
                       Icons.ads_click,
                     ),
-                    SizedBox(height: DesignTokens.spaceMD),
+                    const SizedBox(height: DesignTokens.spaceMD),
                     _buildBreakdownRow(
                       theme,
                       'Total Engagement',
@@ -271,7 +272,7 @@ class BoostAnalyticsScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
       ),
       child: Padding(
-        padding: EdgeInsets.all(DesignTokens.spaceMD),
+        padding: const EdgeInsets.all(DesignTokens.spaceMD),
         child: Column(
           children: [
             Icon(
@@ -279,7 +280,7 @@ class BoostAnalyticsScreen extends StatelessWidget {
               color: color,
               size: DesignTokens.iconXL,
             ),
-            SizedBox(height: DesignTokens.spaceSM),
+            const SizedBox(height: DesignTokens.spaceSM),
             Text(
               value,
               style: theme.textTheme.headlineSmall?.copyWith(
@@ -287,7 +288,7 @@ class BoostAnalyticsScreen extends StatelessWidget {
                 color: color,
               ),
             ),
-            SizedBox(height: DesignTokens.spaceXS),
+            const SizedBox(height: DesignTokens.spaceXS),
             Text(
               label,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -316,7 +317,7 @@ class BoostAnalyticsScreen extends StatelessWidget {
           size: DesignTokens.iconMD,
           color: theme.colorScheme.primary,
         ),
-        SizedBox(width: DesignTokens.spaceMD),
+        const SizedBox(width: DesignTokens.spaceMD),
         Expanded(
           child: Text(
             label,
@@ -349,7 +350,7 @@ class BoostAnalyticsScreen extends StatelessWidget {
             DesignTokens.opacityMedium,
           ),
         ),
-        SizedBox(width: DesignTokens.spaceMD),
+        const SizedBox(width: DesignTokens.spaceMD),
         Expanded(
           child: Text(
             label,

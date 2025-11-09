@@ -9,6 +9,7 @@ import 'package:freegram/repositories/post_repository.dart';
 import 'package:freegram/widgets/feed_widgets/edit_comment_dialog.dart';
 import 'package:freegram/screens/report_screen.dart';
 import 'package:freegram/models/report_model.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:intl/intl.dart';
 
 class CommentTile extends StatefulWidget {
@@ -212,7 +213,7 @@ class _CommentTileState extends State<CommentTile> {
     if (!isOwner) return;
 
     final confirm = await showDialog<bool>(
-      context: this.context,
+      context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Comment'),
         content: const Text('Are you sure you want to delete this comment?'),
@@ -241,7 +242,7 @@ class _CommentTileState extends State<CommentTile> {
 
         if (mounted) {
           HapticFeedback.mediumImpact();
-          ScaffoldMessenger.of(this.context).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Comment deleted'),
               duration: Duration(seconds: 2),
@@ -250,7 +251,7 @@ class _CommentTileState extends State<CommentTile> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(this.context).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Failed to delete comment: ${e.toString()}'),
               action: SnackBarAction(
@@ -350,10 +351,9 @@ class _CommentTileState extends State<CommentTile> {
             child: Padding(
               padding: const EdgeInsets.all(8.0),
               child: _isLiking
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                  ? const AppProgressIndicator(
+                      size: 18,
+                      strokeWidth: 2,
                     )
                   : Icon(
                       _isLiked ? Icons.favorite : Icons.favorite_border,

@@ -11,6 +11,7 @@ import 'package:freegram/services/ad_service.dart';
 import 'package:freegram/utils/enums.dart';
 import 'package:freegram/widgets/feed_widgets/post_card.dart';
 import 'package:freegram/models/feed_item_model.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class TrendingFeedTab extends StatefulWidget {
   const TrendingFeedTab({Key? key}) : super(key: key);
@@ -101,7 +102,7 @@ class _TrendingFeedTabState extends State<TrendingFeedTab> {
                 child: BlocBuilder<UnifiedFeedBloc, UnifiedFeedState>(
                   builder: (context, state) {
                     if (state is UnifiedFeedLoading) {
-                      return const Center(child: CircularProgressIndicator());
+                      return const Center(child: AppProgressIndicator());
                     }
 
                     if (state is UnifiedFeedError) {
@@ -219,7 +220,7 @@ class _TrendingFeedTabState extends State<TrendingFeedTab> {
                 child: SizedBox(
               height: 20,
               width: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
+              child: AppProgressIndicator(strokeWidth: 2),
             ));
           }
 

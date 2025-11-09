@@ -102,7 +102,9 @@ class BluetoothStatusService {
     
     // Always log permission-related changes
     if (from == NearbyStatus.permissionsDenied || from == NearbyStatus.permissionsPermanentlyDenied ||
-        to == NearbyStatus.permissionsDenied || to == NearbyStatus.permissionsPermanentlyDenied) return true;
+        to == NearbyStatus.permissionsDenied || to == NearbyStatus.permissionsPermanentlyDenied) {
+      return true;
+    }
     
     // Always log adapter on/off changes
     if (from == NearbyStatus.adapterOff || to == NearbyStatus.adapterOff) return true;

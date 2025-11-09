@@ -5,9 +5,11 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/locator.dart';
+import 'package:freegram/widgets/common/keyboard_safe_area.dart';
 import 'package:freegram/repositories/story_repository.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class TextStoryCreatorScreen extends StatefulWidget {
   const TextStoryCreatorScreen({Key? key}) : super(key: key);
@@ -122,7 +124,7 @@ class _TextStoryCreatorScreenState extends State<TextStoryCreatorScreen> {
 
     // Draw background
     final backgroundPaint = Paint()..color = _backgroundColor;
-    canvas.drawRect(Rect.fromLTWH(0, 0, width, height), backgroundPaint);
+    canvas.drawRect(const Rect.fromLTWH(0, 0, width, height), backgroundPaint);
 
     // Draw text
     final textPainter = TextPainter(
@@ -167,6 +169,7 @@ class _TextStoryCreatorScreenState extends State<TextStoryCreatorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('📱 SCREEN: text_story_creator_screen.dart');
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -186,9 +189,9 @@ class _TextStoryCreatorScreenState extends State<TextStoryCreatorScreen> {
                 child: SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(
+                  child: AppProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -210,127 +213,130 @@ class _TextStoryCreatorScreenState extends State<TextStoryCreatorScreen> {
             ),
         ],
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Text input area (center)
-            Expanded(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32.0),
-                  child: TextField(
-                    controller: _textController,
-                    maxLines: null,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: _textColor,
-                      fontSize: 48,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Tap to type...',
-                      hintStyle: TextStyle(
-                        color: _textColor.withOpacity(0.5),
+      body: KeyboardSafeArea(
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Text input area (center)
+              Expanded(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: TextField(
+                      controller: _textController,
+                      maxLines: null,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: _textColor,
                         fontSize: 48,
                         fontWeight: FontWeight.bold,
                       ),
-                      border: InputBorder.none,
+                      decoration: InputDecoration(
+                        hintText: 'Tap to type...',
+                        hintStyle: TextStyle(
+                          color: _textColor.withOpacity(0.5),
+                          fontSize: 48,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        border: InputBorder.none,
+                      ),
+                      onChanged: (_) => setState(() {}),
                     ),
-                    onChanged: (_) => setState(() {}),
                   ),
                 ),
               ),
-            ),
-            // Controls at bottom
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.3),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Text color picker
-                  Text(
-                    'Text Color',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Colors.white,
+              // Controls at bottom
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.3),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Text color picker
+                    Text(
+                      'Text Color',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 50,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _textColorOptions.length,
-                      itemBuilder: (context, index) {
-                        final color = _textColorOptions[index];
-                        final isSelected = color == _textColor;
-                        return GestureDetector(
-                          onTap: () => setState(() => _textColor = color),
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                              color: color,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isSelected
-                                    ? Colors.white
-                                    : Colors.transparent,
-                                width: 3,
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 50,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _textColorOptions.length,
+                        itemBuilder: (context, index) {
+                          final color = _textColorOptions[index];
+                          final isSelected = color == _textColor;
+                          return GestureDetector(
+                            onTap: () => setState(() => _textColor = color),
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.transparent,
+                                  width: 3,
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Background color picker
-                  Text(
-                    'Background',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Colors.white,
+                    const SizedBox(height: 16),
+                    // Background color picker
+                    Text(
+                      'Background',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 50,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _backgroundColors.length,
-                      itemBuilder: (context, index) {
-                        final color = _backgroundColors[index];
-                        final isSelected = color == _backgroundColor;
-                        return GestureDetector(
-                          onTap: () => setState(() => _backgroundColor = color),
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                              color: color,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isSelected
-                                    ? Colors.white
-                                    : Colors.transparent,
-                                width: 3,
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 50,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _backgroundColors.length,
+                        itemBuilder: (context, index) {
+                          final color = _backgroundColors[index];
+                          final isSelected = color == _backgroundColor;
+                          return GestureDetector(
+                            onTap: () =>
+                                setState(() => _backgroundColor = color),
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.transparent,
+                                  width: 3,
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

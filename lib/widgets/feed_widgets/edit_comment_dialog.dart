@@ -7,7 +7,7 @@ class EditCommentDialog extends StatefulWidget {
   final GlobalKey<FormState> formKey;
   final int maxLength;
 
-  const EditCommentDialog({
+  const EditCommentDialog({super.key, 
     required this.controller,
     required this.formKey,
     required this.maxLength,

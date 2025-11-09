@@ -43,7 +43,7 @@ class ReportModel extends Equatable {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  ReportModel({
+  const ReportModel({
     required this.reportId,
     required this.reportedContentType,
     required this.reportedContentId,

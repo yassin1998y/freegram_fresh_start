@@ -19,6 +19,8 @@ import 'package:freegram/services/cloudinary_service.dart';
 import 'package:freegram/blocs/unified_feed_bloc.dart';
 import 'package:freegram/blocs/following_feed_bloc.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/widgets/common/media_header.dart';
 
 class CreatePostWidget extends StatefulWidget {
   const CreatePostWidget({Key? key}) : super(key: key);
@@ -35,7 +37,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
   final PostRepository _postRepository = locator<PostRepository>();
   final PageRepository _pageRepository = locator<PageRepository>();
 
-  List<MediaItem> _mediaItems = [];
+  final List<MediaItem> _mediaItems = [];
   final Map<int, TextEditingController> _captionControllers = {};
   final Map<int, bool> _uploadingMedia =
       {}; // Track upload state per media item
@@ -51,10 +53,34 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
   void initState() {
     super.initState();
     _loadUserPages();
+    // Listen to focus changes to scroll into view when keyboard appears
+    _textFieldFocusNode.addListener(_onFocusChange);
+  }
+
+  void _onFocusChange() {
+    if (_textFieldFocusNode.hasFocus && _isExpanded) {
+      // Scroll to the TextField when it gains focus
+      // Use a small delay to ensure the widget is built
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _textFieldFocusNode.hasFocus) {
+          // Find the RenderObject and scroll to it
+          final context = _textFieldFocusNode.context;
+          if (context != null) {
+            Scrollable.ensureVisible(
+              context,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+              alignment: 0.1, // Show slightly above center
+            );
+          }
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
+    _textFieldFocusNode.removeListener(_onFocusChange);
     _contentController.dispose();
     _textFieldFocusNode.dispose();
     for (var controller in _captionControllers.values) {
@@ -148,7 +174,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
           children: [
             // Handle bar
             Container(
-              margin: EdgeInsets.only(top: DesignTokens.spaceSM),
+              margin: const EdgeInsets.only(top: DesignTokens.spaceSM),
               width: 40,
               height: 4,
               decoration: BoxDecoration(
@@ -156,10 +182,10 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            SizedBox(height: DesignTokens.spaceMD),
+            const SizedBox(height: DesignTokens.spaceMD),
             // Header
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
+              padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
               child: Text(
                 'Add Media',
                 style: theme.textTheme.titleMedium?.copyWith(
@@ -167,7 +193,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
                 ),
               ),
             ),
-            SizedBox(height: DesignTokens.spaceLG),
+            const SizedBox(height: DesignTokens.spaceLG),
             // Options
             ListTile(
               leading: Icon(
@@ -199,7 +225,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
                 _pickFromGallery();
               },
             ),
-            SizedBox(height: DesignTokens.spaceMD),
+            const SizedBox(height: DesignTokens.spaceMD),
           ],
         ),
       ),
@@ -474,7 +500,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: EdgeInsets.all(DesignTokens.spaceMD),
+              padding: const EdgeInsets.all(DesignTokens.spaceMD),
               child: Text(
                 'Post as',
                 style: Theme.of(context).textTheme.titleMedium,
@@ -655,7 +681,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
       duration: DesignTokens.durationNormal,
       curve: DesignTokens.curveEaseInOut,
       color: theme.scaffoldBackgroundColor,
-      padding: EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         horizontal: DesignTokens.spaceMD,
         vertical: DesignTokens.spaceSM,
       ),
@@ -681,7 +707,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
     String? displayPhotoUrl,
   ) {
     return Padding(
-      padding: EdgeInsets.all(DesignTokens.spaceMD),
+      padding: const EdgeInsets.all(DesignTokens.spaceMD),
       child: Row(
         children: [
           // User Avatar (tappable)
@@ -704,13 +730,13 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
                   : null,
             ),
           ),
-          SizedBox(width: DesignTokens.spaceMD),
+          const SizedBox(width: DesignTokens.spaceMD),
           // Text Input Field (tappable)
           Expanded(
             child: GestureDetector(
               onTap: _handleInputFieldTap,
               child: Container(
-                padding: EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: DesignTokens.spaceMD,
                   vertical: DesignTokens.spaceSM,
                 ),
@@ -733,7 +759,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
               ),
             ),
           ),
-          SizedBox(width: DesignTokens.spaceSM),
+          const SizedBox(width: DesignTokens.spaceSM),
           // Media Button (tappable)
           IconButton(
             icon: Icon(
@@ -757,48 +783,28 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
     String? displayPhotoUrl,
   ) {
     return Padding(
-      padding: EdgeInsets.all(DesignTokens.spaceMD),
+      padding: const EdgeInsets.all(DesignTokens.spaceMD),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header with collapse button
-          Row(
-            children: [
-              // Avatar
-              GestureDetector(
-                onTap: _showPageSelection,
-                child: CircleAvatar(
-                  radius: DesignTokens.avatarSize / 2,
-                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                  backgroundImage: (displayPhotoUrl != null &&
-                          ImageUrlValidator.isValidUrl(displayPhotoUrl))
-                      ? CachedNetworkImageProvider(displayPhotoUrl)
-                      : null,
-                  child: (displayPhotoUrl == null ||
-                          !ImageUrlValidator.isValidUrl(displayPhotoUrl))
-                      ? Icon(
-                          Icons.person,
-                          size: DesignTokens.iconMD,
-                          color: theme.colorScheme.onSurface,
-                        )
-                      : null,
-                ),
-              ),
-              SizedBox(width: DesignTokens.spaceSM),
-              Expanded(
-                child: Text(
-                  displayName,
-                  style: theme.textTheme.titleSmall,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: _collapse,
-              ),
-            ],
+          MediaHeader(
+            avatarUrl: (displayPhotoUrl != null &&
+                    ImageUrlValidator.isValidUrl(displayPhotoUrl))
+                ? displayPhotoUrl
+                : null,
+            username: displayName,
+            onAvatarTap: _showPageSelection,
+            onUsernameTap: _showPageSelection,
+            padding: EdgeInsets.zero,
+            showMenu: false,
+            closeButton: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: _collapse,
+            ),
           ),
-          SizedBox(height: DesignTokens.spaceMD),
+          const SizedBox(height: DesignTokens.spaceMD),
           // Media Preview
           if (_mediaItems.isNotEmpty)
             SizedBox(
@@ -811,7 +817,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
                   final isUploading = _uploadingMedia[index] == true;
 
                   return Padding(
-                    padding: EdgeInsets.only(right: DesignTokens.spaceSM),
+                    padding: const EdgeInsets.only(right: DesignTokens.spaceSM),
                     child: Stack(
                       children: [
                         Container(
@@ -852,11 +858,11 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
                                             mainAxisAlignment:
                                                 MainAxisAlignment.center,
                                             children: [
-                                              CircularProgressIndicator(
+                                              AppProgressIndicator(
                                                 color:
                                                     theme.colorScheme.primary,
                                               ),
-                                              SizedBox(
+                                              const SizedBox(
                                                   height: DesignTokens.spaceSM),
                                               Text(
                                                 'Uploading...',
@@ -884,8 +890,8 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
                 },
               ),
             ),
-          if (_mediaItems.isNotEmpty) SizedBox(height: DesignTokens.spaceMD),
-          // Text Input
+          if (_mediaItems.isNotEmpty) const SizedBox(height: DesignTokens.spaceMD),
+          // Text Input - with keyboard awareness
           TextField(
             controller: _contentController,
             focusNode: _textFieldFocusNode,
@@ -905,8 +911,8 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
             ),
             style: theme.textTheme.bodyMedium,
           ),
-          SizedBox(height: DesignTokens.spaceMD),
-          // Footer Toolbar
+          const SizedBox(height: DesignTokens.spaceMD),
+          // Footer Toolbar - stays above keyboard
           Row(
             children: [
               // Add media button
@@ -936,13 +942,10 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
                     ? null
                     : _createPost,
                 child: _isPosting
-                    ? SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: theme.colorScheme.onPrimary,
-                        ),
+                    ? AppProgressIndicator(
+                        size: 20,
+                        strokeWidth: 2,
+                        color: theme.colorScheme.onPrimary,
                       )
                     : const Text('Post'),
               ),
@@ -950,7 +953,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
           ),
           // Location chip if enabled
           if (_isLocationEnabled) ...[
-            SizedBox(height: DesignTokens.spaceSM),
+            const SizedBox(height: DesignTokens.spaceSM),
             Chip(
               avatar: const Icon(Icons.location_on, size: 18),
               label: Text(_locationAddress ?? 'Current Location'),
@@ -978,7 +981,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Padding(
-                  padding: EdgeInsets.all(DesignTokens.spaceMD),
+                  padding: const EdgeInsets.all(DesignTokens.spaceMD),
                   child: Text(
                     'Who can see this?',
                     style: theme.textTheme.titleMedium,
@@ -991,7 +994,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
                         ? theme.colorScheme.primary
                         : null,
                   ),
-                  title: Text('Public'),
+                  title: const Text('Public'),
                   trailing: _visibility == 'public'
                       ? Icon(Icons.check, color: theme.colorScheme.primary)
                       : null,
@@ -1011,7 +1014,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
                         ? theme.colorScheme.primary
                         : null,
                   ),
-                  title: Text('Friends'),
+                  title: const Text('Friends'),
                   trailing: _visibility == 'friends'
                       ? Icon(Icons.check, color: theme.colorScheme.primary)
                       : null,
@@ -1031,7 +1034,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
                         ? theme.colorScheme.primary
                         : null,
                   ),
-                  title: Text('Nearby'),
+                  title: const Text('Nearby'),
                   trailing: _visibility == 'nearby'
                       ? Icon(Icons.check, color: theme.colorScheme.primary)
                       : null,
@@ -1044,14 +1047,14 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
                     }
                   },
                 ),
-                SizedBox(height: DesignTokens.spaceMD),
+                const SizedBox(height: DesignTokens.spaceMD),
               ],
             ),
           ),
         );
       },
       child: Container(
-        padding: EdgeInsets.symmetric(
+        padding: const EdgeInsets.symmetric(
           horizontal: DesignTokens.spaceSM,
           vertical: DesignTokens.spaceXS,
         ),
@@ -1075,7 +1078,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
               size: 18,
               color: theme.colorScheme.primary,
             ),
-            SizedBox(width: DesignTokens.spaceXS),
+            const SizedBox(width: DesignTokens.spaceXS),
             Text(
               _visibility.toUpperCase(),
               style: theme.textTheme.bodySmall?.copyWith(

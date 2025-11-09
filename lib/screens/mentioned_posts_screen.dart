@@ -8,6 +8,7 @@ import 'package:freegram/repositories/post_repository.dart';
 import 'package:freegram/models/post_model.dart';
 import 'package:freegram/widgets/feed_widgets/post_card.dart';
 import 'package:freegram/models/feed_item_model.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class MentionedPostsScreen extends StatefulWidget {
   const MentionedPostsScreen({Key? key}) : super(key: key);
@@ -27,6 +28,7 @@ class _MentionedPostsScreenState extends State<MentionedPostsScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: mentioned_posts_screen.dart');
     _loadPosts();
   }
 
@@ -79,7 +81,7 @@ class _MentionedPostsScreenState extends State<MentionedPostsScreen> {
       body: RefreshIndicator(
         onRefresh: _loadPosts,
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: AppProgressIndicator())
             : _posts.isEmpty
                 ? Center(
                     child: Column(

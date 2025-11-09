@@ -38,7 +38,7 @@ class PageModel extends Equatable {
   final DateTime updatedAt;
   final bool isActive;
 
-  PageModel({
+  const PageModel({
     required this.pageId,
     required this.pageName,
     required this.pageHandle,

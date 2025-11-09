@@ -35,14 +35,14 @@ class ProfessionalNotificationManager {
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
     // iOS initialization
-    final DarwinInitializationSettings iosSettings =
+    const DarwinInitializationSettings iosSettings =
         DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
     );
 
-    final InitializationSettings settings = InitializationSettings(
+    const InitializationSettings settings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
     );
@@ -198,7 +198,7 @@ class ProfessionalNotificationManager {
     // Create MessagingStyleInformation (like WhatsApp)
     final MessagingStyleInformation styleInformation =
         MessagingStyleInformation(
-      Person(
+      const Person(
         name: 'Me', // Current user
         key: 'me',
       ),
@@ -534,7 +534,7 @@ class ProfessionalNotificationManager {
     // Create MessagingStyleInformation (WhatsApp-style conversation)
     final MessagingStyleInformation styleInformation =
         MessagingStyleInformation(
-      Person(
+      const Person(
         name: 'Me',
         key: 'me',
       ),

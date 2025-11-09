@@ -7,8 +7,10 @@ import 'package:freegram/models/post_model.dart';
 import 'package:freegram/models/boost_package_model.dart';
 import 'package:freegram/repositories/post_repository.dart';
 import 'package:freegram/repositories/user_repository.dart';
+import 'package:freegram/widgets/common/keyboard_safe_area.dart';
 import 'package:freegram/screens/store_screen.dart';
 import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/widgets/common/app_progress_indicator.dart';
 
 class BoostPostScreen extends StatefulWidget {
   final PostModel post;
@@ -57,6 +59,7 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('📱 SCREEN: boost_post_screen.dart');
     _selectedPackage = BoostPackageModel.getDefaultPackages().first;
   }
 
@@ -90,7 +93,7 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
   Future<void> _boostPost() async {
     if (_selectedPackage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please select a boost package')),
+        const SnackBar(content: Text('Please select a boost package')),
       );
       return;
     }
@@ -190,323 +193,328 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
         foregroundColor: theme.colorScheme.onSurface,
         elevation: 0,
       ),
+      resizeToAvoidBottomInset: true,
       body: _isProcessing
           ? Center(
-              child: CircularProgressIndicator(
+              child: AppProgressIndicator(
                 color: theme.colorScheme.primary,
               ),
             )
-          : SingleChildScrollView(
-              padding: EdgeInsets.all(DesignTokens.spaceMD),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Coin Balance Display
-                  if (currentUser != null)
-                    FutureBuilder(
-                      future: _userRepository.getUser(currentUser.uid),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return const SizedBox.shrink();
-                        }
+          : KeyboardSafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(DesignTokens.spaceMD),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Coin Balance Display
+                    if (currentUser != null)
+                      FutureBuilder(
+                        future: _userRepository.getUser(currentUser.uid),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            return const SizedBox.shrink();
+                          }
 
-                        final user = snapshot.data!;
-                        return Card(
-                          color: theme.colorScheme.primaryContainer
-                              .withOpacity(0.3),
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(DesignTokens.radiusMD),
-                          ),
-                          margin: EdgeInsets.only(bottom: DesignTokens.spaceMD),
-                          child: Padding(
-                            padding: EdgeInsets.all(DesignTokens.spaceMD),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.account_balance_wallet,
-                                  color: theme.colorScheme.primary,
-                                  size: DesignTokens.iconLG,
-                                ),
-                                SizedBox(width: DesignTokens.spaceSM),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Your Balance',
-                                        style:
-                                            theme.textTheme.bodySmall?.copyWith(
-                                          color: theme.colorScheme.onSurface
-                                              .withOpacity(
-                                            DesignTokens.opacityMedium,
-                                          ),
-                                        ),
-                                      ),
-                                      Text(
-                                        '${user.coins} Coins',
-                                        style: theme.textTheme.titleMedium
-                                            ?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                          color: theme.colorScheme.primary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                TextButton.icon(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const StoreScreen(),
-                                      ),
-                                    ).then((_) {
-                                      // Refresh user data when returning from store
-                                      setState(() {});
-                                    });
-                                  },
-                                  icon: Icon(
-                                    Icons.add_circle_outline,
-                                    size: DesignTokens.iconSM,
-                                  ),
-                                  label: Text(
-                                    'Get Coins',
-                                    style: theme.textTheme.labelSmall,
-                                  ),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: theme.colorScheme.primary,
-                                  ),
-                                ),
-                              ],
+                          final user = snapshot.data!;
+                          return Card(
+                            color: theme.colorScheme.primaryContainer
+                                .withOpacity(0.3),
+                            shape: RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(DesignTokens.radiusMD),
                             ),
-                          ),
-                        );
-                      },
-                    ),
-
-                  // Package Selection
-                  _buildSectionTitle(theme, 'Select Boost Package'),
-                  SizedBox(height: DesignTokens.spaceSM),
-                  ...BoostPackageModel.getDefaultPackages().map((package) {
-                    return _buildPackageCard(theme, package);
-                  }),
-                  SizedBox(height: DesignTokens.spaceLG),
-
-                  // Targeting Options
-                  _buildSectionTitle(theme, 'Targeting (Optional)'),
-                  SizedBox(height: DesignTokens.spaceSM),
-
-                  // Location Targeting
-                  _buildTargetingOption(
-                    theme: theme,
-                    title: 'Location',
-                    enabled: _enableLocationTargeting,
-                    onChanged: (value) {
-                      setState(() => _enableLocationTargeting = value);
-                    },
-                    child: _enableLocationTargeting
-                        ? Column(
-                            children: [
-                              SizedBox(height: DesignTokens.spaceSM),
-                              Text(
-                                'Radius: ${_targetRadiusKm}km',
-                                style: theme.textTheme.bodyMedium,
-                              ),
-                              Slider(
-                                value: _targetRadiusKm?.toDouble() ?? 50.0,
-                                min: 5,
-                                max: 200,
-                                divisions: 39,
-                                label: '${_targetRadiusKm}km',
-                                activeColor: theme.colorScheme.primary,
-                                onChanged: (value) {
-                                  setState(
-                                      () => _targetRadiusKm = value.toInt());
-                                },
-                              ),
-                            ],
-                          )
-                        : null,
-                  ),
-
-                  SizedBox(height: DesignTokens.spaceMD),
-
-                  // Age Targeting
-                  _buildTargetingOption(
-                    theme: theme,
-                    title: 'Age Range',
-                    enabled: _enableAgeTargeting,
-                    onChanged: (value) {
-                      setState(() => _enableAgeTargeting = value);
-                    },
-                    child: _enableAgeTargeting
-                        ? Column(
-                            children: [
-                              SizedBox(height: DesignTokens.spaceSM),
-                              Row(
+                            margin:
+                                const EdgeInsets.only(bottom: DesignTokens.spaceMD),
+                            child: Padding(
+                              padding: const EdgeInsets.all(DesignTokens.spaceMD),
+                              child: Row(
                                 children: [
+                                  Icon(
+                                    Icons.account_balance_wallet,
+                                    color: theme.colorScheme.primary,
+                                    size: DesignTokens.iconLG,
+                                  ),
+                                  const SizedBox(width: DesignTokens.spaceSM),
                                   Expanded(
-                                    child: TextField(
-                                      decoration: InputDecoration(
-                                        labelText: 'Min Age',
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            DesignTokens.radiusMD,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Your Balance',
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                            color: theme.colorScheme.onSurface
+                                                .withOpacity(
+                                              DesignTokens.opacityMedium,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      keyboardType: TextInputType.number,
-                                      onChanged: (value) {
-                                        _minAge = int.tryParse(value);
-                                      },
-                                    ),
-                                  ),
-                                  SizedBox(width: DesignTokens.spaceMD),
-                                  Expanded(
-                                    child: TextField(
-                                      decoration: InputDecoration(
-                                        labelText: 'Max Age',
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            DesignTokens.radiusMD,
+                                        Text(
+                                          '${user.coins} Coins',
+                                          style: theme.textTheme.titleMedium
+                                              ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: theme.colorScheme.primary,
                                           ),
                                         ),
-                                      ),
-                                      keyboardType: TextInputType.number,
-                                      onChanged: (value) {
-                                        _maxAge = int.tryParse(value);
-                                      },
+                                      ],
                                     ),
                                   ),
-                                ],
-                              ),
-                            ],
-                          )
-                        : null,
-                  ),
-
-                  SizedBox(height: DesignTokens.spaceMD),
-
-                  // Gender Targeting
-                  _buildTargetingOption(
-                    theme: theme,
-                    title: 'Gender',
-                    enabled: _enableGenderTargeting,
-                    onChanged: (value) {
-                      setState(() => _enableGenderTargeting = value);
-                    },
-                    child: _enableGenderTargeting
-                        ? Column(
-                            children: [
-                              SizedBox(height: DesignTokens.spaceSM),
-                              SegmentedButton<String>(
-                                segments: const [
-                                  ButtonSegment(
-                                      value: 'all', label: Text('All')),
-                                  ButtonSegment(
-                                      value: 'male', label: Text('Male')),
-                                  ButtonSegment(
-                                    value: 'female',
-                                    label: Text('Female'),
-                                  ),
-                                ],
-                                selected: {_targetGender},
-                                onSelectionChanged: (Set<String> selected) {
-                                  setState(() {
-                                    _targetGender = selected.first;
-                                  });
-                                },
-                              ),
-                            ],
-                          )
-                        : null,
-                  ),
-
-                  SizedBox(height: DesignTokens.spaceMD),
-
-                  // Interests Targeting
-                  _buildTargetingOption(
-                    theme: theme,
-                    title: 'Interests',
-                    enabled: _enableInterestTargeting,
-                    onChanged: (value) {
-                      setState(() => _enableInterestTargeting = value);
-                    },
-                    child: _enableInterestTargeting
-                        ? Column(
-                            children: [
-                              SizedBox(height: DesignTokens.spaceSM),
-                              Wrap(
-                                spacing: DesignTokens.spaceSM,
-                                runSpacing: DesignTokens.spaceSM,
-                                children: _availableInterests.map((interest) {
-                                  final isSelected =
-                                      _selectedInterests.contains(interest);
-                                  return FilterChip(
-                                    label: Text(interest),
-                                    selected: isSelected,
-                                    selectedColor:
-                                        theme.colorScheme.primaryContainer,
-                                    checkmarkColor: theme.colorScheme.primary,
-                                    onSelected: (selected) {
-                                      setState(() {
-                                        if (selected) {
-                                          _selectedInterests.add(interest);
-                                        } else {
-                                          _selectedInterests.remove(interest);
-                                        }
+                                  TextButton.icon(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const StoreScreen(),
+                                        ),
+                                      ).then((_) {
+                                        // Refresh user data when returning from store
+                                        setState(() {});
                                       });
                                     },
-                                  );
-                                }).toList(),
+                                    icon: const Icon(
+                                      Icons.add_circle_outline,
+                                      size: DesignTokens.iconSM,
+                                    ),
+                                    label: Text(
+                                      'Get Coins',
+                                      style: theme.textTheme.labelSmall,
+                                    ),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor:
+                                          theme.colorScheme.primary,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          )
-                        : null,
-                  ),
+                            ),
+                          );
+                        },
+                      ),
 
-                  SizedBox(height: DesignTokens.spaceXL),
+                    // Package Selection
+                    _buildSectionTitle(theme, 'Select Boost Package'),
+                    const SizedBox(height: DesignTokens.spaceSM),
+                    ...BoostPackageModel.getDefaultPackages().map((package) {
+                      return _buildPackageCard(theme, package);
+                    }),
+                    const SizedBox(height: DesignTokens.spaceLG),
 
-                  // Boost Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isProcessing ? null : _boostPost,
-                      style: theme.elevatedButtonTheme.style?.copyWith(
-                        backgroundColor: WidgetStateProperty.all(
-                          theme.colorScheme.primary,
-                        ),
-                        foregroundColor: WidgetStateProperty.all(
-                          theme.colorScheme.onPrimary,
-                        ),
-                        padding: WidgetStateProperty.all(
-                          EdgeInsets.symmetric(
-                            vertical: DesignTokens.spaceMD,
-                            horizontal: DesignTokens.spaceLG,
+                    // Targeting Options
+                    _buildSectionTitle(theme, 'Targeting (Optional)'),
+                    const SizedBox(height: DesignTokens.spaceSM),
+
+                    // Location Targeting
+                    _buildTargetingOption(
+                      theme: theme,
+                      title: 'Location',
+                      enabled: _enableLocationTargeting,
+                      onChanged: (value) {
+                        setState(() => _enableLocationTargeting = value);
+                      },
+                      child: _enableLocationTargeting
+                          ? Column(
+                              children: [
+                                const SizedBox(height: DesignTokens.spaceSM),
+                                Text(
+                                  'Radius: ${_targetRadiusKm}km',
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                                Slider(
+                                  value: _targetRadiusKm?.toDouble() ?? 50.0,
+                                  min: 5,
+                                  max: 200,
+                                  divisions: 39,
+                                  label: '${_targetRadiusKm}km',
+                                  activeColor: theme.colorScheme.primary,
+                                  onChanged: (value) {
+                                    setState(
+                                        () => _targetRadiusKm = value.toInt());
+                                  },
+                                ),
+                              ],
+                            )
+                          : null,
+                    ),
+
+                    const SizedBox(height: DesignTokens.spaceMD),
+
+                    // Age Targeting
+                    _buildTargetingOption(
+                      theme: theme,
+                      title: 'Age Range',
+                      enabled: _enableAgeTargeting,
+                      onChanged: (value) {
+                        setState(() => _enableAgeTargeting = value);
+                      },
+                      child: _enableAgeTargeting
+                          ? Column(
+                              children: [
+                                const SizedBox(height: DesignTokens.spaceSM),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        decoration: InputDecoration(
+                                          labelText: 'Min Age',
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              DesignTokens.radiusMD,
+                                            ),
+                                          ),
+                                        ),
+                                        keyboardType: TextInputType.number,
+                                        onChanged: (value) {
+                                          _minAge = int.tryParse(value);
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(width: DesignTokens.spaceMD),
+                                    Expanded(
+                                      child: TextField(
+                                        decoration: InputDecoration(
+                                          labelText: 'Max Age',
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              DesignTokens.radiusMD,
+                                            ),
+                                          ),
+                                        ),
+                                        keyboardType: TextInputType.number,
+                                        onChanged: (value) {
+                                          _maxAge = int.tryParse(value);
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            )
+                          : null,
+                    ),
+
+                    const SizedBox(height: DesignTokens.spaceMD),
+
+                    // Gender Targeting
+                    _buildTargetingOption(
+                      theme: theme,
+                      title: 'Gender',
+                      enabled: _enableGenderTargeting,
+                      onChanged: (value) {
+                        setState(() => _enableGenderTargeting = value);
+                      },
+                      child: _enableGenderTargeting
+                          ? Column(
+                              children: [
+                                const SizedBox(height: DesignTokens.spaceSM),
+                                SegmentedButton<String>(
+                                  segments: const [
+                                    ButtonSegment(
+                                        value: 'all', label: Text('All')),
+                                    ButtonSegment(
+                                        value: 'male', label: Text('Male')),
+                                    ButtonSegment(
+                                      value: 'female',
+                                      label: Text('Female'),
+                                    ),
+                                  ],
+                                  selected: {_targetGender},
+                                  onSelectionChanged: (Set<String> selected) {
+                                    setState(() {
+                                      _targetGender = selected.first;
+                                    });
+                                  },
+                                ),
+                              ],
+                            )
+                          : null,
+                    ),
+
+                    const SizedBox(height: DesignTokens.spaceMD),
+
+                    // Interests Targeting
+                    _buildTargetingOption(
+                      theme: theme,
+                      title: 'Interests',
+                      enabled: _enableInterestTargeting,
+                      onChanged: (value) {
+                        setState(() => _enableInterestTargeting = value);
+                      },
+                      child: _enableInterestTargeting
+                          ? Column(
+                              children: [
+                                const SizedBox(height: DesignTokens.spaceSM),
+                                Wrap(
+                                  spacing: DesignTokens.spaceSM,
+                                  runSpacing: DesignTokens.spaceSM,
+                                  children: _availableInterests.map((interest) {
+                                    final isSelected =
+                                        _selectedInterests.contains(interest);
+                                    return FilterChip(
+                                      label: Text(interest),
+                                      selected: isSelected,
+                                      selectedColor:
+                                          theme.colorScheme.primaryContainer,
+                                      checkmarkColor: theme.colorScheme.primary,
+                                      onSelected: (selected) {
+                                        setState(() {
+                                          if (selected) {
+                                            _selectedInterests.add(interest);
+                                          } else {
+                                            _selectedInterests.remove(interest);
+                                          }
+                                        });
+                                      },
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
+                            )
+                          : null,
+                    ),
+
+                    const SizedBox(height: DesignTokens.spaceXL),
+
+                    // Boost Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isProcessing ? null : _boostPost,
+                        style: theme.elevatedButtonTheme.style?.copyWith(
+                          backgroundColor: WidgetStateProperty.all(
+                            theme.colorScheme.primary,
+                          ),
+                          foregroundColor: WidgetStateProperty.all(
+                            theme.colorScheme.onPrimary,
+                          ),
+                          padding: WidgetStateProperty.all(
+                            const EdgeInsets.symmetric(
+                              vertical: DesignTokens.spaceMD,
+                              horizontal: DesignTokens.spaceLG,
+                            ),
                           ),
                         ),
-                      ),
-                      child: _isProcessing
-                          ? SizedBox(
-                              width: DesignTokens.iconMD,
-                              height: DesignTokens.iconMD,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: theme.colorScheme.onPrimary,
+                        child: _isProcessing
+                            ? SizedBox(
+                                width: DesignTokens.iconMD,
+                                height: DesignTokens.iconMD,
+                                child: AppProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: theme.colorScheme.onPrimary,
+                                ),
+                              )
+                            : Text(
+                                _selectedPackage != null
+                                    ? 'Boost Now (${_selectedPackage!.price} Coins)'
+                                    : 'Select Package',
+                                style: theme.textTheme.labelLarge,
                               ),
-                            )
-                          : Text(
-                              _selectedPackage != null
-                                  ? 'Boost Now (${_selectedPackage!.price} Coins)'
-                                  : 'Select Package',
-                              style: theme.textTheme.labelLarge,
-                            ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
     );
@@ -526,7 +534,7 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
     final isSelected = _selectedPackage?.packageId == package.packageId;
 
     return Card(
-      margin: EdgeInsets.only(bottom: DesignTokens.spaceSM),
+      margin: const EdgeInsets.only(bottom: DesignTokens.spaceSM),
       elevation: isSelected ? DesignTokens.elevation2 : DesignTokens.elevation1,
       color: isSelected
           ? theme.colorScheme.primaryContainer
@@ -544,7 +552,7 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
         onTap: () => setState(() => _selectedPackage = package),
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
         child: Padding(
-          padding: EdgeInsets.all(DesignTokens.spaceMD),
+          padding: const EdgeInsets.all(DesignTokens.spaceMD),
           child: Row(
             children: [
               Radio<BoostPackageModel>(
@@ -553,7 +561,7 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
                 onChanged: (value) => setState(() => _selectedPackage = value),
                 activeColor: theme.colorScheme.primary,
               ),
-              SizedBox(width: DesignTokens.spaceMD),
+              const SizedBox(width: DesignTokens.spaceMD),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -564,7 +572,7 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(height: DesignTokens.spaceXS),
+                    const SizedBox(height: DesignTokens.spaceXS),
                     Row(
                       children: [
                         Icon(
@@ -574,7 +582,7 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
                             DesignTokens.opacityMedium,
                           ),
                         ),
-                        SizedBox(width: DesignTokens.spaceXS),
+                        const SizedBox(width: DesignTokens.spaceXS),
                         Text(
                           '~${_formatNumber(package.targetReach)} estimated reach',
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -585,7 +593,7 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
                         ),
                       ],
                     ),
-                    SizedBox(height: DesignTokens.spaceXS),
+                    const SizedBox(height: DesignTokens.spaceXS),
                     Row(
                       children: [
                         Icon(
@@ -595,7 +603,7 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
                             DesignTokens.opacityMedium,
                           ),
                         ),
-                        SizedBox(width: DesignTokens.spaceXS),
+                        const SizedBox(width: DesignTokens.spaceXS),
                         Text(
                           '${package.duration} ${package.duration == 1 ? 'day' : 'days'}',
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -648,7 +656,7 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
       ),
       child: Padding(
-        padding: EdgeInsets.all(DesignTokens.spaceMD),
+        padding: const EdgeInsets.all(DesignTokens.spaceMD),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -663,7 +671,7 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
                 Switch(
                   value: enabled,
                   onChanged: onChanged,
-                  activeColor: theme.colorScheme.primary,
+                  activeThumbColor: theme.colorScheme.primary,
                 ),
               ],
             ),

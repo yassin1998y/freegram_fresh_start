@@ -7,7 +7,6 @@ import 'package:freegram/repositories/auth_repository.dart';
 import 'package:freegram/services/fcm_token_service.dart';
 import 'package:freegram/utils/auth_error_mapper.dart';
 import 'package:freegram/locator.dart';
-import 'package:meta/meta.dart';
 import 'package:flutter/foundation.dart';
 
 part 'auth_event.dart';
@@ -113,7 +112,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     // Common sign-in handler - reduces code duplication
     // All sign-in methods follow the same pattern: emit loading, call repository, handle errors
-    Future<void> _handleSignIn(
+    Future<void> handleSignIn(
       String methodName,
       Future<void> Function() signInMethod,
       Emitter<AuthState> emit,
@@ -134,7 +133,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
 
     on<SignInWithEmailPassword>((event, emit) async {
-      await _handleSignIn(
+      await handleSignIn(
         'SignInWithEmailPassword',
         () => _authRepository.signInWithEmailPassword(
           email: event.email,
@@ -145,7 +144,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     });
 
     on<SignInWithGoogle>((event, emit) async {
-      await _handleSignIn(
+      await handleSignIn(
         'SignInWithGoogle',
         () => _authRepository.signInWithGoogle(),
         emit,
@@ -153,7 +152,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     });
 
     on<SignInWithFacebook>((event, emit) async {
-      await _handleSignIn(
+      await handleSignIn(
         'SignInWithFacebook',
         () => _authRepository.signInWithFacebook(),
         emit,

@@ -191,7 +191,7 @@ class BluetoothDiscoveryService {
     }
 
     debugPrint(
-        "BluetoothDiscoveryService: Wave request - $fromUidFull (${_currentUserShortId}) → $toUidShort");
+        "BluetoothDiscoveryService: Wave request - $fromUidFull ($_currentUserShortId) → $toUidShort");
 
     // Use WaveManager for reliable wave sending with cooldown and queue management
     final success = await _waveManager.sendWave(
