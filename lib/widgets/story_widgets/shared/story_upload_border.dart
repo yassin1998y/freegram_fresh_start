@@ -10,16 +10,16 @@ import 'package:freegram/theme/design_tokens.dart';
 class StoryUploadBorder extends StatefulWidget {
   /// Upload progress value (0.0 - 1.0)
   final double progress;
-  
+
   /// Whether upload is currently in progress
   final bool isUploading;
-  
+
   /// Child widget to wrap with border
   final Widget child;
-  
+
   /// Border width (default: 4px)
   final double borderWidth;
-  
+
   /// Whether to show pulse effect when uploading
   final bool showPulse;
 
@@ -44,13 +44,13 @@ class _StoryUploadBorderState extends State<StoryUploadBorder>
   @override
   void initState() {
     super.initState();
-    
+
     // Pulse animation for upload active state
     _pulseController = AnimationController(
-      duration: DesignTokens.durationSlow,
+      duration: AnimationTokens.slow,
       vsync: this,
     );
-    
+
     _pulseAnimation = Tween<double>(
       begin: 0.8,
       end: 1.0,
@@ -69,7 +69,7 @@ class _StoryUploadBorderState extends State<StoryUploadBorder>
   @override
   void didUpdateWidget(StoryUploadBorder oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     // Start/stop pulse animation based on upload state
     if (widget.isUploading && widget.showPulse) {
       if (!_pulseController.isAnimating) {
@@ -90,7 +90,7 @@ class _StoryUploadBorderState extends State<StoryUploadBorder>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     // Only show border when uploading
     if (!widget.isUploading || widget.progress <= 0.0) {
       return widget.child;
@@ -144,7 +144,7 @@ class UploadBorderPainter extends CustomPainter {
 
     final center = Offset(size.width / 2, size.height / 2);
     final radius = math.min(size.width, size.height) / 2 - borderWidth / 2;
-    
+
     // Draw inactive background arc (full circle)
     final backgroundPaint = Paint()
       ..color = inactiveColor

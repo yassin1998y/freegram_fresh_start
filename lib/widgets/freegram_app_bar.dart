@@ -69,7 +69,8 @@ class FreegramAppBar extends StatelessWidget implements PreferredSizeWidget {
                     if (onBackPressed != null) {
                       onBackPressed!();
                     } else {
-                      Navigator.of(context).pop();
+                      // Use maybePop for safe navigation (handles cases where there's no route to pop)
+                      Navigator.maybePop(context);
                     }
                   },
                 )
@@ -133,7 +134,7 @@ class FreegramAppBar extends StatelessWidget implements PreferredSizeWidget {
 }
 
 /// Professional action button for AppBar
-/// 
+///
 /// DEPRECATED: Use AppIconButton from app_button.dart instead
 /// This class is kept for backward compatibility but delegates to AppIconButton
 @Deprecated('Use AppIconButton from app_button.dart instead')

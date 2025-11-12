@@ -121,7 +121,7 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            backgroundColor: DesignTokens.successColor,
+            backgroundColor: SemanticColors.success,
             content: Text(
               'Post boosted successfully! It will be promoted for ${_selectedPackage!.duration} day(s).',
             ),
@@ -137,7 +137,7 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            backgroundColor: DesignTokens.errorColor,
+            backgroundColor: SemanticColors.error,
             content: Text('Error boosting post: ${e.toString()}'),
             action: isInsufficientCoins
                 ? SnackBarAction(
@@ -223,10 +223,11 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
                               borderRadius:
                                   BorderRadius.circular(DesignTokens.radiusMD),
                             ),
-                            margin:
-                                const EdgeInsets.only(bottom: DesignTokens.spaceMD),
+                            margin: const EdgeInsets.only(
+                                bottom: DesignTokens.spaceMD),
                             child: Padding(
-                              padding: const EdgeInsets.all(DesignTokens.spaceMD),
+                              padding:
+                                  const EdgeInsets.all(DesignTokens.spaceMD),
                               child: Row(
                                 children: [
                                   Icon(

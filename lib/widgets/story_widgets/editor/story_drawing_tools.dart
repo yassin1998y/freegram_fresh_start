@@ -56,29 +56,37 @@ class StoryDrawingTools extends StatelessWidget {
                 horizontal: DesignTokens.spaceLG,
               ),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.7),
+                color: Theme.of(context).colorScheme.surface.withOpacity(0.7),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  width: 1,
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+                  width: DesignTokens.elevation1,
                 ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Color swatches
-                  ..._colors.map((color) => _buildColorSwatch(color)),
-                  const SizedBox(width: DesignTokens.spaceMD),
-                  // Divider
-                  Container(
-                    width: 1,
-                    height: 40,
-                    color: Colors.white.withValues(alpha: 0.2),
-                  ),
-                  const SizedBox(width: DesignTokens.spaceMD),
-                  // Stroke width options
-                  ..._strokeWidths.map((width) => _buildStrokeWidthOption(width)),
-                ],
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Color swatches
+                    ..._colors.map((color) => _buildColorSwatch(color)),
+                    const SizedBox(width: DesignTokens.spaceMD),
+                    // Divider
+                    Container(
+                      width: DesignTokens.elevation1,
+                      height: DesignTokens.spaceXXL,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withOpacity(0.2),
+                    ),
+                    const SizedBox(width: DesignTokens.spaceMD),
+                    // Stroke width options
+                    ..._strokeWidths.map(
+                        (width) => _buildStrokeWidthOption(context, width)),
+                  ],
+                ),
               ),
             ),
           ),
@@ -99,9 +107,8 @@ class StoryDrawingTools extends StatelessWidget {
           color: color,
           shape: BoxShape.circle,
           border: Border.all(
-            color: isSelected
-                ? SonarPulseTheme.primaryAccent
-                : Colors.transparent,
+            color:
+                isSelected ? SonarPulseTheme.primaryAccent : Colors.transparent,
             width: isSelected ? 3 : 0,
           ),
           boxShadow: isSelected
@@ -118,23 +125,23 @@ class StoryDrawingTools extends StatelessWidget {
     );
   }
 
-  Widget _buildStrokeWidthOption(double width) {
+  Widget _buildStrokeWidthOption(BuildContext context, double width) {
     final isSelected = (width - selectedStrokeWidth).abs() < 0.1;
     return GestureDetector(
       onTap: () => onStrokeWidthSelected(width),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceXS),
-        width: isSelected ? 48 : 40,
-        height: isSelected ? 48 : 40,
+        width: isSelected ? DesignTokens.iconLG : DesignTokens.iconMD,
+        height: isSelected ? DesignTokens.iconLG : DesignTokens.iconMD,
         decoration: BoxDecoration(
           color: isSelected
-              ? SonarPulseTheme.primaryAccent.withValues(alpha: 0.2)
-              : Colors.white.withValues(alpha: 0.2),
+              ? SonarPulseTheme.primaryAccent.withOpacity(0.2)
+              : Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
           shape: BoxShape.circle,
           border: isSelected
               ? Border.all(
                   color: SonarPulseTheme.primaryAccent,
-                  width: 2,
+                  width: DesignTokens.elevation1,
                 )
               : null,
         ),
@@ -143,7 +150,7 @@ class StoryDrawingTools extends StatelessWidget {
             width: width,
             height: width,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.onSurface,
               shape: BoxShape.circle,
             ),
           ),

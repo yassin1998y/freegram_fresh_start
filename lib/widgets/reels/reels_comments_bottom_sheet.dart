@@ -14,6 +14,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:freegram/widgets/common/keyboard_safe_area.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:freegram/widgets/common/app_bottom_sheet.dart';
+import 'package:freegram/widgets/common/app_reaction_button.dart';
 
 class ReelsCommentsBottomSheet extends StatefulWidget {
   final String reelId;
@@ -26,14 +27,15 @@ class ReelsCommentsBottomSheet extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<ReelsCommentsBottomSheet> createState() => _ReelsCommentsBottomSheetState();
+  State<ReelsCommentsBottomSheet> createState() =>
+      _ReelsCommentsBottomSheetState();
 }
 
 class _ReelsCommentsBottomSheetState extends State<ReelsCommentsBottomSheet> {
   final TextEditingController _commentController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ReelRepository _reelRepository = locator<ReelRepository>();
-  
+
   List<CommentModel> _comments = [];
   bool _isLoading = false;
   bool _hasMore = true;
@@ -68,7 +70,8 @@ class _ReelsCommentsBottomSheetState extends State<ReelsCommentsBottomSheet> {
 
   void _startCommentsStream() {
     // Subscribe to real-time comment updates
-    _commentsStreamSubscription = _reelRepository.getCommentsStream(widget.reelId).listen(
+    _commentsStreamSubscription =
+        _reelRepository.getCommentsStream(widget.reelId).listen(
       (newComments) {
         if (mounted) {
           setState(() {
@@ -104,7 +107,8 @@ class _ReelsCommentsBottomSheetState extends State<ReelsCommentsBottomSheet> {
         }
       },
       onError: (error) {
-        debugPrint('ReelsCommentsBottomSheet: Error in comments stream: $error');
+        debugPrint(
+            'ReelsCommentsBottomSheet: Error in comments stream: $error');
       },
     );
   }
@@ -156,7 +160,8 @@ class _ReelsCommentsBottomSheetState extends State<ReelsCommentsBottomSheet> {
                 .get();
             newLastDoc = lastDoc;
           } catch (e) {
-            debugPrint('ReelsCommentsBottomSheet: Error getting last document: $e');
+            debugPrint(
+                'ReelsCommentsBottomSheet: Error getting last document: $e');
           }
         }
 
@@ -265,13 +270,15 @@ class _ReelsCommentsBottomSheetState extends State<ReelsCommentsBottomSheet> {
 
   void _handleCommentDeleted() {
     setState(() {
-      _localCommentCount = (_localCommentCount - 1).clamp(0, double.infinity).toInt();
+      _localCommentCount =
+          (_localCommentCount - 1).clamp(0, double.infinity).toInt();
     });
   }
 
   void _handleCommentEdited(CommentModel updatedComment) {
     setState(() {
-      final index = _comments.indexWhere((c) => c.commentId == updatedComment.commentId);
+      final index =
+          _comments.indexWhere((c) => c.commentId == updatedComment.commentId);
       if (index != -1) {
         _comments[index] = updatedComment;
       }
@@ -361,7 +368,8 @@ class _ReelsCommentsBottomSheetState extends State<ReelsCommentsBottomSheet> {
                     horizontal: DesignTokens.spaceMD,
                     vertical: DesignTokens.spaceSM,
                   ),
-                  counterText: _commentController.text.length > _maxCommentLength * 0.8
+                  counterText: _commentController.text.length >
+                          _maxCommentLength * 0.8
                       ? '${_commentController.text.length}/$_maxCommentLength'
                       : '',
                 ),
@@ -375,11 +383,13 @@ class _ReelsCommentsBottomSheetState extends State<ReelsCommentsBottomSheet> {
               icon: Icon(
                 Icons.send,
                 color: _commentController.text.trim().isEmpty
-                    ? theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityMedium)
+                    ? theme.colorScheme.onSurface
+                        .withOpacity(DesignTokens.opacityMedium)
                     : SonarPulseTheme.primaryAccent,
                 size: DesignTokens.iconLG,
               ),
-              onPressed: _commentController.text.trim().isEmpty ? null : _addComment,
+              onPressed:
+                  _commentController.text.trim().isEmpty ? null : _addComment,
             ),
           ],
         ),
@@ -390,7 +400,7 @@ class _ReelsCommentsBottomSheetState extends State<ReelsCommentsBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return AppBottomSheet(
       isDraggable: true,
       initialChildSize: 0.7,
@@ -403,7 +413,7 @@ class _ReelsCommentsBottomSheetState extends State<ReelsCommentsBottomSheet> {
       childBuilder: (scrollController) {
         // Use the scrollController from DraggableScrollableSheet if available
         final effectiveScrollController = scrollController;
-        
+
         // Update pagination listener if scrollController is provided
         if (scrollController != null) {
           scrollController.addListener(() {
@@ -415,7 +425,7 @@ class _ReelsCommentsBottomSheetState extends State<ReelsCommentsBottomSheet> {
             }
           });
         }
-        
+
         return _comments.isEmpty && !_isLoading
             ? Center(
                 child: Column(
@@ -424,20 +434,23 @@ class _ReelsCommentsBottomSheetState extends State<ReelsCommentsBottomSheet> {
                     Icon(
                       Icons.comment_outlined,
                       size: DesignTokens.iconXXL,
-                      color: theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityMedium),
+                      color: theme.colorScheme.onSurface
+                          .withOpacity(DesignTokens.opacityMedium),
                     ),
                     const SizedBox(height: DesignTokens.spaceMD),
                     Text(
                       'No comments yet',
                       style: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityMedium),
+                        color: theme.colorScheme.onSurface
+                            .withOpacity(DesignTokens.opacityMedium),
                       ),
                     ),
                     const SizedBox(height: DesignTokens.spaceSM),
                     Text(
                       'Be the first to comment!',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityMedium),
+                        color: theme.colorScheme.onSurface
+                            .withOpacity(DesignTokens.opacityMedium),
                       ),
                     ),
                   ],
@@ -696,7 +709,8 @@ class _ReelCommentTileState extends State<ReelCommentTile> {
 
     if (confirm == true) {
       try {
-        await _reelRepository.deleteComment(widget.reelId, widget.comment.commentId);
+        await _reelRepository.deleteComment(
+            widget.reelId, widget.comment.commentId);
 
         if (widget.onDeleted != null) {
           widget.onDeleted!();
@@ -732,7 +746,8 @@ class _ReelCommentTileState extends State<ReelCommentTile> {
         backgroundImage: widget.comment.photoUrl.isNotEmpty
             ? NetworkImage(widget.comment.photoUrl)
             : null,
-        child: widget.comment.photoUrl.isEmpty ? const Icon(Icons.person) : null,
+        child:
+            widget.comment.photoUrl.isEmpty ? const Icon(Icons.person) : null,
       ),
       title: Row(
         children: [
@@ -775,23 +790,12 @@ class _ReelCommentTileState extends State<ReelCommentTile> {
               ),
               if (widget.comment.reactions.isNotEmpty) ...[
                 const SizedBox(width: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.favorite,
-                      size: 12,
-                      color: Colors.red[300],
-                    ),
-                    const SizedBox(width: 2),
-                    Text(
-                      '${widget.comment.reactions.length}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[600],
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
+                AppReactionButton(
+                  isLiked: true,
+                  reactionCount: widget.comment.reactions.length,
+                  showCount: true,
+                  compact: true,
+                  size: DesignTokens.iconXS,
                 ),
               ],
             ],
@@ -801,22 +805,14 @@ class _ReelCommentTileState extends State<ReelCommentTile> {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          InkWell(
-            onTap: _isLiking ? null : _toggleLike,
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: _isLiking
-                  ? const AppProgressIndicator(
-                      size: 18,
-                      strokeWidth: 2,
-                    )
-                  : Icon(
-                      _isLiked ? Icons.favorite : Icons.favorite_border,
-                      size: 18,
-                      color: _isLiked ? Colors.red : Colors.grey[600],
-                    ),
-            ),
+          AppReactionButton(
+            isLiked: _isLiked,
+            reactionCount: widget.comment.reactions.length,
+            isLoading: _isLiking,
+            onTap: _toggleLike,
+            showCount: false,
+            compact: true,
+            size: DesignTokens.iconSM,
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, size: 20),

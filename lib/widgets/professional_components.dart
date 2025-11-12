@@ -49,7 +49,7 @@ class _ProfessionalStatusChipState extends State<ProfessionalStatusChip>
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: DesignTokens.durationFast,
+      duration: AnimationTokens.fast,
       vsync: this,
     );
     _scaleAnimation = Tween<double>(
@@ -57,7 +57,7 @@ class _ProfessionalStatusChipState extends State<ProfessionalStatusChip>
       end: 0.95,
     ).animate(CurvedAnimation(
       parent: _animationController,
-      curve: DesignTokens.curveEaseInOut,
+      curve: AnimationTokens.easeInOut,
     ));
   }
 
@@ -191,7 +191,7 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: DesignTokens.durationFast,
+      duration: AnimationTokens.fast,
       vsync: this,
     );
     _waveAnimationController = AnimationController(
@@ -204,7 +204,7 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
       end: 0.95,
     ).animate(CurvedAnimation(
       parent: _animationController,
-      curve: DesignTokens.curveEaseInOut,
+      curve: AnimationTokens.easeInOut,
     ));
 
     _waveAnimation = Tween<double>(
@@ -307,11 +307,11 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
   }
 
   Color _getSignalColor(int rssi) {
-    if (rssi >= -50) return DesignTokens.successColor; // Green
+    if (rssi >= -50) return SemanticColors.success; // Green
     if (rssi >= -60) return const Color(0xFF10B981); // Light green
-    if (rssi >= -70) return DesignTokens.warningColor; // Orange
+    if (rssi >= -70) return SemanticColors.warning; // Orange
     if (rssi >= -80) return const Color(0xFFF59E0B); // Light orange
-    return DesignTokens.errorColor; // Red
+    return SemanticColors.error; // Red
   }
 
   Widget _buildConnectionQuality() {
@@ -342,8 +342,8 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
               padding:
                   EdgeInsets.only(right: index < 3 ? DesignTokens.spaceXS : 0),
               child: AnimatedContainer(
-                duration: DesignTokens.durationFast,
-                curve: DesignTokens.curveEaseInOut,
+                duration: AnimationTokens.fast,
+                curve: AnimationTokens.easeInOut,
                 width: 3,
                 height: barHeight,
                 decoration: BoxDecoration(
@@ -372,9 +372,7 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
           vertical: DesignTokens.spaceXS,
         ),
         decoration: BoxDecoration(
-          color: widget.isNew
-              ? DesignTokens.successColor
-              : DesignTokens.warningColor,
+          color: widget.isNew ? SemanticColors.success : SemanticColors.warning,
           borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
           boxShadow: DesignTokens.shadowLight,
         ),
@@ -409,8 +407,8 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
       bottom: DesignTokens.spaceSM,
       left: DesignTokens.spaceSM,
       child: AnimatedContainer(
-        duration: DesignTokens.durationFast,
-        curve: DesignTokens.curveEaseInOut,
+        duration: AnimationTokens.fast,
+        curve: AnimationTokens.easeInOut,
         padding: const EdgeInsets.all(DesignTokens.spaceXS),
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.8),
@@ -453,8 +451,8 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
                   onTapCancel: _handleTapCancel,
                   onTap: () => _showUserActions(context),
                   child: AnimatedContainer(
-                    duration: DesignTokens.durationFast,
-                    curve: DesignTokens.curveEaseInOut,
+                    duration: AnimationTokens.fast,
+                    curve: AnimationTokens.easeInOut,
                     decoration: BoxDecoration(
                       borderRadius:
                           BorderRadius.circular(DesignTokens.radiusLG),
@@ -508,7 +506,8 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
                               child: GestureDetector(
                                 onTap: widget.onDelete,
                                 child: Container(
-                                  padding: const EdgeInsets.all(DesignTokens.spaceXS),
+                                  padding: const EdgeInsets.all(
+                                      DesignTokens.spaceXS),
                                   decoration: BoxDecoration(
                                     color: Colors.black.withOpacity(0.6),
                                     shape: BoxShape.circle,
@@ -528,7 +527,8 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
                             left: 0,
                             right: 0,
                             child: Padding(
-                              padding: const EdgeInsets.all(DesignTokens.spaceMD),
+                              padding:
+                                  const EdgeInsets.all(DesignTokens.spaceMD),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -552,7 +552,8 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
                                   ),
                                   if (widget.statusMessage != null &&
                                       widget.statusMessage!.isNotEmpty) ...[
-                                    const SizedBox(height: DesignTokens.spaceXS),
+                                    const SizedBox(
+                                        height: DesignTokens.spaceXS),
                                     Text(
                                       widget.statusMessage!,
                                       style:
@@ -584,7 +585,7 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(
                                       DesignTokens.radiusLG),
-                                  color: DesignTokens.successColor
+                                  color: SemanticColors.success
                                       .withOpacity(0.2 * _waveAnimation.value),
                                 ),
                                 child: Center(
@@ -644,7 +645,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
   void initState() {
     super.initState();
     _entranceController = AnimationController(
-      duration: DesignTokens.durationSlow,
+      duration: AnimationTokens.slow,
       vsync: this,
     );
     _staggerController = AnimationController(
@@ -657,7 +658,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _entranceController,
-      curve: DesignTokens.curveEaseOut,
+      curve: AnimationTokens.easeOut,
     ));
 
     _slideAnimation = Tween<Offset>(
@@ -665,7 +666,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _entranceController,
-      curve: DesignTokens.curveEaseOut,
+      curve: AnimationTokens.easeOut,
     ));
 
     // Stagger animations for content elements
@@ -678,7 +679,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
         curve: Interval(
           index * 0.1,
           1.0,
-          curve: DesignTokens.curveEaseOut,
+          curve: AnimationTokens.easeOut,
         ),
       ));
     });
@@ -775,8 +776,9 @@ class _UserActionsModalState extends State<_UserActionsModal>
                             controller: scrollController,
                             physics: const BouncingScrollPhysics(),
                             child: Padding(
-                              padding: const EdgeInsets.all(DesignTokens.spaceLG)
-                                  .copyWith(bottom: DesignTokens.spaceXXXL),
+                              padding:
+                                  const EdgeInsets.all(DesignTokens.spaceLG)
+                                      .copyWith(bottom: DesignTokens.spaceXXXL),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -1102,7 +1104,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
           const Icon(
             Icons.people_outline,
             size: DesignTokens.iconSM,
-            color: DesignTokens.successColor,
+            color: SemanticColors.success,
           ),
           const SizedBox(width: DesignTokens.spaceSM),
           Expanded(
@@ -1152,7 +1154,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
               const Icon(
                 Icons.favorite_border,
                 size: DesignTokens.iconSM,
-                color: DesignTokens.errorColor,
+                color: SemanticColors.error,
               ),
               const SizedBox(width: DesignTokens.spaceSM),
               Text(
@@ -1295,7 +1297,7 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
         curve: Interval(
           index * 0.1,
           1.0,
-          curve: DesignTokens.curveEaseOut,
+          curve: AnimationTokens.easeOut,
         ),
       ));
     });
@@ -1676,7 +1678,8 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
                     isDisabled: isDisabled,
                     size: 48,
                     iconSize: DesignTokens.iconLG,
-                    showLabel: false, // We'll add the label separately to match original layout
+                    showLabel:
+                        false, // We'll add the label separately to match original layout
                     backgroundColor: isDisabled
                         ? theme.dividerColor.withOpacity(0.3)
                         : theme.colorScheme.primary.withOpacity(0.1),

@@ -7,6 +7,7 @@ import 'package:freegram/locator.dart';
 import 'package:freegram/navigation/app_routes.dart';
 import 'package:freegram/widgets/common/keyboard_safe_area.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/theme/design_tokens.dart';
 import 'package:flutter/foundation.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -106,16 +107,25 @@ class _LoginScreenState extends State<LoginScreen> {
             SnackBar(
               content: Text(state.message),
               backgroundColor: Theme.of(context).colorScheme.error,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+              ),
             ),
           );
         }
         if (state is Authenticated && state.user.emailVerified == false) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Please verify your email address. Check your inbox.'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 5),
+            SnackBar(
+              content: const Text(
+                'Please verify your email address. Check your inbox.',
+              ),
+              backgroundColor: SemanticColors.warning,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+              ),
+              duration: const Duration(seconds: 5),
             ),
           );
         }
@@ -133,7 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
           body: KeyboardSafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(32.0),
+                padding: const EdgeInsets.all(DesignTokens.spaceXL),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -146,9 +156,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         style:
                             Theme.of(context).textTheme.displayLarge?.copyWith(
                                   color: Theme.of(context).colorScheme.primary,
+                                  fontSize: DesignTokens.fontSizeDisplay,
                                 ),
                       ),
-                      const SizedBox(height: 48.0),
+                      const SizedBox(height: DesignTokens.spaceXXL),
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
@@ -161,7 +172,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ? 'Please enter a valid email'
                                 : null,
                       ),
-                      const SizedBox(height: 16.0),
+                      const SizedBox(height: DesignTokens.spaceMD),
                       TextFormField(
                         controller: _passwordController,
                         obscureText: !_passwordVisible,
@@ -183,33 +194,50 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ? 'Password must be at least 6 characters'
                                 : null,
                       ),
-                      const SizedBox(height: 8.0),
+                      const SizedBox(height: DesignTokens.spaceSM),
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: isLoading ? null : _handlePasswordReset,
-                          child: const Text('Forgot Password?'),
+                          child: Text(
+                            'Forgot Password?',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 16.0),
+                      const SizedBox(height: DesignTokens.spaceMD),
                       ElevatedButton(
                         onPressed: isLoading ? null : _login,
                         style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16.0),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: DesignTokens.spaceMD,
+                          ),
                           backgroundColor:
                               Theme.of(context).colorScheme.primary,
                           foregroundColor:
                               Theme.of(context).colorScheme.onPrimary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(DesignTokens.radiusMD),
+                          ),
                         ),
                         child: isLoading
-                            ? const AppProgressIndicator(
-                                size: 24,
+                            ? AppProgressIndicator(
+                                size: DesignTokens.iconMD,
                                 strokeWidth: 2.5,
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.onPrimary,
                               )
-                            : const Text('Log In'),
+                            : Text(
+                                'Log In',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelLarge
+                                    ?.copyWith(
+                                      fontSize: DesignTokens.fontSizeLG,
+                                    ),
+                              ),
                       ),
-                      const SizedBox(height: 16.0),
+                      const SizedBox(height: DesignTokens.spaceMD),
                       TextButton(
                         onPressed: isLoading
                             ? null
@@ -218,27 +246,40 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                         child: Text(
                           "Don't have an account? Sign Up",
-                          style: TextStyle(
-                              color: isLoading
-                                  ? Colors.grey
-                                  : Theme.of(context).colorScheme.primary),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: isLoading
+                                        ? SemanticColors.textSecondary(context)
+                                        : Theme.of(context).colorScheme.primary,
+                                  ),
                         ),
                       ),
-                      const SizedBox(height: 24.0),
+                      const SizedBox(height: DesignTokens.spaceLG),
                       Row(
                         // OR Separator
                         children: [
-                          const Expanded(child: Divider()),
-                          Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 8.0),
-                            child: Text('OR',
-                                style: Theme.of(context).textTheme.bodySmall),
+                          Expanded(
+                            child: Divider(
+                              color: Theme.of(context).dividerColor,
+                            ),
                           ),
-                          const Expanded(child: Divider()),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: DesignTokens.spaceSM,
+                            ),
+                            child: Text(
+                              'OR',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                          Expanded(
+                            child: Divider(
+                              color: Theme.of(context).dividerColor,
+                            ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 24.0),
+                      const SizedBox(height: DesignTokens.spaceLG),
                       _SocialLoginButton(
                         text: 'Sign in with Google',
                         assetName: 'assets/google_logo.png',
@@ -254,7 +295,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         disabled: isLoading,
                         isLoading: false,
                       ),
-                      const SizedBox(height: 12.0),
+                      const SizedBox(height: DesignTokens.spaceSM),
                       _SocialLoginButton(
                         text: 'Sign in with Facebook',
                         icon: Icons.facebook,
@@ -266,7 +307,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     .add(SignInWithFacebook());
                               },
                         backgroundColor: const Color(0xFF1877F2),
-                        textColor: Colors.white,
+                        textColor: Colors.white, // Facebook brand color
                         disabled: isLoading,
                         isLoading: false,
                       ),
@@ -310,11 +351,12 @@ class _SocialLoginButton extends StatelessWidget {
       onPressed: disabled ? null : onPressed,
       style: ElevatedButton.styleFrom(
         // Dim background when disabled
-        backgroundColor:
-            disabled ? backgroundColor.withOpacity(0.5) : backgroundColor,
-        padding: const EdgeInsets.symmetric(vertical: 12.0),
+        backgroundColor: disabled
+            ? backgroundColor.withOpacity(DesignTokens.opacityDisabled)
+            : backgroundColor,
+        padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSM),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
           // Use divider color for border for subtle look
           side: BorderSide(color: Theme.of(context).dividerColor),
         ),

@@ -489,10 +489,13 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                   Container(
                     width: 40,
                     height: 4,
-                    margin:
-                        const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
+                    margin: const EdgeInsets.symmetric(
+                        vertical: DesignTokens.spaceMD),
                     decoration: BoxDecoration(
-                      color: Colors.grey[300],
+                      color:
+                          Theme.of(context).colorScheme.onSurface.withOpacity(
+                                DesignTokens.opacityMedium,
+                              ),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -698,7 +701,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
     if (index != -1) {
       _scrollController.animateTo(
         index * 100.0, // Approximate height
-        duration: DesignTokens.durationNormal,
+        duration: AnimationTokens.normal,
         curve: Curves.easeInOut,
       );
     }
@@ -844,77 +847,119 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
       );
     }
 
-    return StreamBuilder<DocumentSnapshot>(
-      stream: _chatRepository.getChatStream(widget.chatId),
-      builder: (context, chatSnapshot) {
-        if (!chatSnapshot.hasData || !chatSnapshot.data!.exists) {
-          return _buildErrorScaffold('Chat not available');
-        }
-
-        final chatData = chatSnapshot.data!.data() as Map<String, dynamic>;
-        final List<dynamic> users = chatData['users'] ?? [];
-
-        if (users.isEmpty) {
-          return _buildErrorScaffold('Chat data unavailable');
-        }
-
-        final otherUserId =
-            users.firstWhere((id) => id != currentUser.uid, orElse: () => '');
-        final chatType = chatData['chatType'] ?? 'friend';
-        final bool isContactRequest = chatType == 'contact_request';
-        final initiatorId = chatData['initiatorId'];
-        final bool isSender =
-            isContactRequest && currentUser.uid == initiatorId;
-        final Timestamp? matchTimestamp = chatData['matchTimestamp'];
-
-        return StreamBuilder<UserModel>(
-          stream: _userRepository.getUserStream(otherUserId),
-          builder: (context, userSnapshot) {
-            if (!userSnapshot.hasData) {
-              return _buildLoadingScaffold();
-            }
-
-            final user = userSnapshot.data!;
-
-            return Scaffold(
-              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              appBar: _buildProfessionalAppBar(user, otherUserId, chatData),
-              body: SafeArea(
-                bottom: false,
-                child: Column(
-                  children: [
-                    // Messages list
-                    Expanded(
-                      child: RepaintBoundary(
-                        child:
-                            _buildMessagesList(matchTimestamp, currentUser.uid),
-                      ),
-                    ),
-
-                    // Sender info banner
-                    if (isSender) _SenderInfoBanner(),
-
-                    // Enhanced input
-                    SafeArea(
-                      top: false,
-                      child: EnhancedMessageInput(
-                        controller: _messageController,
-                        onSend: _sendMessage,
-                        onCamera: () => _sendImage(source: ImageSource.camera),
-                        onGallery: () =>
-                            _sendImage(source: ImageSource.gallery),
-                        isUploading: _isUploading,
-                        replyingTo: _replyingToMessageText,
-                        onCancelReply: _cancelReply,
-                      ),
-                    ),
-                  ],
+    // OPTIMIZATION: Add BlocListener to handle FriendsBloc state changes
+    return BlocListener<FriendsBloc, FriendsState>(
+      listener: (context, state) {
+        // Handle block user success/error
+        if (state is FriendsActionSuccess) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: SemanticColors.success,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
                 ),
+                duration: const Duration(seconds: 2),
               ),
             );
-          },
-        );
+            // Navigate back after blocking
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted) {
+                Navigator.of(context).pop();
+              }
+            });
+          }
+        } else if (state is FriendsActionError) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Theme.of(context).colorScheme.error,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                ),
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+        }
       },
+      child: StreamBuilder<DocumentSnapshot>(
+        stream: _chatRepository.getChatStream(widget.chatId),
+        builder: (context, chatSnapshot) {
+          if (!chatSnapshot.hasData || !chatSnapshot.data!.exists) {
+            return _buildErrorScaffold('Chat not available');
+          }
+
+          final chatData = chatSnapshot.data!.data() as Map<String, dynamic>;
+          final List<dynamic> users = chatData['users'] ?? [];
+
+          if (users.isEmpty) {
+            return _buildErrorScaffold('Chat data unavailable');
+          }
+
+          final otherUserId =
+              users.firstWhere((id) => id != currentUser.uid, orElse: () => '');
+          final chatType = chatData['chatType'] ?? 'friend';
+          final bool isContactRequest = chatType == 'contact_request';
+          final initiatorId = chatData['initiatorId'];
+          final bool isSender =
+              isContactRequest && currentUser.uid == initiatorId;
+          final Timestamp? matchTimestamp = chatData['matchTimestamp'];
+
+          return StreamBuilder<UserModel>(
+            stream: _userRepository.getUserStream(otherUserId),
+            builder: (context, userSnapshot) {
+              if (!userSnapshot.hasData) {
+                return _buildLoadingScaffold();
+              }
+
+              final user = userSnapshot.data!;
+
+              return Scaffold(
+                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                appBar: _buildProfessionalAppBar(user, otherUserId, chatData),
+                body: SafeArea(
+                  bottom: false,
+                  child: Column(
+                    children: [
+                      // Messages list
+                      Expanded(
+                        child: RepaintBoundary(
+                          child: _buildMessagesList(
+                              matchTimestamp, currentUser.uid),
+                        ),
+                      ),
+
+                      // Sender info banner
+                      if (isSender) _SenderInfoBanner(),
+
+                      // Enhanced input
+                      SafeArea(
+                        top: false,
+                        child: EnhancedMessageInput(
+                          controller: _messageController,
+                          onSend: _sendMessage,
+                          onCamera: () =>
+                              _sendImage(source: ImageSource.camera),
+                          onGallery: () =>
+                              _sendImage(source: ImageSource.gallery),
+                          isUploading: _isUploading,
+                          replyingTo: _replyingToMessageText,
+                          onCancelReply: _cancelReply,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -987,7 +1032,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                       right: 0,
                       child: ProfessionalPresenceIndicator(
                         presenceStream: presenceStream,
-                        size: 12,
+                        size: DesignTokens.iconXS,
                         showPulse: true,
                       ),
                     ),
@@ -1003,14 +1048,14 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                   children: [
                     Text(
                       widget.otherUsername,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                        color: theme.colorScheme.onSurface,
-                      ),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            fontSize: DesignTokens.fontSizeMD,
+                            color: theme.colorScheme.onSurface,
+                          ),
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 1),
+                    const SizedBox(height: DesignTokens.spaceXS / 4),
                     // Professional presence text
                     ProfessionalPresenceText(
                       presenceStream: presenceStream,
@@ -1047,22 +1092,26 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
         return Container(
           decoration: BoxDecoration(
             color: theme.scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(DesignTokens.radiusXL),
+            ),
           ),
           child: SafeArea(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(height: 12),
+                const SizedBox(height: DesignTokens.spaceMD),
                 Container(
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.onSurface.withOpacity(0.2),
+                    color: theme.colorScheme.onSurface.withOpacity(
+                      DesignTokens.opacityMedium,
+                    ),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: DesignTokens.spaceLG),
                 _buildOptionTile(
                   context,
                   icon: Icons.person_outline,
@@ -1098,7 +1147,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                     _confirmBlockUser(context, userId);
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: DesignTokens.spaceMD),
               ],
             ),
           ),
@@ -1139,48 +1188,9 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
       // Block user
       context.read<FriendsBloc>().add(BlockUser(userId));
 
-      // Listen for success/error
-      final subscription = context.read<FriendsBloc>().stream.listen((state) {
-        if (state is FriendsActionSuccess) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('${widget.otherUsername} has been blocked.'),
-                backgroundColor: Theme.of(context).colorScheme.error,
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 2),
-              ),
-            );
-
-            // Reload friends data to reflect changes
-            context.read<FriendsBloc>().add(LoadFriends());
-
-            // Navigate back to chat list after blocking
-            Future.delayed(const Duration(milliseconds: 500), () {
-              if (mounted) {
-                Navigator.of(context).pop();
-              }
-            });
-          }
-        } else if (state is FriendsActionError) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Theme.of(context).colorScheme.error,
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 3),
-              ),
-            );
-            // Don't navigate back on error
-          }
-        }
-      });
-
-      // Cancel subscription after handling one event
-      Future.delayed(const Duration(seconds: 5), () {
-        subscription.cancel();
-      });
+      // OPTIMIZATION: Use BlocConsumer pattern instead of manual stream subscription
+      // The BlocConsumer in the widget tree will handle state changes automatically
+      // Just show immediate feedback and let the bloc handle the rest
     }
   }
 
@@ -1200,9 +1210,13 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
         height: 40,
         decoration: BoxDecoration(
           color: tileColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
         ),
-        child: Icon(icon, color: tileColor, size: 22),
+        child: Icon(
+          icon,
+          color: tileColor,
+          size: DesignTokens.iconMD,
+        ),
       ),
       title: Text(
         title,
@@ -1309,23 +1323,23 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
       body: SafeArea(
         child: Center(
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(DesignTokens.spaceLG),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   Icons.error_outline_rounded,
-                  size: 64,
+                  size: DesignTokens.iconXXL * 1.6,
                   color: Theme.of(context).colorScheme.error,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: DesignTokens.spaceMD),
                 Text(
                   message,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontSize: DesignTokens.fontSizeMD,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                 ),
               ],
             ),
@@ -1385,26 +1399,26 @@ class _SenderInfoBanner extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(DesignTokens.spaceSM),
             decoration: BoxDecoration(
               color: iconColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
             ),
             child: Icon(
               Icons.info_outline_rounded,
               color: iconColor,
-              size: 18,
+              size: DesignTokens.iconSM,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: DesignTokens.spaceMD),
           Expanded(
             child: Text(
               'You can send up to 2 messages. Once they reply or accept, you can chat freely.',
-              style: TextStyle(
-                color: textColor,
-                fontSize: 13,
-                height: 1.4,
-              ),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: textColor,
+                    fontSize: DesignTokens.fontSizeSM,
+                    height: 1.4,
+                  ),
             ),
           ),
         ],

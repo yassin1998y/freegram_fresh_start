@@ -65,7 +65,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Page not found'),
-              backgroundColor: DesignTokens.errorColor,
+              backgroundColor: SemanticColors.error,
             ),
           );
           Navigator.pop(context);
@@ -81,16 +81,16 @@ class _PageProfileScreenState extends State<PageProfileScreen>
         analyticsService.trackProfileView(widget.pageId, currentUser.uid);
       }
 
-        setState(() {
-          _page = page;
-          _isLoading = false;
-        });
+      setState(() {
+        _page = page;
+        _isLoading = false;
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading page: $e'),
-            backgroundColor: DesignTokens.errorColor,
+            backgroundColor: SemanticColors.error,
           ),
         );
       }
@@ -114,7 +114,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
       // Refresh page data to get updated follower count
       final updatedPage = await _pageRepository.getPage(widget.pageId);
       if (updatedPage != null && mounted) {
-      setState(() {
+        setState(() {
           _page = updatedPage;
         });
       }
@@ -123,13 +123,13 @@ class _PageProfileScreenState extends State<PageProfileScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${e.toString()}'),
-            backgroundColor: DesignTokens.errorColor,
+            backgroundColor: SemanticColors.error,
           ),
         );
       }
     } finally {
       if (mounted) {
-      setState(() => _isLoadingFollow = false);
+        setState(() => _isLoadingFollow = false);
       }
     }
   }
@@ -155,7 +155,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error picking image: $e'),
-            backgroundColor: DesignTokens.errorColor,
+            backgroundColor: SemanticColors.error,
           ),
         );
       }
@@ -177,7 +177,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error picking image: $e'),
-            backgroundColor: DesignTokens.errorColor,
+            backgroundColor: SemanticColors.error,
           ),
         );
       }
@@ -238,7 +238,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Cover image updated successfully!'),
-            backgroundColor: DesignTokens.successColor,
+            backgroundColor: SemanticColors.success,
           ),
         );
       }
@@ -248,7 +248,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error uploading cover image: $e'),
-            backgroundColor: DesignTokens.errorColor,
+            backgroundColor: SemanticColors.error,
           ),
         );
       }
@@ -313,7 +313,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Profile picture updated successfully!'),
-            backgroundColor: DesignTokens.successColor,
+            backgroundColor: SemanticColors.success,
           ),
         );
       }
@@ -323,7 +323,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error uploading profile picture: $e'),
-            backgroundColor: DesignTokens.errorColor,
+            backgroundColor: SemanticColors.error,
           ),
         );
       }
@@ -366,7 +366,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
           child: Text(
             'Page not found',
             style: theme.textTheme.bodyLarge?.copyWith(
-              color: DesignTokens.errorColor,
+              color: SemanticColors.error,
             ),
           ),
         ),
@@ -434,7 +434,8 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                               DesignTokens.radiusMD,
                             ),
                             child: Container(
-                              padding: const EdgeInsets.all(DesignTokens.spaceSM),
+                              padding:
+                                  const EdgeInsets.all(DesignTokens.spaceSM),
                               child: const Icon(
                                 Icons.camera_alt,
                                 color: Colors.white,
@@ -519,8 +520,8 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                                       : _pickProfileImage,
                                   customBorder: const CircleBorder(),
                                   child: Container(
-                                    padding:
-                                        const EdgeInsets.all(DesignTokens.spaceXS),
+                                    padding: const EdgeInsets.all(
+                                        DesignTokens.spaceXS),
                                     child: Icon(
                                       Icons.camera_alt,
                                       color: theme.colorScheme.onPrimary,
@@ -542,9 +543,9 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                               children: [
                                 Flexible(
                                   child: Text(
-                                  _page!.pageName,
+                                    _page!.pageName,
                                     style: theme.textTheme.headlineSmall,
-                                      ),
+                                  ),
                                 ),
                                 if (_page!.verificationStatus ==
                                     VerificationStatus.verified) ...[
@@ -566,8 +567,8 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                               ),
                             ),
                           ],
-                          ),
                         ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: DesignTokens.spaceMD),
@@ -691,9 +692,9 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                           },
                           style: IconButton.styleFrom(
                             foregroundColor: theme.colorScheme.onSurface,
-                      ),
-                    ),
-                  ],
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
@@ -777,13 +778,13 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                 const Icon(
                   Icons.error_outline,
                   size: DesignTokens.iconXXL,
-                  color: DesignTokens.errorColor,
+                  color: SemanticColors.error,
                 ),
                 const SizedBox(height: DesignTokens.spaceMD),
                 Text(
                   'Error: ${snapshot.error}',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: DesignTokens.errorColor,
+                    color: SemanticColors.error,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -848,8 +849,8 @@ class _PageProfileScreenState extends State<PageProfileScreen>
             Text(
               'About',
               style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: DesignTokens.spaceMD),
             Text(
@@ -862,8 +863,8 @@ class _PageProfileScreenState extends State<PageProfileScreen>
             Text(
               'Category',
               style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: DesignTokens.spaceMD),
             Chip(
@@ -883,8 +884,8 @@ class _PageProfileScreenState extends State<PageProfileScreen>
             Text(
               'Website',
               style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: DesignTokens.spaceMD),
             InkWell(
@@ -897,7 +898,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Could not open ${_page!.website}'),
-                        backgroundColor: DesignTokens.errorColor,
+                        backgroundColor: SemanticColors.error,
                       ),
                     );
                   }
@@ -912,8 +913,8 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                   ),
                   const SizedBox(width: DesignTokens.spaceSM),
                   Expanded(
-              child: Text(
-                _page!.website!,
+                    child: Text(
+                      _page!.website!,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.primary,
                         decoration: TextDecoration.underline,
@@ -959,7 +960,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
             Text(
               'Contact Phone',
               style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: DesignTokens.spaceMD),

@@ -21,7 +21,7 @@ class ViewersListBottomSheet extends StatelessWidget {
   static Future<void> show(BuildContext context, String storyId) async {
     await AppBottomSheet.show(
       context: context,
-      title: const Text('Story Viewers'),
+      title: const Text('Viewers & Reactions'),
       showDragHandle: true,
       showCloseButton: false,
       isDraggable: false,
@@ -44,8 +44,14 @@ class ViewersListBottomSheet extends StatelessWidget {
 
     // Note: This widget is now wrapped by AppBottomSheet.show()
     // So we just return the content without the container/header
-    return FutureBuilder<List<String>>(
-      future: storyRepository.getStoryViewers(storyId),
+    return FutureBuilder<Map<String, dynamic>>(
+      future: Future.wait([
+        storyRepository.getStoryViewers(storyId),
+        storyRepository.getStoryReactions(storyId),
+      ]).then((results) => {
+            'viewers': results[0] as List<String>,
+            'reactions': results[1] as Map<String, String>,
+          }),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -65,7 +71,7 @@ class ViewersListBottomSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Error loading viewers',
+                  'Error loading data',
                   style: theme.textTheme.bodyMedium,
                 ),
               ],
@@ -73,8 +79,28 @@ class ViewersListBottomSheet extends StatelessWidget {
           );
         }
 
-        final viewerIds = snapshot.data ?? [];
-        if (viewerIds.isEmpty) {
+        final data = snapshot.data ?? {};
+        final viewerIds = data['viewers'] as List<String>? ?? [];
+        final reactions = data['reactions'] as Map<String, String>? ?? {};
+
+        // Combine reactions and viewers, prioritizing reactions
+        final Set<String> allUserIds = {};
+        final Map<String, String> userReactions = {};
+
+        // Add reactions first (they should appear at the top)
+        for (final entry in reactions.entries) {
+          allUserIds.add(entry.key);
+          userReactions[entry.key] = entry.value;
+        }
+
+        // Add viewers (excluding those who already reacted)
+        for (final viewerId in viewerIds) {
+          if (!allUserIds.contains(viewerId)) {
+            allUserIds.add(viewerId);
+          }
+        }
+
+        if (allUserIds.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -96,13 +122,26 @@ class ViewersListBottomSheet extends StatelessWidget {
           );
         }
 
+        // Sort: reactions first, then viewers
+        final sortedUserIds = allUserIds.toList()
+          ..sort((a, b) {
+            final aHasReaction = userReactions.containsKey(a);
+            final bHasReaction = userReactions.containsKey(b);
+            if (aHasReaction && !bHasReaction) return -1;
+            if (!aHasReaction && bHasReaction) return 1;
+            return 0;
+          });
+
         return ListView.builder(
-          controller: scrollController, // Use the scroll controller from AppBottomSheet
-          itemCount: viewerIds.length,
+          controller:
+              scrollController, // Use the scroll controller from AppBottomSheet
+          itemCount: sortedUserIds.length,
           itemBuilder: (context, index) {
-            final viewerId = viewerIds[index];
+            final userId = sortedUserIds[index];
+            final reactionEmoji = userReactions[userId];
+
             return FutureBuilder(
-              future: userRepository.getUser(viewerId),
+              future: userRepository.getUser(userId),
               builder: (context, userSnapshot) {
                 if (userSnapshot.connectionState == ConnectionState.waiting) {
                   return ListTile(
@@ -134,6 +173,12 @@ class ViewersListBottomSheet extends StatelessWidget {
                       'Unknown user',
                       style: theme.textTheme.bodyMedium,
                     ),
+                    trailing: reactionEmoji != null
+                        ? Text(
+                            reactionEmoji,
+                            style: const TextStyle(fontSize: 24),
+                          )
+                        : null,
                   );
                 }
 
@@ -156,11 +201,23 @@ class ViewersListBottomSheet extends StatelessWidget {
                     style: theme.textTheme.titleMedium,
                   ),
                   subtitle: Text(
-                    '@${user.username}',
+                    reactionEmoji != null
+                        ? 'Reacted with $reactionEmoji'
+                        : 'Viewed',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurface.withOpacity(0.6),
                     ),
                   ),
+                  trailing: reactionEmoji != null
+                      ? Text(
+                          reactionEmoji,
+                          style: const TextStyle(fontSize: 24),
+                        )
+                      : Icon(
+                          Icons.remove_red_eye,
+                          size: 20,
+                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        ),
                 );
               },
             );

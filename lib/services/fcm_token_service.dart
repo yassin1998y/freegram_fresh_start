@@ -21,6 +21,9 @@ class FcmTokenService {
 
   bool _isInitialized = false;
 
+  // OPTIMIZATION: Cache last saved token to prevent redundant Firestore writes
+  String? _lastSavedToken;
+
   /// Initialize FCM token management
   /// Call this on app launch after user is authenticated
   Future<void> initialize() async {
@@ -94,8 +97,17 @@ class FcmTokenService {
 
   /// Save token to Firestore with device info
   /// Professional apps store multiple tokens per user for multi-device support
+  /// OPTIMIZATION: Only saves if token has changed to prevent redundant writes
   Future<void> _saveTokenToFirestore(String token, [String? userId]) async {
     try {
+      // OPTIMIZATION: Skip save if token hasn't changed
+      if (_lastSavedToken == token) {
+        if (kDebugMode) {
+          debugPrint('[FCM] Token unchanged, skipping Firestore write');
+        }
+        return;
+      }
+
       final uid = userId ?? _auth.currentUser?.uid;
       if (uid == null) return;
 
@@ -118,6 +130,9 @@ class FcmTokenService {
           }
         ]),
       }, SetOptions(merge: true));
+
+      // OPTIMIZATION: Cache the saved token
+      _lastSavedToken = token;
 
       if (kDebugMode) {
         debugPrint('[FCM] Token saved to Firestore');
@@ -181,6 +196,9 @@ class FcmTokenService {
 
       // Optionally delete the FCM token from FCM service
       await _messaging.deleteToken();
+
+      // OPTIMIZATION: Clear cached token on logout
+      _lastSavedToken = null;
 
       if (kDebugMode) {
         debugPrint('[FCM] Token removed on logout');

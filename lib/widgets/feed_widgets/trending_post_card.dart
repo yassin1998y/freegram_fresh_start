@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:freegram/models/post_model.dart';
 import 'package:freegram/models/media_item_model.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/screens/post_detail_screen.dart';
 
 /// Compact card widget for horizontal trending sections
 /// Shows only the media with minimal overlay info
@@ -27,8 +28,15 @@ class TrendingPostCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap ??
           () {
-            // Navigate to post detail or full view
-            // TODO: Implement navigation to post detail
+            // Navigate to post detail screen
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PostDetailScreen(
+                  postId: post.id,
+                ),
+              ),
+            );
           },
       child: SizedBox(
         width: 220,

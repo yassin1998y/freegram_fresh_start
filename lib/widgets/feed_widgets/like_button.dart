@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/models/post_model.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/repositories/post_repository.dart';
-import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/widgets/common/app_reaction_button.dart';
 
 class LikeButton extends StatefulWidget {
   final PostModel post;
@@ -19,38 +19,16 @@ class LikeButton extends StatefulWidget {
   State<LikeButton> createState() => _LikeButtonState();
 }
 
-class _LikeButtonState extends State<LikeButton>
-    with SingleTickerProviderStateMixin {
+class _LikeButtonState extends State<LikeButton> {
   bool _isLiked = false;
   bool _isLoading = false;
   int _localReactionCount = 0;
-  late AnimationController _animationController;
-  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
     _localReactionCount = widget.post.reactionCount;
     _checkIfLiked();
-
-    // Setup animation controller
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-    );
-
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.elasticOut,
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
   }
 
   @override
@@ -107,10 +85,6 @@ class _LikeButtonState extends State<LikeButton>
       _isLiked = !_isLiked;
       if (_isLiked) {
         _localReactionCount++;
-        // Trigger scale animation when liking
-        _animationController.forward().then((_) {
-          _animationController.reverse();
-        });
       } else {
         _localReactionCount--;
       }
@@ -160,49 +134,12 @@ class _LikeButtonState extends State<LikeButton>
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: _isLoading ? null : _toggleLike,
-      borderRadius: BorderRadius.circular(20),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _isLoading
-                ? const AppProgressIndicator(
-                    size: 20,
-                    strokeWidth: 2,
-                  )
-                : ScaleTransition(
-                    scale: _scaleAnimation,
-                    child: Icon(
-                      _isLiked ? Icons.favorite : Icons.favorite_border,
-                      color: _isLiked ? Colors.red : null,
-                      size: 24,
-                    ),
-                  ),
-            const SizedBox(width: 4),
-            if (_localReactionCount > 0)
-              Text(
-                _formatCount(_localReactionCount),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: _isLiked ? Colors.red : Colors.grey,
-                      fontWeight:
-                          _isLiked ? FontWeight.bold : FontWeight.normal,
-                    ),
-              ),
-          ],
-        ),
-      ),
+    return AppReactionButton(
+      isLiked: _isLiked,
+      reactionCount: _localReactionCount,
+      isLoading: _isLoading,
+      onTap: _toggleLike,
+      showCount: true,
     );
-  }
-
-  String _formatCount(int count) {
-    if (count >= 1000000) {
-      return '${(count / 1000000).toStringAsFixed(1)}M';
-    } else if (count >= 1000) {
-      return '${(count / 1000).toStringAsFixed(1)}K';
-    }
-    return count.toString();
   }
 }

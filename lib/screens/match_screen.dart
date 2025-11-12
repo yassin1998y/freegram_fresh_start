@@ -23,6 +23,7 @@ import 'package:freegram/widgets/common/app_button.dart';
 import 'package:freegram/widgets/match_action_button.dart' show Debouncer;
 import 'package:freegram/widgets/offline_overlay.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/theme/design_tokens.dart';
 
 import 'match_animation_screen.dart';
 
@@ -228,6 +229,24 @@ class _MatchScreenState extends State<MatchScreen>
     }
   }
 
+  // UX IMPROVEMENT: User-friendly error messages
+  String _getUserFriendlyErrorMessage(String errorMessage) {
+    final lowerError = errorMessage.toLowerCase();
+    if (lowerError.contains('network') ||
+        lowerError.contains('connection') ||
+        lowerError.contains('internet')) {
+      return 'Network error. Please check your connection and try again.';
+    } else if (lowerError.contains('permission') ||
+        lowerError.contains('denied')) {
+      return 'Permission denied. Please check your settings.';
+    } else if (lowerError.contains('timeout')) {
+      return 'Request timed out. Please try again.';
+    } else if (lowerError.contains('super likes')) {
+      return 'You have no Super Likes left.';
+    }
+    return 'An error occurred. Please try again.';
+  }
+
   Future<void> _onSwipe(String action, String otherUserId) async {
     final currentUser = FirebaseAuth.instance.currentUser!;
     final userRepository = locator<UserRepository>();
@@ -238,9 +257,14 @@ class _MatchScreenState extends State<MatchScreen>
 
       if (action == 'super_like') {
         messenger.showSnackBar(
-          const SnackBar(
-            content: Text("Super Like Sent!"),
-            backgroundColor: Colors.blue,
+          SnackBar(
+            content: const Text("Super Like Sent!"),
+            backgroundColor: SemanticColors.info,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+            ),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -269,10 +293,21 @@ class _MatchScreenState extends State<MatchScreen>
       if (e.toString().contains("You have no Super Likes left.") && mounted) {
         _showOutOfSuperLikesDialog();
       } else {
+        final errorMessage = _getUserFriendlyErrorMessage(e.toString());
         messenger.showSnackBar(
           SnackBar(
-            content: Text("An error occurred: $e"),
-            backgroundColor: Colors.red,
+            content: Text(errorMessage),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+            ),
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Theme.of(context).colorScheme.onError,
+              onPressed: () => _fetchPotentialMatches(),
+            ),
           ),
         );
       }
@@ -311,28 +346,13 @@ class _MatchScreenState extends State<MatchScreen>
         break;
       case SwipeDirection.up:
         action = 'super_like';
-        // Check if user has super likes before proceeding
-        try {
-          final currentUser = FirebaseAuth.instance.currentUser!;
-          final userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(currentUser.uid)
-              .get();
-
-          if (userDoc.exists) {
-            final data = userDoc.data();
-            final superLikes = data?['superLikes'] ?? 0;
-
-            if (superLikes == 0) {
-              // Trigger wiggle animation - don't advance card
-              _cardKey.currentState?.triggerWiggle();
-              HapticFeedback.heavyImpact();
-              _showOutOfSuperLikesDialog();
-              return; // Don't proceed with swipe
-            }
-          }
-        } catch (e) {
-          debugPrint('Error checking super likes: $e');
+        // OPTIMIZATION: Use cached super likes count from stream instead of Firestore read
+        if (_superLikesCount.value == 0) {
+          // Trigger wiggle animation - don't advance card
+          _cardKey.currentState?.triggerWiggle();
+          HapticFeedback.heavyImpact();
+          _showOutOfSuperLikesDialog();
+          return; // Don't proceed with swipe
         }
         break;
       default:
@@ -408,54 +428,77 @@ class _MatchScreenState extends State<MatchScreen>
 
             return AlertDialog(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
               ),
               title: Row(
                 children: [
-                  Icon(Icons.star, color: Colors.blue[400], size: 28),
-                  const SizedBox(width: 8),
-                  const Text("Out of Super Likes!"),
+                  Icon(
+                    Icons.star,
+                    color: SemanticColors.info,
+                    size: DesignTokens.iconXL,
+                  ),
+                  const SizedBox(width: DesignTokens.spaceSM),
+                  Text(
+                    "Out of Super Likes!",
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
                 ],
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     "Get more Super Likes to increase your match chances!",
-                    style: TextStyle(fontSize: 15),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontSize: DesignTokens.fontSizeMD,
+                        ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: DesignTokens.spaceMD),
                   if (_adHelper != null) ...[
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(DesignTokens.spaceMD),
                       decoration: BoxDecoration(
-                        color: Colors.green[50],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.green[200]!),
+                        color: SemanticColors.success.withOpacity(0.1),
+                        borderRadius:
+                            BorderRadius.circular(DesignTokens.radiusMD),
+                        border: Border.all(
+                          color: SemanticColors.success.withOpacity(0.3),
+                        ),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.play_circle_outline,
-                              color: Colors.green[700], size: 28),
-                          const SizedBox(width: 12),
+                          Icon(
+                            Icons.play_circle_outline,
+                            color: SemanticColors.success,
+                            size: DesignTokens.iconXL,
+                          ),
+                          const SizedBox(width: DesignTokens.spaceMD),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   "Watch 30s video",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green[900],
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: SemanticColors.success,
+                                      ),
                                 ),
                                 Text(
                                   "Get 1 Super Like FREE",
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.green[700],
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        fontSize: DesignTokens.fontSizeSM,
+                                        color: SemanticColors.success,
+                                      ),
                                 ),
                               ],
                             ),
@@ -463,37 +506,49 @@ class _MatchScreenState extends State<MatchScreen>
                         ],
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: DesignTokens.spaceSM),
                   ],
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(DesignTokens.spaceMD),
                     decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.blue[200]!),
+                      color: SemanticColors.info.withOpacity(0.1),
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusMD),
+                      border: Border.all(
+                        color: SemanticColors.info.withOpacity(0.3),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.shopping_bag_outlined,
-                            color: Colors.blue[700], size: 28),
-                        const SizedBox(width: 12),
+                        Icon(
+                          Icons.shopping_bag_outlined,
+                          color: SemanticColors.info,
+                          size: DesignTokens.iconXL,
+                        ),
+                        const SizedBox(width: DesignTokens.spaceMD),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 "Store",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue[900],
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: SemanticColors.info,
+                                    ),
                               ),
                               Text(
                                 "Buy 10 for \$4.99",
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.blue[700],
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      fontSize: DesignTokens.fontSizeSM,
+                                      color: SemanticColors.info,
+                                    ),
                               ),
                             ],
                           ),
@@ -548,16 +603,21 @@ class _MatchScreenState extends State<MatchScreen>
                             });
                           },
                     icon: _isAdReady && canWatchAd
-                        ? const Icon(Icons.play_arrow, size: 20)
-                        : const AppProgressIndicator(
-                            size: 16,
+                        ? Icon(
+                            Icons.play_arrow,
+                            size: DesignTokens.iconMD,
+                          )
+                        : AppProgressIndicator(
+                            size: DesignTokens.iconSM,
                             strokeWidth: 2,
+                            color: Theme.of(context).colorScheme.onPrimary,
                           ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
+                      backgroundColor: SemanticColors.success,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius:
+                            BorderRadius.circular(DesignTokens.radiusMD),
                       ),
                     ),
                     label: Text(
@@ -571,16 +631,24 @@ class _MatchScreenState extends State<MatchScreen>
                 OutlinedButton.icon(
                   onPressed: () {
                     locator<NavigationService>().goBack();
-                    locator<NavigationService>().navigateTo(const StoreScreen(),
-                        transition: PageTransition.slide);
+                    locator<NavigationService>().navigateTo(
+                      const StoreScreen(),
+                      transition: PageTransition.slide,
+                    );
                   },
-                  icon: const Icon(Icons.shopping_bag, size: 20),
+                  icon: Icon(
+                    Icons.shopping_bag,
+                    size: DesignTokens.iconMD,
+                  ),
                   label: const Text("Store"),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.blue[700],
-                    side: BorderSide(color: Colors.blue[300]!),
+                    foregroundColor: SemanticColors.info,
+                    side: BorderSide(
+                      color: SemanticColors.info.withOpacity(0.5),
+                    ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusMD),
                     ),
                   ),
                 ),
@@ -606,7 +674,7 @@ class _MatchScreenState extends State<MatchScreen>
     showDialog(
       context: context,
       barrierDismissible: true,
-      barrierColor: Colors.black54,
+      barrierColor: Theme.of(context).colorScheme.scrim.withOpacity(0.54),
       builder: (context) => const _RewardCelebrationDialog(),
     ).then((_) {
       // Show snackbar after dialog
@@ -614,21 +682,24 @@ class _MatchScreenState extends State<MatchScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: MatchScreenConstants.likeColor,
-            content: const Row(
+            content: Row(
               children: [
                 Icon(
                   Icons.star,
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.onPrimary,
                   size: MatchScreenConstants.rewardSnackBarIconSize,
                 ),
-                SizedBox(width: MatchScreenConstants.rewardSnackBarIconSpacing),
+                const SizedBox(
+                  width: MatchScreenConstants.rewardSnackBarIconSpacing,
+                ),
                 Expanded(
                   child: Text(
                     "You got +1 Super Like!",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: MatchScreenConstants.rewardSnackBarFontSize,
-                    ),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: MatchScreenConstants.rewardSnackBarFontSize,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
                   ),
                 ),
               ],
@@ -640,7 +711,9 @@ class _MatchScreenState extends State<MatchScreen>
               ),
             ),
             duration: MatchScreenConstants.snackBarDuration,
-            margin: const EdgeInsets.all(MatchScreenConstants.rewardSnackBarMargin),
+            margin: const EdgeInsets.all(
+              MatchScreenConstants.rewardSnackBarMargin,
+            ),
           ),
         );
       }
@@ -650,44 +723,53 @@ class _MatchScreenState extends State<MatchScreen>
   Widget _buildErrorState() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32.0),
+        padding: const EdgeInsets.all(DesignTokens.spaceXL),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(DesignTokens.spaceLG),
               decoration: BoxDecoration(
-                color: Colors.red[50],
+                color: Theme.of(context).colorScheme.error.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.cloud_off, color: Colors.red[400], size: 60),
+              child: Icon(
+                Icons.cloud_off,
+                color: Theme.of(context).colorScheme.error,
+                size: DesignTokens.iconXXL * 1.5,
+              ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: DesignTokens.spaceLG),
             Text(
               _errorMessage!,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontSize: DesignTokens.fontSizeXL,
+                    fontWeight: FontWeight.w600,
+                    color: SemanticColors.textPrimary(context),
+                  ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: DesignTokens.spaceMD),
             Text(
               'Please check your connection and try again',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontSize: DesignTokens.fontSizeMD,
+                    color: SemanticColors.textSecondary(context),
+                  ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: DesignTokens.spaceLG),
             ElevatedButton.icon(
               onPressed: _fetchPotentialMatches,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
               style: ElevatedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spaceXL,
+                  vertical: DesignTokens.spaceMD,
+                ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
                 ),
               ),
             ),
@@ -699,14 +781,14 @@ class _MatchScreenState extends State<MatchScreen>
 
   Widget _buildLoadingSkeleton() {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(DesignTokens.spaceMD),
       child: Column(
         children: [
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(20),
+                color: SemanticColors.gray300(context),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
               ),
               child: Center(
                 child: Column(
@@ -714,23 +796,23 @@ class _MatchScreenState extends State<MatchScreen>
                   children: [
                     AppProgressIndicator(
                       strokeWidth: 3,
-                      color: Theme.of(context).primaryColor,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: DesignTokens.spaceLG),
                     Text(
                       'Finding perfect matches...',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[700],
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontSize: DesignTokens.fontSizeMD,
+                            color: SemanticColors.textSecondary(context),
+                            fontWeight: FontWeight.w500,
+                          ),
                     ),
                   ],
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: DesignTokens.spaceLG),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -739,7 +821,7 @@ class _MatchScreenState extends State<MatchScreen>
               _buildSkeletonButton(50),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: DesignTokens.spaceLG),
         ],
       ),
     );
@@ -751,7 +833,7 @@ class _MatchScreenState extends State<MatchScreen>
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.grey[300],
+        color: SemanticColors.gray300(context),
       ),
     );
   }
@@ -759,48 +841,53 @@ class _MatchScreenState extends State<MatchScreen>
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32.0),
+        padding: const EdgeInsets.all(DesignTokens.spaceXL),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(DesignTokens.spaceLG),
               decoration: BoxDecoration(
-                color: Colors.blue[50],
+                color: SemanticColors.info.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.explore_off,
-                size: 80,
-                color: Colors.blue[300],
+                size: DesignTokens.iconXXL * 2,
+                color: SemanticColors.info,
               ),
             ),
-            const SizedBox(height: 24),
-            const Text(
+            const SizedBox(height: DesignTokens.spaceLG),
+            Text(
               'No new profiles nearby',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontSize: DesignTokens.fontSizeXXL,
+                    fontWeight: FontWeight.bold,
+                    color: SemanticColors.textPrimary(context),
+                  ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: DesignTokens.spaceMD),
             Text(
               'Check back later or expand your search radius in settings',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontSize: DesignTokens.fontSizeMD,
+                    color: SemanticColors.textSecondary(context),
+                  ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: DesignTokens.spaceXL),
             ElevatedButton.icon(
               onPressed: _fetchPotentialMatches,
               icon: const Icon(Icons.refresh),
               label: const Text('Refresh'),
               style: ElevatedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spaceXL,
+                  vertical: DesignTokens.spaceMD,
+                ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
                 ),
               ),
             ),
@@ -971,26 +1058,31 @@ class _MatchScreenState extends State<MatchScreen>
                   top: 50,
                   right: 20,
                   child: Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(DesignTokens.spaceSM),
                     decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(20),
+                      color:
+                          Theme.of(context).colorScheme.scrim.withOpacity(0.54),
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusXL),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         AppProgressIndicator(
-                          size: 12,
+                          size: DesignTokens.iconXS,
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                         ),
-                        SizedBox(width: 6),
+                        const SizedBox(width: DesignTokens.spaceXS),
                         Text(
                           'Loading ad',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.onPrimary,
+                                fontSize: DesignTokens.fontSizeSM,
+                              ),
                         ),
                       ],
                     ),

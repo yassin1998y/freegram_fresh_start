@@ -847,7 +847,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                                       width: DesignTokens.spaceMD,
                                       height: DesignTokens.spaceMD,
                                       decoration: BoxDecoration(
-                                        color: DesignTokens.successColor,
+                                        color: SemanticColors.success,
                                         shape: BoxShape.circle,
                                         border: Border.all(
                                             color: Colors.white, width: 2),
@@ -1147,7 +1147,7 @@ class _ProfessionalFoundUsersModalState
   void initState() {
     super.initState();
     _entranceController = AnimationController(
-      duration: DesignTokens.durationSlow,
+      duration: AnimationTokens.slow,
       vsync: this,
     );
     _staggerController = AnimationController(
@@ -1164,7 +1164,7 @@ class _ProfessionalFoundUsersModalState
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _entranceController,
-      curve: DesignTokens.curveEaseOut,
+      curve: AnimationTokens.easeOut,
     ));
 
     _slideAnimation = Tween<Offset>(
@@ -1172,7 +1172,7 @@ class _ProfessionalFoundUsersModalState
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _entranceController,
-      curve: DesignTokens.curveEaseOut,
+      curve: AnimationTokens.easeOut,
     ));
 
     // Stagger animations for content elements
@@ -1185,7 +1185,7 @@ class _ProfessionalFoundUsersModalState
         curve: Interval(
           index * 0.15,
           1.0,
-          curve: DesignTokens.curveEaseOut,
+          curve: AnimationTokens.easeOut,
         ),
       ));
     });

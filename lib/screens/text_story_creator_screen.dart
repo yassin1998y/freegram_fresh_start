@@ -10,6 +10,9 @@ import 'package:freegram/repositories/story_repository.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/theme/app_theme.dart';
+import 'package:freegram/utils/story_constants.dart';
 
 class TextStoryCreatorScreen extends StatefulWidget {
   const TextStoryCreatorScreen({Key? key}) : super(key: key);
@@ -22,11 +25,11 @@ class _TextStoryCreatorScreenState extends State<TextStoryCreatorScreen> {
   final TextEditingController _textController = TextEditingController();
   final StoryRepository _storyRepository = locator<StoryRepository>();
 
-  Color _textColor = Colors.white;
-  Color _backgroundColor = Colors.blue;
+  Color _textColor = Colors.white; // User-selectable, white is common for text
+  Color _backgroundColor = Colors.blue; // User-selectable
   bool _isUploading = false;
 
-  final List<Color> _textColorOptions = [
+  static const List<Color> _textColorOptions = [
     Colors.white,
     Colors.black,
     Colors.red,
@@ -37,7 +40,7 @@ class _TextStoryCreatorScreenState extends State<TextStoryCreatorScreen> {
     Colors.orange,
   ];
 
-  final List<Color> _backgroundColors = [
+  static const List<Color> _backgroundColors = [
     Colors.blue,
     Colors.purple,
     Colors.pink,
@@ -88,11 +91,12 @@ class _TextStoryCreatorScreenState extends State<TextStoryCreatorScreen> {
       );
 
       if (mounted) {
+        final theme = Theme.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Story shared successfully!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: const Text('Story shared successfully!'),
+            backgroundColor: theme.colorScheme.primary,
+            duration: AnimationTokens.normal,
           ),
         );
         Navigator.of(context).pop();
@@ -118,9 +122,9 @@ class _TextStoryCreatorScreenState extends State<TextStoryCreatorScreen> {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
-    // Screen dimensions (typical story size)
-    const width = 1080.0;
-    const height = 1920.0;
+    // Story dimensions (9:16 aspect ratio)
+    const width = StoryConstants.storyWidth;
+    const height = StoryConstants.storyHeight;
 
     // Draw background
     final backgroundPaint = Paint()..color = _backgroundColor;
@@ -132,7 +136,7 @@ class _TextStoryCreatorScreenState extends State<TextStoryCreatorScreen> {
         text: text,
         style: TextStyle(
           color: _textColor,
-          fontSize: 72,
+          fontSize: StoryConstants.textStoryFontSize,
           fontWeight: FontWeight.bold,
           fontFamily: 'OpenSans',
         ),
@@ -141,11 +145,13 @@ class _TextStoryCreatorScreenState extends State<TextStoryCreatorScreen> {
       textDirection: TextDirection.ltr,
     );
 
-    textPainter.layout(maxWidth: width - 160);
+    textPainter.layout(maxWidth: width - StoryConstants.textStoryPadding);
     textPainter.paint(
       canvas,
-      Offset(width / 2 - textPainter.width / 2,
-          height / 2 - textPainter.height / 2),
+      Offset(
+        width / 2 - textPainter.width / 2,
+        height / 2 - textPainter.height / 2,
+      ),
     );
 
     // Convert to image
@@ -178,36 +184,48 @@ class _TextStoryCreatorScreenState extends State<TextStoryCreatorScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.close, color: theme.colorScheme.onPrimary),
+          icon: Icon(
+            Icons.close,
+            color: _textColor, // Use text color for visibility on background
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
           if (_isUploading)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
+            Padding(
+              padding: const EdgeInsets.all(DesignTokens.spaceMD),
               child: Center(
                 child: SizedBox(
-                  width: 20,
-                  height: 20,
+                  width: DesignTokens.iconLG,
+                  height: DesignTokens.iconLG,
                   child: AppProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
+                    strokeWidth: DesignTokens.elevation1,
+                    color: _textColor, // Use text color for visibility
                   ),
                 ),
               ),
             )
           else
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: DesignTokens.spaceSM,
+                vertical: DesignTokens.spaceSM,
+              ),
               child: FilledButton(
                 onPressed: _shareStory,
                 style: FilledButton.styleFrom(
-                  backgroundColor: theme.colorScheme.primary,
+                  backgroundColor: SonarPulseTheme.primaryAccent,
                   foregroundColor: theme.colorScheme.onPrimary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: DesignTokens.spaceMD,
+                    vertical: DesignTokens.spaceSM,
+                  ),
                 ),
                 child: Text(
                   'Share',
-                  style: theme.textTheme.labelLarge,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
@@ -221,21 +239,22 @@ class _TextStoryCreatorScreenState extends State<TextStoryCreatorScreen> {
               Expanded(
                 child: Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(32.0),
+                    padding: const EdgeInsets.all(DesignTokens.spaceXL),
                     child: TextField(
                       controller: _textController,
                       maxLines: null,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: _textColor,
-                        fontSize: 48,
+                        fontSize: DesignTokens.fontSizeDisplay,
                         fontWeight: FontWeight.bold,
                       ),
                       decoration: InputDecoration(
                         hintText: 'Tap to type...',
                         hintStyle: TextStyle(
-                          color: _textColor.withOpacity(0.5),
-                          fontSize: 48,
+                          color: _textColor
+                              .withOpacity(DesignTokens.opacityMedium),
+                          fontSize: DesignTokens.fontSizeDisplay,
                           fontWeight: FontWeight.bold,
                         ),
                         border: InputBorder.none,
@@ -247,11 +266,13 @@ class _TextStoryCreatorScreenState extends State<TextStoryCreatorScreen> {
               ),
               // Controls at bottom
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(DesignTokens.spaceMD),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.3),
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(20)),
+                  color: theme.colorScheme.surface
+                      .withOpacity(DesignTokens.opacityMedium),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(DesignTokens.radiusXL),
+                  ),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -260,12 +281,13 @@ class _TextStoryCreatorScreenState extends State<TextStoryCreatorScreen> {
                     Text(
                       'Text Color',
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white,
+                        color: theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: DesignTokens.spaceSM),
                     SizedBox(
-                      height: 50,
+                      height: DesignTokens.spaceXXXL - DesignTokens.spaceSM,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         itemCount: _textColorOptions.length,
@@ -275,17 +297,20 @@ class _TextStoryCreatorScreenState extends State<TextStoryCreatorScreen> {
                           return GestureDetector(
                             onTap: () => setState(() => _textColor = color),
                             child: Container(
-                              width: 40,
-                              height: 40,
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              width: DesignTokens.spaceXL,
+                              height: DesignTokens.spaceXL,
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: DesignTokens.spaceXS,
+                              ),
                               decoration: BoxDecoration(
                                 color: color,
                                 shape: BoxShape.circle,
                                 border: Border.all(
                                   color: isSelected
-                                      ? Colors.white
+                                      ? theme.colorScheme.onSurface
                                       : Colors.transparent,
-                                  width: 3,
+                                  width:
+                                      isSelected ? DesignTokens.elevation1 : 0,
                                 ),
                               ),
                             ),
@@ -293,17 +318,18 @@ class _TextStoryCreatorScreenState extends State<TextStoryCreatorScreen> {
                         },
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: DesignTokens.spaceMD),
                     // Background color picker
                     Text(
                       'Background',
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white,
+                        color: theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: DesignTokens.spaceSM),
                     SizedBox(
-                      height: 50,
+                      height: DesignTokens.spaceXXXL - DesignTokens.spaceSM,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         itemCount: _backgroundColors.length,
@@ -314,17 +340,20 @@ class _TextStoryCreatorScreenState extends State<TextStoryCreatorScreen> {
                             onTap: () =>
                                 setState(() => _backgroundColor = color),
                             child: Container(
-                              width: 40,
-                              height: 40,
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              width: DesignTokens.spaceXL,
+                              height: DesignTokens.spaceXL,
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: DesignTokens.spaceXS,
+                              ),
                               decoration: BoxDecoration(
                                 color: color,
                                 shape: BoxShape.circle,
                                 border: Border.all(
                                   color: isSelected
-                                      ? Colors.white
+                                      ? theme.colorScheme.onSurface
                                       : Colors.transparent,
-                                  width: 3,
+                                  width:
+                                      isSelected ? DesignTokens.elevation1 : 0,
                                 ),
                               ),
                             ),

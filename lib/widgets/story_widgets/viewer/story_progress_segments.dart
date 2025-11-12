@@ -67,7 +67,9 @@ class _StoryProgressSegmentsState extends State<StoryProgressSegments>
             child: Container(
               height: 4,
               margin: EdgeInsets.only(
-                right: index < widget.stories.length - 1 ? DesignTokens.spaceXS : 0,
+                right: index < widget.stories.length - 1
+                    ? DesignTokens.spaceXS
+                    : 0,
               ),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.3),
@@ -91,23 +93,27 @@ class _StoryProgressSegmentsState extends State<StoryProgressSegments>
                               gradient: widget.isPaused
                                   ? LinearGradient(
                                       colors: [
-                                        DesignTokens.warningColor,
-                                        DesignTokens.warningColor.withValues(alpha: 0.8),
+                                        SemanticColors.warning,
+                                        SemanticColors.warning
+                                            .withValues(alpha: 0.8),
                                       ],
                                     )
                                   : LinearGradient(
                                       colors: [
                                         SonarPulseTheme.primaryAccent,
-                                        SonarPulseTheme.primaryAccent.withValues(alpha: 0.9),
+                                        SonarPulseTheme.primaryAccent
+                                            .withValues(alpha: 0.9),
                                       ],
                                     ),
-                              borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
+                              borderRadius:
+                                  BorderRadius.circular(DesignTokens.radiusXS),
                               boxShadow: [
                                 BoxShadow(
                                   color: (widget.isPaused
-                                          ? DesignTokens.warningColor
+                                          ? SemanticColors.warning
                                           : SonarPulseTheme.primaryAccent)
-                                      .withValues(alpha: widget.isPaused ? 0.6 : 0.4),
+                                      .withValues(
+                                          alpha: widget.isPaused ? 0.6 : 0.4),
                                   blurRadius: widget.isPaused ? 6 : 4,
                                   spreadRadius: widget.isPaused ? 1.5 : 1,
                                 ),
@@ -129,11 +135,13 @@ class _StoryProgressSegmentsState extends State<StoryProgressSegments>
                               decoration: BoxDecoration(
                                 gradient: RadialGradient(
                                   colors: [
-                                    DesignTokens.warningColor.withValues(alpha: 0.6),
+                                    SemanticColors.warning
+                                        .withValues(alpha: 0.6),
                                     Colors.transparent,
                                   ],
                                 ),
-                                borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
+                                borderRadius: BorderRadius.circular(
+                                    DesignTokens.radiusXS),
                               ),
                             ),
                           );

@@ -67,7 +67,8 @@ class CreateStoryCard extends StatelessWidget {
     );
   }
 
-  Widget _buildCard(BuildContext context, ThemeData theme, String profilePicUrl) {
+  Widget _buildCard(
+      BuildContext context, ThemeData theme, String profilePicUrl) {
     return RepaintBoundary(
       child: Card(
         clipBehavior: Clip.antiAlias,
@@ -90,8 +91,7 @@ class CreateStoryCard extends StatelessWidget {
                         fit: BoxFit.cover,
                         errorWidget: (context, url, error) =>
                             _buildPlaceholder(theme),
-                        placeholder: (context, url) =>
-                            _buildPlaceholder(theme),
+                        placeholder: (context, url) => _buildPlaceholder(theme),
                       )
                     : _buildPlaceholder(theme),
               ),
@@ -103,6 +103,7 @@ class CreateStoryCard extends StatelessWidget {
                 width: double.infinity,
                 color: theme.colorScheme.surface,
                 child: Stack(
+                  clipBehavior: Clip.none,
                   alignment: Alignment.center,
                   children: [
                     // Text
@@ -123,29 +124,33 @@ class CreateStoryCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    // Add Button (Positioned at seam)
+                    // Add Button (Positioned at seam between image and text)
                     Positioned(
-                      bottom: -DesignTokens.iconLG,
-                      child: GestureDetector(
-                        onTap: onTap,
-                        child: Container(
-                          width: DesignTokens.iconXXL,
-                          height: DesignTokens.iconXXL,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: SonarPulseTheme.primaryAccent,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: DesignTokens.elevation2,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            Icons.add,
-                            color: theme.colorScheme.onPrimary,
-                            size: DesignTokens.iconLG,
+                      top: -DesignTokens.iconLG,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: GestureDetector(
+                          onTap: onTap,
+                          child: Container(
+                            width: DesignTokens.iconXXL,
+                            height: DesignTokens.iconXXL,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: SonarPulseTheme.primaryAccent,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: DesignTokens.elevation2,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.add,
+                              color: theme.colorScheme.onPrimary,
+                              size: DesignTokens.iconLG,
+                            ),
                           ),
                         ),
                       ),

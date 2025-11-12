@@ -45,7 +45,7 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
   void initState() {
     super.initState();
     _swipeController = AnimationController(
-      duration: DesignTokens.durationFast,
+      duration: AnimationTokens.fast,
       vsync: this,
     );
   }
@@ -368,7 +368,7 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
   Widget _buildUnreadBadge(int count) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.8, end: 1.0),
-      duration: DesignTokens.durationNormal,
+      duration: AnimationTokens.normal,
       curve: Curves.elasticOut,
       builder: (context, scale, child) {
         return Transform.scale(

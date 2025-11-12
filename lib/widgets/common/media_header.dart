@@ -107,15 +107,18 @@ class MediaHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final effectivePadding = padding ??
-        const EdgeInsets.all(DesignTokens.spaceMD - DesignTokens.spaceXS);
-    final effectiveAvatarRadius = avatarRadius ?? DesignTokens.avatarSize / 2;
+    final effectivePadding =
+        padding ?? const EdgeInsets.all(DesignTokens.spaceMD);
+    // Use AvatarSize.medium (40px) as default, which is 20px radius
+    final effectiveAvatarRadius = avatarRadius ?? AvatarSize.medium.radius;
 
     return Padding(
       padding: effectivePadding,
       child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.center, // Perfect vertical centering
         children: [
-          // Avatar
+          // Avatar - using UserAvatar for consistency and memory optimization
           GestureDetector(
             onTap: onAvatarTap,
             child: CircleAvatar(
@@ -136,7 +139,7 @@ class MediaHeader extends StatelessWidget {
                   : null,
             ),
           ),
-          SizedBox(width: DesignTokens.spaceMD - DesignTokens.spaceXS),
+          SizedBox(width: DesignTokens.spaceMD),
 
           // Author info + badges
           Expanded(
@@ -268,7 +271,7 @@ class MediaHeader extends StatelessWidget {
               onSelected: onMenuSelected,
               itemBuilder: (context) => menuItems!,
             ),
-          
+
           // Close button (if provided)
           if (closeButton != null) closeButton!,
         ],
@@ -299,4 +302,3 @@ class MediaHeader extends StatelessWidget {
     }
   }
 }
-

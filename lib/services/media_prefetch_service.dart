@@ -24,8 +24,9 @@ class MediaPrefetchService {
 
   // Phase 1.3: Reduced prefetch limit to minimize memory usage
   // Maximum number of prefetched controllers to keep in memory
-  // Reduced from 3 to 1 to minimize memory pressure (only next video)
-  static const int _maxPrefetchedReelControllers = 1;
+  // CRITICAL FIX: Set to 0 to prevent memory crashes - disable prefetching for reels
+  // Prefetching causes OOM crashes when scrolling quickly
+  static const int _maxPrefetchedReelControllers = 0;
   // Increased from 3 to 5 per Stories Improvement Plan requirements
   static const int _maxPrefetchedStoryControllers = 5;
 
@@ -35,8 +36,8 @@ class MediaPrefetchService {
       LinkedHashMap();
 
   // LRU cache for story controllers
-  final LinkedHashMap<String, VideoPlayerController?> _prefetchedStoryControllers =
-      LinkedHashMap();
+  final LinkedHashMap<String, VideoPlayerController?>
+      _prefetchedStoryControllers = LinkedHashMap();
 
   // This queue helps manage the prefetch order (for reels)
   final Queue<String> _videoQueue = Queue();
@@ -49,11 +50,12 @@ class MediaPrefetchService {
 
   // Track if service is disposed
   bool _isDisposed = false;
-  
+
   // Phase 4.1: Track active prefetch operations for cancellation
   final Map<String, Future<void>> _activePrefetchOperations = {};
-  final Map<String, DateTime> _prefetchStartTimes = {}; // Track when prefetch started
-  
+  final Map<String, DateTime> _prefetchStartTimes =
+      {}; // Track when prefetch started
+
   // Phase 4.1: Track prefetch cancellation tokens
   final Map<String, bool> _prefetchCancelled = {};
 
@@ -80,6 +82,16 @@ class MediaPrefetchService {
     bool isVideoPlaying = true,
     double scrollVelocity = 0.0,
   }) {
+    // CRITICAL FIX: Disable prefetching completely to prevent memory crashes
+    // Prefetching causes OutOfMemoryError when scrolling reels quickly
+    // The async disposal and multiple controllers accumulate and exhaust memory
+    debugPrint(
+        'MediaPrefetchService: Prefetching disabled for reels to prevent OOM crashes');
+    _cancelActivePrefetchOperations();
+    clearDistantControllers([]); // Clear all prefetched controllers
+    return;
+
+    /* DISABLED: Prefetching causes OOM crashes
     if (_isDisposed) return;
     if (!_networkService.shouldAutoDownloadMedia()) return;
 
@@ -136,8 +148,9 @@ class MediaPrefetchService {
         _activePrefetchOperations[reelId] = prefetchFuture;
       }
     }
+    */ // End of disabled prefetching code
   }
-  
+
   /// CRITICAL FIX: Cancel all active prefetch operations immediately
   void _cancelActivePrefetchOperations() {
     final reelIdsToCancel = _activePrefetchOperations.keys.toList();
@@ -147,32 +160,34 @@ class MediaPrefetchService {
       _videoQueue.remove(reelId);
       debugPrint('MediaPrefetchService: Cancelled prefetch for $reelId');
     }
-    
+
     // CRITICAL FIX: Also dispose any controllers that were just initialized
     // This prevents memory leaks when scrolling quickly
     final controllersToDispose = _prefetchedControllers.entries
         .where((entry) => _prefetchCancelled[entry.key] == true)
         .toList();
-    
+
     for (final entry in controllersToDispose) {
       final controller = _prefetchedControllers.remove(entry.key);
       controller?.dispose();
       _prefetchCancelled.remove(entry.key);
-      debugPrint('MediaPrefetchService: Disposed cancelled prefetch controller for ${entry.key}');
+      debugPrint(
+          'MediaPrefetchService: Disposed cancelled prefetch controller for ${entry.key}');
     }
   }
-  
+
   /// Phase 4.1: Cancel prefetch for reels that are no longer in the keep list
   void _cancelPrefetchForDistantReels(List<String> keepReelIds) {
     final reelsToCancel = _activePrefetchOperations.keys
         .where((reelId) => !keepReelIds.contains(reelId))
         .toList();
-    
+
     for (final reelId in reelsToCancel) {
       _prefetchCancelled[reelId] = true;
       _activePrefetchOperations.remove(reelId);
       _videoQueue.remove(reelId);
-      debugPrint('MediaPrefetchService: Cancelled prefetch for distant reel $reelId');
+      debugPrint(
+          'MediaPrefetchService: Cancelled prefetch for distant reel $reelId');
     }
   }
 
@@ -196,8 +211,10 @@ class MediaPrefetchService {
     final prefetchKey = '${stories[currentIndex].storyId}_$currentIndex';
     if (_prefetchStartTimes.containsKey(prefetchKey)) {
       final startTime = _prefetchStartTimes[prefetchKey];
-      if (startTime != null && DateTime.now().difference(startTime) < const Duration(seconds: 5)) {
-        debugPrint('MediaPrefetchService: Prefetch already in progress for key $prefetchKey, skipping');
+      if (startTime != null &&
+          DateTime.now().difference(startTime) < const Duration(seconds: 5)) {
+        debugPrint(
+            'MediaPrefetchService: Prefetch already in progress for key $prefetchKey, skipping');
         return;
       }
     }
@@ -245,7 +262,8 @@ class MediaPrefetchService {
             }
           });
         } else {
-          debugPrint('MediaPrefetchService: Skipping duplicate prefetch for story $storyId');
+          debugPrint(
+              'MediaPrefetchService: Skipping duplicate prefetch for story $storyId');
         }
       }
     }
@@ -351,10 +369,11 @@ class MediaPrefetchService {
   /// 3. Pre-initializes the video controller (but doesn't play it)
   /// 4. Handles errors gracefully with retry logic
   /// 5. Checks for cancellation at each step
-  Future<void> _prefetchVideo(ReelModel reel, String reelId, {int attempt = 1, int maxAttempts = 2}) async {
+  Future<void> _prefetchVideo(ReelModel reel, String reelId,
+      {int attempt = 1, int maxAttempts = 2}) async {
     if (_isDisposed) return;
     if (_prefetchedControllers.containsKey(reelId)) return; // Already done
-    
+
     // Phase 4.1: Check if prefetch was cancelled
     if (_prefetchCancelled[reelId] == true) {
       debugPrint('MediaPrefetchService: Prefetch cancelled for $reelId');
@@ -365,14 +384,17 @@ class MediaPrefetchService {
     try {
       // Add delay before retry (exponential backoff)
       if (attempt > 1) {
-        final delayMs = (300 * (1 << (attempt - 2))).clamp(300, 1500); // 300ms, 600ms
-        debugPrint('MediaPrefetchService: Retrying prefetch for $reelId (attempt $attempt/$maxAttempts) after ${delayMs}ms delay');
+        final delayMs =
+            (300 * (1 << (attempt - 2))).clamp(300, 1500); // 300ms, 600ms
+        debugPrint(
+            'MediaPrefetchService: Retrying prefetch for $reelId (attempt $attempt/$maxAttempts) after ${delayMs}ms delay');
         await Future.delayed(Duration(milliseconds: delayMs));
         if (_isDisposed) return;
-        
+
         // Phase 4.1: Check cancellation after delay
         if (_prefetchCancelled[reelId] == true) {
-          debugPrint('MediaPrefetchService: Prefetch cancelled during retry for $reelId');
+          debugPrint(
+              'MediaPrefetchService: Prefetch cancelled during retry for $reelId');
           _activePrefetchOperations.remove(reelId);
           return;
         }
@@ -386,18 +408,21 @@ class MediaPrefetchService {
       // Phase 2.2: Pre-cache the video file using video-specific cache service
       try {
         await _cacheService.videoManager.downloadFile(videoUrlToPrefetch);
-        debugPrint('MediaPrefetchService: Successfully cached video file for $reelId');
+        debugPrint(
+            'MediaPrefetchService: Successfully cached video file for $reelId');
       } catch (e) {
-        debugPrint('MediaPrefetchService: Error caching video file for $reelId: $e');
+        debugPrint(
+            'MediaPrefetchService: Error caching video file for $reelId: $e');
         // Continue even if cache fails, controller can still load from network
       }
 
       // Check if service was disposed during download
       if (_isDisposed) return;
-      
+
       // Phase 4.1: Check cancellation after download
       if (_prefetchCancelled[reelId] == true) {
-        debugPrint('MediaPrefetchService: Prefetch cancelled after download for $reelId');
+        debugPrint(
+            'MediaPrefetchService: Prefetch cancelled after download for $reelId');
         _activePrefetchOperations.remove(reelId);
         return;
       }
@@ -406,14 +431,16 @@ class MediaPrefetchService {
       VideoPlayerController controller;
       try {
         // CRITICAL FIX: Enhanced verification - verify downloaded file exists and has valid size
-        final File cachedFile = await _cacheService.videoManager.getSingleFile(videoUrlToPrefetch);
-        
+        final File cachedFile =
+            await _cacheService.videoManager.getSingleFile(videoUrlToPrefetch);
+
         if (await cachedFile.exists()) {
           final fileSize = await cachedFile.length();
           // File must be > 1KB to be considered valid (prevents using corrupted/incomplete files)
           if (fileSize > 1024) {
             // ✅ File is cached and valid - use it
-            debugPrint('MediaPrefetchService: Using cached file for prefetched controller $reelId (size: $fileSize bytes)');
+            debugPrint(
+                'MediaPrefetchService: Using cached file for prefetched controller $reelId (size: $fileSize bytes)');
             controller = VideoPlayerController.file(cachedFile);
           } else {
             throw Exception('Cached file is invalid (size: $fileSize bytes)');
@@ -422,7 +449,8 @@ class MediaPrefetchService {
           throw Exception('Cached file does not exist');
         }
       } catch (e) {
-        debugPrint('MediaPrefetchService: Error using cached file for $reelId: $e, skipping prefetch');
+        debugPrint(
+            'MediaPrefetchService: Error using cached file for $reelId: $e, skipping prefetch');
         // CRITICAL FIX: Don't create network controller - skip prefetch if cache fails
         // This prevents internet leaks by ensuring we never fall back to network for prefetched content
         _videoQueue.remove(reelId);
@@ -435,21 +463,24 @@ class MediaPrefetchService {
         await controller.initialize();
       } catch (e) {
         controller.dispose();
-        
+
         // Check if it's a memory/codec error
         final errorStr = e.toString().toLowerCase();
-        final isMemoryError = errorStr.contains('no_memory') || 
-                             errorStr.contains('memory') ||
-                             errorStr.contains('codec');
-        
+        final isMemoryError = errorStr.contains('no_memory') ||
+            errorStr.contains('memory') ||
+            errorStr.contains('codec');
+
         if (isMemoryError && attempt < maxAttempts) {
-          debugPrint('MediaPrefetchService: Memory error prefetching $reelId, will retry');
+          debugPrint(
+              'MediaPrefetchService: Memory error prefetching $reelId, will retry');
           // Retry with exponential backoff
-          return _prefetchVideo(reel, reelId, attempt: attempt + 1, maxAttempts: maxAttempts);
+          return _prefetchVideo(reel, reelId,
+              attempt: attempt + 1, maxAttempts: maxAttempts);
         }
-        
+
         // If not a memory error or max attempts reached, give up
-        debugPrint('MediaPrefetchService: Error initializing controller for $reelId: $e');
+        debugPrint(
+            'MediaPrefetchService: Error initializing controller for $reelId: $e');
         _videoQueue.remove(reelId);
         return;
       }
@@ -465,24 +496,27 @@ class MediaPrefetchService {
 
       // Phase 4.1: Final cancellation check before adding to cache
       if (_prefetchCancelled[reelId] == true) {
-        debugPrint('MediaPrefetchService: Prefetch cancelled before adding to cache for $reelId');
+        debugPrint(
+            'MediaPrefetchService: Prefetch cancelled before adding to cache for $reelId');
         controller.dispose();
         _activePrefetchOperations.remove(reelId);
         _videoQueue.remove(reelId);
         return;
       }
-      
+
       // Phase 1.3: Add to map with memory management (enforces limit of 1)
       _enforceMemoryLimitForReels();
       _prefetchedControllers[reelId] = controller;
       _activePrefetchOperations.remove(reelId); // Remove from active operations
       _prefetchCancelled.remove(reelId); // Clear cancellation flag
-      debugPrint('MediaPrefetchService: Successfully prefetched reel video $reelId');
-      
+      debugPrint(
+          'MediaPrefetchService: Successfully prefetched reel video $reelId');
+
       // Phase 1.3: Dispose prefetched controller if not used within 5 seconds
       Future.delayed(const Duration(seconds: 5), () {
         if (_prefetchedControllers.containsKey(reelId) && !_isDisposed) {
-          debugPrint('MediaPrefetchService: Disposing unused prefetched controller $reelId (timeout)');
+          debugPrint(
+              'MediaPrefetchService: Disposing unused prefetched controller $reelId (timeout)');
           final unusedController = _prefetchedControllers.remove(reelId);
           unusedController?.dispose();
         }
@@ -505,21 +539,25 @@ class MediaPrefetchService {
   /// 2. Pre-caches the video file
   /// 3. Pre-initializes the video controller (but doesn't play it)
   /// 4. Handles errors gracefully with retry logic
-  Future<void> _prefetchStoryVideo(StoryMedia story, String storyId, {int attempt = 1, int maxAttempts = 2}) async {
+  Future<void> _prefetchStoryVideo(StoryMedia story, String storyId,
+      {int attempt = 1, int maxAttempts = 2}) async {
     if (_isDisposed) return;
-    
+
     // CRITICAL FIX: Check if already prefetched or being prefetched
     if (_prefetchedStoryControllers.containsKey(storyId)) {
-      debugPrint('MediaPrefetchService: Story $storyId already prefetched, skipping');
+      debugPrint(
+          'MediaPrefetchService: Story $storyId already prefetched, skipping');
       _prefetchStartTimes.remove(storyId);
       return;
     }
-    
+
     // CRITICAL FIX: Check if already in progress (prevent duplicates)
     if (_prefetchStartTimes.containsKey(storyId) && attempt == 1) {
       final startTime = _prefetchStartTimes[storyId];
-      if (startTime != null && DateTime.now().difference(startTime) < const Duration(seconds: 30)) {
-        debugPrint('MediaPrefetchService: Story $storyId prefetch already in progress, skipping duplicate');
+      if (startTime != null &&
+          DateTime.now().difference(startTime) < const Duration(seconds: 30)) {
+        debugPrint(
+            'MediaPrefetchService: Story $storyId prefetch already in progress, skipping duplicate');
         return;
       }
     }
@@ -527,22 +565,27 @@ class MediaPrefetchService {
     try {
       // Add delay before retry (exponential backoff)
       if (attempt > 1) {
-        final delayMs = (300 * (1 << (attempt - 2))).clamp(300, 1500); // 300ms, 600ms
-        debugPrint('MediaPrefetchService: Retrying story prefetch for $storyId (attempt $attempt/$maxAttempts) after ${delayMs}ms delay');
+        final delayMs =
+            (300 * (1 << (attempt - 2))).clamp(300, 1500); // 300ms, 600ms
+        debugPrint(
+            'MediaPrefetchService: Retrying story prefetch for $storyId (attempt $attempt/$maxAttempts) after ${delayMs}ms delay');
         await Future.delayed(Duration(milliseconds: delayMs));
         if (_isDisposed) return;
       }
 
       // Use ABR logic to get the RIGHT URL to prefetch based on current network
       final NetworkQuality currentQuality = _networkService.currentQuality;
-      final String videoUrlToPrefetch = story.getVideoUrlForQuality(currentQuality);
+      final String videoUrlToPrefetch =
+          story.getVideoUrlForQuality(currentQuality);
 
       // 1. Pre-cache the video file using video-specific cache service
       try {
         await _cacheService.videoManager.downloadFile(videoUrlToPrefetch);
-        debugPrint('MediaPrefetchService: Successfully cached story video file for $storyId');
+        debugPrint(
+            'MediaPrefetchService: Successfully cached story video file for $storyId');
       } catch (e) {
-        debugPrint('MediaPrefetchService: Error caching story video file for $storyId: $e');
+        debugPrint(
+            'MediaPrefetchService: Error caching story video file for $storyId: $e');
         // Continue even if cache fails, controller can still load from network
       }
 
@@ -553,14 +596,16 @@ class MediaPrefetchService {
       VideoPlayerController controller;
       try {
         // CRITICAL FIX: Enhanced verification - verify downloaded file exists and has valid size
-        final File cachedFile = await _cacheService.videoManager.getSingleFile(videoUrlToPrefetch);
-        
+        final File cachedFile =
+            await _cacheService.videoManager.getSingleFile(videoUrlToPrefetch);
+
         if (await cachedFile.exists()) {
           final fileSize = await cachedFile.length();
           // File must be > 1KB to be considered valid (prevents using corrupted/incomplete files)
           if (fileSize > 1024) {
             // ✅ File is cached and valid - use it
-            debugPrint('MediaPrefetchService: Using cached file for prefetched story controller $storyId (size: $fileSize bytes)');
+            debugPrint(
+                'MediaPrefetchService: Using cached file for prefetched story controller $storyId (size: $fileSize bytes)');
             controller = VideoPlayerController.file(cachedFile);
           } else {
             throw Exception('Cached file is invalid (size: $fileSize bytes)');
@@ -569,7 +614,8 @@ class MediaPrefetchService {
           throw Exception('Cached file does not exist');
         }
       } catch (e) {
-        debugPrint('MediaPrefetchService: Error using cached file for story $storyId: $e, skipping prefetch');
+        debugPrint(
+            'MediaPrefetchService: Error using cached file for story $storyId: $e, skipping prefetch');
         // CRITICAL FIX: Don't create network controller - skip prefetch if cache fails
         // This prevents internet leaks by ensuring we never fall back to network for prefetched content
         _storyVideoQueue.remove(storyId);
@@ -580,21 +626,24 @@ class MediaPrefetchService {
         await controller.initialize();
       } catch (e) {
         controller.dispose();
-        
+
         // Check if it's a memory/codec error
         final errorStr = e.toString().toLowerCase();
-        final isMemoryError = errorStr.contains('no_memory') || 
-                             errorStr.contains('memory') ||
-                             errorStr.contains('codec');
-        
+        final isMemoryError = errorStr.contains('no_memory') ||
+            errorStr.contains('memory') ||
+            errorStr.contains('codec');
+
         if (isMemoryError && attempt < maxAttempts) {
-          debugPrint('MediaPrefetchService: Memory error prefetching story $storyId, will retry');
+          debugPrint(
+              'MediaPrefetchService: Memory error prefetching story $storyId, will retry');
           // Retry with exponential backoff
-          return _prefetchStoryVideo(story, storyId, attempt: attempt + 1, maxAttempts: maxAttempts);
+          return _prefetchStoryVideo(story, storyId,
+              attempt: attempt + 1, maxAttempts: maxAttempts);
         }
-        
+
         // If not a memory error or max attempts reached, give up
-        debugPrint('MediaPrefetchService: Error initializing story controller for $storyId: $e');
+        debugPrint(
+            'MediaPrefetchService: Error initializing story controller for $storyId: $e');
         _storyVideoQueue.remove(storyId);
         return;
       }
@@ -611,8 +660,9 @@ class MediaPrefetchService {
       // 3. Add to map with memory management (Phase 3)
       _enforceMemoryLimitForStories();
       _prefetchedStoryControllers[storyId] = controller;
-      debugPrint('MediaPrefetchService: Successfully prefetched story video $storyId');
-      
+      debugPrint(
+          'MediaPrefetchService: Successfully prefetched story video $storyId');
+
       // CRITICAL FIX: Remove from active operations
       _prefetchStartTimes.remove(storyId);
     } catch (e) {
@@ -639,7 +689,8 @@ class MediaPrefetchService {
     // Remove and return the controller (LRU behavior - removes from cache)
     final controller = _prefetchedControllers.remove(reelId);
     if (controller != null) {
-      debugPrint('MediaPrefetchService: Retrieved prefetched controller for reel $reelId');
+      debugPrint(
+          'MediaPrefetchService: Retrieved prefetched controller for reel $reelId');
     }
     return controller;
   }
@@ -656,7 +707,8 @@ class MediaPrefetchService {
     // Remove and return the controller (LRU behavior - removes from cache)
     final controller = _prefetchedStoryControllers.remove(storyId);
     if (controller != null) {
-      debugPrint('MediaPrefetchService: Retrieved prefetched controller for story $storyId');
+      debugPrint(
+          'MediaPrefetchService: Retrieved prefetched controller for story $storyId');
     }
     return controller;
   }
@@ -694,7 +746,8 @@ class MediaPrefetchService {
     if (_isDisposed) return;
 
     // Remove oldest entries (from front of LinkedHashMap) if over limit
-    while (_prefetchedStoryControllers.length >= _maxPrefetchedStoryControllers) {
+    while (
+        _prefetchedStoryControllers.length >= _maxPrefetchedStoryControllers) {
       final oldestKey = _prefetchedStoryControllers.keys.first;
       final controller = _prefetchedStoryControllers.remove(oldestKey);
       controller?.dispose();
@@ -721,7 +774,8 @@ class MediaPrefetchService {
     for (final reelId in reelIdsToRemove) {
       final controller = _prefetchedControllers.remove(reelId);
       controller?.dispose();
-      debugPrint('MediaPrefetchService: Cleared distant reel controller $reelId');
+      debugPrint(
+          'MediaPrefetchService: Cleared distant reel controller $reelId');
     }
 
     // Also enforce memory limit after cleanup
@@ -746,7 +800,8 @@ class MediaPrefetchService {
     for (final storyId in storyIdsToRemove) {
       final controller = _prefetchedStoryControllers.remove(storyId);
       controller?.dispose();
-      debugPrint('MediaPrefetchService: Cleared distant story controller $storyId');
+      debugPrint(
+          'MediaPrefetchService: Cleared distant story controller $storyId');
     }
 
     // Also enforce memory limit after cleanup
@@ -775,7 +830,7 @@ class MediaPrefetchService {
     _isDisposed = true;
     _videoQueue.clear();
     _storyVideoQueue.clear();
-    
+
     // Phase 4.1: Cancel all active prefetch operations
     _cancelActivePrefetchOperations();
     _prefetchCancelled.clear();

@@ -1,121 +1,321 @@
 // lib/widgets/feed_widgets/suggestion_card.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/services.dart';
 import 'package:freegram/models/user_model.dart';
 import 'package:freegram/models/page_model.dart';
 import 'package:freegram/models/feed_item_model.dart';
 import 'package:freegram/services/analytics_service.dart';
 import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/theme/app_theme.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:freegram/blocs/friends_bloc/friends_bloc.dart';
 import 'package:freegram/repositories/page_repository.dart';
+import 'package:freegram/repositories/user_repository.dart';
 import 'package:freegram/locator.dart';
+import 'package:freegram/services/navigation_service.dart';
+import 'package:freegram/screens/profile_screen.dart';
+import 'package:freegram/utils/mutual_friends_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-class SuggestionCardWidget extends StatelessWidget {
+class SuggestionCardWidget extends StatefulWidget {
   final dynamic suggestion; // UserModel or PageModel
   final SuggestionType type;
+  final List<String>? currentUserFriends; // For mutual friends calculation
+  final List<String>?
+      currentUserFriendRequestsSent; // For checking if request already sent
+  final VoidCallback? onRequestSent; // Callback when friend request is sent
 
   const SuggestionCardWidget({
     Key? key,
     required this.suggestion,
     required this.type,
+    this.currentUserFriends,
+    this.currentUserFriendRequestsSent,
+    this.onRequestSent,
   }) : super(key: key);
+
+  @override
+  State<SuggestionCardWidget> createState() => _SuggestionCardWidgetState();
+}
+
+class _SuggestionCardWidgetState extends State<SuggestionCardWidget> {
+  // Track loading state for optimistic UI updates
+  bool _isLoading = false;
+  // Track locally sent requests (for immediate feedback before data syncs)
+  final Set<String> _locallySentRequests = <String>{};
+
+  // Check if request was sent (from data or local state)
+  bool _isRequestSent(String? userId) {
+    if (userId == null || widget.type != SuggestionType.friends) {
+      return false;
+    }
+    // Check actual data first (source of truth) - this persists across scrolls
+    final requestsSent = widget.currentUserFriendRequestsSent ?? [];
+    if (requestsSent.contains(userId)) {
+      return true;
+    }
+    // Then check local state (for immediate feedback during the same widget lifecycle)
+    return _locallySentRequests.contains(userId);
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isUser = type == SuggestionType.friends;
-    final name = isUser
-        ? (suggestion as UserModel).username
-        : (suggestion as PageModel).pageName;
-    final avatarUrl = isUser
-        ? (suggestion as UserModel).photoUrl
-        : (suggestion as PageModel).profileImageUrl;
-    
-    // TODO: Calculate and show mutual friends count for friends suggestions
+    final isUser = widget.type == SuggestionType.friends;
+    final user = isUser ? (widget.suggestion as UserModel) : null;
+    final page = !isUser ? (widget.suggestion as PageModel) : null;
+    final name = isUser ? user!.username : page!.pageName;
+    final avatarUrl = isUser ? user!.photoUrl : page!.profileImageUrl;
+    final userId = isUser ? user!.id : null;
 
-    return Card(
+    // Calculate mutual friends count for friends suggestions
+    int? mutualFriendsCount;
+    if (isUser && widget.currentUserFriends != null && user != null) {
+      mutualFriendsCount = MutualFriendsHelper.getMutualFriendsCount(
+        widget.currentUserFriends!,
+        user.friends,
+      );
+    }
+
+    return Container(
+      width: 110,
       margin: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceXS),
-      child: Container(
-        width: 100,
-        padding: const EdgeInsets.all(DesignTokens.spaceSM),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircleAvatar(
-              radius: DesignTokens.avatarSize / 2,
-              backgroundImage: avatarUrl.isNotEmpty
-                  ? CachedNetworkImageProvider(avatarUrl)
-                  : null,
-              child: avatarUrl.isEmpty
-                  ? Icon(
-                      Icons.person,
-                      size: DesignTokens.iconMD,
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
-                    )
-                  : null,
-            ),
-            const SizedBox(height: DesignTokens.spaceSM),
-            Text(
-              name,
-              style: theme.textTheme.titleSmall,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-            ),
-            // TODO: Show mutual friends count when available
-            // if (mutualFriendsCount != null && mutualFriendsCount > 0) ...[
-            //   const SizedBox(height: DesignTokens.spaceXS / 2),
-            //   Text(
-            //     MutualFriendsHelper.formatMutualFriendsText(mutualFriendsCount),
-            //     style: theme.textTheme.bodySmall?.copyWith(
-            //       color: theme.colorScheme.onSurface.withOpacity(0.6),
-            //       fontSize: 10,
-            //     ),
-            //     maxLines: 1,
-            //     overflow: TextOverflow.ellipsis,
-            //     textAlign: TextAlign.center,
-            //   ),
-            // ],
-            const SizedBox(height: DesignTokens.spaceXS),
-            Semantics(
-              label: isUser ? 'Add Friend $name' : 'Follow $name',
-              button: true,
-              child: ElevatedButton(
-                onPressed: () => _handleAction(context),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: DesignTokens.spaceMD,
-                    vertical: DesignTokens.spaceXS,
-                  ),
-                  minimumSize: const Size(80, DesignTokens.chipHeight),
-                ),
-                child: Text(
-                  isUser ? 'Add Friend' : 'Follow',
-                  style: theme.textTheme.bodySmall,
-                ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+          onTap: () => _navigateToProfile(context, userId),
+          child: Container(
+            padding: const EdgeInsets.all(DesignTokens.spaceSM),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+              border: Border.all(
+                color: theme.colorScheme.outline.withOpacity(0.1),
+                width: 1,
               ),
+              boxShadow: DesignTokens.shadowLight,
             ),
-          ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Avatar with optional border
+                GestureDetector(
+                  onTap: () => _navigateToProfile(context, userId),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: theme.colorScheme.primary.withOpacity(0.2),
+                        width: 2,
+                      ),
+                    ),
+                    child: CircleAvatar(
+                      radius: AvatarSize.medium.radius,
+                      backgroundColor:
+                          theme.colorScheme.surfaceContainerHighest,
+                      backgroundImage: avatarUrl.isNotEmpty
+                          ? CachedNetworkImageProvider(avatarUrl)
+                          : null,
+                      child: avatarUrl.isEmpty
+                          ? Icon(
+                              Icons.person,
+                              size: DesignTokens.iconMD,
+                              color: theme.colorScheme.onSurface.withOpacity(
+                                DesignTokens.opacityMedium,
+                              ),
+                            )
+                          : null,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: DesignTokens.spaceSM),
+                // Username
+                Text(
+                  name,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: DesignTokens.fontSizeSM,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+                // Mutual friends count
+                if (mutualFriendsCount != null && mutualFriendsCount > 0) ...[
+                  const SizedBox(height: DesignTokens.spaceXS),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.people_outline,
+                        size: DesignTokens.iconXS,
+                        color: theme.colorScheme.onSurface.withOpacity(
+                          DesignTokens.opacityMedium,
+                        ),
+                      ),
+                      const SizedBox(width: DesignTokens.spaceXS / 2),
+                      Flexible(
+                        child: Text(
+                          MutualFriendsHelper.formatMutualFriendsText(
+                              mutualFriendsCount),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withOpacity(
+                              DesignTokens.opacityMedium,
+                            ),
+                            fontSize: DesignTokens.fontSizeXS,
+                            height: DesignTokens.lineHeightTight,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: DesignTokens.spaceSM),
+                // Action button
+                Semantics(
+                  label: isUser
+                      ? (_isRequestSent(userId)
+                          ? 'Friend request sent to $name'
+                          : 'Add Friend $name')
+                      : 'Follow $name',
+                  button: true,
+                  child:
+                      _buildActionButton(context, theme, isUser, name, userId),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  void _handleAction(BuildContext context) {
-    final suggestionId = type == SuggestionType.friends
-        ? (suggestion as UserModel).id
-        : (suggestion as PageModel).pageId;
-    final suggestionTypeStr = type == SuggestionType.friends ? 'user' : 'page';
+  Widget _buildActionButton(
+    BuildContext context,
+    ThemeData theme,
+    bool isUser,
+    String name,
+    String? userId,
+  ) {
+    // Determine button state - check from data source, not just state
+    final bool isRequestSentState = isUser && _isRequestSent(userId);
+    final bool isDisabled = isRequestSentState || _isLoading;
+    final String buttonText = _isLoading
+        ? 'Sending...'
+        : isUser
+            ? (_isRequestSent(userId) ? 'Sent' : 'Add Friend')
+            : 'Follow';
+
+    // Use different styling for sent state - subtle success color
+    final backgroundColor = isRequestSentState
+        ? SonarPulseTheme.primaryAccent.withOpacity(0.2)
+        : (_isLoading
+            ? SonarPulseTheme.primaryAccent.withOpacity(0.7)
+            : SonarPulseTheme.primaryAccent);
+
+    final textColor =
+        isRequestSentState ? SonarPulseTheme.primaryAccent : Colors.white;
+
+    return SizedBox(
+      width: double.infinity,
+      height: DesignTokens.buttonHeight * 0.6, // Smaller button for card
+      child: ElevatedButton(
+        onPressed: isDisabled
+            ? null
+            : () {
+                HapticFeedback.lightImpact();
+                // Handle action without triggering card tap
+                _handleAction(context, userId);
+              },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: backgroundColor,
+          foregroundColor: textColor,
+          elevation: 0,
+          disabledBackgroundColor: backgroundColor,
+          disabledForegroundColor: textColor,
+          padding: const EdgeInsets.symmetric(
+            horizontal: DesignTokens.spaceSM,
+            vertical: DesignTokens.spaceXS,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+            side: isRequestSentState
+                ? BorderSide(
+                    color: SonarPulseTheme.primaryAccent.withOpacity(0.3),
+                    width: 1,
+                  )
+                : BorderSide.none,
+          ),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        child: _isLoading
+            ? SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_isRequestSent(userId) && isUser) ...[
+                    Icon(
+                      Icons.check_circle_outline,
+                      size: DesignTokens.iconXS,
+                      color: textColor,
+                    ),
+                    const SizedBox(width: DesignTokens.spaceXS / 2),
+                  ],
+                  Flexible(
+                    child: Text(
+                      buttonText,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: textColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: DesignTokens.fontSizeXS,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  void _navigateToProfile(BuildContext context, String? userId) {
+    if (userId == null) return;
+
+    HapticFeedback.lightImpact();
+    locator<NavigationService>().navigateTo(
+      ProfileScreen(userId: userId),
+      transition: PageTransition.slide,
+    );
+  }
+
+  void _handleAction(BuildContext context, String? userId) {
+    final suggestionId = widget.type == SuggestionType.friends
+        ? (widget.suggestion as UserModel).id
+        : (widget.suggestion as PageModel).pageId;
+    final suggestionTypeStr =
+        widget.type == SuggestionType.friends ? 'user' : 'page';
 
     // Track action
     AnalyticsService().trackSuggestionFollow(suggestionId, suggestionTypeStr);
     debugPrint(
         '📊 Suggestion action tracked: ID=$suggestionId, Type=$suggestionTypeStr');
 
-    if (type == SuggestionType.friends) {
+    if (widget.type == SuggestionType.friends) {
       // Handle Add Friend - send friend request
       _handleAddFriend(context, suggestionId);
     } else {
@@ -124,26 +324,106 @@ class SuggestionCardWidget extends StatelessWidget {
     }
   }
 
-  void _handleAddFriend(BuildContext context, String userId) {
-    try {
-      // Get FriendsBloc from context or create if not available
-      final friendsBloc = context.read<FriendsBloc>();
-      friendsBloc.add(SendFriendRequest(userId));
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Friend request sent!'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } catch (e) {
-      debugPrint('Error sending friend request: $e');
+  Future<void> _handleAddFriend(BuildContext context, String userId) async {
+    // Don't send if already sent (check both local and data state)
+    if (_isRequestSent(userId)) {
+      return;
+    }
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to send friend request: $e'),
+          content: const Text('You must be logged in to send friend requests'),
+          backgroundColor: SonarPulseTheme.darkError,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+          ),
           duration: const Duration(seconds: 2),
         ),
       );
+      return;
+    }
+
+    // Optimistic update - add to local set immediately for instant feedback
+    setState(() {
+      _isLoading = true;
+      _locallySentRequests.add(userId);
+    });
+
+    try {
+      final userRepository = locator<UserRepository>();
+      await userRepository.sendFriendRequest(currentUser.uid, userId);
+
+      // Success - clear loading, refresh user data to get updated friendRequestsSent
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          // Keep userId in _locallySentRequests for immediate UI feedback
+          // The actual data will be refreshed from the parent
+        });
+
+        // Notify parent to refresh user data
+        widget.onRequestSent?.call();
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Friend request sent!'),
+            backgroundColor: SonarPulseTheme.primaryAccent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error sending friend request: $e');
+      if (mounted) {
+        // Remove from local set on error (unless it was already sent)
+        final errorStr = e.toString().toLowerCase();
+        final wasAlreadySent = errorStr.contains('request already sent') ||
+            errorStr.contains('already sent');
+
+        setState(() {
+          _isLoading = false;
+          // Only remove from local set if it wasn't already sent
+          if (!wasAlreadySent) {
+            _locallySentRequests.remove(userId);
+          }
+        });
+
+        // Parse error message for user-friendly display
+        String errorMessage = 'Failed to send friend request';
+        if (errorStr.contains('already friends')) {
+          errorMessage = 'You are already friends with this user';
+        } else if (wasAlreadySent) {
+          errorMessage = 'Friend request already sent';
+          // Keep it in local set since it was actually sent
+        } else if (errorStr.contains('blocked')) {
+          errorMessage = 'Cannot send request to this user';
+        } else if (errorStr.contains('not found')) {
+          errorMessage = 'User not found';
+        } else if (errorStr.contains('network') ||
+            errorStr.contains('connection')) {
+          errorMessage = 'Network error. Please try again';
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: SonarPulseTheme.darkError,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -152,18 +432,31 @@ class SuggestionCardWidget extends StatelessWidget {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You must be logged in to follow pages')),
+          SnackBar(
+            content: const Text('You must be logged in to follow pages'),
+            backgroundColor: SonarPulseTheme.darkError,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+            ),
+            duration: const Duration(seconds: 2),
+          ),
         );
         return;
       }
 
       final pageRepository = locator<PageRepository>();
       await pageRepository.followPage(pageId, currentUser.uid);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Page followed!'),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: const Text('Page followed!'),
+          backgroundColor: SonarPulseTheme.primaryAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+          ),
+          duration: const Duration(seconds: 2),
         ),
       );
     } catch (e) {
@@ -171,7 +464,12 @@ class SuggestionCardWidget extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to follow page: $e'),
-          duration: const Duration(seconds: 2),
+          backgroundColor: SonarPulseTheme.darkError,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+          ),
+          duration: const Duration(seconds: 3),
         ),
       );
     }

@@ -14,14 +14,17 @@ import 'package:freegram/repositories/story_repository.dart';
 import 'package:freegram/models/text_overlay_model.dart';
 import 'package:freegram/models/drawing_path_model.dart';
 import 'package:freegram/models/sticker_overlay_model.dart';
-import 'package:freegram/widgets/story_widgets/drawing_canvas.dart';
-import 'package:freegram/widgets/story_widgets/draggable_sticker_widget.dart';
-import 'package:freegram/widgets/story_widgets/draggable_text_widget.dart';
 import 'package:freegram/widgets/story_widgets/editor/story_editor_toolbar.dart';
-import 'package:freegram/widgets/story_widgets/editor/story_drawing_tools.dart';
 import 'package:freegram/widgets/story_widgets/editor/story_sticker_picker.dart';
+import 'package:freegram/widgets/story_widgets/creator/story_camera_widget.dart';
+import 'package:freegram/widgets/story_widgets/creator/story_media_preview_widget.dart';
+import 'package:freegram/widgets/story_widgets/creator/story_media_picker_dialog.dart';
+import 'package:freegram/widgets/story_widgets/creator/story_text_editor_dialog.dart';
+import 'package:freegram/widgets/story_widgets/creator/story_share_button.dart';
+import 'package:freegram/widgets/story_widgets/creator/story_editing_overlays_widget.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/theme/app_theme.dart';
+import 'package:freegram/utils/story_constants.dart';
 // Audio features temporarily disabled - FFmpegKit packages have compatibility issues
 // import 'package:freegram/widgets/story_widgets/audio_import_modal.dart';
 // import 'package:freegram/widgets/story_widgets/audio_trimmer_widget.dart';
@@ -79,8 +82,8 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
   List<StickerOverlay> _stickerOverlays = [];
 
   // Drawing tool state
-  Color _drawingColor = Colors.white;
-  double _drawingStrokeWidth = 5.0;
+  Color _drawingColor = Colors.white; // Will be replaced with theme color
+  double _drawingStrokeWidth = DesignTokens.spaceXS; // ~5.0
 
   // Audio import state (temporarily disabled - FFmpegKit compatibility issues)
   // String? _selectedAudioPath;
@@ -126,10 +129,11 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
       if (widget.mediaType == 'video') {
         // Initialize video preview with error handling
         try {
-          debugPrint('StoryCreatorScreen: Initializing video preview for: ${file.path}');
+          debugPrint(
+              'StoryCreatorScreen: Initializing video preview for: ${file.path}');
           _videoPreviewController = VideoPlayerController.file(file);
           await _videoPreviewController!.initialize();
-          
+
           // Verify video is valid
           if (!_videoPreviewController!.value.isInitialized) {
             throw Exception('Video failed to initialize');
@@ -142,13 +146,15 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
               _selectedMedia = file;
               _mediaType = 'video';
             });
-            debugPrint('StoryCreatorScreen: Video preview initialized successfully');
+            debugPrint(
+                'StoryCreatorScreen: Video preview initialized successfully');
           }
         } catch (e) {
-          debugPrint('StoryCreatorScreen: Error initializing video preview: $e');
+          debugPrint(
+              'StoryCreatorScreen: Error initializing video preview: $e');
           _videoPreviewController?.dispose();
           _videoPreviewController = null;
-          
+
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Error loading video: $e')),
@@ -165,6 +171,10 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
           if (bytes.isEmpty) {
             throw Exception('Image file is empty');
           }
+
+          // Dispose video controller if switching from video to image
+          _videoPreviewController?.dispose();
+          _videoPreviewController = null;
 
           if (mounted) {
             setState(() {
@@ -314,12 +324,15 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
         });
       }
 
-      // Auto-stop after 20 seconds (max duration)
-      Future.delayed(const Duration(seconds: 20), () {
-        if (_isRecordingVideo && mounted) {
-          _stopVideoRecording();
-        }
-      });
+      // Auto-stop after max duration (StoryConstants.maxVideoDurationSeconds)
+      Future.delayed(
+        Duration(seconds: StoryConstants.maxVideoDurationSeconds),
+        () {
+          if (_isRecordingVideo && mounted) {
+            _stopVideoRecording();
+          }
+        },
+      );
     } catch (e) {
       debugPrint('Error starting video recording: $e');
       if (mounted) {
@@ -337,16 +350,18 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
       final XFile videoFile = await _cameraController!.stopVideoRecording();
       final file = File(videoFile.path);
 
-      // Check video duration (max 20 seconds)
+      // Check video duration
       final controller = VideoPlayerController.file(file);
       await controller.initialize();
       final duration = controller.value.duration;
 
-      if (duration.inSeconds > 20) {
+      if (duration.inSeconds > StoryConstants.maxVideoDurationSeconds) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Video too long. Maximum 20 seconds allowed.'),
+            SnackBar(
+              content: Text(
+                'Video too long. Maximum ${StoryConstants.maxVideoDurationSeconds} seconds allowed.',
+              ),
             ),
           );
         }
@@ -382,61 +397,7 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
   }
 
   Future<void> _showMediaPicker() async {
-    final theme = Theme.of(context);
-    final result = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      backgroundColor: theme.scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.grey[600],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            ListTile(
-              leading:
-                  Icon(Icons.camera_alt, color: theme.colorScheme.onSurface),
-              title: Text('Camera', style: theme.textTheme.bodyMedium),
-              onTap: () => Navigator.of(context).pop({
-                'source': ImageSource.camera,
-                'type': 'image',
-              }),
-            ),
-            ListTile(
-              leading:
-                  Icon(Icons.photo_library, color: theme.colorScheme.onSurface),
-              title:
-                  Text('Photo from Gallery', style: theme.textTheme.bodyMedium),
-              onTap: () => Navigator.of(context).pop({
-                'source': ImageSource.gallery,
-                'type': 'image',
-              }),
-            ),
-            if (!kIsWeb)
-              ListTile(
-                leading: Icon(Icons.video_library,
-                    color: theme.colorScheme.onSurface),
-                title: Text('Video from Gallery',
-                    style: theme.textTheme.bodyMedium),
-                onTap: () => Navigator.of(context).pop({
-                  'source': ImageSource.gallery,
-                  'type': 'video',
-                }),
-              ),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
-    );
+    final result = await StoryMediaPickerDialog.show(context);
 
     if (result != null) {
       final source = result['source'] as ImageSource;
@@ -459,8 +420,9 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
   Future<void> _pickMedia(ImageSource source,
       {String mediaType = 'image'}) async {
     try {
-      debugPrint('StoryCreatorScreen: _pickMedia called with source: $source, type: $mediaType');
-      
+      debugPrint(
+          'StoryCreatorScreen: _pickMedia called with source: $source, type: $mediaType');
+
       // CRITICAL FIX: Only request camera permission manually
       // ImagePicker handles gallery permissions internally, requesting them manually causes conflicts
       if (source == ImageSource.camera) {
@@ -501,8 +463,8 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
             .pickImage(
               source: source,
               imageQuality: 85,
-              maxWidth: 1080,
-              maxHeight: 1920,
+              maxWidth: StoryConstants.storyWidth,
+              maxHeight: StoryConstants.storyHeight,
             )
             .timeout(
               const Duration(seconds: 30),
@@ -540,11 +502,16 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
               if (bytes.isEmpty) {
                 throw Exception('Image file is empty');
               }
+              // Dispose video controller if switching from video to image
+              _videoPreviewController?.dispose();
+              _videoPreviewController = null;
+
               setState(() {
                 _selectedMediaBytes = bytes;
                 _mediaType = 'image';
               });
-              debugPrint('StoryCreatorScreen: Image selected successfully (web)');
+              debugPrint(
+                  'StoryCreatorScreen: Image selected successfully (web)');
             } catch (e) {
               debugPrint('StoryCreatorScreen: Error reading image bytes: $e');
               if (mounted) {
@@ -557,10 +524,11 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
             if (mediaType == 'video') {
               // Initialize video preview with error handling
               try {
-                debugPrint('StoryCreatorScreen: Initializing video preview for: ${file.path}');
+                debugPrint(
+                    'StoryCreatorScreen: Initializing video preview for: ${file.path}');
                 _videoPreviewController = VideoPlayerController.file(file);
                 await _videoPreviewController!.initialize();
-                
+
                 // Verify video is valid
                 if (!_videoPreviewController!.value.isInitialized) {
                   throw Exception('Video failed to initialize');
@@ -577,7 +545,7 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
                 debugPrint('StoryCreatorScreen: Error initializing video: $e');
                 _videoPreviewController?.dispose();
                 _videoPreviewController = null;
-                
+
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Error loading video: $e')),
@@ -593,6 +561,10 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
                 if (bytes.isEmpty) {
                   throw Exception('Image file is empty');
                 }
+
+                // Dispose video controller if switching from video to image
+                _videoPreviewController?.dispose();
+                _videoPreviewController = null;
 
                 setState(() {
                   _selectedMedia = file;
@@ -648,7 +620,7 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
         final videoDuration = controller.value.duration.inSeconds.toDouble();
         await controller.dispose();
 
-        if (videoDuration > 20.0) {
+        if (videoDuration > StoryConstants.maxVideoDurationSeconds) {
           // Show video trimmer
           final trimmedVideo = await Navigator.of(context).push<File>(
             MaterialPageRoute(
@@ -746,23 +718,24 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
       if (kIsWeb && _selectedMediaBytes != null) {
         // For web, upload directly from bytes (no audio support yet)
         mediaUrl = await CloudinaryService.uploadImageFromBytes(
-          _selectedMediaBytes!,
-          filename: 'story_${DateTime.now().millisecondsSinceEpoch}.jpg',
-          onProgress: (progress) {
-            final totalProgress = 0.5 + (progress * 0.4); // 50-90%
-            uploadProgressService.updateProgress(
-              uploadId: uploadId,
-              progress: totalProgress,
-              currentStep: 'Uploading to server...',
-            );
-            uploadNotificationService.updateUploadProgress(
-              uploadId: uploadId,
-              progress: totalProgress,
-              currentStep: 'Uploading...',
-            );
-          },
-        ) ?? '';
-        
+              _selectedMediaBytes!,
+              filename: 'story_${DateTime.now().millisecondsSinceEpoch}.jpg',
+              onProgress: (progress) {
+                final totalProgress = 0.5 + (progress * 0.4); // 50-90%
+                uploadProgressService.updateProgress(
+                  uploadId: uploadId,
+                  progress: totalProgress,
+                  currentStep: 'Uploading to server...',
+                );
+                uploadNotificationService.updateUploadProgress(
+                  uploadId: uploadId,
+                  progress: totalProgress,
+                  currentStep: 'Uploading...',
+                );
+              },
+            ) ??
+            '';
+
         if (mediaUrl.isEmpty) {
           throw Exception('Failed to upload image to Cloudinary');
         }
@@ -778,13 +751,14 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
           // Upload video using VideoUploadService
           // Note: finalMediaFile is guaranteed to be non-null here due to outer if condition
           final videoUploadService = VideoUploadService();
-          final videoQualities = await videoUploadService.uploadVideoWithMultipleQualities(
+          final videoQualities =
+              await videoUploadService.uploadVideoWithMultipleQualities(
             finalMediaFile,
             onProgress: (progress) {
               final totalProgress = 0.5 + (progress * 0.4); // 50-90%
               final elapsed = DateTime.now().difference(uploadStartTime);
               final fileSize = finalMediaFile.lengthSync();
-              
+
               uploadProgressService.updateUploadMetrics(
                 uploadId: uploadId,
                 bytesUploaded: (fileSize * progress).round(),
@@ -808,10 +782,11 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
             throw Exception('Failed to upload video to Cloudinary');
           }
           mediaUrl = videoQualities['videoUrl']!;
-          
+
           // Generate thumbnail for video
           try {
-            final thumbnailData = await video_thumbnail.VideoThumbnail.thumbnailData(
+            final thumbnailData =
+                await video_thumbnail.VideoThumbnail.thumbnailData(
               video: finalMediaFile.path,
               imageFormat: video_thumbnail.ImageFormat.JPEG,
               maxWidth: 400,
@@ -824,7 +799,8 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
                 'thumb_${DateTime.now().millisecondsSinceEpoch}.jpg',
               ));
               await thumbnailFile.writeAsBytes(thumbnailData);
-              thumbnailUrl = await CloudinaryService.uploadImageFromFile(thumbnailFile);
+              thumbnailUrl =
+                  await CloudinaryService.uploadImageFromFile(thumbnailFile);
               await thumbnailFile.delete();
             }
           } catch (e) {
@@ -833,21 +809,22 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
         } else {
           // Upload image
           mediaUrl = await CloudinaryService.uploadImageFromFile(
-            finalMediaFile,
-            onProgress: (progress) {
-              final totalProgress = 0.5 + (progress * 0.4); // 50-90%
-              uploadProgressService.updateProgress(
-                uploadId: uploadId,
-                progress: totalProgress,
-                currentStep: 'Uploading to server...',
-              );
-              uploadNotificationService.updateUploadProgress(
-                uploadId: uploadId,
-                progress: totalProgress,
-                currentStep: 'Uploading...',
-              );
-            },
-          ) ?? '';
+                finalMediaFile,
+                onProgress: (progress) {
+                  final totalProgress = 0.5 + (progress * 0.4); // 50-90%
+                  uploadProgressService.updateProgress(
+                    uploadId: uploadId,
+                    progress: totalProgress,
+                    currentStep: 'Uploading to server...',
+                  );
+                  uploadNotificationService.updateUploadProgress(
+                    uploadId: uploadId,
+                    progress: totalProgress,
+                    currentStep: 'Uploading...',
+                  );
+                },
+              ) ??
+              '';
         }
 
         if (mediaUrl.isEmpty) {
@@ -895,11 +872,12 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
       uploadNotificationService.showUploadComplete(uploadId: uploadId);
 
       if (mounted) {
+        final theme = Theme.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Story shared successfully!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: const Text('Story shared successfully!'),
+            backgroundColor: theme.colorScheme.primary,
+            duration: AnimationTokens.normal,
           ),
         );
 
@@ -907,27 +885,44 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
         final postAnother = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            backgroundColor: Colors.grey[900],
-            title: const Text(
-              'Story Posted!',
-              style: TextStyle(color: Colors.white),
+            backgroundColor: theme.colorScheme.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
             ),
-            content: const Text(
+            title: Text(
+              'Story Posted!',
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            content: Text(
               'Would you like to post another story?',
-              style: TextStyle(color: Colors.white70),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(
+                  DesignTokens.opacityHigh,
+                ),
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child:
-                    const Text('Done', style: TextStyle(color: Colors.white70)),
+                child: Text(
+                  'Done',
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface.withOpacity(
+                      DesignTokens.opacityHigh,
+                    ),
+                  ),
+                ),
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: const Text(
+                child: Text(
                   'Post Another',
                   style: TextStyle(
-                      color: Colors.blue, fontWeight: FontWeight.bold),
+                    color: SonarPulseTheme.primaryAccent,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -945,8 +940,8 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
             _drawings = [];
             _stickerOverlays = [];
             _activeTool = 'none';
-            _drawingColor = Colors.white;
-            _drawingStrokeWidth = 5.0;
+            _drawingColor = Colors.white; // Default drawing color
+            _drawingStrokeWidth = DesignTokens.spaceXS;
             // Audio state variables disabled
             // _selectedAudioPath = null;
             // _audioStartTime = null;
@@ -961,8 +956,9 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
     } catch (e) {
       debugPrint('Error sharing story: $e');
       uploadProgressService.failUpload(uploadId, e.toString());
-      uploadNotificationService.showUploadFailed(uploadId: uploadId, errorMessage: e.toString());
-      
+      uploadNotificationService.showUploadFailed(
+          uploadId: uploadId, errorMessage: e.toString());
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error sharing story: $e')),
@@ -982,12 +978,15 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.close, color: theme.colorScheme.onPrimary),
+          icon: Icon(
+            Icons.close,
+            color: theme.colorScheme.onSurface,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -999,107 +998,17 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
     // Show camera preview if camera is initialized and no media selected
     if (_isCameraInitialized &&
         _selectedMedia == null &&
-        _cameraController != null) {
-      return Stack(
-        children: [
-          // Camera preview
-          Positioned.fill(
-            child: CameraPreview(_cameraController!),
-          ),
-          // Top controls (camera switch, close)
-          Positioned(
-            top: 40,
-            left: 16,
-            right: 16,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-                if (_cameras != null && _cameras!.length > 1)
-                  IconButton(
-                    icon:
-                        const Icon(Icons.flip_camera_ios, color: Colors.white),
-                    onPressed: _switchCamera,
-                  ),
-              ],
-            ),
-          ),
-          // Bottom controls (capture buttons)
-          Positioned(
-            bottom: 40,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Photo capture button
-                GestureDetector(
-                  onTap: _takePicture,
-                  child: Container(
-                    width: 70,
-                    height: 70,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 4),
-                      color: Colors.transparent,
-                    ),
-                    child:
-                        const Icon(Icons.camera, color: Colors.white, size: 40),
-                  ),
-                ),
-                const SizedBox(width: 40),
-                // Video record button (long press)
-                GestureDetector(
-                  onLongPressStart: (_) => _startVideoRecording(),
-                  onLongPressEnd: (_) => _stopVideoRecording(),
-                  child: Container(
-                    width: 70,
-                    height: 70,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: _isRecordingVideo ? Colors.red : Colors.white,
-                        width: 4,
-                      ),
-                      color: _isRecordingVideo
-                          ? Colors.red.withOpacity(0.3)
-                          : Colors.transparent,
-                    ),
-                    child: Icon(
-                      Icons.videocam,
-                      color: _isRecordingVideo ? Colors.red : Colors.white,
-                      size: 40,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Recording indicator
-          if (_isRecordingVideo)
-            Positioned(
-              top: 100,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'Recording...',
-                  style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-        ],
+        _cameraController != null &&
+        _cameras != null) {
+      return StoryCameraWidget(
+        controller: _cameraController!,
+        cameras: _cameras!,
+        isRecordingVideo: _isRecordingVideo,
+        onClose: () => Navigator.of(context).pop(),
+        onSwitchCamera: _cameras!.length > 1 ? _switchCamera : null,
+        onTakePicture: _takePicture,
+        onStartVideoRecording: _startVideoRecording,
+        onStopVideoRecording: _stopVideoRecording,
       );
     }
 
@@ -1110,363 +1019,129 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
         children: [
           // Media preview - fill screen
           Positioned.fill(
-            child: _mediaType == 'image'
-                ? kIsWeb && _selectedMediaBytes != null
-                    ? Image.memory(
-                        _selectedMediaBytes!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                      )
-                    : !kIsWeb && _selectedMedia != null
-                        ? Image.file(
-                            _selectedMedia!,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: double.infinity,
-                          )
-                        : const Center(
-                            child: AppProgressIndicator(color: Colors.white),
-                          )
-                : _videoPreviewController != null &&
-                        _videoPreviewController!.value.isInitialized
-                    ? SizedBox.expand(
-                        child: FittedBox(
-                          fit: BoxFit.cover,
-                          child: SizedBox(
-                            width: _videoPreviewController!.value.size.width,
-                            height: _videoPreviewController!.value.size.height,
-                            child: VideoPlayer(_videoPreviewController!),
-                          ),
-                        ),
-                      )
-                    : const Center(
-                        child: AppProgressIndicator(color: Colors.white),
-                      ),
+            child: StoryMediaPreviewWidget(
+              mediaType: _mediaType,
+              mediaFile: _selectedMedia,
+              mediaBytes: _selectedMediaBytes,
+              videoController: _videoPreviewController,
+            ),
           ),
 
-          // Drawing canvas (only when drawing tool is active)
-          if (_activeTool == 'draw')
-            Positioned.fill(
-              child: DrawingCanvas(
-                drawings: _drawings,
-                onDrawingsChanged: (drawings) {
-                  setState(() {
-                    _drawings = drawings;
-                  });
-                },
-                currentColor: _drawingColor,
-                currentStrokeWidth: _drawingStrokeWidth,
-                isDrawingEnabled: _activeTool == 'draw',
-              ),
-            ),
-
-          // Draggable text overlays
-          ..._textOverlays.asMap().entries.map((entry) {
-            final index = entry.key;
-            final overlay = entry.value;
-            return DraggableTextWidget(
-              key: ValueKey('text_$index'),
-              overlay: overlay,
-              onOverlayChanged: (updated) {
-                setState(() {
-                  _textOverlays[index] = updated;
-                });
-              },
-              onEdit: () => _editTextOverlay(index),
-              onDelete: () {
-                setState(() {
-                  _textOverlays.removeAt(index);
-                });
-              },
-            );
-          }),
-
-          // Draggable stickers
-          ..._stickerOverlays.asMap().entries.map((entry) {
-            final index = entry.key;
-            final sticker = entry.value;
-            return DraggableStickerWidget(
-              key: ValueKey('sticker_$index'),
-              stickerId: sticker.stickerId,
-              initialX: sticker.x,
-              initialY: sticker.y,
-              initialScale: sticker.scale,
-              initialRotation: sticker.rotation,
-              onPositionChanged: (x, y, scale, rotation) {
-                setState(() {
-                  _stickerOverlays[index] = sticker.copyWith(
-                    x: x,
-                    y: y,
-                    scale: scale,
-                    rotation: rotation,
-                  );
-                });
-              },
-              onDelete: () {
-                setState(() {
-                  _stickerOverlays.removeAt(index);
-                });
-              },
-            );
-          }),
-
-          // Drawing tools (when drawing tool is active)
-          if (_activeTool == 'draw')
-            StoryDrawingTools(
-              selectedColor: _drawingColor,
-              selectedStrokeWidth: _drawingStrokeWidth,
-              onColorSelected: (color) {
-                setState(() {
-                  _drawingColor = color;
-                });
-              },
-              onStrokeWidthSelected: (width) {
-                setState(() {
-                  _drawingStrokeWidth = width;
-                });
-              },
-            ),
+          // Editing overlays (text, drawings, stickers)
+          StoryEditingOverlaysWidget(
+            activeTool: _activeTool,
+            textOverlays: _textOverlays,
+            drawings: _drawings,
+            stickerOverlays: _stickerOverlays,
+            drawingColor: _drawingColor,
+            drawingStrokeWidth: _drawingStrokeWidth,
+            onDrawingsChanged: (drawings) {
+              setState(() {
+                _drawings = drawings;
+              });
+            },
+            onTextOverlayChanged: (index, overlay) {
+              setState(() {
+                _textOverlays[index] = overlay;
+              });
+            },
+            onEditTextOverlay: _editTextOverlay,
+            onDeleteTextOverlay: (index) {
+              setState(() {
+                _textOverlays.removeAt(index);
+              });
+            },
+            onStickerOverlayChanged: (index, sticker) {
+              setState(() {
+                _stickerOverlays[index] = sticker;
+              });
+            },
+            onDeleteStickerOverlay: (index) {
+              setState(() {
+                _stickerOverlays.removeAt(index);
+              });
+            },
+            onDrawingColorChanged: (color) {
+              setState(() {
+                _drawingColor = color;
+              });
+            },
+            onDrawingStrokeWidthChanged: (width) {
+              setState(() {
+                _drawingStrokeWidth = width;
+              });
+            },
+          ),
 
           // Top-right toolbar (Text, Draw, Stickers)
-          if (_selectedMedia != null || _selectedMediaBytes != null)
-            StoryEditorToolbar(
-              activeTool: _activeTool,
-              onToolChanged: (tool) {
-                setState(() {
-                  _activeTool = tool;
-                });
-                if (tool == 'text') {
-                  _addTextOverlay();
-                } else if (tool == 'stickers') {
-                  _showStickerPicker();
-                }
-              },
-            ),
+          StoryEditorToolbar(
+            activeTool: _activeTool,
+            onToolChanged: (tool) {
+              setState(() {
+                _activeTool = tool;
+              });
+              if (tool == 'text') {
+                _addTextOverlay();
+              } else if (tool == 'stickers') {
+                _showStickerPicker();
+              }
+            },
+          ),
 
           // Bottom-right Share button
-          if (_selectedMedia != null || _selectedMediaBytes != null)
-            Positioned(
-              bottom: 24,
-              right: 24,
-              child: _isUploading
-                  ? Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: AppProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      ),
-                    )
-                  : FilledButton.icon(
-                      onPressed: _shareStory,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: SonarPulseTheme.primaryAccent,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: DesignTokens.spaceLG,
-                          vertical: DesignTokens.spaceMD,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
-                        ),
-                      ),
-                      icon: const Icon(Icons.send, size: DesignTokens.iconMD),
-                      label: Text(
-                        'Share',
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-            ),
+          StoryShareButton(
+            isUploading: _isUploading,
+            onShare: _shareStory,
+          ),
         ],
       );
     }
 
-    // Show loading or picker
-    return const Center(
-      child: AppProgressIndicator(color: Colors.white),
+    // Show loading
+    return Center(
+      child: AppProgressIndicator(
+        color: theme.colorScheme.onSurface,
+      ),
     );
   }
 
-
-  void _addTextOverlay() {
+  void _addTextOverlay() async {
     // Add a new text overlay at center
-    setState(() {
-      _textOverlays.add(
-        const TextOverlay(
-          text: 'Tap to edit',
-          x: 0.5,
-          y: 0.5,
-          fontSize: 24,
-          color: '#FFFFFF',
-          style: 'bold',
-        ),
-      );
-    });
+    final initialOverlay = TextOverlay(
+      text: 'Tap to edit',
+      x: 0.5,
+      y: 0.5,
+      fontSize: DesignTokens.fontSizeXXXL,
+      color: '#FFFFFF',
+      style: 'bold',
+    );
 
-    // Show text editor dialog
-    _editTextOverlay(_textOverlays.length - 1);
+    final editedOverlay = await StoryTextEditorDialog.show(
+      context,
+      initialOverlay: initialOverlay,
+    );
+
+    if (editedOverlay != null && mounted) {
+      setState(() {
+        _textOverlays.add(editedOverlay);
+      });
+    }
   }
 
-  void _editTextOverlay(int index) {
+  void _editTextOverlay(int index) async {
     if (index < 0 || index >= _textOverlays.length) return;
 
     final overlay = _textOverlays[index];
-    final textController = TextEditingController(text: overlay.text);
-    String selectedColor = overlay.color;
-    String selectedStyle = overlay.style;
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: Colors.grey[900],
-          title: const Text(
-            'Edit Text',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: textController,
-                  autofocus: true,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    hintText: 'Enter text',
-                    hintStyle: TextStyle(color: Colors.grey),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Color picker
-                const Text(
-                  'Color:',
-                  style: TextStyle(color: Colors.white70),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    Colors.white,
-                    Colors.black,
-                    Colors.red,
-                    Colors.blue,
-                    Colors.green,
-                    Colors.yellow,
-                    Colors.purple,
-                    Colors.orange,
-                  ].map((color) {
-                    final hexColor =
-                        '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
-                    final isSelected = hexColor == selectedColor;
-                    return GestureDetector(
-                      onTap: () {
-                        setDialogState(() {
-                          selectedColor = hexColor;
-                        });
-                      },
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color:
-                                isSelected ? Colors.white : Colors.transparent,
-                            width: isSelected ? 3 : 0,
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 16),
-                // Style picker
-                const Text(
-                  'Style:',
-                  style: TextStyle(color: Colors.white70),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: ['bold', 'outline', 'neon'].map((style) {
-                    final isSelected = style == selectedStyle;
-                    return GestureDetector(
-                      onTap: () {
-                        setDialogState(() {
-                          selectedStyle = style;
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected ? Colors.blue : Colors.grey[800],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          style.toUpperCase(),
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(color: Colors.white70),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                final text = textController.text.trim();
-                if (text.isNotEmpty) {
-                  setState(() {
-                    _textOverlays[index] = overlay.copyWith(
-                      text: text,
-                      color: selectedColor,
-                      style: selectedStyle,
-                    );
-                  });
-                }
-                Navigator.of(context).pop();
-              },
-              child: const Text(
-                'Done',
-                style: TextStyle(
-                  color: Colors.blue,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    final editedOverlay = await StoryTextEditorDialog.show(
+      context,
+      initialOverlay: overlay,
     );
+
+    if (editedOverlay != null && mounted) {
+      setState(() {
+        _textOverlays[index] = editedOverlay;
+      });
+    }
   }
 
   void _showStickerPicker() {
@@ -1480,10 +1155,10 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
             _stickerOverlays.add(
               StickerOverlay(
                 stickerId: stickerId,
-                x: 0.5,
-                y: 0.5,
-                scale: 1.0,
-                rotation: 0.0,
+                x: 0.5, // Center horizontally (normalized 0-1)
+                y: 0.5, // Center vertically (normalized 0-1)
+                scale: 1.0, // Default scale
+                rotation: 0.0, // No rotation
               ),
             );
             _activeTool = 'none';
@@ -1500,8 +1175,9 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Audio import feature is temporarily unavailable. Video trimming is still available.'),
-          duration: Duration(seconds: 3),
+          content: Text(
+              'Audio import feature is temporarily unavailable. Video trimming is still available.'),
+          duration: AnimationTokens.slow,
         ),
       );
     }
@@ -1512,7 +1188,8 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
   // ignore: unused_element
   Future<File?> _mergeAudioWithMedia(File mediaFile) async {
     // Feature disabled - return original file without merging
-    debugPrint('StoryCreatorScreen: Audio merging disabled - returning original media file');
+    debugPrint(
+        'StoryCreatorScreen: Audio merging disabled - returning original media file');
     return mediaFile;
   }
 }

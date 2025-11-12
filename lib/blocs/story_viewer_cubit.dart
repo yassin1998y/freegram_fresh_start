@@ -136,26 +136,47 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
       final Map<String, List<StoryMedia>> userStoriesMap = {};
       final List<StoryUser> usersWithStories = [];
 
-      // Load stories for each user
+      // OPTIMIZATION: Remove duplicates before processing
+      final Set<String> processedUserIds = {};
+      final List<String> uniqueUserIds = [];
       for (final userId in userIds) {
-        debugPrint('StoryViewerCubit: Loading stories for user $userId');
-        final stories = await _storyRepository.getUserStories(userId);
-        debugPrint(
-            'StoryViewerCubit: Got ${stories.length} stories for user $userId');
-        if (stories.isNotEmpty) {
-          userStoriesMap[userId] = stories;
+        if (!processedUserIds.contains(userId)) {
+          processedUserIds.add(userId);
+          uniqueUserIds.add(userId);
+        }
+      }
 
-          // Get user info
-          try {
-            final user = await _userRepository.getUser(userId);
-            usersWithStories.add(StoryUser(
-              userId: userId,
-              username: user.username,
-              userAvatarUrl: user.photoUrl,
-            ));
-          } catch (e) {
-            debugPrint('StoryViewerCubit: Error loading user $userId: $e');
-            // Skip user if can't load their info
+      // OPTIMIZATION: Load stories for all users in parallel batches
+      debugPrint(
+          'StoryViewerCubit: Loading stories for ${uniqueUserIds.length} users in parallel');
+      userStoriesMap
+          .addAll(await _storyRepository.getStoriesForUsers(uniqueUserIds));
+
+      // OPTIMIZATION: Batch fetch user info for all users with stories
+      final userIdsWithStories = userStoriesMap.keys.toList();
+      if (userIdsWithStories.isNotEmpty) {
+        debugPrint(
+            'StoryViewerCubit: Batch fetching user info for ${userIdsWithStories.length} users');
+        final users = await _userRepository.getUsersByIds(userIdsWithStories);
+
+        // Build usersWithStories list from batch results
+        for (final userId in userIdsWithStories) {
+          final user = users[userId];
+          if (user != null) {
+            // CRITICAL FIX: Double-check user not already in list (safety check)
+            if (!usersWithStories.any((u) => u.userId == userId)) {
+              usersWithStories.add(StoryUser(
+                userId: userId,
+                username: user.username,
+                userAvatarUrl: user.photoUrl,
+              ));
+            } else {
+              debugPrint(
+                  'StoryViewerCubit: User $userId already in list, skipping');
+            }
+          } else {
+            debugPrint(
+                'StoryViewerCubit: User info not found for $userId, skipping');
           }
         }
       }
@@ -169,19 +190,119 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
       }
 
       // Find starting user index
+      // CRITICAL FIX: Ensure starting user is found, with better error handling
       int startingIndex = 0;
+      bool startingUserFound = false;
       for (int i = 0; i < usersWithStories.length; i++) {
         if (usersWithStories[i].userId == startingUserId) {
           startingIndex = i;
+          startingUserFound = true;
           break;
         }
+      }
+
+      // CRITICAL FIX: If starting user not found, they might not have stories
+      // Try to find them in userStoriesMap (they might have been skipped)
+      if (!startingUserFound) {
+        debugPrint(
+            'StoryViewerCubit: Starting user $startingUserId not found in usersWithStories, checking userStoriesMap');
+        // Check if starting user has stories but wasn't added (e.g., user info load failed)
+        if (userStoriesMap.containsKey(startingUserId) &&
+            userStoriesMap[startingUserId]!.isNotEmpty) {
+          // Try to load user info again and add them at the start
+          try {
+            final user = await _userRepository.getUser(startingUserId);
+            usersWithStories.insert(
+                0,
+                StoryUser(
+                  userId: startingUserId,
+                  username: user.username,
+                  userAvatarUrl: user.photoUrl,
+                ));
+            startingIndex = 0;
+            startingUserFound = true;
+            debugPrint(
+                'StoryViewerCubit: Successfully added starting user at index 0');
+          } catch (e) {
+            debugPrint(
+                'StoryViewerCubit: Failed to load starting user info: $e');
+            // CRITICAL FIX: If we can't load starting user info, but they have stories,
+            // always create a minimal user entry so we can still show their stories
+            // This is important even if other users exist, because we need to start with this user
+            debugPrint(
+                'StoryViewerCubit: Creating minimal user entry for starting user (has stories but info load failed)');
+            // Check if starting user is already in list (shouldn't happen, but safety check)
+            if (!usersWithStories.any((u) => u.userId == startingUserId)) {
+              usersWithStories.insert(
+                  0,
+                  StoryUser(
+                    userId: startingUserId,
+                    username: 'User',
+                    userAvatarUrl: '',
+                  ));
+              startingIndex = 0;
+              startingUserFound = true;
+            } else {
+              // Starting user is already in list, find their index
+              startingIndex = usersWithStories
+                  .indexWhere((u) => u.userId == startingUserId);
+              startingUserFound = true;
+            }
+          }
+        } else {
+          // Starting user has no stories - this is okay, we'll start with first available user
+          debugPrint(
+              'StoryViewerCubit: Starting user $startingUserId has no stories');
+        }
+      }
+
+      // CRITICAL FIX: Validate starting index and usersWithStories
+      if (usersWithStories.isEmpty) {
+        debugPrint('StoryViewerCubit: No users with stories after processing');
+        emit(const StoryViewerError('No stories available'));
+        return;
+      }
+
+      // CRITICAL FIX: Validate starting index
+      if (startingIndex < 0 || startingIndex >= usersWithStories.length) {
+        debugPrint(
+            'StoryViewerCubit: Invalid starting index $startingIndex (list length: ${usersWithStories.length}), using 0');
+        startingIndex = 0;
       }
 
       // Mark first story as viewed
       final startingUserIdKey = usersWithStories[startingIndex].userId;
       final startingStories = userStoriesMap[startingUserIdKey] ?? [];
-      if (startingStories.isNotEmpty) {
-        await _markStoryAsViewed(startingStories[0].storyId);
+
+      // CRITICAL FIX: Ensure starting user has stories, if not, try to find a user with stories
+      if (startingStories.isEmpty) {
+        debugPrint(
+            'StoryViewerCubit: Starting user has no stories, finding first user with stories');
+        // Find first user with stories
+        for (int i = 0; i < usersWithStories.length; i++) {
+          final userId = usersWithStories[i].userId;
+          final stories = userStoriesMap[userId] ?? [];
+          if (stories.isNotEmpty) {
+            startingIndex = i;
+            debugPrint(
+                'StoryViewerCubit: Using user at index $i (${usersWithStories[i].userId}) as starting user');
+            break;
+          }
+        }
+      }
+
+      // Final validation - ensure we have a valid user with stories
+      final finalStartingUserId = usersWithStories[startingIndex].userId;
+      final finalStartingStories = userStoriesMap[finalStartingUserId] ?? [];
+      if (finalStartingStories.isEmpty) {
+        debugPrint(
+            'StoryViewerCubit: No stories found for any user after all processing');
+        emit(const StoryViewerError('No stories available'));
+        return;
+      }
+
+      if (finalStartingStories.isNotEmpty) {
+        await _markStoryAsViewed(finalStartingStories[0].storyId);
       }
 
       emit(StoryViewerLoaded(
@@ -194,7 +315,8 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
 
       // Start auto-advance after a brief delay to ensure UI is ready
       // For videos, don't start progress until video is ready
-      final firstStory = userStoriesMap[usersWithStories[startingIndex].userId]?.first;
+      final firstStory =
+          userStoriesMap[usersWithStories[startingIndex].userId]?.first;
       final isVideo = firstStory?.mediaType == 'video';
       Future.delayed(const Duration(milliseconds: 100), () {
         _startAutoAdvance(startProgressImmediately: !isVideo);
@@ -321,7 +443,7 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
     }
   }
 
-  /// Pause story (for videos)
+  /// Pause story (for videos and images - stops auto-advance)
   void pauseStory() {
     final state = this.state;
     if (state is! StoryViewerLoaded) return;
@@ -475,7 +597,8 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
 
     // Prevent multiple calls for the same story (e.g., if video initializes multiple times)
     if (_currentProgressStoryId == story.storyId && _progressTimer != null) {
-      debugPrint('StoryViewerCubit: Progress already started for story ${story.storyId}');
+      debugPrint(
+          'StoryViewerCubit: Progress already started for story ${story.storyId}');
       return;
     }
 
@@ -576,12 +699,10 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
         updatedMap[userId] = [];
 
         // CRITICAL FIX: Remove user from usersWithStories if no stories remain
-        final updatedUsers = state.usersWithStories
-            .where((u) {
-              final userStories = updatedMap[u.userId] ?? [];
-              return userStories.isNotEmpty;
-            })
-            .toList();
+        final updatedUsers = state.usersWithStories.where((u) {
+          final userStories = updatedMap[u.userId] ?? [];
+          return userStories.isNotEmpty;
+        }).toList();
 
         // CRITICAL FIX: Check if we have any users with stories left
         if (updatedUsers.isEmpty) {
@@ -601,8 +722,10 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
         }
 
         // CRITICAL FIX: If current user was removed, need to find the correct index
-        final currentUserId = state.usersWithStories[state.currentUserIndex].userId;
-        final foundIndex = updatedUsers.indexWhere((u) => u.userId == currentUserId);
+        final currentUserId =
+            state.usersWithStories[state.currentUserIndex].userId;
+        final foundIndex =
+            updatedUsers.indexWhere((u) => u.userId == currentUserId);
         if (foundIndex == -1) {
           // Current user was removed, use adjusted index
           if (newUserIndex < 0) newUserIndex = 0;
@@ -643,7 +766,7 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
                 break;
               }
             }
-            
+
             if (userWithStories != null) {
               final storiesForUser = updatedMap[userWithStories.userId] ?? [];
               if (storiesForUser.isNotEmpty) {
@@ -670,7 +793,7 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
                 }
               }
             }
-            
+
             // No stories left at all
             emit(state.copyWith(
               usersWithStories: [],

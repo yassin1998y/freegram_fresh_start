@@ -41,7 +41,7 @@ class ReelsPlayerWidget extends StatefulWidget {
   State<ReelsPlayerWidget> createState() => _ReelsPlayerWidgetState();
 }
 
-class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget> 
+class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
     with AutomaticKeepAliveClientMixin {
   VideoPlayerController? _videoController;
   bool _isInitialized = false;
@@ -57,13 +57,13 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
   NetworkQuality? _currentQuality;
   StreamSubscription<NetworkQuality>? _networkSubscription;
   bool _isSwitchingQuality = false;
-  
+
   // Memory management: Track disposal timer to prevent flickering
   Timer? _disposalTimer;
-  
+
   // CRITICAL FIX: Track pending post-frame callbacks to prevent accumulation
   int _pendingCallbackId = 0;
-  
+
   // CRITICAL FIX: Mutex to prevent simultaneous video operations
   bool _isOperationInProgress = false;
 
@@ -77,10 +77,10 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
     // Use GetIt to get services
     _networkService = locator<NetworkQualityService>();
     _cacheService = locator<CacheManagerService>();
-    
+
     // Set initial quality
     _currentQuality = _networkService.currentQuality;
-    
+
     _initializeVideo(initialQuality: _currentQuality!);
     _checkLikeStatus();
 
@@ -90,11 +90,12 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
         // Early return if widget is disposed, switching, or not current
         if (_isSwitchingQuality || !mounted || _videoController == null) return;
         if (!widget.isCurrentReel) return; // Only switch if currently visible
-        
+
         // Check if a quality switch is necessary
-        if (newQuality != _currentQuality && 
+        if (newQuality != _currentQuality &&
             _shouldSwitchQuality(_currentQuality!, newQuality)) {
-          debugPrint('ReelsPlayerWidget: Network change detected! Switching from $_currentQuality to $newQuality');
+          debugPrint(
+              'ReelsPlayerWidget: Network change detected! Switching from $_currentQuality to $newQuality');
           _switchVideoQuality(newQuality);
         }
       },
@@ -108,19 +109,21 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
   @override
   void didUpdateWidget(ReelsPlayerWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     // CRITICAL FIX: Always dispose when reel changes
     if (oldWidget.reel.reelId != widget.reel.reelId) {
       // Use unawaited to prevent blocking - disposal is async now
       _disposeVideoImmediately().then((_) {
         if (mounted && !_isOperationInProgress) {
-          _initializeVideo(initialQuality: _currentQuality ?? _networkService.currentQuality);
+          _initializeVideo(
+              initialQuality:
+                  _currentQuality ?? _networkService.currentQuality);
           _checkLikeStatus();
         }
       });
       return;
     }
-    
+
     // CRITICAL FIX: Immediate disposal when scrolling away (no timer delay)
     if (oldWidget.isCurrentReel != widget.isCurrentReel) {
       if (!widget.isCurrentReel) {
@@ -135,7 +138,9 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
         Future.delayed(const Duration(milliseconds: 100), () {
           if (mounted && !_isOperationInProgress) {
             if (_videoController == null || !_isInitialized) {
-              _initializeVideo(initialQuality: _currentQuality ?? _networkService.currentQuality);
+              _initializeVideo(
+                  initialQuality:
+                      _currentQuality ?? _networkService.currentQuality);
             } else if (!_videoController!.value.isPlaying && !_isPaused) {
               _videoController?.play();
               if (mounted) {
@@ -162,15 +167,16 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
   }) async {
     // CRITICAL FIX: Prevent simultaneous operations
     if (_isOperationInProgress) {
-      debugPrint('ReelsPlayerWidget: Operation in progress, skipping initialization');
+      debugPrint(
+          'ReelsPlayerWidget: Operation in progress, skipping initialization');
       return;
     }
-    
+
     if (_isSwitchingQuality && startAt == Duration.zero) return;
-    
+
     // CRITICAL FIX: Set operation lock
     _isOperationInProgress = true;
-    
+
     try {
       if (mounted) {
         setState(() {
@@ -184,18 +190,20 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
       // Phase 2.1: Check for prefetched controller first
       VideoPlayerController? prefetchedController;
       if (startAt == Duration.zero) {
-        prefetchedController = widget.prefetchService.getPrefetchedController(widget.reel.reelId);
+        prefetchedController =
+            widget.prefetchService.getPrefetchedController(widget.reel.reelId);
       }
 
       if (prefetchedController != null) {
         // Use prefetched controller
-        debugPrint('ReelsPlayerWidget: Using prefetched controller for ${widget.reel.reelId}');
+        debugPrint(
+            'ReelsPlayerWidget: Using prefetched controller for ${widget.reel.reelId}');
         _videoController = prefetchedController;
         _isPrefetched = true;
         _videoController!.addListener(_videoListener);
         _videoController!.setVolume(1.0);
         _videoController!.setLooping(true);
-        
+
         if (mounted) {
           setState(() {
             _isInitialized = true;
@@ -215,27 +223,30 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
       final videoUrl = widget.reel.getVideoUrlForQuality(initialQuality);
       VideoPlayerController? controller;
       File? cachedFile;
-      
+
       if (useCache) {
         try {
           // Step 1: Try to get cached file
           cachedFile = await _cacheService.videoManager.getSingleFile(videoUrl);
-          
+
           // Step 2: Verify file exists, is readable, and has valid size
           if (await cachedFile.exists()) {
             final fileSize = await cachedFile.length();
             // CRITICAL FIX: Enhanced verification - file must be > 1KB to be considered valid
             if (fileSize > 1024) {
               // ✅ File is cached and valid - use it
-              debugPrint('ReelsPlayerWidget: Using cached file for ${widget.reel.reelId} (quality: $initialQuality, size: $fileSize bytes)');
+              debugPrint(
+                  'ReelsPlayerWidget: Using cached file for ${widget.reel.reelId} (quality: $initialQuality, size: $fileSize bytes)');
               controller = VideoPlayerController.file(cachedFile);
             } else {
               // File exists but is too small/invalid - delete it and re-download
-              debugPrint('ReelsPlayerWidget: Cached file is invalid (size: $fileSize bytes), deleting and re-downloading');
+              debugPrint(
+                  'ReelsPlayerWidget: Cached file is invalid (size: $fileSize bytes), deleting and re-downloading');
               try {
                 await cachedFile.delete();
               } catch (e) {
-                debugPrint('ReelsPlayerWidget: Error deleting invalid cache file: $e');
+                debugPrint(
+                    'ReelsPlayerWidget: Error deleting invalid cache file: $e');
               }
               cachedFile = null;
             }
@@ -245,32 +256,37 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
           cachedFile = null;
         }
       }
-      
+
       // Step 3: If no cached file, download to cache FIRST, then create controller from cached file
       if (controller == null) {
         if (useCache) {
           try {
             // CRITICAL FIX: Download to cache FIRST, then use cached file
-            debugPrint('ReelsPlayerWidget: Downloading video to cache for ${widget.reel.reelId}');
-            final fileInfo = await _cacheService.videoManager.downloadFile(videoUrl);
+            debugPrint(
+                'ReelsPlayerWidget: Downloading video to cache for ${widget.reel.reelId}');
+            final fileInfo =
+                await _cacheService.videoManager.downloadFile(videoUrl);
             cachedFile = fileInfo.file;
-            
+
             // CRITICAL FIX: Enhanced verification - verify downloaded file exists and has valid size
             if (await cachedFile.exists()) {
               final fileSize = await cachedFile.length();
               // File must be > 1KB to be considered valid (prevents using corrupted/incomplete files)
               if (fileSize > 1024) {
                 // ✅ File downloaded and cached - use it
-                debugPrint('ReelsPlayerWidget: Video downloaded and cached (size: $fileSize bytes)');
+                debugPrint(
+                    'ReelsPlayerWidget: Video downloaded and cached (size: $fileSize bytes)');
                 controller = VideoPlayerController.file(cachedFile);
               } else {
-                throw Exception('Downloaded file is invalid (size: $fileSize bytes)');
+                throw Exception(
+                    'Downloaded file is invalid (size: $fileSize bytes)');
               }
             } else {
               throw Exception('Downloaded file does not exist');
             }
           } catch (e) {
-            debugPrint('ReelsPlayerWidget: Cache download failed: $e, falling back to network');
+            debugPrint(
+                'ReelsPlayerWidget: Cache download failed: $e, falling back to network');
             // Fallback to network only if cache download fails
             controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
           }
@@ -279,43 +295,45 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
           controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
         }
       }
-      
+
       // Add delay before retry (exponential backoff)
       if (attempt > 1) {
         final delayMs = (200 * (1 << (attempt - 2))).clamp(200, 2000);
-        debugPrint('ReelsPlayerWidget: Retrying video initialization (attempt $attempt/$maxRetries) after ${delayMs}ms delay');
+        debugPrint(
+            'ReelsPlayerWidget: Retrying video initialization (attempt $attempt/$maxRetries) after ${delayMs}ms delay');
         await Future.delayed(Duration(milliseconds: delayMs));
       }
-      
+
       // Dispose previous controller if retrying
       if (_videoController != null && !_isPrefetched) {
         try {
           _videoController?.removeListener(_videoListener);
           _videoController?.dispose();
         } catch (e) {
-          debugPrint('ReelsPlayerWidget: Error disposing controller during retry: $e');
+          debugPrint(
+              'ReelsPlayerWidget: Error disposing controller during retry: $e');
         }
         _videoController = null;
         if (attempt > 1) {
           await Future.delayed(const Duration(milliseconds: 100));
         }
       }
-      
+
       _videoController = controller;
       _videoController!.addListener(_videoListener);
       _isPrefetched = false;
-      
+
       await _videoController!.initialize();
-      
+
       // Success! Set up the controller
       if (mounted) {
         _videoController!.setLooping(true);
         _videoController!.setVolume(1.0);
-        
+
         if (startAt > Duration.zero) {
           await _videoController!.seekTo(startAt);
         }
-        
+
         setState(() {
           _isInitialized = true;
           _isLoading = false;
@@ -329,12 +347,13 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
       }
     } catch (e) {
       final errorStr = e.toString().toLowerCase();
-      final isMemoryError = errorStr.contains('no_memory') || 
-                           errorStr.contains('memory') ||
-                           errorStr.contains('codec');
-      
-      debugPrint('ReelsPlayerWidget: Video initialization attempt $attempt failed: $e');
-      
+      final isMemoryError = errorStr.contains('no_memory') ||
+          errorStr.contains('memory') ||
+          errorStr.contains('codec');
+
+      debugPrint(
+          'ReelsPlayerWidget: Video initialization attempt $attempt failed: $e');
+
       // Clean up failed controller
       if (_videoController != null && !_isPrefetched) {
         try {
@@ -343,11 +362,14 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
         } catch (_) {}
         _videoController = null;
       }
-      
+
       // If memory error and we can downgrade quality, try lower quality
-      if (isMemoryError && attempt == 1 && initialQuality != NetworkQuality.poor) {
+      if (isMemoryError &&
+          attempt == 1 &&
+          initialQuality != NetworkQuality.poor) {
         final lowerQuality = _getLowerQuality(initialQuality);
-        debugPrint('ReelsPlayerWidget: Memory error detected, falling back to lower quality: $lowerQuality');
+        debugPrint(
+            'ReelsPlayerWidget: Memory error detected, falling back to lower quality: $lowerQuality');
         return _initializeVideo(
           initialQuality: lowerQuality,
           startAt: startAt,
@@ -356,7 +378,7 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
           attempt: 1,
         );
       }
-      
+
       // Retry if we have attempts left
       if (attempt < maxRetries) {
         return _initializeVideo(
@@ -367,9 +389,10 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
           attempt: attempt + 1,
         );
       }
-      
+
       // All retries failed
-      debugPrint('ReelsPlayerWidget: All retry attempts failed for video initialization');
+      debugPrint(
+          'ReelsPlayerWidget: All retry attempts failed for video initialization');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -381,7 +404,7 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
       _isOperationInProgress = false;
     }
   }
-  
+
   /// Get a lower quality for fallback when memory errors occur
   NetworkQuality _getLowerQuality(NetworkQuality current) {
     switch (current) {
@@ -397,7 +420,6 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
     }
   }
 
-
   /// Phase 2.3: Switch video quality during playback (ABR).
   ///
   /// This method implements adaptive bitrate streaming by switching
@@ -407,31 +429,33 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
     if (_videoController == null || !mounted || _isSwitchingQuality) return;
     if (!_videoController!.value.isInitialized) return;
     if (_isOperationInProgress) {
-      debugPrint('ReelsPlayerWidget: Operation in progress, skipping quality switch');
+      debugPrint(
+          'ReelsPlayerWidget: Operation in progress, skipping quality switch');
       return;
     }
 
     try {
       _isOperationInProgress = true;
-      
+
       // 1. Save current playback position
       final oldPosition = _videoController!.value.position;
       final wasPlaying = _videoController!.value.isPlaying;
-      
-      debugPrint('ReelsPlayerWidget: Switching quality to $newQuality at position $oldPosition');
+
+      debugPrint(
+          'ReelsPlayerWidget: Switching quality to $newQuality at position $oldPosition');
 
       // 2. Dispose old controller immediately (CRITICAL FIX: no delayed disposal, no seek)
       _videoController!.removeListener(_videoListener);
-      
+
       // CRITICAL FIX: Remove seekTo before disposal - it causes codec exhaustion
       // The pause() call is sufficient to stop playback
-      
+
       if (!_isPrefetched) {
         // CRITICAL FIX: Dispose immediately to prevent memory leak
         final oldController = _videoController;
         _videoController = null;
         oldController?.dispose();
-        
+
         // CRITICAL FIX: Add small delay to allow codec to release resources
         await Future.delayed(const Duration(milliseconds: 100));
       } else {
@@ -447,7 +471,10 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
       );
 
       // 4. Resume playback if it was playing
-      if (wasPlaying && mounted && _videoController != null && widget.isCurrentReel) {
+      if (wasPlaying &&
+          mounted &&
+          _videoController != null &&
+          widget.isCurrentReel) {
         _videoController?.play();
       }
     } catch (e) {
@@ -468,11 +495,11 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
   /// unnecessary interruptions during playback.
   bool _shouldSwitchQuality(NetworkQuality old, NetworkQuality new_) {
     // Only switch if it's a significant change
-    if (old == NetworkQuality.excellent && 
+    if (old == NetworkQuality.excellent &&
         (new_ == NetworkQuality.poor || new_ == NetworkQuality.fair)) {
       return true; // Downgrade from excellent to poor/fair
     }
-    if ((old == NetworkQuality.poor || old == NetworkQuality.fair) && 
+    if ((old == NetworkQuality.poor || old == NetworkQuality.fair) &&
         new_ == NetworkQuality.excellent) {
       return true; // Upgrade from poor/fair to excellent
     }
@@ -490,17 +517,21 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
   void _videoListener() {
     // Early return if controller is null or widget is disposed
     if (_videoController == null || !mounted) return;
-    
+
     try {
       // Only update state if widget is still mounted and controller is valid
-      if (mounted && _videoController != null && _videoController!.value.isInitialized) {
+      if (mounted &&
+          _videoController != null &&
+          _videoController!.value.isInitialized) {
         // CRITICAL FIX: Track callback ID to prevent accumulation
         final callbackId = ++_pendingCallbackId;
-        
+
         // Use WidgetsBinding to ensure we're in a valid frame
         WidgetsBinding.instance.addPostFrameCallback((_) {
           // CRITICAL FIX: Only execute if this is still the latest callback and widget is mounted
-          if (callbackId == _pendingCallbackId && mounted && _videoController != null) {
+          if (callbackId == _pendingCallbackId &&
+              mounted &&
+              _videoController != null) {
             setState(() {
               // State update is safe here
             });
@@ -536,7 +567,8 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
   Future<void> _disposeVideoImmediately() async {
     // CRITICAL FIX: Wait for any in-progress operations to complete
     if (_isOperationInProgress) {
-      debugPrint('ReelsPlayerWidget: Waiting for operation to complete before disposal');
+      debugPrint(
+          'ReelsPlayerWidget: Waiting for operation to complete before disposal');
       // Wait up to 500ms for operation to complete
       int waitCount = 0;
       while (_isOperationInProgress && waitCount < 10) {
@@ -549,40 +581,40 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
         _isOperationInProgress = false;
       }
     }
-    
+
     // Cancel any pending timers
     _disposalTimer?.cancel();
     _disposalTimer = null;
-    
+
     // CRITICAL FIX: Invalidate pending callbacks to prevent accumulation
     _pendingCallbackId++;
-    
+
     if (_videoController != null) {
       try {
         _videoController!.removeListener(_videoListener);
         _videoController!.pause();
-        
+
         // CRITICAL FIX: Remove seekTo - it causes codec exhaustion during fast scrolling
         // Just pause and dispose - the codec will be released by dispose()
-        
+
         // Only dispose if we created it (not prefetched)
         // Prefetched controllers are managed by MediaPrefetchService
         if (!_isPrefetched) {
-          // CRITICAL FIX: Dispose synchronously and immediately
+          // CRITICAL FIX: Dispose synchronously and immediately - no delay
+          // Delays cause memory accumulation when scrolling quickly, leading to OOM crashes
           final controller = _videoController;
           _videoController = null;
+          _isInitialized = false;
           controller?.dispose();
-          
-          // CRITICAL FIX: Add delay to allow codec resources to be released
-          // This prevents codec exhaustion when scrolling quickly
-          await Future.delayed(const Duration(milliseconds: 150));
+
+          // CRITICAL FIX: Removed delay - dispose immediately to prevent memory accumulation
         } else {
           // If prefetched, service manages it - just nullify our reference
           _videoController = null;
         }
-        
+
         _isInitialized = false;
-        
+
         if (mounted) {
           setState(() {});
         }
@@ -593,7 +625,7 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
       }
     }
   }
-  
+
   /// CRITICAL FIX: Cancel network subscription
   void _cancelNetworkSubscription() {
     _networkSubscription?.cancel();
@@ -632,25 +664,28 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
   void _handleVisibilityChanged(VisibilityInfo info) {
     // Phase 1.1: Aggressive disposal - dispose if less than 10% visible (far off-screen)
     // CRITICAL FIX: Only handle visibility if widget is not current reel (disposal handled by didUpdateWidget)
-    if (info.visibleFraction < 0.1 && _videoController != null && !widget.isCurrentReel) {
-      debugPrint('ReelsPlayerWidget: Disposing controller for far off-screen reel ${widget.reel.reelId} (visibility: ${info.visibleFraction})');
+    if (info.visibleFraction < 0.1 &&
+        _videoController != null &&
+        !widget.isCurrentReel) {
+      debugPrint(
+          'ReelsPlayerWidget: Disposing controller for far off-screen reel ${widget.reel.reelId} (visibility: ${info.visibleFraction})');
       _disposalTimer?.cancel();
       // Use async disposal but don't await (fire and forget)
       _disposeVideoImmediately();
       return;
     }
-    
+
     // Only handle play/pause if video is initialized
     if (_videoController == null || !_isInitialized) return;
-    
+
     // Don't auto-play/pause if user manually paused
     if (_isPaused && !widget.isCurrentReel) return;
-    
+
     // Play if visible and is current reel, pause otherwise
     if (info.visibleFraction > 0.5 && widget.isCurrentReel) {
       // Cancel any pending disposal if scrolled back on-screen
       _disposalTimer?.cancel();
-      
+
       if (!_videoController!.value.isPlaying && !_isPaused) {
         _videoController?.play();
         if (mounted) {
@@ -700,13 +735,13 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
     HapticFeedback.selectionClick();
     final bloc = context.read<ReelsFeedBloc>();
     bloc.add(ShareReel(widget.reel.reelId));
-    
+
     // Implement native share functionality
     try {
       final shareText = widget.reel.caption?.isNotEmpty == true
           ? '${widget.reel.caption}\n\nCheck out this reel on Freegram!'
           : 'Check out this reel on Freegram!';
-      
+
       await Share.share(
         shareText,
         subject: 'Reel by ${widget.reel.uploaderUsername}',
@@ -732,13 +767,14 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
   void _handleVideoTap() {
     // Prevent accidental taps - require a small delay between taps
     final now = DateTime.now();
-    if (_lastTapTime != null && now.difference(_lastTapTime!) < const Duration(milliseconds: 300)) {
+    if (_lastTapTime != null &&
+        now.difference(_lastTapTime!) < AnimationTokens.normal) {
       return; // Ignore rapid taps
     }
     _lastTapTime = now;
 
     HapticFeedback.lightImpact();
-    
+
     if (_videoController == null || !_isInitialized) return;
 
     setState(() {
@@ -751,10 +787,12 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
       _videoController?.play();
     }
 
-    // Auto-hide pause indicator after 2 seconds
+    // Auto-hide pause indicator after delay
     if (_isPaused) {
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted && _videoController != null && _videoController!.value.isPlaying) {
+      Future.delayed(AnimationTokens.slow, () {
+        if (mounted &&
+            _videoController != null &&
+            _videoController!.value.isPlaying) {
           setState(() {
             _isPaused = false;
           });
@@ -765,20 +803,20 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
 
   Widget _buildPlayPauseIndicator() {
     return AnimatedOpacity(
-      opacity: _isPaused ? 1.0 : 0.0,
-      duration: const Duration(milliseconds: 200),
+      opacity: _isPaused ? DesignTokens.opacityFull : 0.0,
+      duration: AnimationTokens.fast,
       child: IgnorePointer(
         child: Center(
           child: Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(DesignTokens.spaceMD),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.6),
+              color: Colors.black.withOpacity(DesignTokens.opacityMedium),
               shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.pause,
               color: Colors.white,
-              size: 48,
+              size: DesignTokens.iconXXL,
             ),
           ),
         ),
@@ -796,9 +834,11 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
     return BlocListener<ReelsFeedBloc, ReelsFeedState>(
       listener: (context, state) {
         if (state is ReelsFeedLoaded) {
-          final shouldBePlaying = state.currentPlayingReelId == widget.reel.reelId && widget.isCurrentReel;
+          final shouldBePlaying =
+              state.currentPlayingReelId == widget.reel.reelId &&
+                  widget.isCurrentReel;
           final isCurrentlyPlaying = _videoController?.value.isPlaying ?? false;
-          
+
           // Only react if state changed and video is initialized
           if (_isInitialized && _videoController != null) {
             if (shouldBePlaying && !isCurrentlyPlaying && !_isPaused) {
@@ -818,86 +858,89 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
         key: Key('reel_${widget.reel.reelId}'),
         onVisibilityChanged: _handleVisibilityChanged,
         child: Container(
-        width: double.infinity,
-        height: double.infinity,
-        color: Colors.black,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Video player
-            // CRITICAL FIX: Wrap in RepaintBoundary to isolate rendering and reduce memory pressure
-            if (_isInitialized && _videoController != null)
-              RepaintBoundary(
-                child: GestureDetector(
-                  onTap: _handleVideoTap,
-                  child: SizedBox.expand(
-                    child: FittedBox(
-                      fit: BoxFit.cover,
-                      child: SizedBox(
-                        width: _videoController!.value.size.width,
-                        height: _videoController!.value.size.height,
-                        child: VideoPlayer(_videoController!),
+          width: double.infinity,
+          height: double.infinity,
+          color: Colors.black, // Dark background for video player
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Video player
+              // CRITICAL FIX: Wrap in RepaintBoundary to isolate rendering and reduce memory pressure
+              if (_isInitialized && _videoController != null)
+                RepaintBoundary(
+                  child: GestureDetector(
+                    onTap: _handleVideoTap,
+                    child: SizedBox.expand(
+                      child: FittedBox(
+                        fit: BoxFit.cover,
+                        child: SizedBox(
+                          width: _videoController!.value.size.width,
+                          height: _videoController!.value.size.height,
+                          child: VideoPlayer(_videoController!),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              )
-            else if (_isLoading)
-              const Center(
-                child: AppProgressIndicator(
-                  color: Colors.white,
-                ),
-              )
-            else
-              // Thumbnail fallback - Using LQIP for fast loading
-              // CRITICAL FIX: Wrap in RepaintBoundary and avoid Hero widgets to prevent tag collisions
-              widget.reel.thumbnailUrl.isNotEmpty
-                  ? RepaintBoundary(
-                      child: LQIPImage(
-                        imageUrl: widget.reel.thumbnailUrl,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                      ),
-                    )
-                  : Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.video_library_outlined,
-                            color: Colors.white.withOpacity(0.5),
-                            size: DesignTokens.iconXXL,
-                          ),
-                          const SizedBox(height: DesignTokens.spaceMD),
-                          Text(
-                            'No thumbnail available',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: Colors.white.withOpacity(0.5),
+                )
+              else if (_isLoading)
+                const Center(
+                  child: AppProgressIndicator(
+                    color: Colors.white,
+                  ),
+                )
+              else
+                // Thumbnail fallback - Using LQIP for fast loading
+                // CRITICAL FIX: Wrap in RepaintBoundary and avoid Hero widgets to prevent tag collisions
+                widget.reel.thumbnailUrl.isNotEmpty
+                    ? RepaintBoundary(
+                        child: LQIPImage(
+                          imageUrl: widget.reel.thumbnailUrl,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
+                      )
+                    : Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.video_library_outlined,
+                              color: Colors.white.withOpacity(
+                                DesignTokens.opacityMedium,
+                              ),
+                              size: DesignTokens.iconXXL,
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: DesignTokens.spaceMD),
+                            Text(
+                              'No thumbnail available',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: Colors.white.withOpacity(
+                                  DesignTokens.opacityMedium,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
 
-            // Play/pause indicator overlay
-            _buildPlayPauseIndicator(),
+              // Play/pause indicator overlay
+              _buildPlayPauseIndicator(),
 
-            // UI Overlay
-            if (_isInitialized || !_isLoading)
-              ReelsVideoUIOverlay(
-                reel: widget.reel,
-                isLiked: _isLiked,
-                onLike: _handleLike,
-                onComment: _handleComment,
-                onShare: _handleShare,
-                onProfileTap: _handleProfileTap,
-              ),
-          ],
+              // UI Overlay
+              if (_isInitialized || !_isLoading)
+                ReelsVideoUIOverlay(
+                  reel: widget.reel,
+                  isLiked: _isLiked,
+                  onLike: _handleLike,
+                  onComment: _handleComment,
+                  onShare: _handleShare,
+                  onProfileTap: _handleProfileTap,
+                ),
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 }
-

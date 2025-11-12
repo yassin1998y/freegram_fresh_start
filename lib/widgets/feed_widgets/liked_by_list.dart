@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/repositories/post_repository.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/theme/design_tokens.dart';
 
 class LikedByList extends StatefulWidget {
   final String postId;
@@ -112,10 +113,10 @@ class _LikedByListState extends State<LikedByList> {
               ),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.favorite,
-                    color: Colors.red,
-                    size: 24,
+                    size: DesignTokens.iconLG,
+                    color: SemanticColors.reactionLiked,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -154,8 +155,11 @@ class _LikedByListState extends State<LikedByList> {
                               children: [
                                 Icon(
                                   Icons.favorite_border,
-                                  size: 64,
-                                  color: Colors.grey[400],
+                                  size: DesignTokens.iconXXL * 1.5,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withOpacity(DesignTokens.opacityMedium),
                                 ),
                                 const SizedBox(height: 16),
                                 Text(

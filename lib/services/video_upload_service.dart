@@ -173,7 +173,8 @@ class VideoUploadService {
       if (mediaInfo == null ||
           mediaInfo.path == null ||
           mediaInfo.path!.isEmpty) {
-        debugPrint('VideoUploadService: Compression returned null or empty path');
+        debugPrint(
+            'VideoUploadService: Compression returned null or empty path');
         return null;
       }
 
@@ -270,6 +271,9 @@ class VideoUploadService {
       debugPrint(
           'VideoUploadService: Original video uploaded: $originalVideoUrl');
 
+      // Ensure progress is at 0.5 (50%) after upload completes
+      onProgress?.call(0.5);
+
       // Step 2: Get the base public ID from the returned URL
       final String? basePublicId = _extractPublicId(originalVideoUrl);
 
@@ -277,6 +281,7 @@ class VideoUploadService {
         debugPrint(
             'VideoUploadService: Could not extract public ID, using original URL only');
         // Fallback: return only the original URL
+        onProgress?.call(1.0); // Complete if no quality URLs to generate
         return {
           'videoUrl': originalVideoUrl,
         };

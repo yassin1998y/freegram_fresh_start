@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:freegram/models/reel_model.dart';
 import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/theme/app_theme.dart';
 import 'package:freegram/widgets/feed_widgets/create_reel_card.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:freegram/screens/reels_feed_screen.dart';
@@ -83,11 +84,13 @@ class TrendingReelsCarouselWidget extends StatelessWidget {
                   reel: reel,
                   onTap: onTapReel ??
                       () {
-                        // Navigate to reels feed
+                        // Navigate to reels feed with specific reel
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const ReelsFeedScreen(),
+                            builder: (context) => ReelsFeedScreen(
+                              initialReelId: reel.reelId,
+                            ),
                           ),
                         );
                       },
@@ -228,10 +231,10 @@ class TrendingReelCard extends StatelessWidget {
                             ),
                             if (reel.likeCount > 0) ...[
                               const SizedBox(width: 8),
-                              const Icon(
+                              Icon(
                                 Icons.favorite,
-                                size: 12,
-                                color: Colors.white,
+                                size: DesignTokens.iconXS,
+                                color: SonarPulseTheme.primaryAccent,
                               ),
                               const SizedBox(width: 4),
                               Text(
@@ -295,4 +298,3 @@ class TrendingReelCard extends StatelessWidget {
     return count.toString();
   }
 }
-

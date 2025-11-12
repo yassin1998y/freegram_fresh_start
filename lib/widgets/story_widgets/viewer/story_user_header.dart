@@ -46,7 +46,7 @@ class StoryUserHeader extends StatelessWidget {
       left: DesignTokens.spaceMD,
       right: DesignTokens.spaceMD,
       child: AnimatedSwitcher(
-        duration: DesignTokens.durationNormal,
+        duration: AnimationTokens.normal,
         transitionBuilder: (child, animation) {
           return FadeTransition(
             opacity: animation,
@@ -71,128 +71,131 @@ class StoryUserHeader extends StatelessWidget {
               sigmaY: DesignTokens.blurMedium,
             ),
             child: Container(
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.1),
-                width: 1,
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Progress segments at the top
-                if (stories.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      DesignTokens.spaceMD,
-                      DesignTokens.spaceSM,
-                      DesignTokens.spaceMD,
-                      DesignTokens.spaceXS,
-                    ),
-                    child: _buildProgressSegments(),
-                  ),
-                // User info row
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: DesignTokens.spaceMD,
-                    vertical: DesignTokens.spaceSM,
-                  ),
-                  child: Row(
-                    children: [
-                // Avatar with border
-                Container(
-                  padding: const EdgeInsets.all(2.0),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      width: 2.0,
-                    ),
-                  ),
-                  child: CircleAvatar(
-                    radius: DesignTokens.avatarSize / 2,
-                    backgroundColor: theme.colorScheme.surface,
-                    backgroundImage: ImageUrlValidator.isValidUrl(user!.userAvatarUrl)
-                        ? CachedNetworkImageProvider(user!.userAvatarUrl)
-                        : null,
-                    child: !ImageUrlValidator.isValidUrl(user!.userAvatarUrl)
-                        ? Icon(
-                            Icons.person,
-                            size: DesignTokens.iconMD,
-                            color: Colors.white.withValues(alpha: 0.8),
-                          )
-                        : null,
-                  ),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  width: 1,
                 ),
-                const SizedBox(width: DesignTokens.spaceSM),
-                // Username and timestamp
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        user!.username,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: DesignTokens.fontSizeLG,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Progress segments at the top
+                  if (stories.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        DesignTokens.spaceMD,
+                        DesignTokens.spaceSM,
+                        DesignTokens.spaceMD,
+                        DesignTokens.spaceXS,
                       ),
-                      if (timestamp != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          _formatTimestamp(timestamp!),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.7),
-                            fontSize: DesignTokens.fontSizeXS,
+                      child: _buildProgressSegments(),
+                    ),
+                  // User info row
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: DesignTokens.spaceMD,
+                      vertical: DesignTokens.spaceSM,
+                    ),
+                    child: Row(
+                      children: [
+                        // Avatar with border
+                        Container(
+                          padding: const EdgeInsets.all(2.0),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.3),
+                              width: 2.0,
+                            ),
+                          ),
+                          child: CircleAvatar(
+                            radius: DesignTokens.avatarSize / 2,
+                            backgroundColor: theme.colorScheme.surface,
+                            backgroundImage: ImageUrlValidator.isValidUrl(
+                                    user!.userAvatarUrl)
+                                ? CachedNetworkImageProvider(
+                                    user!.userAvatarUrl)
+                                : null,
+                            child: !ImageUrlValidator.isValidUrl(
+                                    user!.userAvatarUrl)
+                                ? Icon(
+                                    Icons.person,
+                                    size: DesignTokens.iconMD,
+                                    color: Colors.white.withValues(alpha: 0.8),
+                                  )
+                                : null,
                           ),
                         ),
+                        const SizedBox(width: DesignTokens.spaceSM),
+                        // Username and timestamp
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                user!.username,
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: DesignTokens.fontSizeLG,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (timestamp != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  _formatTimestamp(timestamp!),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                    fontSize: DesignTokens.fontSizeXS,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        // Options button
+                        if (onOptionsPressed != null)
+                          IconButton(
+                            icon: const Icon(
+                              Icons.more_vert,
+                              color: Colors.white,
+                              size: DesignTokens.iconMD,
+                            ),
+                            onPressed: onOptionsPressed,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 44,
+                              minHeight: 44,
+                            ),
+                          ),
+                        // Close button
+                        if (onClosePressed != null)
+                          IconButton(
+                            icon: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: DesignTokens.iconMD,
+                            ),
+                            onPressed: onClosePressed,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 44,
+                              minHeight: 44,
+                            ),
+                          ),
                       ],
-                    ],
-                  ),
-                ),
-                // Options button
-                if (onOptionsPressed != null)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.more_vert,
-                      color: Colors.white,
-                      size: DesignTokens.iconMD,
-                    ),
-                    onPressed: onOptionsPressed,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 44,
-                      minHeight: 44,
                     ),
                   ),
-                // Close button
-                if (onClosePressed != null)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: DesignTokens.iconMD,
-                    ),
-                    onPressed: onClosePressed,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 44,
-                      minHeight: 44,
-                    ),
-                    ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
         ),
       ),
     );
@@ -233,8 +236,9 @@ class StoryUserHeader extends StatelessWidget {
                             gradient: isPaused
                                 ? LinearGradient(
                                     colors: [
-                                      DesignTokens.warningColor,
-                                      DesignTokens.warningColor.withValues(alpha: 0.8),
+                                      SemanticColors.warning,
+                                      SemanticColors.warning
+                                          .withValues(alpha: 0.8),
                                     ],
                                   )
                                 : LinearGradient(
@@ -243,7 +247,8 @@ class StoryUserHeader extends StatelessWidget {
                                       Colors.white.withValues(alpha: 0.9),
                                     ],
                                   ),
-                            borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
+                            borderRadius:
+                                BorderRadius.circular(DesignTokens.radiusXS),
                           ),
                         ),
                       );

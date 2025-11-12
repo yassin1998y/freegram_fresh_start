@@ -24,6 +24,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'dart:async';
 
 /// Animated input field that moves above keyboard with blur effect
 class AnimatedInputField extends StatefulWidget {
@@ -254,6 +255,8 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
   String? _selectedCountry;
   GeoPoint? _userLocation; // Store user's location coordinates
   bool _locationDetecting = false; // Track if location detection is in progress
+  bool _locationDetectionAttempted =
+      false; // OPTIMIZATION: Cache location detection attempt
   final List<String> _genders = ['Male', 'Female', 'Other'];
   // IMPROVEMENT #31: Gender icons
   final Map<String, IconData> _genderIcons = {
@@ -271,8 +274,14 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
   // IMPROVEMENT #35: Auto-save draft key
   static const String _onboardingDraftKey = 'onboarding_draft';
 
+  // OPTIMIZATION: Debounce timer for draft saving
+  Timer? _draftSaveTimer;
+
   // IMPROVEMENT #40: Success screen flag
   bool _showSuccessScreen = false;
+
+  // UX IMPROVEMENT: Loading state for onboarding completion
+  bool _isCompletingOnboarding = false;
 
   // IMPROVEMENT #38: Field validation states
   bool _nameValidated = false;
@@ -293,7 +302,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
     // IMPROVEMENT #21: Initialize animation controllers
     _stepAnimationController = AnimationController(
       vsync: this,
-      duration: DesignTokens.durationNormal,
+      duration: AnimationTokens.normal,
     );
     _celebrationAnimationController = AnimationController(
       vsync: this,
@@ -302,7 +311,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
     _stepScaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
       CurvedAnimation(
         parent: _stepAnimationController,
-        curve: DesignTokens.curveElasticOut,
+        curve: AnimationTokens.elasticOut,
       ),
     );
     _celebrationRotationAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -377,8 +386,20 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
     return age;
   }
 
-  // IMPROVEMENT #35: Save draft progress
-  Future<void> _saveDraft() async {
+  // OPTIMIZATION: Debounced draft saving - saves 500ms after user stops typing
+  void _saveDraft() {
+    // Cancel existing timer
+    _draftSaveTimer?.cancel();
+
+    // Start new timer
+    _draftSaveTimer = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      _performDraftSave();
+    });
+  }
+
+  // IMPROVEMENT #35: Save draft progress (actual save operation)
+  Future<void> _performDraftSave() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_onboardingDraftKey, _serializeDraft());
@@ -438,11 +459,30 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
   }
 
   /// Detect user's current location and get country from coordinates
+  /// OPTIMIZATION: Uses lower accuracy for country detection, caches result
   Future<void> _detectLocationAndCountry() async {
     if (!mounted) return;
 
+    // OPTIMIZATION: Prevent multiple simultaneous location detection attempts
+    if (_locationDetecting) return;
+
+    // OPTIMIZATION: If already detected and cached, don't re-detect
+    if (_locationDetectionAttempted && _selectedCountry != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Location already detected: $_selectedCountry'),
+            backgroundColor: SemanticColors.success,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() {
       _locationDetecting = true;
+      _locationDetectionAttempted = true;
     });
 
     try {
@@ -498,9 +538,11 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
         return;
       }
 
-      // Step 3: Get current position
+      // OPTIMIZATION: Use lower accuracy for country detection (reduces data usage)
+      // Step 3: Get current position with lower accuracy
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        desiredAccuracy: LocationAccuracy
+            .low, // Changed from high to low for country detection
       );
 
       // Step 4: Reverse geocode to get country
@@ -526,7 +568,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Location detected: $country'),
-                backgroundColor: DesignTokens.successColor,
+                backgroundColor: SemanticColors.success,
                 duration: const Duration(seconds: 2),
               ),
             );
@@ -559,9 +601,23 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
     } catch (e) {
       debugPrint('Error detecting location: $e');
       if (mounted) {
+        // UX IMPROVEMENT: User-friendly error messages with retry suggestion
+        String errorMessage = 'Unable to detect your location.';
+        final errorStr = e.toString().toLowerCase();
+
+        if (errorStr.contains('network') || errorStr.contains('connection')) {
+          errorMessage =
+              'Network error. Please check your connection and try again.';
+        } else if (errorStr.contains('timeout')) {
+          errorMessage = 'Location detection timed out. Please try again.';
+        } else if (errorStr.contains('permission')) {
+          errorMessage =
+              'Location permission is required. Please grant permission in settings.';
+        }
+
         showIslandPopup(
           context: context,
-          message: 'Error detecting location: ${e.toString()}',
+          message: errorMessage,
           icon: Icons.error_outline,
         );
       }
@@ -573,6 +629,12 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
 
   @override
   void dispose() {
+    // OPTIMIZATION: Cancel draft save timer
+    _draftSaveTimer?.cancel();
+
+    // Save draft one final time before disposal
+    _performDraftSave();
+
     _pageController.dispose();
     _stepAnimationController.dispose();
     _celebrationAnimationController.dispose();
@@ -598,7 +660,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
       '😎',
       '🔥',
       '💯',
-      '❤️',
+      '💚',
       '⭐',
       '🎉',
       '🚀',
@@ -742,8 +804,8 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
       });
 
       _pageController.nextPage(
-        duration: DesignTokens.durationNormal,
-        curve: DesignTokens.curveEaseInOut,
+        duration: AnimationTokens.normal,
+        curve: AnimationTokens.easeInOut,
       );
       setState(() {
         _currentStep++;
@@ -777,6 +839,13 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
       );
       return;
     }
+
+    // UX IMPROVEMENT: Set loading state to prevent multiple submissions
+    if (_isCompletingOnboarding) return;
+
+    setState(() {
+      _isCompletingOnboarding = true;
+    });
 
     // IMPROVEMENT #36: Celebration animation
     _celebrationAnimationController.forward();
@@ -813,6 +882,15 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
     // IMPROVEMENT #35: Clear draft on completion
     await _clearDraft();
 
+    // UX IMPROVEMENT: Show loading indicator during profile update
+    if (mounted) {
+      showIslandPopup(
+        context: context,
+        message: 'Saving your profile...',
+        icon: Icons.cloud_upload_outlined,
+      );
+    }
+
     // Dispatch update event using the blocContext that has access to ProfileBloc
     blocContext.read<ProfileBloc>().add(ProfileUpdateEvent(
           userId: currentUser.uid,
@@ -840,7 +918,8 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
               Container(
                 width: 40,
                 height: 4,
-                margin: const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
+                margin:
+                    const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
                 decoration: BoxDecoration(
                   color: Colors.grey[300],
                   borderRadius: BorderRadius.circular(2),
@@ -911,18 +990,13 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
           if (mounted) {
             setState(() {
               _imageFile = pickedFile;
+              // OPTIMIZATION: Don't upload immediately - batch with profile update on completion
+              // Clear any previously uploaded URL since we have a new image
+              _uploadedImageUrl = null;
             });
 
-            // Immediately start uploading the image
-            final currentUser = FirebaseAuth.instance.currentUser;
-            if (currentUser != null && mounted) {
-              blocContext.read<ProfileBloc>().add(
-                    ProfileImageUploadOnlyEvent(
-                      userId: currentUser.uid,
-                      imageFile: pickedFile,
-                    ),
-                  );
-            }
+            // OPTIMIZATION: Image will be uploaded when user completes onboarding
+            // This batches the upload with other profile data, reducing network requests
           }
         }
       }
@@ -1029,7 +1103,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                                   ? 'You must be at least 13 years old'
                                   : 'Invalid age range',
                             ),
-                            backgroundColor: DesignTokens.errorColor,
+                            backgroundColor: SemanticColors.error,
                           ),
                         );
                       }
@@ -1254,14 +1328,15 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                     // However, Firestore streams can have delays. If the stream doesn't update within
                     // 1.5 seconds, we'll trigger a manual refresh by writing a dummy field to Firestore
                     // and immediately removing it. This forces the stream to emit a new value.
-                    Future.delayed(const Duration(milliseconds: 1500), () async {
+                    Future.delayed(const Duration(milliseconds: 1500),
+                        () async {
                       if (!mounted || !_showSuccessScreen) return;
-                      
+
                       debugPrint(
                         'MultiStepOnboardingScreen: Stream update delay detected. '
                         'Attempting to force stream refresh...',
                       );
-                      
+
                       try {
                         // Force the Firestore stream to emit by updating a timestamp field
                         // This is a common technique to force stream updates when the stream
@@ -1299,9 +1374,29 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
           }
 
           if (state is ProfileError) {
+            // UX IMPROVEMENT: Better error handling with user-friendly messages
+            String errorMessage = state.message;
+
+            // Parse error for user-friendly messages
+            final errorLower = state.message.toLowerCase();
+            if (errorLower.contains('network') ||
+                errorLower.contains('connection')) {
+              errorMessage =
+                  'Network error. Please check your connection and try again.';
+            } else if (errorLower.contains('permission') ||
+                errorLower.contains('denied')) {
+              errorMessage = 'Permission denied. Please check app permissions.';
+            } else if (errorLower.contains('timeout')) {
+              errorMessage = 'Request timed out. Please try again.';
+            } else if (errorLower.contains('storage') ||
+                errorLower.contains('quota')) {
+              errorMessage =
+                  'Storage error. Please try again or use a smaller image.';
+            }
+
             showIslandPopup(
               context: context,
-              message: state.message,
+              message: errorMessage,
               icon: Icons.error_outline,
             );
           }
@@ -1405,9 +1500,8 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                                         _totalSteps,
                                         (index) => Expanded(
                                           child: AnimatedContainer(
-                                            duration:
-                                                DesignTokens.durationNormal,
-                                            curve: DesignTokens.curveEaseInOut,
+                                            duration: AnimationTokens.normal,
+                                            curve: AnimationTokens.easeInOut,
                                             height: 6,
                                             margin: EdgeInsets.only(
                                               right: index < _totalSteps - 1
@@ -1484,7 +1578,8 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                                 child: isKeyboardVisible
                                     ? const SizedBox.shrink()
                                     : Padding(
-                                        padding: const EdgeInsets.all(24.0),
+                                        padding: const EdgeInsets.all(
+                                            DesignTokens.spaceLG),
                                         child: Row(
                                           mainAxisAlignment:
                                               MainAxisAlignment.spaceBetween,
@@ -1499,8 +1594,10 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                                             else
                                               const SizedBox.shrink(),
                                             ElevatedButton.icon(
-                                              onPressed: () =>
-                                                  _nextStep(blocContext),
+                                              onPressed: _isCompletingOnboarding
+                                                  ? null
+                                                  : () =>
+                                                      _nextStep(blocContext),
                                               style: ElevatedButton.styleFrom(
                                                 padding:
                                                     const EdgeInsets.symmetric(
@@ -1510,9 +1607,11 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                                                       DesignTokens.spaceMD,
                                                 ),
                                                 backgroundColor:
-                                                    Theme.of(context)
-                                                        .colorScheme
-                                                        .primary,
+                                                    _isCompletingOnboarding
+                                                        ? Colors.grey
+                                                        : Theme.of(context)
+                                                            .colorScheme
+                                                            .primary,
                                                 foregroundColor:
                                                     Theme.of(context)
                                                         .colorScheme
@@ -1524,16 +1623,38 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                                                   ),
                                                 ),
                                               ),
-                                              icon: Icon(
-                                                _currentStep == _totalSteps - 1
-                                                    ? Icons.check_circle
-                                                    : Icons.arrow_forward,
-                                              ),
+                                              icon: _isCompletingOnboarding
+                                                  ? SizedBox(
+                                                      width:
+                                                          DesignTokens.iconMD,
+                                                      height:
+                                                          DesignTokens.iconMD,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        valueColor:
+                                                            AlwaysStoppedAnimation<
+                                                                Color>(
+                                                          Theme.of(context)
+                                                              .colorScheme
+                                                              .onPrimary,
+                                                        ),
+                                                      ),
+                                                    )
+                                                  : Icon(
+                                                      _currentStep ==
+                                                              _totalSteps - 1
+                                                          ? Icons.check_circle
+                                                          : Icons.arrow_forward,
+                                                    ),
                                               label: Text(
-                                                _currentStep == _totalSteps - 1
-                                                    ? 'Complete'
-                                                    : 'Next',
-                                                style: const TextStyle(
+                                                _isCompletingOnboarding
+                                                    ? 'Saving...'
+                                                    : (_currentStep ==
+                                                            _totalSteps - 1
+                                                        ? 'Complete'
+                                                        : 'Next'),
+                                                style: TextStyle(
                                                   fontWeight: FontWeight.w600,
                                                   fontSize:
                                                       DesignTokens.fontSizeLG,
@@ -1602,7 +1723,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: _uploadedImageUrl != null || _imageFile != null
-                            ? DesignTokens.successColor
+                            ? SemanticColors.success
                             : Colors.grey[300]!,
                         width: 3,
                       ),
@@ -1664,7 +1785,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
             const Text(
               'Photo selected ✓',
               style: TextStyle(
-                color: DesignTokens.successColor,
+                color: SemanticColors.success,
                 fontSize: DesignTokens.fontSizeSM,
                 fontWeight: FontWeight.w600,
               ),
@@ -1688,14 +1809,14 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                   suffixIcon: _nameValidated
                       ? const Icon(
                           Icons.check_circle,
-                          color: DesignTokens.successColor,
+                          color: SemanticColors.success,
                         )
                       : null,
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
                     borderSide: BorderSide(
                       color: _nameValidated
-                          ? DesignTokens.successColor
+                          ? SemanticColors.success
                           : Colors.grey[300]!,
                       width: _nameValidated ? 2 : 1,
                     ),
@@ -1770,7 +1891,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                     borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
                     borderSide: BorderSide(
                       color: _dobValidated
-                          ? DesignTokens.successColor
+                          ? SemanticColors.success
                           : Colors.grey[300]!,
                       width: _dobValidated ? 2 : 1,
                     ),
@@ -1779,7 +1900,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                   suffixIcon: _dobValidated
                       ? const Icon(
                           Icons.check_circle,
-                          color: DesignTokens.successColor,
+                          color: SemanticColors.success,
                         )
                       : const Icon(Icons.arrow_drop_down),
                   helperText: calculatedAge != null
@@ -1790,12 +1911,12 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                   _selectedDateOfBirth != null
                       ? '${_selectedDateOfBirth!.day}/${_selectedDateOfBirth!.month}/${_selectedDateOfBirth!.year}'
                       : 'Select your date of birth',
-                  style: TextStyle(
-                    color: _selectedDateOfBirth == null
-                        ? Colors.grey
-                        : Colors.black,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: _selectedDateOfBirth == null
+                            ? SemanticColors.textSecondary(context)
+                            : SemanticColors.textPrimary(context),
+                        fontWeight: FontWeight.w500,
+                      ),
                 ),
               ),
             ),
@@ -1816,7 +1937,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                   borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
                   borderSide: BorderSide(
                     color: _genderValidated
-                        ? DesignTokens.successColor
+                        ? SemanticColors.success
                         : Colors.grey[300]!,
                     width: _genderValidated ? 2 : 1,
                   ),
@@ -1825,7 +1946,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                 suffixIcon: _genderValidated
                     ? const Icon(
                         Icons.check_circle,
-                        color: DesignTokens.successColor,
+                        color: SemanticColors.success,
                       )
                     : const Icon(Icons.arrow_drop_down),
               ),
@@ -1876,7 +1997,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                           ? Icons.location_on
                           : Icons.location_searching,
                       color: _countryValidated
-                          ? DesignTokens.successColor
+                          ? SemanticColors.success
                           : Theme.of(context).colorScheme.primary,
                     ),
               label: Text(
@@ -1885,7 +2006,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                     : 'Detect My Location',
                 style: TextStyle(
                   color: _countryValidated
-                      ? DesignTokens.successColor
+                      ? SemanticColors.success
                       : Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1897,7 +2018,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                 ),
                 side: BorderSide(
                   color: _countryValidated
-                      ? DesignTokens.successColor
+                      ? SemanticColors.success
                       : Theme.of(context).colorScheme.primary,
                   width: _countryValidated ? 2 : 1.5,
                 ),
@@ -1912,10 +2033,10 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
             Container(
               padding: const EdgeInsets.all(DesignTokens.spaceMD),
               decoration: BoxDecoration(
-                color: DesignTokens.successColor.withOpacity(0.1),
+                color: SemanticColors.success.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
                 border: Border.all(
-                  color: DesignTokens.successColor.withOpacity(0.3),
+                  color: SemanticColors.success.withOpacity(0.3),
                   width: 1,
                 ),
               ),
@@ -1923,7 +2044,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                 children: [
                   const Icon(
                     Icons.check_circle,
-                    color: DesignTokens.successColor,
+                    color: SemanticColors.success,
                     size: 20,
                   ),
                   const SizedBox(width: DesignTokens.spaceSM),
@@ -1931,7 +2052,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                     child: Text(
                       'Country: $_selectedCountry',
                       style: const TextStyle(
-                        color: DesignTokens.successColor,
+                        color: SemanticColors.success,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -2011,8 +2132,8 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                             '$remaining left',
                             style: TextStyle(
                               color: remaining <= 10
-                                  ? DesignTokens.errorColor
-                                  : DesignTokens.warningColor,
+                                  ? SemanticColors.error
+                                  : SemanticColors.warning,
                               fontSize: DesignTokens.fontSizeSM,
                               fontWeight: FontWeight.w600,
                             ),
@@ -2023,7 +2144,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                           '$currentLength/${maxLength ?? 150}',
                           style: TextStyle(
                             color: remaining <= 10
-                                ? DesignTokens.errorColor
+                                ? SemanticColors.error
                                 : Colors.grey[600],
                             fontSize: DesignTokens.fontSizeSM,
                           ),
@@ -2164,13 +2285,13 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          DesignTokens.successColor,
-                          DesignTokens.successColor.withOpacity(0.8),
+                          SemanticColors.success,
+                          SemanticColors.success.withOpacity(0.8),
                         ],
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: DesignTokens.successColor.withOpacity(0.25),
+                          color: SemanticColors.success.withOpacity(0.25),
                           blurRadius: 24,
                           spreadRadius: 4,
                         ),

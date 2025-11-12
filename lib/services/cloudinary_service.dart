@@ -237,6 +237,10 @@ class CloudinaryService {
   }) async {
     const maxRetries = 2;
 
+    // CRITICAL FIX: Declare variables outside try block for access in catch blocks
+    bool uploadComplete = false;
+    Timer? progressTimer;
+
     try {
       // Get credentials from .env
       final cloudName = dotenv.env['CLOUDINARY_CLOUD_NAME'];
@@ -271,22 +275,25 @@ class CloudinaryService {
       // We'll estimate progress based on elapsed time (assuming average upload speed)
       final totalBytes = bytes.length;
       final uploadStartTime = DateTime.now();
-      bool uploadComplete = false;
-      
+
       // Start progress tracking in background
-      Timer? progressTimer;
       if (onProgress != null) {
-        progressTimer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
+        progressTimer =
+            Timer.periodic(const Duration(milliseconds: 200), (timer) {
           if (uploadComplete) {
             timer.cancel();
             return;
           }
-          
+
           final elapsed = DateTime.now().difference(uploadStartTime);
           // Estimate progress: assume average upload speed of 1MB/s
           // This is just an estimate - actual progress may vary
           final estimatedBytesPerSecond = 1024 * 1024; // 1MB/s
-          final estimatedProgress = (elapsed.inMilliseconds / 1000.0 * estimatedBytesPerSecond / totalBytes).clamp(0.0, 0.95);
+          final estimatedProgress = (elapsed.inMilliseconds /
+                  1000.0 *
+                  estimatedBytesPerSecond /
+                  totalBytes)
+              .clamp(0.0, 0.95);
           onProgress(estimatedProgress);
         });
       }
@@ -295,6 +302,7 @@ class CloudinaryService {
       final streamedResponse = await request.send().timeout(
         const Duration(seconds: 120), // Longer timeout for videos (2 minutes)
         onTimeout: () {
+          uploadComplete = true;
           progressTimer?.cancel();
           throw TimeoutException('Video upload timed out after 120 seconds');
         },
@@ -304,10 +312,10 @@ class CloudinaryService {
       final responseData = await streamedResponse.stream.toBytes();
       final responseString = String.fromCharCodes(responseData);
       final jsonMap = jsonDecode(responseString);
-      
+
       uploadComplete = true;
       progressTimer?.cancel();
-      
+
       if (streamedResponse.statusCode == 200) {
         final secureUrl = jsonMap['secure_url'] as String?;
 
@@ -337,6 +345,8 @@ class CloudinaryService {
 
       return null;
     } on TimeoutException catch (e) {
+      uploadComplete = true;
+      progressTimer?.cancel();
       _debugLog('Video upload timeout: $e');
 
       // Retry on timeout
@@ -354,6 +364,8 @@ class CloudinaryService {
 
       return null;
     } catch (e) {
+      uploadComplete = true;
+      progressTimer?.cancel();
       _debugLog('Unexpected error during video upload: $e');
       return null;
     }
@@ -379,7 +391,7 @@ class CloudinaryService {
       // For upload-time quality, you would need to use upload parameters.
       // This is a placeholder for future enhancement.
       _debugLog('Uploading image with quality: ${quality.name}');
-      
+
       // For now, use the standard upload method
       // In the future, you could add transformation parameters to the upload
       // to apply quality settings during the upload process

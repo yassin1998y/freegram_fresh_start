@@ -34,11 +34,11 @@ class StoryEditorToolbar extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(DesignTokens.spaceXS),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.3),
+              color: Theme.of(context).colorScheme.surface.withOpacity(0.3),
               borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.1),
-                width: 1,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+                width: DesignTokens.elevation1,
               ),
             ),
             child: Row(
@@ -69,7 +69,8 @@ class StoryEditorToolbar extends StatelessWidget {
                   icon: Icons.emoji_emotions,
                   tool: 'stickers',
                   onTap: () {
-                    final newTool = activeTool == 'stickers' ? 'none' : 'stickers';
+                    final newTool =
+                        activeTool == 'stickers' ? 'none' : 'stickers';
                     onToolChanged(newTool);
                   },
                 ),
@@ -113,7 +114,7 @@ class StoryEditorToolbar extends StatelessWidget {
             icon,
             color: isActive
                 ? SonarPulseTheme.primaryAccent
-                : Colors.white,
+                : Theme.of(context).colorScheme.onSurface,
             size: DesignTokens.iconLG,
           ),
         ),

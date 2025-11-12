@@ -9,6 +9,7 @@ import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -38,6 +39,9 @@ class _SignUpScreenState extends State<SignUpScreen>
   late AnimationController _successAnimationController;
   late Animation<double> _successScaleAnimation;
 
+  // OPTIMIZATION: Debounce timer for draft saving
+  Timer? _draftSaveTimer;
+
   @override
   void initState() {
     super.initState();
@@ -50,16 +54,17 @@ class _SignUpScreenState extends State<SignUpScreen>
     // IMPROVEMENT #17: Success animation setup
     _successAnimationController = AnimationController(
       vsync: this,
-      duration: DesignTokens.durationNormal,
+      duration: AnimationTokens.normal,
     );
     _successScaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _successAnimationController,
-        curve: DesignTokens.curveElasticOut,
+        curve: AnimationTokens.elasticOut,
       ),
     );
 
     _restoreDrafts();
+    // OPTIMIZATION: Debounced draft saving - saves 500ms after user stops typing
     _emailController.addListener(_saveDrafts);
     _passwordController
         .addListener(() => _onPasswordChanged(_passwordController.text));
@@ -68,7 +73,9 @@ class _SignUpScreenState extends State<SignUpScreen>
 
   @override
   void dispose() {
-    _saveDrafts();
+    // OPTIMIZATION: Cancel timer and perform final save
+    _draftSaveTimer?.cancel();
+    _performDraftSave();
     _emailController.dispose();
     _passwordController.dispose();
     _emailFocusNode.dispose();
@@ -90,6 +97,27 @@ class _SignUpScreenState extends State<SignUpScreen>
 
   bool _isValidEmail(String email) {
     return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
+  }
+
+  // UX IMPROVEMENT: User-friendly error messages
+  String _getUserFriendlyErrorMessage(String errorMessage) {
+    final lowerError = errorMessage.toLowerCase();
+    if (lowerError.contains('email-already-in-use') ||
+        lowerError.contains('email already exists')) {
+      return 'This email is already registered. Try logging in instead.';
+    } else if (lowerError.contains('weak-password') ||
+        lowerError.contains('password is too weak')) {
+      return 'Password is too weak. Please use a stronger password.';
+    } else if (lowerError.contains('network') ||
+        lowerError.contains('connection') ||
+        lowerError.contains('internet')) {
+      return 'Network error. Please check your connection and try again.';
+    } else if (lowerError.contains('invalid-email')) {
+      return 'Invalid email address. Please check and try again.';
+    } else if (lowerError.contains('too-many-requests')) {
+      return 'Too many attempts. Please wait a moment and try again.';
+    }
+    return errorMessage;
   }
 
   void _signUp() {
@@ -172,13 +200,26 @@ class _SignUpScreenState extends State<SignUpScreen>
     }
   }
 
-  Future<void> _saveDrafts() async {
-    // IMPROVEMENT #15: Form persistence
-    final prefs = await SharedPreferences.getInstance();
-    final rememberEmail = prefs.getBool(_kRememberEmailKey) ?? true;
+  // OPTIMIZATION: Debounced draft saving - saves 500ms after user stops typing
+  void _saveDrafts() {
+    _draftSaveTimer?.cancel();
+    _draftSaveTimer = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      _performDraftSave();
+    });
+  }
 
-    if (rememberEmail) {
-      await prefs.setString(_kSignupEmailKey, _emailController.text.trim());
+  // IMPROVEMENT #15: Form persistence (actual save operation)
+  Future<void> _performDraftSave() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final rememberEmail = prefs.getBool(_kRememberEmailKey) ?? true;
+
+      if (rememberEmail) {
+        await prefs.setString(_kSignupEmailKey, _emailController.text.trim());
+      }
+    } catch (e) {
+      debugPrint('SignUpScreen: Error saving draft: $e');
     }
   }
 
@@ -215,20 +256,34 @@ class _SignUpScreenState extends State<SignUpScreen>
           debugPrint(
               "SignUpScreen: BlocListener received state: ${state.runtimeType}");
         }
+        // OPTIMIZATION: Ensure mounted check before any state updates
+        if (!mounted) return;
+
         if (state is AuthError) {
-          if (mounted && _isSigningUp) {
+          if (_isSigningUp) {
             setState(() {
               _isSigningUp = false;
             });
           }
-          // IMPROVEMENT #5: Better error messages
+          // IMPROVEMENT #5: Better error messages with retry option
+          final errorMessage = _getUserFriendlyErrorMessage(state.message);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
                 children: [
-                  const Icon(Icons.error_outline, color: Colors.white),
+                  Icon(
+                    Icons.error_outline,
+                    color: Theme.of(context).colorScheme.onError,
+                  ),
                   const SizedBox(width: DesignTokens.spaceSM),
-                  Expanded(child: Text(state.message)),
+                  Expanded(
+                    child: Text(
+                      errorMessage,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.onError,
+                          ),
+                    ),
+                  ),
                 ],
               ),
               backgroundColor: Theme.of(context).colorScheme.error,
@@ -237,10 +292,16 @@ class _SignUpScreenState extends State<SignUpScreen>
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
               ),
               action: SnackBarAction(
-                label: 'Dismiss',
-                textColor: Colors.white,
-                onPressed: () {},
+                label: 'Retry',
+                textColor: Theme.of(context).colorScheme.onError,
+                onPressed: () {
+                  // Retry signup if form is still valid
+                  if (_emailValidated && _passwordValidated) {
+                    _signUp();
+                  }
+                },
               ),
+              duration: const Duration(seconds: 5),
             ),
           );
         }
@@ -252,11 +313,9 @@ class _SignUpScreenState extends State<SignUpScreen>
             debugPrint(
                 "SignUpScreen: BlocListener received Authenticated state WHILE signing up. Popping screen.");
           }
-          if (mounted) {
-            setState(() {
-              _isSigningUp = false;
-            });
-          }
+          setState(() {
+            _isSigningUp = false;
+          });
           if (Navigator.canPop(context)) {
             Navigator.of(context).pop();
           }
@@ -297,12 +356,12 @@ class _SignUpScreenState extends State<SignUpScreen>
                               padding:
                                   const EdgeInsets.all(DesignTokens.spaceLG),
                               decoration: const BoxDecoration(
-                                color: DesignTokens.successColor,
+                                color: SemanticColors.success,
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.check,
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.onPrimary,
                                 size: DesignTokens.iconXXL,
                               ),
                             ),
@@ -330,10 +389,13 @@ class _SignUpScreenState extends State<SignUpScreen>
                         Text(
                           'Join Freegram to discover nearby users and connect',
                           textAlign: TextAlign.center,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Colors.grey[600],
-                                  ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
+                                color: SemanticColors.textSecondary(context),
+                                fontSize: DesignTokens.fontSizeMD,
+                              ),
                         ),
                         const SizedBox(height: DesignTokens.spaceXXL),
 
@@ -358,7 +420,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                                     _emailController.text.isNotEmpty
                                 ? const Icon(
                                     Icons.check_circle,
-                                    color: DesignTokens.successColor,
+                                    color: SemanticColors.success,
                                   )
                                 : null,
                             border: OutlineInputBorder(
@@ -371,8 +433,12 @@ class _SignUpScreenState extends State<SignUpScreen>
                                   BorderRadius.circular(DesignTokens.radiusMD),
                               borderSide: BorderSide(
                                 color: _emailValidated
-                                    ? DesignTokens.successColor
-                                    : Colors.grey[300]!,
+                                    ? SemanticColors.success
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .outline
+                                        .withOpacity(
+                                            DesignTokens.opacityMedium),
                                 width: _emailValidated ? 2 : 1,
                               ),
                             ),
@@ -452,8 +518,12 @@ class _SignUpScreenState extends State<SignUpScreen>
                               borderSide: BorderSide(
                                 color: _passwordValidated &&
                                         _passwordController.text.isNotEmpty
-                                    ? DesignTokens.successColor
-                                    : Colors.grey[300]!,
+                                    ? SemanticColors.success
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .outline
+                                        .withOpacity(
+                                            DesignTokens.opacityMedium),
                                 width: _passwordValidated &&
                                         _passwordController.text.isNotEmpty
                                     ? 2
@@ -489,12 +559,14 @@ class _SignUpScreenState extends State<SignUpScreen>
                                   child: AppLinearProgressIndicator(
                                     value: _passwordStrength,
                                     minHeight: 8,
-                                    backgroundColor: Colors.grey[200],
+                                    backgroundColor: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerHighest,
                                     color: _passwordStrength < 0.4
-                                        ? DesignTokens.errorColor
+                                        ? SemanticColors.error
                                         : (_passwordStrength < 0.7
-                                            ? DesignTokens.warningColor
-                                            : DesignTokens.successColor),
+                                            ? SemanticColors.warning
+                                            : SemanticColors.success),
                                   ),
                                 ),
                               ),
@@ -505,10 +577,10 @@ class _SignUpScreenState extends State<SignUpScreen>
                                   fontSize: DesignTokens.fontSizeSM,
                                   fontWeight: FontWeight.w600,
                                   color: _passwordStrength < 0.4
-                                      ? DesignTokens.errorColor
+                                      ? SemanticColors.error
                                       : (_passwordStrength < 0.7
-                                          ? DesignTokens.warningColor
-                                          : DesignTokens.successColor),
+                                          ? SemanticColors.warning
+                                          : SemanticColors.success),
                                 ),
                               ),
                             ],
@@ -542,8 +614,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                                           size: DesignTokens.iconSM,
                                           color: _passwordController
                                                           .text.isNotEmpty &&
-                                                      (req.contains(
-                                                              '6 characters') &&
+                                                      (req.contains('6 characters') &&
                                                           _passwordController
                                                                   .text
                                                                   .length >=
@@ -556,17 +627,23 @@ class _SignUpScreenState extends State<SignUpScreen>
                                                       RegExp(r'[0-9]').hasMatch(
                                                           _passwordController
                                                               .text))
-                                              ? DesignTokens.successColor
-                                              : Colors.grey[400],
+                                              ? SemanticColors.success
+                                              : SemanticColors.textSecondary(context)
+                                                  .withOpacity(DesignTokens.opacityMedium),
                                         ),
                                         const SizedBox(
                                             width: DesignTokens.spaceXS),
                                         Text(
                                           req,
-                                          style: TextStyle(
-                                            fontSize: DesignTokens.fontSizeSM,
-                                            color: Colors.grey[600],
-                                          ),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                fontSize:
+                                                    DesignTokens.fontSizeSM,
+                                                color: SemanticColors
+                                                    .textSecondary(context),
+                                              ),
                                         ),
                                       ],
                                     ),
@@ -581,10 +658,13 @@ class _SignUpScreenState extends State<SignUpScreen>
                           child: Text(
                             'By signing up, you agree to our Terms of Service and Privacy Policy',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: DesignTokens.fontSizeSM,
-                              color: Colors.grey[600],
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  fontSize: DesignTokens.fontSizeSM,
+                                  color: SemanticColors.textSecondary(context),
+                                ),
                           ),
                         ),
 
@@ -600,10 +680,19 @@ class _SignUpScreenState extends State<SignUpScreen>
                                   vertical: DesignTokens.spaceMD),
                               backgroundColor: canSubmit
                                   ? Theme.of(context).colorScheme.primary
-                                  : Colors.grey[300],
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHighest,
                               foregroundColor: canSubmit
                                   ? Theme.of(context).colorScheme.onPrimary
-                                  : Colors.grey[600],
+                                  : SemanticColors.textSecondary(context),
+                              disabledBackgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
+                              disabledForegroundColor:
+                                  SemanticColors.textSecondary(context)
+                                      .withOpacity(
+                                          DesignTokens.opacityDisabled),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(
                                     DesignTokens.radiusMD),

@@ -172,7 +172,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
                   icon: Icon(
                     Icons.clear_rounded,
                     color: theme.colorScheme.onSurface.withOpacity(0.5),
-                    size: 20,
+                    size: DesignTokens.iconMD,
                   ),
                   onPressed: () {
                     HapticFeedback.lightImpact();
@@ -200,12 +200,12 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
           filled: true,
           fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
             borderSide: BorderSide.none,
           ),
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 12,
+            horizontal: DesignTokens.spaceMD,
+            vertical: DesignTokens.spaceMD,
           ),
         ),
         style: TextStyle(
@@ -268,8 +268,9 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
     required VoidCallback onTap,
   }) {
     return Material(
-      color:
-          isActive ? Theme.of(context).colorScheme.primary : Colors.grey[100],
+      color: isActive
+          ? Theme.of(context).colorScheme.primary
+          : Theme.of(context).colorScheme.surfaceContainerHighest,
       borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
       child: InkWell(
         onTap: onTap,
@@ -284,7 +285,9 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
             border: Border.all(
               color: isActive
                   ? Theme.of(context).colorScheme.primary
-                  : Colors.grey.withOpacity(0.3),
+                  : Theme.of(context).colorScheme.outline.withOpacity(
+                        DesignTokens.opacityMedium,
+                      ),
               width: 1,
             ),
           ),
@@ -294,13 +297,17 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
               Icon(
                 icon,
                 size: DesignTokens.iconSM,
-                color: isActive ? Colors.white : Colors.grey[700],
+                color: isActive
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : SemanticColors.textSecondary(context),
               ),
               const SizedBox(width: DesignTokens.spaceXS),
               Text(
                 label,
                 style: TextStyle(
-                  color: isActive ? Colors.white : Colors.grey[700],
+                  color: isActive
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : SemanticColors.textSecondary(context),
                   fontSize: DesignTokens.fontSizeSM,
                   fontWeight: FontWeight.w600,
                 ),
@@ -398,26 +405,26 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
             if (index == chats.length &&
                 chats.length >= AppConstants.chatListLoadMoreThreshold) {
               return Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(DesignTokens.spaceMD),
                 child: Center(
                   child: Column(
                     children: [
                       const Divider(),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: DesignTokens.spaceSM),
                       Text(
                         'Showing ${chats.length} most recent chats',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 14,
-                        ),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: SemanticColors.textSecondary(context),
+                              fontSize: DesignTokens.fontSizeMD,
+                            ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: DesignTokens.spaceXS),
                       Text(
                         'Scroll up to see older chats as needed',
-                        style: TextStyle(
-                          color: Colors.grey[500],
-                          fontSize: 12,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: SemanticColors.textSecondary(context),
+                              fontSize: DesignTokens.fontSizeSM,
+                            ),
                       ),
                     ],
                   ),
@@ -526,7 +533,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: Colors.grey.withOpacity(0.1),
+                color: Theme.of(context).dividerColor.withOpacity(0.1),
                 width: 0.5,
               ),
             ),
@@ -534,7 +541,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
           child: Row(
             children: [
               CircleAvatar(
-                radius: 28,
+                radius: AvatarSize.medium.radius,
                 backgroundImage: user.photoUrl.isNotEmpty
                     ? NetworkImage(user.photoUrl)
                     : null,
@@ -561,20 +568,20 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
                             fontWeight: FontWeight.w600,
                           ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: DesignTokens.spaceXS / 2),
                     Text(
                       'Tap to message',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: DesignTokens.fontSizeSM,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: SemanticColors.textSecondary(context),
+                            fontSize: DesignTokens.fontSizeSM,
+                          ),
                     ),
                   ],
                 ),
               ),
               Icon(
                 Icons.chevron_right,
-                color: Colors.grey[400],
+                color: SemanticColors.iconDefault(context),
                 size: DesignTokens.iconLG,
               ),
             ],
@@ -591,25 +598,25 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
         children: [
           Icon(
             Icons.chat_bubble_outline,
-            size: 64,
-            color: Colors.grey[400],
+            size: DesignTokens.iconXXL * 1.6,
+            color: SemanticColors.textSecondary(context),
           ),
           const SizedBox(height: DesignTokens.spaceMD),
           Text(
             message ?? 'No active chats',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: DesignTokens.fontSizeLG,
-              fontWeight: FontWeight.w500,
-            ),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: SemanticColors.textSecondary(context),
+                  fontSize: DesignTokens.fontSizeLG,
+                  fontWeight: FontWeight.w500,
+                ),
           ),
           const SizedBox(height: DesignTokens.spaceSM),
           Text(
             'Start a conversation with someone!',
-            style: TextStyle(
-              color: Colors.grey[500],
-              fontSize: DesignTokens.fontSizeSM,
-            ),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: SemanticColors.textSecondary(context),
+                  fontSize: DesignTokens.fontSizeSM,
+                ),
           ),
         ],
       ),
@@ -623,16 +630,16 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
         children: [
           Icon(
             Icons.error_outline,
-            size: 64,
-            color: Colors.red[400],
+            size: DesignTokens.iconXXL * 1.6,
+            color: Theme.of(context).colorScheme.error,
           ),
           const SizedBox(height: DesignTokens.spaceMD),
           Text(
             message,
-            style: TextStyle(
-              color: Colors.grey[700],
-              fontSize: DesignTokens.fontSizeLG,
-            ),
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: SemanticColors.textSecondary(context),
+                  fontSize: DesignTokens.fontSizeLG,
+                ),
           ),
         ],
       ),

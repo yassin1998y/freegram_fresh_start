@@ -21,6 +21,9 @@ enum AppButtonStyle {
   text, // Text-only button
   elevated, // Elevated button with background
   outlined, // Outlined button
+  primary, // Primary button (emphasized, filled)
+  secondary, // Secondary button (less emphasized)
+  ghost, // Ghost button (transparent background)
 }
 
 /// Unified button system for the app
@@ -158,6 +161,44 @@ class AppButton extends StatefulWidget {
         this.backgroundColor = null,
         this.borderRadius = null,
         this.padding = null;
+
+  /// Text button constructor (Primary/Secondary/Ghost styles)
+  const AppButton.text({
+    super.key,
+    required String text,
+    required VoidCallback? onPressed,
+    String? tooltip,
+    AppButtonStyle style = AppButtonStyle.primary,
+    Color? color,
+    bool isDisabled = false,
+    bool isLoading = false,
+    Color? backgroundColor,
+    double? borderRadius,
+    EdgeInsets? padding,
+  })  : this.style = style == AppButtonStyle.primary
+            ? AppButtonStyle.primary
+            : style == AppButtonStyle.secondary
+                ? AppButtonStyle.secondary
+                : AppButtonStyle.ghost,
+        this.label = text,
+        this.onPressed = onPressed,
+        this.tooltip = tooltip,
+        this.color = color,
+        this.badge = null,
+        this.showBadgeDot = false,
+        this.isDisabled = isDisabled,
+        this.isLoading = isLoading,
+        this.isPrimary = style == AppButtonStyle.primary,
+        this.size = null,
+        this.iconSize = null,
+        this.hapticType = AppButtonHapticType.selection,
+        this.animationDuration = const Duration(milliseconds: 150),
+        this.showLabel = false,
+        this.child = null,
+        this.icon = null,
+        this.backgroundColor = backgroundColor,
+        this.borderRadius = borderRadius,
+        this.padding = padding;
 
   /// Icon + label button (replaces MatchActionButton and _buildActionButton)
   const AppButton.action({
@@ -311,6 +352,12 @@ class _AppButtonState extends State<AppButton>
         return _buildElevatedButton(context);
       case AppButtonStyle.outlined:
         return _buildOutlinedButton(context);
+      case AppButtonStyle.primary:
+        return _buildElevatedButton(context); // Primary uses elevated style
+      case AppButtonStyle.secondary:
+        return _buildOutlinedButton(context); // Secondary uses outlined style
+      case AppButtonStyle.ghost:
+        return _buildTextButton(context); // Ghost uses text style
     }
   }
 
@@ -557,20 +604,154 @@ class _AppButtonState extends State<AppButton>
 
   /// Text-only button
   Widget _buildTextButton(BuildContext context) {
-    // TODO: Implement text button style
-    return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final isDisabled = widget.isDisabled || widget.onPressed == null;
+    final textColor = isDisabled
+        ? theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityDisabled)
+        : (widget.color ?? theme.colorScheme.primary);
+
+    return Semantics(
+      button: true,
+      enabled: !isDisabled,
+      label: widget.tooltip ?? widget.label ?? '',
+      child: TextButton(
+        onPressed: _canPress() ? widget.onPressed : null,
+        style: TextButton.styleFrom(
+          foregroundColor: textColor,
+          padding: widget.padding ??
+              const EdgeInsets.symmetric(
+                horizontal: DesignTokens.spaceMD,
+                vertical: DesignTokens.spaceSM,
+              ),
+        ),
+        child: widget.isLoading
+            ? SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(textColor),
+                ),
+              )
+            : Text(
+                widget.label ?? '',
+                style: TextStyle(
+                  fontSize: DesignTokens.fontSizeMD,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+      ),
+    );
   }
 
-  /// Elevated button
+  /// Elevated button (Primary style)
   Widget _buildElevatedButton(BuildContext context) {
-    // TODO: Implement elevated button style
-    return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final isDisabled = widget.isDisabled || widget.onPressed == null;
+    final backgroundColor = widget.backgroundColor ??
+        (isDisabled
+            ? theme.colorScheme.onSurface
+                .withOpacity(DesignTokens.opacityDisabled)
+            : theme.colorScheme.primary);
+    final foregroundColor = isDisabled
+        ? theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityDisabled)
+        : (widget.color ?? theme.colorScheme.onPrimary);
+
+    return Semantics(
+      button: true,
+      enabled: !isDisabled,
+      label: widget.tooltip ?? widget.label ?? '',
+      child: ElevatedButton(
+        onPressed: _canPress() ? widget.onPressed : null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: backgroundColor,
+          foregroundColor: foregroundColor,
+          elevation: widget.isPrimary ? 2 : 1,
+          padding: widget.padding ??
+              const EdgeInsets.symmetric(
+                horizontal: DesignTokens.spaceLG,
+                vertical: DesignTokens.spaceMD,
+              ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(
+              widget.borderRadius ?? DesignTokens.radiusMD,
+            ),
+          ),
+          minimumSize: const Size(0, DesignTokens.buttonHeight),
+        ),
+        child: widget.isLoading
+            ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(foregroundColor),
+                ),
+              )
+            : Text(
+                widget.label ?? '',
+                style: TextStyle(
+                  fontSize: DesignTokens.fontSizeMD,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+      ),
+    );
   }
 
   /// Outlined button
   Widget _buildOutlinedButton(BuildContext context) {
-    // TODO: Implement outlined button style
-    return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final isDisabled = widget.isDisabled || widget.onPressed == null;
+    final borderColor = isDisabled
+        ? theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityDisabled)
+        : (widget.color ?? theme.colorScheme.primary);
+    final foregroundColor = isDisabled
+        ? theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityDisabled)
+        : (widget.color ?? theme.colorScheme.primary);
+
+    return Semantics(
+      button: true,
+      enabled: !isDisabled,
+      label: widget.tooltip ?? widget.label ?? '',
+      child: OutlinedButton(
+        onPressed: _canPress() ? widget.onPressed : null,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: foregroundColor,
+          side: BorderSide(
+            color: borderColor,
+            width: 1.5,
+          ),
+          padding: widget.padding ??
+              const EdgeInsets.symmetric(
+                horizontal: DesignTokens.spaceLG,
+                vertical: DesignTokens.spaceMD,
+              ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(
+              widget.borderRadius ?? DesignTokens.radiusMD,
+            ),
+          ),
+          minimumSize: const Size(0, DesignTokens.buttonHeight),
+        ),
+        child: widget.isLoading
+            ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(foregroundColor),
+                ),
+              )
+            : Text(
+                widget.label ?? '',
+                style: TextStyle(
+                  fontSize: DesignTokens.fontSizeMD,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+      ),
+    );
   }
 }
 

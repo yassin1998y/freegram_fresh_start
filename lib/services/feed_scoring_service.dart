@@ -73,9 +73,11 @@ class FeedScoringService {
     }
 
     // Priority 3: Trending posts (by actual trendingScore)
-    // Only show "Trending" badge if score is significant (increased threshold)
-    // Threshold increased to require meaningful engagement (likes + comments)
-    if (post.trendingScore > 100.0) {
+    // Show "Trending" badge for posts with meaningful engagement
+    // Lowered threshold to 50.0 to make trending section more visible
+    // Formula: (reactions * 1) + (comments * 2) + recencyBonus
+    // A post with 10 reactions + 5 comments = 20, plus recency bonus can easily hit 50+
+    if (post.trendingScore >= 50.0) {
       return UnifiedFeedScore(
         score: 3000.0 + post.trendingScore,
         badgeType: PostDisplayType.trending,
@@ -186,8 +188,8 @@ class FeedScoringService {
       }
     }
 
-    // Trending posts (high trendingScore - increased threshold)
-    if (post.trendingScore > 100.0) {
+    // Trending posts (meaningful engagement - lowered threshold for visibility)
+    if (post.trendingScore >= 50.0) {
       return PostDisplayType.trending;
     }
 

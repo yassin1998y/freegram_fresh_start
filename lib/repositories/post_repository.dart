@@ -17,6 +17,13 @@ class PostRepository {
   final HashtagService _hashtagService;
   final MentionService _mentionService;
 
+  // Request deduplication: Track ongoing requests by cache key
+  final Map<String, Future<(List<PostModel>, DocumentSnapshot?)>>
+      _currentRequests = {};
+
+  // Page cache: In-memory cache for paginated results
+  final Map<String, List<PostModel>> _pageCache = {};
+
   PostRepository({
     FirebaseFirestore? firestore,
     HashtagService? hashtagService,
@@ -24,6 +31,25 @@ class PostRepository {
   })  : _db = firestore ?? FirebaseFirestore.instance,
         _hashtagService = hashtagService ?? locator<HashtagService>(),
         _mentionService = mentionService ?? locator<MentionService>();
+
+  /// Generate a cache key for a feed request
+  String _generateCacheKey({
+    required String userId,
+    required TimeFilter timeFilter,
+    DocumentSnapshot? lastDocument,
+    Map<String, dynamic>? userTargeting,
+  }) {
+    // Create a unique key based on request parameters
+    final docId = lastDocument?.id ?? 'first';
+    final targetingHash = userTargeting?.toString() ?? '';
+    return 'feed_${userId}_${timeFilter.name}_$docId$targetingHash';
+  }
+
+  /// Clear the page cache (called on "Pull to Refresh")
+  void clearPageCache() {
+    _pageCache.clear();
+    debugPrint('PostRepository: Page cache cleared');
+  }
 
   /// Get feed for current user (friends + public posts + followed pages)
   /// Returns a tuple: (posts, lastDocument)
@@ -366,6 +392,11 @@ class PostRepository {
       List<MediaItem> finalMediaItems = [];
       if (mediaItems != null && mediaItems.isNotEmpty) {
         finalMediaItems = mediaItems;
+        // Debug log each MediaItem received
+        for (int i = 0; i < finalMediaItems.length; i++) {
+          debugPrint(
+              'PostRepository: Received MediaItem[$i]: ${finalMediaItems[i].toMap()}');
+        }
       } else if (mediaUrls != null && mediaUrls.isNotEmpty) {
         // Convert legacy format to MediaItem
         final types = mediaTypes ?? [];
@@ -384,6 +415,36 @@ class PostRepository {
       final postRef = _db.collection('posts').doc();
       final now = FieldValue.serverTimestamp();
 
+      // Prepare mediaItems for Firestore
+      final mediaItemsForFirestore =
+          finalMediaItems.map((item) => item.toMap()).toList();
+
+      // Validate that all mediaItems have non-empty URLs
+      for (int i = 0; i < mediaItemsForFirestore.length; i++) {
+        final itemMap = mediaItemsForFirestore[i];
+        if (itemMap['url'] == null || (itemMap['url'] as String).isEmpty) {
+          debugPrint(
+              'PostRepository: WARNING - mediaItems[$i] has empty url! Item: $itemMap');
+          // Try to use video quality URLs as fallback
+          final videoUrl = itemMap['videoUrl1080p'] ??
+              itemMap['videoUrl720p'] ??
+              itemMap['videoUrl360p'];
+          if (videoUrl != null && (videoUrl as String).isNotEmpty) {
+            debugPrint(
+                'PostRepository: Using video quality URL as fallback for mediaItems[$i]: $videoUrl');
+            itemMap['url'] = videoUrl;
+          }
+        }
+      }
+
+      // Debug log what's being saved to Firestore
+      debugPrint(
+          'PostRepository: Saving ${finalMediaItems.length} mediaItems to Firestore');
+      for (int i = 0; i < mediaItemsForFirestore.length; i++) {
+        debugPrint(
+            'PostRepository: mediaItems[$i] to save: ${mediaItemsForFirestore[i]}');
+      }
+
       await postRef.set({
         'postId': postRef.id,
         'authorId': userId,
@@ -394,7 +455,7 @@ class PostRepository {
         'pagePhotoUrl': pagePhotoUrl,
         'pageIsVerified': pageIsVerified,
         'content': content,
-        'mediaItems': finalMediaItems.map((item) => item.toMap()).toList(),
+        'mediaItems': mediaItemsForFirestore,
         // Legacy fields for backward compatibility
         'mediaUrls': finalMediaItems.map((item) => item.url).toList(),
         'mediaTypes': mediaTypesList,
@@ -1324,6 +1385,11 @@ class PostRepository {
   /// Unified Feed Method - Merges all post types into one deduplicated list
   /// This is the SINGLE SOURCE OF TRUTH for feed queries
   ///
+  /// Features:
+  /// - Request deduplication: Prevents fetching the same page twice
+  /// - Page caching: In-memory cache to avoid redundant API calls
+  /// - Cache cleared only on "Pull to Refresh"
+  ///
   /// Fetches: trending, boosted, friends/public posts, user's own posts
   /// Returns: Deduplicated list of all posts (will be sorted by FeedScoringService)
   Future<(List<PostModel>, DocumentSnapshot?)> getUnifiedFeed({
@@ -1333,6 +1399,70 @@ class PostRepository {
     DocumentSnapshot? lastDocument,
     int limit = 20,
     Map<String, dynamic>? userTargeting,
+    bool refresh = false, // Set to true on "Pull to Refresh"
+  }) async {
+    // Generate cache key for this request
+    final cacheKey = _generateCacheKey(
+      userId: userId,
+      timeFilter: timeFilter,
+      lastDocument: lastDocument,
+      userTargeting: userTargeting,
+    );
+
+    // Clear cache if refreshing
+    if (refresh) {
+      clearPageCache();
+      _currentRequests.clear();
+    }
+
+    // Check if there's an ongoing request for this exact page
+    if (_currentRequests.containsKey(cacheKey)) {
+      debugPrint(
+          'PostRepository: Request deduplication - reusing existing request for $cacheKey');
+      return _currentRequests[cacheKey]!;
+    }
+
+    // Check cache before hitting Firestore/API
+    if (!refresh && _pageCache.containsKey(cacheKey)) {
+      final cachedPosts = _pageCache[cacheKey]!;
+      debugPrint(
+          'PostRepository: Cache hit for $cacheKey (${cachedPosts.length} posts)');
+      // Return cached data with a dummy lastDocument (pagination handled by caller)
+      return (cachedPosts, lastDocument);
+    }
+
+    // Create the request future
+    final requestFuture = _fetchUnifiedFeedInternal(
+      userId: userId,
+      userLocation: userLocation,
+      timeFilter: timeFilter,
+      lastDocument: lastDocument,
+      limit: limit,
+      userTargeting: userTargeting,
+      cacheKey: cacheKey,
+    );
+
+    // Store the request to prevent duplicates
+    _currentRequests[cacheKey] = requestFuture;
+
+    try {
+      final result = await requestFuture;
+      return result;
+    } finally {
+      // Remove from ongoing requests once complete
+      _currentRequests.remove(cacheKey);
+    }
+  }
+
+  /// Internal method that performs the actual fetch
+  Future<(List<PostModel>, DocumentSnapshot?)> _fetchUnifiedFeedInternal({
+    required String userId,
+    GeoPoint? userLocation,
+    required TimeFilter timeFilter,
+    DocumentSnapshot? lastDocument,
+    required int limit,
+    Map<String, dynamic>? userTargeting,
+    required String cacheKey,
   }) async {
     try {
       // Build user targeting for boosted posts if not provided
@@ -1411,6 +1541,12 @@ class PostRepository {
       debugPrint(
           'PostRepository: Unified feed fetched ${allPosts.length} unique posts (trending: ${trendingPosts.length}, boosted: ${boostedPosts.length}, following: ${followingPosts.length}, user: ${userOwnPosts.length})');
 
+      // Cache the results (only for paginated requests, not initial load)
+      if (lastDocument != null) {
+        _pageCache[cacheKey] = allPosts;
+        debugPrint('PostRepository: Cached page $cacheKey');
+      }
+
       return (allPosts, lastDoc);
     } catch (e) {
       debugPrint('PostRepository: Error getting unified feed: $e');
@@ -1422,7 +1558,7 @@ class PostRepository {
   /// Returns a combined, deduplicated list of posts from friends, followed pages, and trending
   ///
   /// This method runs multiple queries in parallel and combines the results.
-  /// Used by ForYouFeedBloc for client-side ranking calculation.
+  /// Used for client-side ranking calculation.
   Future<List<PostModel>> getFeedCandidates(String userId) async {
     try {
       // Step 1: Get user's friends and followed pages

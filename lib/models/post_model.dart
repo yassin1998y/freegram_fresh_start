@@ -168,9 +168,37 @@ class PostModel extends Equatable {
     List<MediaItem> mediaItems = [];
     if (data['mediaItems'] != null) {
       final itemsList = data['mediaItems'] as List;
-      mediaItems = itemsList
-          .map((item) => MediaItem.fromMap(item as Map<String, dynamic>))
-          .toList();
+      debugPrint(
+          'PostModel.fromMap: Parsing ${itemsList.length} mediaItems from Firestore');
+
+      // Get legacy mediaUrls as fallback
+      final legacyMediaUrls = List<String>.from(data['mediaUrls'] ?? []);
+      final legacyMediaTypes = List<String>.from(data['mediaTypes'] ?? []);
+
+      for (int i = 0; i < itemsList.length; i++) {
+        final itemMap = itemsList[i] as Map<String, dynamic>;
+        debugPrint('PostModel.fromMap: mediaItems[$i] raw data: $itemMap');
+        var mediaItem = MediaItem.fromMap(itemMap);
+
+        // CRITICAL FIX: If url is empty, fall back to legacy mediaUrls field
+        // This handles cases where Firestore might not preserve the url field correctly
+        if (mediaItem.url.isEmpty &&
+            i < legacyMediaUrls.length &&
+            legacyMediaUrls[i].isNotEmpty) {
+          debugPrint(
+              'PostModel.fromMap: mediaItems[$i] url is empty, using legacy mediaUrls[$i]: ${legacyMediaUrls[i]}');
+          mediaItem = mediaItem.copyWith(
+            url: legacyMediaUrls[i],
+            type: i < legacyMediaTypes.length
+                ? legacyMediaTypes[i]
+                : mediaItem.type,
+          );
+        }
+
+        debugPrint(
+            'PostModel.fromMap: mediaItems[$i] parsed: ${mediaItem.toMap()}');
+        mediaItems.add(mediaItem);
+      }
     } else {
       // Legacy format: convert mediaUrls/mediaTypes to mediaItems
       final mediaUrls = List<String>.from(data['mediaUrls'] ?? []);

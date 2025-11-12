@@ -14,6 +14,7 @@ import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/theme/app_theme.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/utils/story_constants.dart';
 
 class StoryCreatorTypeScreen extends StatefulWidget {
   const StoryCreatorTypeScreen({Key? key}) : super(key: key);
@@ -65,7 +66,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
     try {
       // Check permission first
       _hasPhotosPermission = await _galleryService.hasPhotosPermission();
-      
+
       if (!_hasPhotosPermission) {
         _hasPhotosPermission = await _galleryService.requestPhotosPermission();
       }
@@ -111,7 +112,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
     try {
       // Check permission first
       _hasPhotosPermission = await _galleryService.hasPhotosPermission();
-      
+
       if (!_hasPhotosPermission) {
         _hasPhotosPermission = await _galleryService.requestPhotosPermission();
       }
@@ -145,28 +146,30 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
 
   Future<void> _handlePhotoTap(AssetEntity asset) async {
     HapticFeedback.lightImpact();
-    
+
     try {
       // CRITICAL FIX: Show loading indicator
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Loading photo...'),
-            duration: Duration(seconds: 1),
+          SnackBar(
+            content: const Text('Loading photo...'),
+            duration: AnimationTokens.fast,
           ),
         );
       }
 
-      debugPrint('StoryCreatorTypeScreen: Loading photo from asset: ${asset.id}');
+      debugPrint(
+          'StoryCreatorTypeScreen: Loading photo from asset: ${asset.id}');
       final file = await _galleryService.getFileFromAsset(asset);
-      
+
       if (file == null) {
         debugPrint('StoryCreatorTypeScreen: Failed to get file from asset');
         if (mounted) {
+          final theme = Theme.of(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to load photo. Please try again.'),
-              backgroundColor: Colors.red,
+            SnackBar(
+              content: const Text('Failed to load photo. Please try again.'),
+              backgroundColor: theme.colorScheme.error,
             ),
           );
         }
@@ -177,18 +180,21 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
       if (!await file.exists()) {
         debugPrint('StoryCreatorTypeScreen: File does not exist: ${file.path}');
         if (mounted) {
+          final theme = Theme.of(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Photo file not found. Please try another photo.'),
-              backgroundColor: Colors.red,
+            SnackBar(
+              content:
+                  const Text('Photo file not found. Please try another photo.'),
+              backgroundColor: theme.colorScheme.error,
             ),
           );
         }
         return;
       }
 
-      debugPrint('StoryCreatorScreen: Photo file loaded successfully: ${file.path}');
-      
+      debugPrint(
+          'StoryCreatorScreen: Photo file loaded successfully: ${file.path}');
+
       if (mounted) {
         Navigator.of(context).pop(); // Close the type selection screen
         // Navigate to story creator with selected photo
@@ -202,10 +208,11 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
     } catch (e) {
       debugPrint('StoryCreatorTypeScreen: Error handling photo tap: $e');
       if (mounted) {
+        final theme = Theme.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading photo: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: theme.colorScheme.error,
           ),
         );
       }
@@ -214,28 +221,30 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
 
   Future<void> _handleVideoTap(AssetEntity asset) async {
     HapticFeedback.lightImpact();
-    
+
     try {
       // CRITICAL FIX: Show loading indicator
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Loading video...'),
-            duration: Duration(seconds: 1),
+          SnackBar(
+            content: const Text('Loading video...'),
+            duration: AnimationTokens.fast,
           ),
         );
       }
 
-      debugPrint('StoryCreatorTypeScreen: Loading video from asset: ${asset.id}');
+      debugPrint(
+          'StoryCreatorTypeScreen: Loading video from asset: ${asset.id}');
       final file = await _galleryService.getFileFromAsset(asset);
-      
+
       if (file == null) {
         debugPrint('StoryCreatorTypeScreen: Failed to get file from asset');
         if (mounted) {
+          final theme = Theme.of(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to load video. Please try again.'),
-              backgroundColor: Colors.red,
+            SnackBar(
+              content: const Text('Failed to load video. Please try again.'),
+              backgroundColor: theme.colorScheme.error,
             ),
           );
         }
@@ -246,18 +255,21 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
       if (!await file.exists()) {
         debugPrint('StoryCreatorTypeScreen: File does not exist: ${file.path}');
         if (mounted) {
+          final theme = Theme.of(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Video file not found. Please try another video.'),
-              backgroundColor: Colors.red,
+            SnackBar(
+              content:
+                  const Text('Video file not found. Please try another video.'),
+              backgroundColor: theme.colorScheme.error,
             ),
           );
         }
         return;
       }
 
-      debugPrint('StoryCreatorScreen: Video file loaded successfully: ${file.path}');
-      
+      debugPrint(
+          'StoryCreatorScreen: Video file loaded successfully: ${file.path}');
+
       if (mounted) {
         Navigator.of(context).pop(); // Close the type selection screen
         // Navigate to story creator with selected video
@@ -271,10 +283,11 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
     } catch (e) {
       debugPrint('StoryCreatorTypeScreen: Error handling video tap: $e');
       if (mounted) {
+        final theme = Theme.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading video: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: theme.colorScheme.error,
           ),
         );
       }
@@ -285,154 +298,174 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
     required VoidCallback onTap,
   }) async {
     HapticFeedback.mediumImpact();
-    
+
     // CRITICAL FIX: Get root context before closing bottom sheet
     final rootContext = _navigationService.navigatorKey.currentContext;
     if (rootContext == null) {
-      debugPrint('StoryCreatorTypeScreen: Root context is null, cannot proceed');
+      debugPrint(
+          'StoryCreatorTypeScreen: Root context is null, cannot proceed');
       return;
     }
-    
+
     // Close bottom sheet first
     Navigator.of(context).pop();
-    
+
     // Wait for bottom sheet to close
-    await Future.delayed(const Duration(milliseconds: 400));
-    
+    await Future.delayed(AnimationTokens.fast);
+
     // Execute callback after sheet is closed
     if (rootContext.mounted) {
       onTap();
     } else {
-      debugPrint('StoryCreatorTypeScreen: Root context no longer mounted after closing sheet');
+      debugPrint(
+          'StoryCreatorTypeScreen: Root context no longer mounted after closing sheet');
     }
   }
 
   List<Widget> _buildVideoOptionCards(BuildContext context, ThemeData theme) {
     if (kIsWeb) return [];
-    
+
     return [
       _buildOptionCard(
-      context: context,
-      theme: theme,
-      icon: Icons.video_library,
-      label: 'Choose Video',
-      subtitle: 'Select a video from your gallery',
-      onTap: () async {
-        debugPrint('StoryCreatorTypeScreen: Choose Video tapped');
-        HapticFeedback.mediumImpact();
-        
-        // CRITICAL FIX: Get root context before closing bottom sheet
-        final rootContext = _navigationService.navigatorKey.currentContext;
-        if (rootContext == null) {
-          debugPrint('StoryCreatorTypeScreen: Root context is null, cannot proceed');
-          return;
-        }
-        
-        // Close bottom sheet first
-        Navigator.of(context).pop();
-        
-        // Wait for bottom sheet to close
-        await Future.delayed(const Duration(milliseconds: 400));
-        
-        if (!rootContext.mounted) {
-          debugPrint('StoryCreatorTypeScreen: Root context no longer mounted');
-          return;
-        }
-        
-        try {
-          // CRITICAL FIX: Let ImagePicker handle permissions internally
-          // Don't request permissions manually as it conflicts with ImagePicker
-          final ImagePicker picker = ImagePicker();
-          
-          debugPrint('StoryCreatorTypeScreen: Opening video picker...');
-          final XFile? video = await picker.pickVideo(
-            source: ImageSource.gallery,
-            maxDuration: const Duration(seconds: 20),
-          ).timeout(
-            const Duration(seconds: 30),
-            onTimeout: () {
-              debugPrint('StoryCreatorTypeScreen: Video picker timed out');
-              return null;
-            },
-          );
+        context: context,
+        theme: theme,
+        icon: Icons.video_library,
+        label: 'Choose Video',
+        subtitle: 'Select a video from your gallery',
+        onTap: () async {
+          debugPrint('StoryCreatorTypeScreen: Choose Video tapped');
+          HapticFeedback.mediumImpact();
 
-          debugPrint('StoryCreatorTypeScreen: Video picker returned: ${video != null ? video.path : "null"}');
+          // CRITICAL FIX: Get root context before closing bottom sheet
+          final rootContext = _navigationService.navigatorKey.currentContext;
+          if (rootContext == null) {
+            debugPrint(
+                'StoryCreatorTypeScreen: Root context is null, cannot proceed');
+            return;
+          }
 
-          if (video != null) {
-            try {
-              final file = File(video.path);
-              debugPrint('StoryCreatorTypeScreen: Verifying file exists: ${file.path}');
-              
-              // CRITICAL FIX: Verify file exists
-              if (await file.exists()) {
-                final fileSize = await file.length();
-                debugPrint('StoryCreatorTypeScreen: File exists, size: $fileSize bytes');
-                
-                if (fileSize > 0) {
-                  debugPrint('StoryCreatorTypeScreen: Navigating to StoryCreatorScreen with video');
-                  // Use root context for navigation
-                  if (rootContext.mounted) {
-                    await _navigationService.navigateTo(
-                      StoryCreatorScreen(
-                        preSelectedMedia: file,
-                        mediaType: 'video',
-                      ),
-                    );
-                    debugPrint('StoryCreatorTypeScreen: Navigation completed');
+          // Close bottom sheet first
+          Navigator.of(context).pop();
+
+          // Wait for bottom sheet to close
+          await Future.delayed(AnimationTokens.fast);
+
+          if (!rootContext.mounted) {
+            debugPrint(
+                'StoryCreatorTypeScreen: Root context no longer mounted');
+            return;
+          }
+
+          try {
+            // CRITICAL FIX: Let ImagePicker handle permissions internally
+            // Don't request permissions manually as it conflicts with ImagePicker
+            final ImagePicker picker = ImagePicker();
+
+            debugPrint('StoryCreatorTypeScreen: Opening video picker...');
+            final XFile? video = await picker
+                .pickVideo(
+              source: ImageSource.gallery,
+              maxDuration:
+                  Duration(seconds: StoryConstants.maxVideoDurationSeconds),
+            )
+                .timeout(
+              const Duration(seconds: 30), // Standard timeout
+              onTimeout: () {
+                debugPrint('StoryCreatorTypeScreen: Video picker timed out');
+                return null;
+              },
+            );
+
+            debugPrint(
+                'StoryCreatorTypeScreen: Video picker returned: ${video != null ? video.path : "null"}');
+
+            if (video != null) {
+              try {
+                final file = File(video.path);
+                debugPrint(
+                    'StoryCreatorTypeScreen: Verifying file exists: ${file.path}');
+
+                // CRITICAL FIX: Verify file exists
+                if (await file.exists()) {
+                  final fileSize = await file.length();
+                  debugPrint(
+                      'StoryCreatorTypeScreen: File exists, size: $fileSize bytes');
+
+                  if (fileSize > 0) {
+                    debugPrint(
+                        'StoryCreatorTypeScreen: Navigating to StoryCreatorScreen with video');
+                    // Use root context for navigation
+                    if (rootContext.mounted) {
+                      await _navigationService.navigateTo(
+                        StoryCreatorScreen(
+                          preSelectedMedia: file,
+                          mediaType: 'video',
+                        ),
+                      );
+                      debugPrint(
+                          'StoryCreatorTypeScreen: Navigation completed');
+                    } else {
+                      debugPrint(
+                          'StoryCreatorTypeScreen: Root context no longer mounted');
+                    }
                   } else {
-                    debugPrint('StoryCreatorTypeScreen: Root context no longer mounted');
+                    debugPrint('StoryCreatorTypeScreen: File is empty');
+                    if (rootContext.mounted) {
+                      final theme = Theme.of(rootContext);
+                      ScaffoldMessenger.of(rootContext).showSnackBar(
+                        SnackBar(
+                          content: const Text('Selected video is empty'),
+                          backgroundColor: theme.colorScheme.error,
+                        ),
+                      );
+                    }
                   }
                 } else {
-                  debugPrint('StoryCreatorTypeScreen: File is empty');
+                  debugPrint('StoryCreatorTypeScreen: File does not exist');
                   if (rootContext.mounted) {
+                    final theme = Theme.of(rootContext);
                     ScaffoldMessenger.of(rootContext).showSnackBar(
-                      const SnackBar(
-                        content: Text('Selected video is empty'),
-                        backgroundColor: Colors.red,
+                      SnackBar(
+                        content: const Text(
+                            'Selected video not found. Please try again.'),
+                        backgroundColor: theme.colorScheme.error,
                       ),
                     );
                   }
                 }
-              } else {
-                debugPrint('StoryCreatorTypeScreen: File does not exist');
+              } catch (e, stackTrace) {
+                debugPrint(
+                    'StoryCreatorTypeScreen: Error handling video picker: $e');
+                debugPrint('StoryCreatorTypeScreen: Stack trace: $stackTrace');
                 if (rootContext.mounted) {
+                  final theme = Theme.of(rootContext);
                   ScaffoldMessenger.of(rootContext).showSnackBar(
-                    const SnackBar(
-                      content: Text('Selected video not found. Please try again.'),
-                      backgroundColor: Colors.red,
+                    SnackBar(
+                      content: Text('Error loading video: $e'),
+                      backgroundColor: theme.colorScheme.error,
                     ),
                   );
                 }
               }
-            } catch (e, stackTrace) {
-              debugPrint('StoryCreatorTypeScreen: Error handling video picker: $e');
-              debugPrint('StoryCreatorTypeScreen: Stack trace: $stackTrace');
-              if (rootContext.mounted) {
-                ScaffoldMessenger.of(rootContext).showSnackBar(
-                  SnackBar(
-                    content: Text('Error loading video: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
+            } else {
+              debugPrint(
+                  'StoryCreatorTypeScreen: User cancelled or picker returned null');
+              // User cancelled - no need to show error
             }
-          } else {
-            debugPrint('StoryCreatorTypeScreen: User cancelled or picker returned null');
-            // User cancelled - no need to show error
+          } catch (e, stackTrace) {
+            debugPrint('StoryCreatorTypeScreen: Error in Choose Video: $e');
+            debugPrint('StoryCreatorTypeScreen: Stack trace: $stackTrace');
+            if (rootContext.mounted) {
+              final theme = Theme.of(rootContext);
+              ScaffoldMessenger.of(rootContext).showSnackBar(
+                SnackBar(
+                  content: Text('Failed to open gallery: $e'),
+                  backgroundColor: theme.colorScheme.error,
+                ),
+              );
+            }
           }
-        } catch (e, stackTrace) {
-          debugPrint('StoryCreatorTypeScreen: Error in Choose Video: $e');
-          debugPrint('StoryCreatorTypeScreen: Stack trace: $stackTrace');
-          if (rootContext.mounted) {
-            ScaffoldMessenger.of(rootContext).showSnackBar(
-              SnackBar(
-                content: Text('Failed to open gallery: $e'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        }
-      },
+        },
       ),
     ];
   }
@@ -459,9 +492,11 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
               Container(
                 width: DesignTokens.spaceXL,
                 height: DesignTokens.spaceXS,
-                margin: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSM),
+                margin:
+                    const EdgeInsets.symmetric(vertical: DesignTokens.spaceSM),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityMedium),
+                  color: theme.colorScheme.onSurface
+                      .withOpacity(DesignTokens.opacityMedium),
                   borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
                 ),
               ),
@@ -494,12 +529,16 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                   ],
                 ),
               ),
-              Divider(height: 1, color: theme.dividerColor),
+              Divider(
+                height: DesignTokens.elevation1,
+                color: theme.dividerColor,
+              ),
               // Content
               Expanded(
                 child: ListView(
                   controller: scrollController,
-                  padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
+                  padding: const EdgeInsets.symmetric(
+                      vertical: DesignTokens.spaceMD),
                   children: [
                     // Camera option (prominent)
                     _buildPrimaryOptionCard(
@@ -549,60 +588,72 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                       label: 'Choose Photo',
                       subtitle: 'Select a photo from your gallery',
                       onTap: () async {
-                        debugPrint('StoryCreatorTypeScreen: Choose Photo tapped');
+                        debugPrint(
+                            'StoryCreatorTypeScreen: Choose Photo tapped');
                         HapticFeedback.mediumImpact();
-                        
+
                         // CRITICAL FIX: Get root context before closing bottom sheet
-                        final rootContext = _navigationService.navigatorKey.currentContext;
+                        final rootContext =
+                            _navigationService.navigatorKey.currentContext;
                         if (rootContext == null) {
-                          debugPrint('StoryCreatorTypeScreen: Root context is null, cannot proceed');
+                          debugPrint(
+                              'StoryCreatorTypeScreen: Root context is null, cannot proceed');
                           return;
                         }
-                        
+
                         // Close bottom sheet first
                         Navigator.of(context).pop();
-                        
+
                         // Wait for bottom sheet to close
-                        await Future.delayed(const Duration(milliseconds: 400));
-                        
+                        await Future.delayed(AnimationTokens.fast);
+
                         if (!rootContext.mounted) {
-                          debugPrint('StoryCreatorTypeScreen: Root context no longer mounted');
+                          debugPrint(
+                              'StoryCreatorTypeScreen: Root context no longer mounted');
                           return;
                         }
-                        
+
                         try {
                           // CRITICAL FIX: Let ImagePicker handle permissions internally
                           // Don't request permissions manually as it conflicts with ImagePicker
                           final ImagePicker picker = ImagePicker();
-                          
-                          debugPrint('StoryCreatorTypeScreen: Opening image picker...');
-                          final XFile? image = await picker.pickImage(
+
+                          debugPrint(
+                              'StoryCreatorTypeScreen: Opening image picker...');
+                          final XFile? image = await picker
+                              .pickImage(
                             source: ImageSource.gallery,
                             imageQuality: 85,
-                            maxWidth: 1080,
-                            maxHeight: 1920,
-                          ).timeout(
-                            const Duration(seconds: 30),
+                            maxWidth: StoryConstants.storyWidth,
+                            maxHeight: StoryConstants.storyHeight,
+                          )
+                              .timeout(
+                            const Duration(seconds: 30), // Standard timeout
                             onTimeout: () {
-                              debugPrint('StoryCreatorTypeScreen: Image picker timed out');
+                              debugPrint(
+                                  'StoryCreatorTypeScreen: Image picker timed out');
                               return null;
                             },
                           );
 
-                          debugPrint('StoryCreatorTypeScreen: Image picker returned: ${image != null ? image.path : "null"}');
+                          debugPrint(
+                              'StoryCreatorTypeScreen: Image picker returned: ${image != null ? image.path : "null"}');
 
                           if (image != null) {
                             try {
                               final file = File(image.path);
-                              debugPrint('StoryCreatorTypeScreen: Verifying file exists: ${file.path}');
-                              
+                              debugPrint(
+                                  'StoryCreatorTypeScreen: Verifying file exists: ${file.path}');
+
                               // CRITICAL FIX: Verify file exists
                               if (await file.exists()) {
                                 final fileSize = await file.length();
-                                debugPrint('StoryCreatorTypeScreen: File exists, size: $fileSize bytes');
-                                
+                                debugPrint(
+                                    'StoryCreatorTypeScreen: File exists, size: $fileSize bytes');
+
                                 if (fileSize > 0) {
-                                  debugPrint('StoryCreatorTypeScreen: Navigating to StoryCreatorScreen with image');
+                                  debugPrint(
+                                      'StoryCreatorTypeScreen: Navigating to StoryCreatorScreen with image');
                                   // Use root context for navigation
                                   if (rootContext.mounted) {
                                     await _navigationService.navigateTo(
@@ -611,56 +662,74 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                                         mediaType: 'image',
                                       ),
                                     );
-                                    debugPrint('StoryCreatorTypeScreen: Navigation completed');
+                                    debugPrint(
+                                        'StoryCreatorTypeScreen: Navigation completed');
                                   } else {
-                                    debugPrint('StoryCreatorTypeScreen: Root context no longer mounted');
+                                    debugPrint(
+                                        'StoryCreatorTypeScreen: Root context no longer mounted');
                                   }
                                 } else {
-                                  debugPrint('StoryCreatorTypeScreen: File is empty');
+                                  debugPrint(
+                                      'StoryCreatorTypeScreen: File is empty');
                                   if (rootContext.mounted) {
-                                    ScaffoldMessenger.of(rootContext).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Selected image is empty'),
-                                        backgroundColor: Colors.red,
+                                    final theme = Theme.of(rootContext);
+                                    ScaffoldMessenger.of(rootContext)
+                                        .showSnackBar(
+                                      SnackBar(
+                                        content: const Text(
+                                            'Selected image is empty'),
+                                        backgroundColor:
+                                            theme.colorScheme.error,
                                       ),
                                     );
                                   }
                                 }
                               } else {
-                                debugPrint('StoryCreatorTypeScreen: File does not exist');
+                                debugPrint(
+                                    'StoryCreatorTypeScreen: File does not exist');
                                 if (rootContext.mounted) {
-                                  ScaffoldMessenger.of(rootContext).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Selected image not found. Please try again.'),
-                                      backgroundColor: Colors.red,
+                                  final theme = Theme.of(rootContext);
+                                  ScaffoldMessenger.of(rootContext)
+                                      .showSnackBar(
+                                    SnackBar(
+                                      content: const Text(
+                                          'Selected image not found. Please try again.'),
+                                      backgroundColor: theme.colorScheme.error,
                                     ),
                                   );
                                 }
                               }
                             } catch (e, stackTrace) {
-                              debugPrint('StoryCreatorTypeScreen: Error handling image picker: $e');
-                              debugPrint('StoryCreatorTypeScreen: Stack trace: $stackTrace');
+                              debugPrint(
+                                  'StoryCreatorTypeScreen: Error handling image picker: $e');
+                              debugPrint(
+                                  'StoryCreatorTypeScreen: Stack trace: $stackTrace');
                               if (rootContext.mounted) {
+                                final theme = Theme.of(rootContext);
                                 ScaffoldMessenger.of(rootContext).showSnackBar(
                                   SnackBar(
                                     content: Text('Error loading image: $e'),
-                                    backgroundColor: Colors.red,
+                                    backgroundColor: theme.colorScheme.error,
                                   ),
                                 );
                               }
                             }
                           } else {
-                            debugPrint('StoryCreatorTypeScreen: User cancelled or picker returned null');
+                            debugPrint(
+                                'StoryCreatorTypeScreen: User cancelled or picker returned null');
                             // User cancelled - no need to show error
                           }
                         } catch (e, stackTrace) {
-                          debugPrint('StoryCreatorTypeScreen: Error in Choose Photo: $e');
-                          debugPrint('StoryCreatorTypeScreen: Stack trace: $stackTrace');
+                          debugPrint(
+                              'StoryCreatorTypeScreen: Error in Choose Photo: $e');
+                          debugPrint(
+                              'StoryCreatorTypeScreen: Stack trace: $stackTrace');
                           if (rootContext.mounted) {
+                            final theme = Theme.of(rootContext);
                             ScaffoldMessenger.of(rootContext).showSnackBar(
                               SnackBar(
                                 content: Text('Failed to open gallery: $e'),
-                                backgroundColor: Colors.red,
+                                backgroundColor: theme.colorScheme.error,
                               ),
                             );
                           }
@@ -702,10 +771,11 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                       ),
                       const SizedBox(height: DesignTokens.spaceSM),
                       if (_isLoadingPhotos)
-                        const SizedBox(
-                          height: 100,
+                        SizedBox(
+                          height:
+                              DesignTokens.spaceXXXL + DesignTokens.spaceXXL,
                           child: Center(
-                            child: const AppProgressIndicator(
+                            child: AppProgressIndicator(
                               color: SonarPulseTheme.primaryAccent,
                             ),
                           ),
@@ -719,7 +789,8 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                             padding: const EdgeInsets.all(DesignTokens.spaceMD),
                             decoration: BoxDecoration(
                               color: theme.colorScheme.errorContainer,
-                              borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                              borderRadius:
+                                  BorderRadius.circular(DesignTokens.radiusMD),
                             ),
                             child: Row(
                               children: [
@@ -754,13 +825,15 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                             padding: const EdgeInsets.all(DesignTokens.spaceMD),
                             decoration: BoxDecoration(
                               color: theme.colorScheme.surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                              borderRadius:
+                                  BorderRadius.circular(DesignTokens.radiusMD),
                             ),
                             child: Center(
                               child: Text(
                                 'No recent photos',
                                 style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityMedium),
+                                  color: theme.colorScheme.onSurface
+                                      .withOpacity(DesignTokens.opacityMedium),
                                 ),
                               ),
                             ),
@@ -768,7 +841,8 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                         )
                       else
                         SizedBox(
-                          height: 100,
+                          height:
+                              DesignTokens.spaceXXXL + DesignTokens.spaceXXL,
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
                             padding: const EdgeInsets.symmetric(
@@ -819,10 +893,11 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                       ),
                       const SizedBox(height: DesignTokens.spaceSM),
                       if (_isLoadingVideos)
-                        const SizedBox(
-                          height: 100,
+                        SizedBox(
+                          height:
+                              DesignTokens.spaceXXXL + DesignTokens.spaceXXL,
                           child: Center(
-                            child: const AppProgressIndicator(
+                            child: AppProgressIndicator(
                               color: SonarPulseTheme.primaryAccent,
                             ),
                           ),
@@ -836,7 +911,8 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                             padding: const EdgeInsets.all(DesignTokens.spaceMD),
                             decoration: BoxDecoration(
                               color: theme.colorScheme.errorContainer,
-                              borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                              borderRadius:
+                                  BorderRadius.circular(DesignTokens.radiusMD),
                             ),
                             child: Row(
                               children: [
@@ -871,13 +947,15 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                             padding: const EdgeInsets.all(DesignTokens.spaceMD),
                             decoration: BoxDecoration(
                               color: theme.colorScheme.surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                              borderRadius:
+                                  BorderRadius.circular(DesignTokens.radiusMD),
                             ),
                             child: Center(
                               child: Text(
                                 'No recent videos',
                                 style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityMedium),
+                                  color: theme.colorScheme.onSurface
+                                      .withOpacity(DesignTokens.opacityMedium),
                                 ),
                               ),
                             ),
@@ -885,7 +963,8 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                         )
                       else
                         SizedBox(
-                          height: 100,
+                          height:
+                              DesignTokens.spaceXXXL + DesignTokens.spaceXXL,
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
                             padding: const EdgeInsets.symmetric(
@@ -951,12 +1030,13 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                   Container(
                     padding: const EdgeInsets.all(DesignTokens.spaceMD),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: theme.colorScheme.onPrimary
+                          .withOpacity(DesignTokens.opacityMedium),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       icon,
-                      color: Colors.white,
+                      color: theme.colorScheme.onPrimary,
                       size: DesignTokens.iconXL,
                     ),
                   ),
@@ -968,7 +1048,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                         Text(
                           label,
                           style: theme.textTheme.titleLarge?.copyWith(
-                            color: Colors.white,
+                            color: theme.colorScheme.onPrimary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -976,15 +1056,16 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                         Text(
                           subtitle,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.white.withOpacity(0.9),
+                            color: theme.colorScheme.onPrimary
+                                .withOpacity(DesignTokens.opacityHigh),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.arrow_forward_ios,
-                    color: Colors.white,
+                    color: theme.colorScheme.onPrimary,
                     size: DesignTokens.iconSM,
                   ),
                 ],
@@ -1030,7 +1111,8 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                     padding: const EdgeInsets.all(DesignTokens.spaceSM),
                     decoration: BoxDecoration(
                       color: SonarPulseTheme.primaryAccent.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusSM),
                     ),
                     child: Icon(
                       icon,
@@ -1053,7 +1135,8 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                         Text(
                           subtitle,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityMedium),
+                            color: theme.colorScheme.onSurface
+                                .withOpacity(DesignTokens.opacityMedium),
                           ),
                         ),
                       ],
@@ -1061,7 +1144,8 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                   ),
                   Icon(
                     Icons.chevron_right,
-                    color: theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityMedium),
+                    color: theme.colorScheme.onSurface
+                        .withOpacity(DesignTokens.opacityMedium),
                     size: DesignTokens.iconMD,
                   ),
                 ],
@@ -1088,14 +1172,14 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
         child: GestureDetector(
           onTap: onTap,
           child: Container(
-            width: 80,
-            height: 80,
+            width: DesignTokens.spaceXXXL - DesignTokens.spaceMD,
+            height: DesignTokens.spaceXXXL - DesignTokens.spaceMD,
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
               border: Border.all(
                 color: theme.colorScheme.outline.withOpacity(0.2),
-                width: 1,
+                width: DesignTokens.elevation1,
               ),
             ),
             child: ClipRRect(
@@ -1109,7 +1193,8 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                   return Center(
                     child: Icon(
                       Icons.photo,
-                      color: theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityMedium),
+                      color: theme.colorScheme.onSurface
+                          .withOpacity(DesignTokens.opacityMedium),
                       size: DesignTokens.iconMD,
                     ),
                   );
@@ -1137,14 +1222,14 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
         child: GestureDetector(
           onTap: onTap,
           child: Container(
-            width: 80,
-            height: 80,
+            width: DesignTokens.spaceXXXL - DesignTokens.spaceMD,
+            height: DesignTokens.spaceXXXL - DesignTokens.spaceMD,
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
               border: Border.all(
                 color: theme.colorScheme.outline.withOpacity(0.2),
-                width: 1,
+                width: DesignTokens.elevation1,
               ),
             ),
             child: ClipRRect(
@@ -1161,7 +1246,8 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                       return Center(
                         child: Icon(
                           Icons.video_library,
-                          color: theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityMedium),
+                          color: theme.colorScheme.onSurface
+                              .withOpacity(DesignTokens.opacityMedium),
                           size: DesignTokens.iconMD,
                         ),
                       );
@@ -1172,12 +1258,13 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(DesignTokens.spaceXS),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.5),
+                        color: theme.colorScheme.surface
+                            .withOpacity(DesignTokens.opacityMedium),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.play_arrow,
-                        color: Colors.white,
+                        color: theme.colorScheme.onSurface,
                         size: DesignTokens.iconSM,
                       ),
                     ),
@@ -1200,8 +1287,8 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
         return Image.memory(
           thumbnail,
           fit: BoxFit.cover,
-          width: 80,
-          height: 80,
+          width: DesignTokens.spaceXXXL - DesignTokens.spaceMD,
+          height: DesignTokens.spaceXXXL - DesignTokens.spaceMD,
         );
       }
     } catch (e) {

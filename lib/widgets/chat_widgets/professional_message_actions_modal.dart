@@ -51,14 +51,14 @@ class _ProfessionalMessageActionsModalState
   late Animation<Offset> _slideAnimation;
   late List<Animation<double>> _staggerAnimations;
 
-  final List<String> _quickReactions = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+  final List<String> _quickReactions = ['👍', '💚', '😂', '😮', '😢', '🙏'];
 
   @override
   void initState() {
     super.initState();
 
     _entranceController = AnimationController(
-      duration: DesignTokens.durationNormal,
+      duration: AnimationTokens.normal,
       vsync: this,
     );
 
@@ -72,7 +72,7 @@ class _ProfessionalMessageActionsModalState
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _entranceController,
-      curve: DesignTokens.curveEaseOut,
+      curve: AnimationTokens.easeOut,
     ));
 
     _slideAnimation = Tween<Offset>(
@@ -80,7 +80,7 @@ class _ProfessionalMessageActionsModalState
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _entranceController,
-      curve: DesignTokens.curveEaseOut,
+      curve: AnimationTokens.easeOut,
     ));
 
     // Create stagger animations for reactions and actions
@@ -503,7 +503,7 @@ class _ReactionButtonState extends State<_ReactionButton>
   void initState() {
     super.initState();
     _scaleController = AnimationController(
-      duration: DesignTokens.durationFast,
+      duration: AnimationTokens.fast,
       vsync: this,
     );
     _scaleAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
@@ -595,26 +595,3 @@ class _ActionTile extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

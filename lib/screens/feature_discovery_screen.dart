@@ -36,7 +36,7 @@ class _FeatureDiscoveryScreenState extends State<FeatureDiscoveryScreen>
   final Map<String, String> _categoryLabels = {
     'posting': '📝 Posting',
     'discovery': '🔍 Discovery',
-    'engagement': '❤️ Engagement',
+    'engagement': '💚 Engagement',
     'monetization': '🚀 Growth',
     'management': '⚙️ Management',
   };

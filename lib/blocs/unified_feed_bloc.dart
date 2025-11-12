@@ -4,6 +4,7 @@
 
 import 'dart:async';
 import 'package:bloc/bloc.dart';
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
@@ -75,7 +76,8 @@ class UnifiedFeedLoading extends UnifiedFeedState {
 
 class UnifiedFeedLoaded extends UnifiedFeedState {
   final List<FeedItem> items;
-  final bool isLoading;
+  final bool isLoading; // true = loading more (show bottom spinner)
+  final bool isRefreshing; // true = refreshing (show top spinner)
   final bool hasMore;
   final String? error;
   final DocumentSnapshot? lastDocument;
@@ -88,7 +90,7 @@ class UnifiedFeedLoaded extends UnifiedFeedState {
   // Feed freshness tracking
   final DateTime? lastUpdateTime;
   final DateTime? lastViewedTime;
-  
+
   // CRITICAL FIX: Pre-computed values to prevent redundant calculations on every build
   // These are computed once when state is created/updated
   final int _cachedNewPostsCount;
@@ -96,7 +98,8 @@ class UnifiedFeedLoaded extends UnifiedFeedState {
 
   UnifiedFeedLoaded({
     this.items = const [],
-    this.isLoading = false,
+    this.isLoading = false, // Loading more (bottom spinner)
+    this.isRefreshing = false, // Refreshing (top spinner)
     this.hasMore = true,
     this.error,
     this.lastDocument,
@@ -107,13 +110,14 @@ class UnifiedFeedLoaded extends UnifiedFeedState {
     this.pageSuggestions = const [],
     this.lastUpdateTime,
     this.lastViewedTime,
-  }) : _cachedNewPostsCount = _computeNewPostsCount(items, lastViewedTime),
-       _cachedNewPostIds = _computeNewPostIds(items, lastViewedTime);
+  })  : _cachedNewPostsCount = _computeNewPostsCount(items, lastViewedTime),
+        _cachedNewPostIds = _computeNewPostIds(items, lastViewedTime);
 
   // Helper method to compute new posts count
-  static int _computeNewPostsCount(List<FeedItem> items, DateTime? lastViewedTime) {
+  static int _computeNewPostsCount(
+      List<FeedItem> items, DateTime? lastViewedTime) {
     if (lastViewedTime == null) return 0;
-    
+
     int count = 0;
     for (final item in items) {
       if (item is PostFeedItem) {
@@ -124,11 +128,12 @@ class UnifiedFeedLoaded extends UnifiedFeedState {
     }
     return count;
   }
-  
+
   // Helper method to compute new post IDs
-  static List<String> _computeNewPostIds(List<FeedItem> items, DateTime? lastViewedTime) {
+  static List<String> _computeNewPostIds(
+      List<FeedItem> items, DateTime? lastViewedTime) {
     if (lastViewedTime == null) return const [];
-    
+
     final newPostIds = <String>[];
     for (final item in items) {
       if (item is PostFeedItem) {
@@ -143,6 +148,7 @@ class UnifiedFeedLoaded extends UnifiedFeedState {
   UnifiedFeedLoaded copyWith({
     List<FeedItem>? items,
     bool? isLoading,
+    bool? isRefreshing,
     bool? hasMore,
     String? error,
     DocumentSnapshot? lastDocument,
@@ -159,6 +165,7 @@ class UnifiedFeedLoaded extends UnifiedFeedState {
     return UnifiedFeedLoaded(
       items: items ?? this.items,
       isLoading: isLoading ?? this.isLoading,
+      isRefreshing: isRefreshing ?? this.isRefreshing,
       hasMore: hasMore ?? this.hasMore,
       error: error,
       lastDocument: lastDocument ?? this.lastDocument,
@@ -176,6 +183,7 @@ class UnifiedFeedLoaded extends UnifiedFeedState {
   List<Object?> get props => [
         items,
         isLoading,
+        isRefreshing,
         hasMore,
         error,
         lastDocument,
@@ -187,13 +195,13 @@ class UnifiedFeedLoaded extends UnifiedFeedState {
         lastUpdateTime,
         lastViewedTime,
       ];
-  
+
   /// Returns the number of new posts since last viewed
   /// CRITICAL FIX: Pre-computed to prevent redundant calculations on every build
   int getNewPostsCount() {
     return _cachedNewPostsCount;
   }
-  
+
   /// Returns list of post IDs that are new since last viewed
   /// CRITICAL FIX: Pre-computed to prevent redundant calculations on every build
   List<String> getNewPostIds() {
@@ -251,8 +259,16 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
         _pageRepository = pageRepository,
         _feedCacheService = feedCacheService ?? FeedCacheService(),
         super(const UnifiedFeedInitial()) {
-    on<LoadUnifiedFeedEvent>(_onLoadUnifiedFeed);
-    on<LoadMoreUnifiedFeedEvent>(_onLoadMoreUnifiedFeed);
+    // Use droppable() transformer to prevent duplicate requests
+    // If user spams "Scroll Down", ignore extra events until first one finishes
+    on<LoadUnifiedFeedEvent>(
+      _onLoadUnifiedFeed,
+      transformer: droppable(),
+    );
+    on<LoadMoreUnifiedFeedEvent>(
+      _onLoadMoreUnifiedFeed,
+      transformer: droppable(),
+    );
     // Initialize cache service
     _feedCacheService.init();
   }
@@ -263,15 +279,30 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
   ) async {
     // Performance tracking
     final loadStartTime = DateTime.now();
-    debugPrint('📊 UnifiedFeedBloc: Feed load started at ${loadStartTime.toIso8601String()}');
-    
+    debugPrint(
+        '📊 UnifiedFeedBloc: Feed load started at ${loadStartTime.toIso8601String()}');
+
     if (event.refresh) {
       _lastDocument = null;
       _hasMore = true;
       _adCounter = 0; // Reset ad counter on refresh
+      // Clear repository cache on refresh
+      _postRepository.clearPageCache();
     }
 
-    emit(const UnifiedFeedLoading());
+    // Emit loading state with proper differentiation
+    // isRefreshing = true means top spinner, isLoading = true means bottom spinner
+    if (event.refresh) {
+      // Refresh: show top spinner
+      if (state is UnifiedFeedLoaded) {
+        emit((state as UnifiedFeedLoaded).copyWith(isRefreshing: true));
+      } else {
+        emit(const UnifiedFeedLoading());
+      }
+    } else {
+      // Initial load: show full loading state
+      emit(const UnifiedFeedLoading());
+    }
 
     // Try to load from cache first if not refreshing
     if (!event.refresh) {
@@ -281,7 +312,7 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
           // Emit cached data immediately for better UX
           final cachedState = UnifiedFeedLoaded(
             items: cachedItems,
-            isLoading: true, // Still loading fresh data in background
+            isRefreshing: true, // Still loading fresh data in background
             hasMore: false,
             timeFilter: event.timeFilter,
             lastUpdateTime: _feedCacheService.getLastCacheTime(),
@@ -316,6 +347,7 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
       }
 
       // Fetch unified feed (all post types, deduplicated)
+      // Pass refresh flag to clear cache on pull-to-refresh
       final result = await _postRepository.getUnifiedFeed(
         userId: event.userId,
         userLocation: userLocation, // Can be null if not available
@@ -323,6 +355,7 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
         lastDocument: _lastDocument,
         limit: 20,
         userTargeting: userTargeting,
+        refresh: event.refresh, // Clear cache on refresh
       );
 
       final posts = result.$1;
@@ -331,19 +364,19 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
       _lastDocument = lastDoc;
       _hasMore =
           posts.length == 20; // If we got full limit, there might be more
-      
+
       // Get previous state to preserve lastViewedTime
       final previousState = state;
       DateTime? previousLastViewedTime;
       if (previousState is UnifiedFeedLoaded) {
         previousLastViewedTime = previousState.lastViewedTime;
       }
-      
+
       // Set lastViewedTime:
       // - On refresh: preserve previous lastViewedTime to track new posts
       // - On initial load: set to current time (all posts are "new" initially)
-      final currentLastViewedTime = event.refresh 
-          ? (previousLastViewedTime ?? DateTime.now()) 
+      final currentLastViewedTime = event.refresh
+          ? (previousLastViewedTime ?? DateTime.now())
           : DateTime.now();
 
       // CRITICAL FIX: Single-pass processing to reduce memory allocations
@@ -380,7 +413,8 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
       }
 
       // Sort user's own posts by recency (newest first) - in-place sort
-      userOwnRecent.sort((a, b) => b.post.timestamp.compareTo(a.post.timestamp));
+      userOwnRecent
+          .sort((a, b) => b.post.timestamp.compareTo(a.post.timestamp));
 
       // Sort other items by score (highest first) - in-place sort
       otherItems.sort((a, b) => b.score.compareTo(a.score));
@@ -398,6 +432,8 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
       }
 
       // Process other posts - separate boosted from regular in single pass
+      // Also limit trending badge to top 3 trending posts only
+      int trendingCount = 0;
       for (final item in otherItems) {
         if (item.post.isBoosted && boostedPostsList.length < 3) {
           // Limit to 3 boosted posts
@@ -406,9 +442,21 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
             displayType: item.displayType,
           ));
         } else {
+          // Only show trending badge on top 3 trending posts
+          PostDisplayType finalDisplayType = item.displayType;
+          if (item.displayType == PostDisplayType.trending) {
+            if (trendingCount < 3) {
+              trendingCount++;
+              // Keep trending badge
+            } else {
+              // Remove trending badge, show as organic
+              finalDisplayType = PostDisplayType.organic;
+            }
+          }
+
           regularPosts.add(PostFeedItem(
             post: item.post,
-            displayType: item.displayType,
+            displayType: finalDisplayType,
           ));
         }
       }
@@ -455,16 +503,19 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
 
       final loadEndTime = DateTime.now();
       final loadDuration = loadEndTime.difference(loadStartTime);
-      
+
       debugPrint(
           '📊 UnifiedFeedBloc: Loaded ${regularPosts.length} items (${userOwnRecent.length} user posts, ${otherItems.length - boostedPostsList.length} other posts, ${boostedPostsList.length} boosted)');
-      debugPrint('📊 UnifiedFeedBloc: Feed load completed in ${loadDuration.inMilliseconds}ms');
-      debugPrint('📊 UnifiedFeedBloc: Performance - Items: ${regularPosts.length}, Trending Reels: ${trendingReelsList.length}, Friend Suggestions: ${friendSuggestionsList.length}, Page Suggestions: ${pageSuggestionsList.length}');
+      debugPrint(
+          '📊 UnifiedFeedBloc: Feed load completed in ${loadDuration.inMilliseconds}ms');
+      debugPrint(
+          '📊 UnifiedFeedBloc: Performance - Items: ${regularPosts.length}, Trending Reels: ${trendingReelsList.length}, Friend Suggestions: ${friendSuggestionsList.length}, Page Suggestions: ${pageSuggestionsList.length}');
 
       // Cache the feed items for offline support
       try {
         await _feedCacheService.cacheFeedItems(regularPosts);
-        debugPrint('📊 UnifiedFeedBloc: Cached ${regularPosts.length} posts for offline access');
+        debugPrint(
+            '📊 UnifiedFeedBloc: Cached ${regularPosts.length} posts for offline access');
       } catch (e) {
         debugPrint('UnifiedFeedBloc: Error caching feed: $e');
       }
@@ -472,6 +523,7 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
       emit(UnifiedFeedLoaded(
         items: regularPosts,
         isLoading: false,
+        isRefreshing: false, // Refresh complete
         hasMore: _hasMore,
         timeFilter: event.timeFilter,
         lastDocument: _lastDocument,
@@ -485,8 +537,9 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
     } catch (e) {
       final errorTime = DateTime.now();
       final errorDuration = errorTime.difference(loadStartTime);
-      debugPrint('❌ UnifiedFeedBloc: Error loading unified feed after ${errorDuration.inMilliseconds}ms: $e');
-      
+      debugPrint(
+          '❌ UnifiedFeedBloc: Error loading unified feed after ${errorDuration.inMilliseconds}ms: $e');
+
       // Try to load from cache as fallback
       try {
         final cachedItems = await _feedCacheService.getCachedFeedItems();
@@ -496,6 +549,7 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
             UnifiedFeedLoaded(
               items: cachedItems,
               isLoading: false,
+              isRefreshing: false,
               hasMore: false,
               error: 'Using cached content. ${e.toString()}',
               timeFilter: event.timeFilter,
@@ -507,7 +561,7 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
       } catch (cacheError) {
         debugPrint('UnifiedFeedBloc: Error loading from cache: $cacheError');
       }
-      
+
       emit(UnifiedFeedError(e.toString()));
     }
   }
@@ -665,8 +719,15 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
 
         // CRITICAL FIX: Single-pass processing for load more
         // Calculate scores and convert directly to FeedItem in one pass
+        // Also limit trending badge to top 3 trending posts total (existing + new)
+        final existingTrendingCount = currentState.items
+            .whereType<PostFeedItem>()
+            .where((item) => item.displayType == PostDisplayType.trending)
+            .length;
+
+        int newTrendingCount = 0;
         final moreFeedItems = <FeedItem>[];
-        
+
         for (final post in newPosts) {
           final score = FeedScoringService.calculateScore(
             post,
@@ -675,9 +736,22 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
             timeFilter: event.timeFilter,
           );
 
+          // Only show trending badge on top 3 trending posts total
+          PostDisplayType finalDisplayType = score.badgeType;
+          if (score.badgeType == PostDisplayType.trending) {
+            final totalTrendingCount = existingTrendingCount + newTrendingCount;
+            if (totalTrendingCount < 3) {
+              newTrendingCount++;
+              // Keep trending badge
+            } else {
+              // Remove trending badge, show as organic
+              finalDisplayType = PostDisplayType.organic;
+            }
+          }
+
           moreFeedItems.add(PostFeedItem(
             post: post,
-            displayType: score.badgeType,
+            displayType: finalDisplayType,
           ));
         }
 
@@ -687,10 +761,14 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
         moreFeedItems.sort((a, b) {
           if (a is PostFeedItem && b is PostFeedItem) {
             // Use a simple heuristic for sorting (reaction count + time)
-            final scoreA = a.post.reactionCount * 0.7 + 
-                          (DateTime.now().difference(a.post.timestamp).inHours < 24 ? 10 : 0);
-            final scoreB = b.post.reactionCount * 0.7 + 
-                          (DateTime.now().difference(b.post.timestamp).inHours < 24 ? 10 : 0);
+            final scoreA = a.post.reactionCount * 0.7 +
+                (DateTime.now().difference(a.post.timestamp).inHours < 24
+                    ? 10
+                    : 0);
+            final scoreB = b.post.reactionCount * 0.7 +
+                (DateTime.now().difference(b.post.timestamp).inHours < 24
+                    ? 10
+                    : 0);
             return scoreB.compareTo(scoreA);
           }
           return 0;
@@ -711,7 +789,8 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
 
         emit(currentState.copyWith(
           items: [...currentState.items, ...moreFeedItems],
-          isLoading: false,
+          isLoading: false, // Loading more complete
+          isRefreshing: false,
           hasMore: _hasMore,
           lastDocument: _lastDocument,
         ));

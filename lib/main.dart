@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -55,11 +56,7 @@ import 'package:freegram/services/device_info_helper.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:freegram/theme/app_theme.dart';
-// Phase 1.3: Background Prefetch
-// NOTE: Temporarily disabled due to workmanager compatibility issues with Flutter Android embedding
-// import 'package:workmanager/workmanager.dart';
-// import 'package:freegram/services/intelligent_prefetch_service.dart';
-// import 'package:shared_preferences/shared_preferences.dart';
+import 'package:freegram/theme/design_tokens.dart';
 
 // --- START: Firebase Messaging Background Handler ---
 @pragma('vm:entry-point')
@@ -139,43 +136,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 // --- END: Background Handler ---
 
-// --- Phase 1.3: WorkManager Background Task Callback ---
-// NOTE: Temporarily disabled due to workmanager compatibility issues
-// @pragma('vm:entry-point')
-// void callbackDispatcher() {
-//   Workmanager().executeTask((task, inputData) async {
-//     debugPrint('WorkManager: Background task executed: $task');
-//     debugPrint('WorkManager: Input data: $inputData');
-//
-//     // TODO: Implement actual prefetch logic here
-//     // This would need to:
-//     // 1. Initialize Firebase (if needed)
-//     // 2. Get current user ID from SharedPreferences or secure storage
-//     // 3. Call a service to prefetch feed content
-//     // 4. Prefetch images/videos using MediaPrefetchService
-//     //
-//     // Example structure:
-//     // try {
-//     //   final userId = await _getUserIdFromStorage();
-//     //   if (userId != null) {
-//     //     final feedService = FeedPrefetchService();
-//     //     await feedService.prefetchFeedForUser(userId);
-//     //     debugPrint('WorkManager: Successfully prefetched feed for user $userId');
-//     //   }
-//     // } catch (e) {
-//     //   debugPrint('WorkManager: Error prefetching feed: $e');
-//     //   return Future.value(false);
-//     // }
-//
-//     // For now, just log that the task ran
-//     debugPrint(
-//         'WorkManager: Prefetch task completed (placeholder implementation)');
-//
-//     return Future.value(true);
-//   });
-// }
-// --- END: WorkManager Callback ---
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -232,20 +192,6 @@ void main() async {
   await LocalNotificationService.NotificationService().initialize();
   await Hive.initFlutter();
 
-  // Phase 1.3: Initialize WorkManager for background prefetching
-  // NOTE: Temporarily disabled due to workmanager compatibility issues
-  // if (!kIsWeb) {
-  //   try {
-  //     await Workmanager().initialize(
-  //       callbackDispatcher,
-  //       isInDebugMode: kDebugMode,
-  //     );
-  //     debugPrint('WorkManager: Initialized successfully');
-  //   } catch (e) {
-  //     debugPrint('WorkManager: Error initializing: $e');
-  //   }
-  // }
-
   // --- Register Hive Adapters ---
   if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(NearbyUserAdapter());
   if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(UserProfileAdapter());
@@ -268,6 +214,18 @@ void main() async {
   if (!kIsWeb) {
     await locator<CacheManagerService>().manageCache();
   }
+  // Make app full screen (hide system UI bars)
+  SystemChrome.setEnabledSystemUIMode(
+    SystemUiMode.immersiveSticky,
+    overlays: [],
+  );
+
+  // Set preferred orientations
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
   runApp(MyApp(connectivityBloc: connectivityBloc));
 }
 
@@ -302,7 +260,8 @@ class MyApp extends StatelessWidget {
           return MediaQuery(
             data: MediaQuery.of(context).copyWith(
               // Ensure text doesn't scale too much
-              textScaler: TextScaler.linear(MediaQuery.of(context).textScaleFactor.clamp(0.8, 1.2)),
+              textScaler: TextScaler.linear(
+                  MediaQuery.of(context).textScaleFactor.clamp(0.8, 1.2)),
             ),
             child: child!,
           );
@@ -440,13 +399,16 @@ class AuthWrapper extends StatelessWidget {
                   !snapshot.hasData) {
                 return Scaffold(
                   backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                  body: const Center(
+                  body: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        AppProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Loading your profile...'),
+                        const AppProgressIndicator(),
+                        const SizedBox(height: DesignTokens.spaceMD),
+                        Text(
+                          'Loading your profile...',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
                       ],
                     ),
                   ),
@@ -462,13 +424,16 @@ class AuthWrapper extends StatelessWidget {
                   // Show loading for a bit longer for new users
                   return Scaffold(
                     backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                    body: const Center(
+                    body: Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          AppProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text('Setting up your profile...'),
+                          const AppProgressIndicator(),
+                          const SizedBox(height: DesignTokens.spaceMD),
+                          Text(
+                            'Setting up your profile...',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
                         ],
                       ),
                     ),
@@ -480,7 +445,11 @@ class AuthWrapper extends StatelessWidget {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content: Text(
                           'Error loading user profile: ${snapshot.error}. Please try logging in again.'),
-                      backgroundColor: Colors.red,
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ));
                   }
                 });
@@ -659,11 +628,17 @@ class _MainScreenWrapperState extends State<MainScreenWrapper>
     }
 
     try {
-      // Dispose presence manager (cancels timers) - this is synchronous
-      _presenceManager?.dispose();
-      debugPrint("MainScreenWrapper: PresenceManager disposed");
+      // OPTIMIZATION: Dispose presence manager (cancels timers) - fire-and-forget to prevent blocking
+      // PresenceManager.dispose() is async but we don't await to prevent blocking logout
+      _presenceManager?.dispose().catchError((e) {
+        debugPrint(
+            "MainScreenWrapper: Error disposing PresenceManager in background: $e");
+      });
+      debugPrint(
+          "MainScreenWrapper: PresenceManager dispose initiated (non-blocking)");
     } catch (e) {
-      debugPrint("MainScreenWrapper: Error disposing PresenceManager: $e");
+      debugPrint(
+          "MainScreenWrapper: Error initiating PresenceManager dispose: $e");
     }
 
     // Note: SyncManager subscriptions are tied to ConnectivityBloc
@@ -675,37 +650,9 @@ class _MainScreenWrapperState extends State<MainScreenWrapper>
   }
 
   // --- Handle App Lifecycle Changes ---
-  /// Phase 1.3: Initialize Intelligent Prefetch Service (temporarily disabled)
-  // Future<void> _initializePrefetchService() async {
-  //   try {
-  //     final prefs = await SharedPreferences.getInstance();
-  //     _prefetchService = IntelligentPrefetchService(prefs: prefs);
-  //     
-  //     // Record initial app open
-  //     _prefetchService?.recordAppOpen();
-  //     
-  //     // Schedule background prefetch
-  //     _prefetchService?.scheduleBackgroundPrefetch();
-  //     
-  //     debugPrint('MainScreenWrapper: IntelligentPrefetchService initialized');
-  //   } catch (e) {
-  //     debugPrint('MainScreenWrapper: Error initializing prefetch service: $e');
-  //   }
-  // }
-
-  /// Phase 1.3: Record app open for pattern learning (temporarily disabled)
-  // void _recordAppOpen() {
-  //   _prefetchService?.recordAppOpen();
-  //   // Re-schedule prefetch after recording new pattern
-  //   _prefetchService?.scheduleBackgroundPrefetch();
-  // }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Phase 1.3: Track app opens for intelligent prefetching (temporarily disabled)
-    // if (state == AppLifecycleState.resumed) {
-    //   _recordAppOpen();
-    // }
     super.didChangeAppLifecycleState(state);
     debugPrint("MainScreenWrapper: AppLifecycleState changed to $state");
     if (kIsWeb) return; // Ignore lifecycle events on web
@@ -773,8 +720,7 @@ class _MainScreenWrapperState extends State<MainScreenWrapper>
       return;
     }
 
-    // Onboarding is now handled by AuthWrapper using MultiStepOnboardingScreen
-    // Removed old OnboardingScreen usage - it's been replaced by MultiStepOnboardingScreen
+    // Onboarding is handled by AuthWrapper using MultiStepOnboardingScreen
 
     // --- Improvement (Auto-Run Sonar - Initial Start) ---
     // Start Sonar automatically after onboarding (or if already seen)

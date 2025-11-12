@@ -13,14 +13,9 @@ import 'package:freegram/screens/edit_profile_screen.dart';
 import 'package:freegram/theme/app_theme.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:freegram/screens/qr_display_screen.dart';
 import 'package:freegram/utils/mutual_friends_helper.dart';
 import 'package:freegram/repositories/post_repository.dart';
 import 'package:freegram/models/post_model.dart';
-import 'package:freegram/repositories/page_repository.dart';
-import 'package:freegram/models/page_model.dart';
-import 'package:freegram/screens/create_page_screen.dart';
-import 'package:freegram/screens/page_profile_screen.dart';
 import 'package:freegram/widgets/feed_widgets/post_card.dart';
 import 'package:freegram/models/feed_item_model.dart';
 import 'package:freegram/widgets/reels/user_reels_tab.dart';
@@ -51,38 +46,20 @@ class _ProfileScreenView extends StatefulWidget {
   State<_ProfileScreenView> createState() => _ProfileScreenViewState();
 }
 
-class _ProfileScreenViewState extends State<_ProfileScreenView> with SingleTickerProviderStateMixin {
-  final PageRepository _pageRepository = locator<PageRepository>();
-  List<PageModel> _myPages = [];
-  bool _loadingPages = false;
+class _ProfileScreenViewState extends State<_ProfileScreenView>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadMyPagesIfOwnProfile();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadMyPagesIfOwnProfile() async {
-    final isCurrentUserProfile =
-        FirebaseAuth.instance.currentUser?.uid == widget.userId;
-    if (!isCurrentUserProfile) return;
-    setState(() => _loadingPages = true);
-    try {
-      final pages = await _pageRepository.getUserPages(widget.userId);
-      if (mounted) setState(() => _myPages = pages);
-    } catch (e) {
-      debugPrint('ProfileScreen: Error loading user pages: $e');
-    } finally {
-      if (mounted) setState(() => _loadingPages = false);
-    }
   }
 
   Future<void> _startChat(BuildContext context, UserModel user) async {
@@ -105,34 +82,44 @@ class _ProfileScreenViewState extends State<_ProfileScreenView> with SingleTicke
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusXL),
+        ),
+      ),
       builder: (bottomSheetContext) {
         final theme = Theme.of(context);
         return Container(
           decoration: BoxDecoration(
             color: theme.scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(DesignTokens.radiusXL),
+            ),
           ),
           child: SafeArea(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(height: 12),
+                const SizedBox(height: DesignTokens.spaceMD),
                 Container(
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.onSurface.withOpacity(0.2),
+                    color: theme.colorScheme.onSurface.withOpacity(
+                      DesignTokens.opacityMedium,
+                    ),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: DesignTokens.spaceLG),
                 ListTile(
                   leading: Container(
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
                       color: theme.colorScheme.error.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusSM),
                     ),
                     child: Icon(
                       Icons.block_outlined,
@@ -153,7 +140,7 @@ class _ProfileScreenViewState extends State<_ProfileScreenView> with SingleTicke
                     _confirmBlockUser(context, user);
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: DesignTokens.spaceMD),
               ],
             ),
           ),
@@ -194,48 +181,10 @@ class _ProfileScreenViewState extends State<_ProfileScreenView> with SingleTicke
       // Block user
       context.read<FriendsBloc>().add(BlockUser(user.id));
 
-      // Listen for success/error
-      final subscription = context.read<FriendsBloc>().stream.listen((state) {
-        if (state is FriendsActionSuccess) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('${user.username} has been blocked.'),
-                backgroundColor: Theme.of(context).colorScheme.error,
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 2),
-              ),
-            );
-
-            // Reload friends data to reflect changes
-            context.read<FriendsBloc>().add(LoadFriends());
-
-            // Navigate back after a short delay
-            Future.delayed(const Duration(milliseconds: 500), () {
-              if (mounted) {
-                Navigator.of(context).pop();
-              }
-            });
-          }
-        } else if (state is FriendsActionError) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Theme.of(context).colorScheme.error,
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 3),
-              ),
-            );
-            // Don't navigate back on error
-          }
-        }
-      });
-
-      // Cancel subscription after handling one event
-      Future.delayed(const Duration(seconds: 5), () {
-        subscription.cancel();
-      });
+      // OPTIMIZATION: Use BlocListener pattern instead of manual stream subscription
+      // This is handled by BlocConsumer in _buildOtherUserActions, so we don't need
+      // a separate subscription here. The BlocConsumer will handle state changes.
+      // Just show a loading indicator and let BlocConsumer handle the result
     }
   }
 
@@ -284,31 +233,33 @@ class _ProfileScreenViewState extends State<_ProfileScreenView> with SingleTicke
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       // Full "Freegram" branding
-                      const Text(
+                      Text(
                         'Freegram',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: SonarPulseTheme.primaryAccent,
-                          letterSpacing: -0.5,
-                        ),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontSize: DesignTokens.fontSizeXXL,
+                              fontWeight: FontWeight.bold,
+                              color: SonarPulseTheme.primaryAccent,
+                              letterSpacing: DesignTokens.letterSpacingTight,
+                            ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: DesignTokens.spaceMD),
                       Container(
                         width: 2,
                         height: 20,
                         decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.3),
+                          color: SemanticColors.textSecondary(context)
+                              .withOpacity(DesignTokens.opacityMedium),
                           borderRadius: BorderRadius.circular(1),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      const Text(
+                      const SizedBox(width: DesignTokens.spaceMD),
+                      Text(
                         'Profile',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontSize: DesignTokens.fontSizeXL,
+                                  fontWeight: FontWeight.w500,
+                                ),
                       ),
                     ],
                   ),
@@ -317,28 +268,7 @@ class _ProfileScreenViewState extends State<_ProfileScreenView> with SingleTicke
                   pinned: true,
                   expandedHeight: 0, // No extra height
                   actions: [
-                    if (isCurrentUserProfile)
-                      IconButton(
-                        icon: const Icon(Icons.storefront_outlined),
-                        tooltip: 'Pages',
-                        onPressed: () {
-                          HapticFeedback.lightImpact();
-                          _openPagesMenu(context);
-                        },
-                      ),
-                    if (isCurrentUserProfile)
-                      IconButton(
-                        icon: const Icon(Icons.qr_code_2_outlined),
-                        tooltip: 'My QR Code',
-                        onPressed: () {
-                          HapticFeedback.lightImpact();
-                          locator<NavigationService>().navigateTo(
-                            QrDisplayScreen(user: user),
-                            transition: PageTransition.scale,
-                          );
-                        },
-                      )
-                    else
+                    if (!isCurrentUserProfile)
                       // Options menu for other users
                       IconButton(
                         icon: const Icon(Icons.more_vert_rounded),
@@ -348,7 +278,7 @@ class _ProfileScreenViewState extends State<_ProfileScreenView> with SingleTicke
                           _showProfileOptions(context, user);
                         },
                       ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: DesignTokens.spaceXS),
                   ],
                 ),
                 SliverToBoxAdapter(
@@ -391,114 +321,6 @@ class _ProfileScreenViewState extends State<_ProfileScreenView> with SingleTicke
           );
         },
       ),
-    );
-  }
-
-  void _openPagesMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.storefront_outlined),
-                    const SizedBox(width: 8),
-                    const Text('Your Pages',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.w600)),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.refresh),
-                      onPressed: _loadingPages
-                          ? null
-                          : () async {
-                              Navigator.of(ctx).pop();
-                              await _loadMyPagesIfOwnProfile();
-                              _openPagesMenu(context);
-                            },
-                      tooltip: 'Refresh',
-                    )
-                  ],
-                ),
-                const SizedBox(height: 8),
-                if (_loadingPages)
-                  const Center(
-                      child: Padding(
-                    padding: EdgeInsets.all(12.0),
-                    child: AppProgressIndicator(strokeWidth: 2),
-                  ))
-                else ...[
-                  if (_myPages.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                      child: Text('No pages yet',
-                          style: Theme.of(context).textTheme.bodyMedium),
-                    )
-                  else
-                    ..._myPages.map((p) => ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: Colors.grey.shade200,
-                            backgroundImage: p.profileImageUrl.isNotEmpty
-                                ? CachedNetworkImageProvider(p.profileImageUrl)
-                                : null,
-                            child: p.profileImageUrl.isEmpty
-                                ? const Icon(Icons.flag_outlined,
-                                    color: Colors.grey)
-                                : null,
-                          ),
-                          title: Row(
-                            children: [
-                              Expanded(
-                                child: Text(p.pageName),
-                              ),
-                              if (p.verificationStatus ==
-                                  VerificationStatus.verified) ...[
-                                const SizedBox(width: 8),
-                                const Icon(Icons.verified,
-                                    size: 18, color: Colors.blue),
-                              ],
-                            ],
-                          ),
-                          subtitle: Text('@${p.pageHandle}'),
-                          onTap: () {
-                            Navigator.of(ctx).pop();
-                            locator<NavigationService>().navigateTo(
-                              PageProfileScreen(pageId: p.pageId),
-                              transition: PageTransition.slide,
-                            );
-                          },
-                        )),
-                ],
-                const Divider(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.of(ctx).pop();
-                      locator<NavigationService>().navigateTo(
-                        const CreatePageScreen(),
-                        transition: PageTransition.slide,
-                      );
-                    },
-                    icon: const Icon(Icons.add_circle_outline),
-                    label: const Text('Create new Page'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }
@@ -559,27 +381,30 @@ class _UserPostsSectionState extends State<_UserPostsSection> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Center(child: AppProgressIndicator()),
+      return Padding(
+        padding: const EdgeInsets.all(DesignTokens.spaceMD),
+        child: const Center(child: AppProgressIndicator()),
       );
     }
 
     if (_pinnedPosts.isEmpty && _posts.isEmpty) {
       return Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(DesignTokens.spaceMD),
         child: Center(
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 Icons.grid_off_outlined,
-                size: 48,
-                color: Theme.of(context).colorScheme.secondary,
+                size: DesignTokens.iconXXL,
+                color: SemanticColors.textSecondary(context),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: DesignTokens.spaceSM),
               Text(
                 'No posts yet',
-                style: Theme.of(context).textTheme.titleMedium,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: SemanticColors.textSecondary(context),
+                    ),
               ),
             ],
           ),
@@ -593,20 +418,23 @@ class _UserPostsSectionState extends State<_UserPostsSection> {
         // Pinned posts section
         if (_pinnedPosts.isNotEmpty) ...[
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: DesignTokens.spaceMD,
+              vertical: DesignTokens.spaceSM,
+            ),
             child: Row(
               children: [
                 Icon(
                   Icons.push_pin,
-                  size: 20,
+                  size: DesignTokens.iconMD,
                   color: Theme.of(context).colorScheme.primary,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: DesignTokens.spaceSM),
                 Text(
                   'Pinned',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
+                        fontSize: DesignTokens.fontSizeMD,
                       ),
                 ),
               ],
@@ -618,25 +446,28 @@ class _UserPostsSectionState extends State<_UserPostsSection> {
                   displayType: PostDisplayType.organic,
                 ),
               )),
-          const SizedBox(height: 8),
+          const SizedBox(height: DesignTokens.spaceSM),
         ],
         // Regular posts section
         if (_posts.isNotEmpty) ...[
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: DesignTokens.spaceMD,
+              vertical: DesignTokens.spaceSM,
+            ),
             child: Row(
               children: [
                 Icon(
                   Icons.grid_view_outlined,
-                  size: 20,
+                  size: DesignTokens.iconMD,
                   color: Theme.of(context).colorScheme.primary,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: DesignTokens.spaceSM),
                 Text(
                   'Posts (${_posts.length})',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
+                        fontSize: DesignTokens.fontSizeMD,
                       ),
                 ),
               ],
@@ -1028,7 +859,12 @@ class _ModernProfileHeader extends StatelessWidget {
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Remove', style: TextStyle(color: Colors.red)),
+              child: Text(
+                'Remove',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
             ),
           ],
         );
@@ -1050,8 +886,8 @@ class _ModernProfileHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            color: Theme.of(context).colorScheme.scrim.withOpacity(0.05),
+            blurRadius: DesignTokens.elevation2,
             offset: const Offset(0, 2),
           ),
         ],
@@ -1137,8 +973,8 @@ class _ModernProfileHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            color: Theme.of(context).colorScheme.scrim.withOpacity(0.05),
+            blurRadius: DesignTokens.elevation2,
             offset: const Offset(0, 2),
           ),
         ],
@@ -1182,8 +1018,8 @@ class _ModernProfileHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            color: Theme.of(context).colorScheme.scrim.withOpacity(0.05),
+            blurRadius: DesignTokens.elevation2,
             offset: const Offset(0, 2),
           ),
         ],
@@ -1359,7 +1195,8 @@ class _ModernProfileHeader extends StatelessWidget {
 
           // Mutual interests
           if (mutualInterests.isNotEmpty) ...[
-            if (mutualFriendsCount > 0) const SizedBox(height: DesignTokens.spaceMD),
+            if (mutualFriendsCount > 0)
+              const SizedBox(height: DesignTokens.spaceMD),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1443,8 +1280,8 @@ class _ModernProfileHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            color: Theme.of(context).colorScheme.scrim.withOpacity(0.05),
+            blurRadius: DesignTokens.elevation2,
             offset: const Offset(0, 2),
           ),
         ],

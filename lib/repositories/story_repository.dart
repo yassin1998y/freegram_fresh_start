@@ -13,6 +13,7 @@ import 'package:freegram/services/cloudinary_service.dart';
 import 'package:freegram/services/video_upload_service.dart';
 import 'package:freegram/repositories/chat_repository.dart';
 import 'package:freegram/locator.dart';
+import 'package:freegram/utils/app_constants.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
@@ -37,8 +38,10 @@ class StoryRepository {
     List<StickerOverlay>? stickerOverlays,
     double? videoDuration,
     String? audioUrl, // Audio track URL (optional, for stories with audio)
-    String? preUploadedMediaUrl, // Pre-uploaded media URL (optional, to skip upload)
-    Map<String, String>? preUploadedVideoQualities, // Pre-uploaded video qualities (optional)
+    String?
+        preUploadedMediaUrl, // Pre-uploaded media URL (optional, to skip upload)
+    Map<String, String>?
+        preUploadedVideoQualities, // Pre-uploaded video qualities (optional)
     String? preUploadedThumbnailUrl, // Pre-uploaded thumbnail URL (optional)
   }) async {
     // Store original videoDuration for later use
@@ -47,7 +50,8 @@ class StoryRepository {
       // 1. Upload media to Cloudinary (or use pre-uploaded URLs)
       String mediaUrl;
       String? thumbnailUrl;
-      Map<String, String>? videoQualities; // For multi-quality video URLs (Phase 2.2)
+      Map<String, String>?
+          videoQualities; // For multi-quality video URLs (Phase 2.2)
 
       if (preUploadedMediaUrl != null) {
         // Use pre-uploaded URLs
@@ -56,63 +60,70 @@ class StoryRepository {
         videoQualities = preUploadedVideoQualities;
       } else if (mediaFile != null) {
         if (mediaType == 'video') {
-        // Generate thumbnail first (before upload)
-        // Add timeout to prevent infinite loops from transcoder library
-        final thumbnailData = await VideoThumbnail.thumbnailData(
-          video: mediaFile.path,
-          imageFormat: ImageFormat.JPEG,
-          maxWidth: 400,
-          quality: 75,
-        ).timeout(
-          const Duration(seconds: 30), // 30 second timeout for thumbnail generation
-          onTimeout: () {
-            debugPrint('StoryRepository: Thumbnail generation timeout');
-            return null; // Return null on timeout, thumbnail is optional
-          },
-        );
+          // Generate thumbnail first (before upload)
+          // Add timeout to prevent infinite loops from transcoder library
+          final thumbnailData = await VideoThumbnail.thumbnailData(
+            video: mediaFile.path,
+            imageFormat: ImageFormat.JPEG,
+            maxWidth: 400,
+            quality: 75,
+          ).timeout(
+            const Duration(
+                seconds: 30), // 30 second timeout for thumbnail generation
+            onTimeout: () {
+              debugPrint('StoryRepository: Thumbnail generation timeout');
+              return null; // Return null on timeout, thumbnail is optional
+            },
+          );
 
-        if (thumbnailData != null) {
-          final tempDir = await getTemporaryDirectory();
-          final thumbnailFile = File(path.join(tempDir.path,
-              'thumb_${DateTime.now().millisecondsSinceEpoch}.jpg'));
-          await thumbnailFile.writeAsBytes(thumbnailData);
-          thumbnailUrl =
-              await CloudinaryService.uploadImageFromFile(thumbnailFile);
-          await thumbnailFile.delete(); // Clean up
-        }
-
-        // Get video duration if not provided
-        if (finalVideoDuration == null) {
-          try {
-            final controller = VideoPlayerController.file(mediaFile);
-            await controller.initialize();
-            finalVideoDuration = controller.value.duration.inSeconds.toDouble();
-            await controller.dispose();
-          } catch (e) {
-            debugPrint('StoryRepository: Error getting video duration: $e');
-            // Default to 5 seconds if can't determine
-            finalVideoDuration = 5.0;
+          if (thumbnailData != null) {
+            final tempDir = await getTemporaryDirectory();
+            final thumbnailFile = File(path.join(tempDir.path,
+                'thumb_${DateTime.now().millisecondsSinceEpoch}.jpg'));
+            await thumbnailFile.writeAsBytes(thumbnailData);
+            thumbnailUrl =
+                await CloudinaryService.uploadImageFromFile(thumbnailFile);
+            await thumbnailFile.delete(); // Clean up
           }
-        }
 
-        // Upload video to Cloudinary with multiple qualities (Phase 2.2 - ABR support)
-        final videoUploadService = VideoUploadService();
-        videoQualities = await videoUploadService.uploadVideoWithMultipleQualities(mediaFile);
-        
-        if (videoQualities == null || videoQualities['videoUrl'] == null || videoQualities['videoUrl']!.isEmpty) {
-          throw Exception('Failed to upload video to Cloudinary');
-        }
-        
-        mediaUrl = videoQualities['videoUrl']!;
+          // Get video duration if not provided
+          if (finalVideoDuration == null) {
+            try {
+              final controller = VideoPlayerController.file(mediaFile);
+              await controller.initialize();
+              finalVideoDuration =
+                  controller.value.duration.inSeconds.toDouble();
+              await controller.dispose();
+            } catch (e) {
+              debugPrint('StoryRepository: Error getting video duration: $e');
+              // Default to 5 seconds if can't determine
+              finalVideoDuration = 5.0;
+            }
+          }
+
+          // Upload video to Cloudinary with multiple qualities (Phase 2.2 - ABR support)
+          final videoUploadService = VideoUploadService();
+          videoQualities = await videoUploadService
+              .uploadVideoWithMultipleQualities(mediaFile);
+
+          if (videoQualities == null ||
+              videoQualities['videoUrl'] == null ||
+              videoQualities['videoUrl']!.isEmpty) {
+            throw Exception('Failed to upload video to Cloudinary');
+          }
+
+          mediaUrl = videoQualities['videoUrl']!;
         } else {
           // Upload image
-          mediaUrl = await CloudinaryService.uploadImageFromFile(mediaFile) ?? '';
+          mediaUrl =
+              await CloudinaryService.uploadImageFromFile(mediaFile) ?? '';
           if (mediaUrl.isEmpty) {
             throw Exception('Failed to upload image to Cloudinary');
           }
         }
       } else {
-        throw Exception('Either mediaFile or preUploadedMediaUrl must be provided');
+        throw Exception(
+            'Either mediaFile or preUploadedMediaUrl must be provided');
       }
 
       // 2. Create story document in Firestore
@@ -400,24 +411,34 @@ class StoryRepository {
           }
 
           // Separate unread and seen stories (excluding user's own)
+          // CRITICAL FIX: Only show ONE story per user (most recent) to prevent duplicates
           final unreadStories = <StoryMedia>[];
           final seenStories = <StoryMedia>[];
+          final processedAuthors =
+              <String>{}; // Track processed authors to prevent duplicates
 
           for (final authorId in allUserIds) {
             if (authorId == userId) continue; // Skip own story
+            if (processedAuthors.contains(authorId))
+              continue; // Skip if already processed
+
             final stories = storiesByAuthor[authorId] ?? [];
             if (stories.isEmpty) continue;
 
-            // Sort stories by createdAt descending
+            // Sort stories by createdAt descending and take only the most recent
             stories.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            final mostRecentStory =
+                stories.first; // Only take the most recent story
 
-            for (final story in stories) {
-              final isUnread = !viewedStoryIds.contains(story.storyId);
-              if (isUnread) {
-                unreadStories.add(story);
-              } else {
-                seenStories.add(story);
-              }
+            // Mark author as processed
+            processedAuthors.add(authorId);
+
+            // Add to appropriate list based on view status
+            final isUnread = !viewedStoryIds.contains(mostRecentStory.storyId);
+            if (isUnread) {
+              unreadStories.add(mostRecentStory);
+            } else {
+              seenStories.add(mostRecentStory);
             }
           }
 
@@ -524,6 +545,137 @@ class StoryRepository {
     }
   }
 
+  /// Get stories for multiple users in parallel batches.
+  ///
+  /// This is an optimized version that loads stories for multiple users simultaneously
+  /// using Firestore's whereIn query (limit 10). Processes batches in parallel with
+  /// concurrency limits to avoid overloading Firestore.
+  ///
+  /// [userIds] - List of user IDs to fetch stories for
+  ///
+  /// Returns a [Map<String, List<StoryMedia>>] where keys are user IDs and values
+  /// are lists of active stories for that user.
+  Future<Map<String, List<StoryMedia>>> getStoriesForUsers(
+    List<String> userIds,
+  ) async {
+    if (userIds.isEmpty) {
+      return {};
+    }
+
+    debugPrint(
+        'StoryRepository: Getting stories for ${userIds.length} users in parallel');
+    final now = Timestamp.now();
+    final Map<String, List<StoryMedia>> results = {};
+
+    try {
+      // Firestore whereIn limit is 10
+      const int whereInLimit = 10;
+      final List<List<String>> batches = [];
+
+      // Split userIds into batches of 10
+      for (var i = 0; i < userIds.length; i += whereInLimit) {
+        batches.add(userIds.sublist(
+          i,
+          i + whereInLimit > userIds.length ? userIds.length : i + whereInLimit,
+        ));
+      }
+
+      // Process batches in parallel with concurrency limit
+      for (var i = 0;
+          i < batches.length;
+          i += AppConstants.maxConcurrentBatches) {
+        final batchGroup = batches.sublist(
+          i,
+          i + AppConstants.maxConcurrentBatches > batches.length
+              ? batches.length
+              : i + AppConstants.maxConcurrentBatches,
+        );
+
+        final groupFutures = batchGroup.map((batch) async {
+          try {
+            // Query stories for this batch of users
+            final snapshot = await _db
+                .collection('story_media')
+                .where('authorId', whereIn: batch)
+                .where('isActive', isEqualTo: true)
+                .orderBy('createdAt', descending: true)
+                .get();
+
+            // Group stories by authorId and filter expired
+            final Map<String, List<StoryMedia>> batchResults = {};
+            for (var doc in snapshot.docs) {
+              try {
+                final story = StoryMedia.fromDoc(doc);
+                // Filter expired stories
+                if (story.expiresAt.isAfter(now.toDate())) {
+                  batchResults.putIfAbsent(story.authorId, () => []).add(story);
+                }
+              } catch (e) {
+                debugPrint(
+                    'StoryRepository: Error parsing story ${doc.id}: $e');
+              }
+            }
+
+            // Sort stories by createdAt descending for each user
+            for (final userId in batchResults.keys) {
+              batchResults[userId]!.sort((a, b) {
+                return b.createdAt.compareTo(a.createdAt);
+              });
+            }
+
+            debugPrint(
+                'StoryRepository: Batch query for ${batch.length} users returned stories for ${batchResults.length} users');
+            return batchResults;
+          } catch (e) {
+            debugPrint(
+                'StoryRepository: Error in batch query for users $batch: $e');
+            // If query fails (e.g., missing index), fall back to individual queries
+            final Map<String, List<StoryMedia>> fallbackResults = {};
+            for (final userId in batch) {
+              try {
+                final stories = await getUserStories(userId);
+                if (stories.isNotEmpty) {
+                  fallbackResults[userId] = stories;
+                }
+              } catch (e) {
+                debugPrint(
+                    'StoryRepository: Fallback query failed for user $userId: $e');
+              }
+            }
+            return fallbackResults;
+          }
+        });
+
+        // Wait for this group to complete and merge results
+        final batchResults = await Future.wait(groupFutures, eagerError: false);
+        for (final batchResult in batchResults) {
+          results.addAll(batchResult);
+        }
+      }
+
+      debugPrint(
+          'StoryRepository: Finished getting stories for ${userIds.length} users. Found stories for ${results.length} users');
+      return results;
+    } catch (e) {
+      debugPrint('StoryRepository: Error getting stories for users: $e');
+      // Fallback to individual queries if batch fails completely
+      debugPrint('StoryRepository: Falling back to individual queries...');
+      final Map<String, List<StoryMedia>> fallbackResults = {};
+      for (final userId in userIds) {
+        try {
+          final stories = await getUserStories(userId);
+          if (stories.isNotEmpty) {
+            fallbackResults[userId] = stories;
+          }
+        } catch (e) {
+          debugPrint(
+              'StoryRepository: Individual query failed for user $userId: $e');
+        }
+      }
+      return fallbackResults;
+    }
+  }
+
   /// Mark a story as viewed by a user
   Future<void> markStoryAsViewed(String storyId, String viewerId) async {
     try {
@@ -574,9 +726,38 @@ class StoryRepository {
       final story = StoryMedia.fromDoc(storyDoc);
       final authorId = story.authorId;
 
-      // Don't allow replying to your own story
-      if (authorId == replierId) {
+      // If this is an emoji reaction, store it in the story document FIRST
+      // This allows reactions to your own story (which is valid for reactions)
+      if (replyType == 'emoji') {
+        // Store emoji reaction (typically 1-4 characters, but accept any short string)
+        // If it's marked as emoji type, trust it's an emoji
+        try {
+          debugPrint(
+              'StoryRepository: Storing emoji reaction: "$content" (length: ${content.length}, runes: ${content.runes.length})');
+          await addStoryReaction(
+            storyId: storyId,
+            userId: replierId,
+            emoji: content,
+          );
+          debugPrint(
+              'StoryRepository: Emoji reaction stored successfully in story document');
+        } catch (e) {
+          debugPrint('StoryRepository: Error storing emoji reaction: $e');
+          // Don't rethrow - allow the chat message to still be sent
+          // But log the error so we can debug
+        }
+      }
+
+      // Don't allow text replies to your own story (but emoji reactions are OK)
+      if (authorId == replierId && replyType != 'emoji') {
         throw Exception('Cannot reply to your own story');
+      }
+
+      // Skip chat message creation for your own story (reactions are already stored above)
+      if (authorId == replierId) {
+        debugPrint(
+            'StoryRepository: Skipping chat message for own story reaction');
+        return;
       }
 
       // Get author's username for story context
@@ -626,7 +807,8 @@ class StoryRepository {
       );
 
       // Cloud Function will send notification
-      debugPrint('StoryRepository: Story reply sent as private message to chat $chatId');
+      debugPrint(
+          'StoryRepository: Story reply sent as private message to chat $chatId');
     } catch (e) {
       debugPrint('StoryRepository: Error replying to story: $e');
       rethrow;
@@ -647,6 +829,169 @@ class StoryRepository {
     } catch (e) {
       debugPrint('StoryRepository: Error getting story viewers: $e');
       return [];
+    }
+  }
+
+  /// Get story reactions (emoji replies) from story document
+  /// Returns a map of userId -> emoji for users who reacted to the story
+  Future<Map<String, String>> getStoryReactions(String storyId) async {
+    try {
+      debugPrint('StoryRepository: Getting reactions for story $storyId');
+
+      final storyDoc = await _db.collection('story_media').doc(storyId).get();
+      if (!storyDoc.exists) {
+        debugPrint('StoryRepository: Story document not found: $storyId');
+        return {};
+      }
+
+      final storyData = storyDoc.data() ?? {};
+      debugPrint(
+          'StoryRepository: Story data keys: ${storyData.keys.toList()}');
+
+      // Check if reactions are stored directly in the story document
+      if (storyData['reactions'] != null && storyData['reactions'] is Map) {
+        final reactions = storyData['reactions'] as Map<String, dynamic>;
+        final result =
+            reactions.map((key, value) => MapEntry(key, value.toString()));
+        debugPrint(
+            'StoryRepository: Found ${result.length} reactions: $result');
+        return result;
+      }
+
+      debugPrint('StoryRepository: No reactions field found in story document');
+      return {};
+    } catch (e) {
+      debugPrint('StoryRepository: Error getting story reactions: $e');
+      return {};
+    }
+  }
+
+  /// Add or update a story reaction
+  /// Stores the reaction in the story document for efficient querying
+  Future<void> addStoryReaction({
+    required String storyId,
+    required String userId,
+    required String emoji,
+  }) async {
+    try {
+      debugPrint(
+          'StoryRepository: Adding reaction $emoji from user $userId to story $storyId');
+
+      final batch = _db.batch();
+      final storyRef = _db.collection('story_media').doc(storyId);
+
+      // Get current story data
+      final storyDoc = await storyRef.get();
+      if (!storyDoc.exists) {
+        throw Exception('Story not found');
+      }
+
+      final storyData = storyDoc.data() ?? {};
+      final currentReactions =
+          Map<String, dynamic>.from(storyData['reactions'] ?? {});
+      final currentReactionCount = storyData['reactionCount'] ?? 0;
+
+      // Check if user already has a reaction
+      final hadPreviousReaction = currentReactions.containsKey(userId);
+
+      // Update or add reaction
+      currentReactions[userId] = emoji;
+
+      // Update reaction breakdown
+      final reactionBreakdown =
+          Map<String, int>.from(storyData['reactionBreakdown'] ?? {});
+      if (hadPreviousReaction) {
+        // User changed reaction, update breakdown
+        final oldEmoji = storyData['reactions']?[userId]?.toString() ?? '';
+        if (oldEmoji.isNotEmpty && reactionBreakdown.containsKey(oldEmoji)) {
+          reactionBreakdown[oldEmoji] = (reactionBreakdown[oldEmoji]! - 1)
+              .clamp(0, double.infinity)
+              .toInt();
+          if (reactionBreakdown[oldEmoji] == 0) {
+            reactionBreakdown.remove(oldEmoji);
+          }
+        }
+      }
+
+      // Increment new emoji count
+      reactionBreakdown[emoji] = (reactionBreakdown[emoji] ?? 0) + 1;
+
+      // Update story document
+      batch.update(storyRef, {
+        'reactions': currentReactions,
+        'reactionBreakdown': reactionBreakdown,
+        'reactionCount': hadPreviousReaction
+            ? currentReactionCount
+            : currentReactionCount + 1,
+      });
+
+      await batch.commit();
+      debugPrint('StoryRepository: Reaction added successfully');
+    } catch (e) {
+      debugPrint('StoryRepository: Error adding story reaction: $e');
+      rethrow;
+    }
+  }
+
+  /// Remove a story reaction
+  Future<void> removeStoryReaction({
+    required String storyId,
+    required String userId,
+  }) async {
+    try {
+      debugPrint(
+          'StoryRepository: Removing reaction from user $userId for story $storyId');
+
+      final batch = _db.batch();
+      final storyRef = _db.collection('story_media').doc(storyId);
+
+      // Get current story data
+      final storyDoc = await storyRef.get();
+      if (!storyDoc.exists) {
+        throw Exception('Story not found');
+      }
+
+      final storyData = storyDoc.data() ?? {};
+      final currentReactions =
+          Map<String, dynamic>.from(storyData['reactions'] ?? {});
+      final currentReactionCount = storyData['reactionCount'] ?? 0;
+
+      if (!currentReactions.containsKey(userId)) {
+        return; // No reaction to remove
+      }
+
+      // Get the emoji that was removed
+      final removedEmoji = currentReactions[userId]?.toString() ?? '';
+
+      // Remove reaction
+      currentReactions.remove(userId);
+
+      // Update reaction breakdown
+      final reactionBreakdown =
+          Map<String, int>.from(storyData['reactionBreakdown'] ?? {});
+      if (removedEmoji.isNotEmpty &&
+          reactionBreakdown.containsKey(removedEmoji)) {
+        reactionBreakdown[removedEmoji] = (reactionBreakdown[removedEmoji]! - 1)
+            .clamp(0, double.infinity)
+            .toInt();
+        if (reactionBreakdown[removedEmoji] == 0) {
+          reactionBreakdown.remove(removedEmoji);
+        }
+      }
+
+      // Update story document
+      batch.update(storyRef, {
+        'reactions': currentReactions,
+        'reactionBreakdown': reactionBreakdown,
+        'reactionCount':
+            (currentReactionCount - 1).clamp(0, double.infinity).toInt(),
+      });
+
+      await batch.commit();
+      debugPrint('StoryRepository: Reaction removed successfully');
+    } catch (e) {
+      debugPrint('StoryRepository: Error removing story reaction: $e');
+      rethrow;
     }
   }
 
@@ -671,5 +1016,4 @@ class StoryRepository {
       rethrow;
     }
   }
-
 }

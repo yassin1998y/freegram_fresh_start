@@ -92,7 +92,7 @@ class _UnreadMessagesDividerState extends State<UnreadMessagesDivider>
     super.initState();
 
     _controller = AnimationController(
-      duration: DesignTokens.durationNormal,
+      duration: AnimationTokens.normal,
       vsync: this,
     );
 
@@ -101,7 +101,7 @@ class _UnreadMessagesDividerState extends State<UnreadMessagesDivider>
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _controller,
-      curve: DesignTokens.curveEaseOut,
+      curve: AnimationTokens.easeOut,
     ));
 
     _slideAnimation = Tween<Offset>(
@@ -109,7 +109,7 @@ class _UnreadMessagesDividerState extends State<UnreadMessagesDivider>
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _controller,
-      curve: DesignTokens.curveEaseOut,
+      curve: AnimationTokens.easeOut,
     ));
 
     _controller.forward();
@@ -162,7 +162,8 @@ class _UnreadMessagesDividerState extends State<UnreadMessagesDivider>
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceSM),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: DesignTokens.spaceSM),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: DesignTokens.spaceMD,
@@ -220,26 +221,3 @@ class _UnreadMessagesDividerState extends State<UnreadMessagesDivider>
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

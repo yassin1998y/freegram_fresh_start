@@ -9,7 +9,8 @@ import 'package:freegram/repositories/post_repository.dart';
 import 'package:freegram/widgets/feed_widgets/edit_comment_dialog.dart';
 import 'package:freegram/screens/report_screen.dart';
 import 'package:freegram/models/report_model.dart';
-import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/widgets/common/app_reaction_button.dart';
+import 'package:freegram/theme/design_tokens.dart';
 import 'package:intl/intl.dart';
 
 class CommentTile extends StatefulWidget {
@@ -318,23 +319,12 @@ class _CommentTileState extends State<CommentTile> {
               // Show reaction count if any
               if (widget.comment.reactions.isNotEmpty) ...[
                 const SizedBox(width: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.favorite,
-                      size: 12,
-                      color: Colors.red[300],
-                    ),
-                    const SizedBox(width: 2),
-                    Text(
-                      '${widget.comment.reactions.length}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[600],
-                            fontSize: 11,
-                          ),
-                    ),
-                  ],
+                AppReactionButton(
+                  isLiked: true,
+                  reactionCount: widget.comment.reactions.length,
+                  showCount: true,
+                  compact: true,
+                  size: DesignTokens.iconXS,
                 ),
               ],
             ],
@@ -345,22 +335,14 @@ class _CommentTileState extends State<CommentTile> {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Like button
-          InkWell(
-            onTap: _isLiking ? null : _toggleLike,
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: _isLiking
-                  ? const AppProgressIndicator(
-                      size: 18,
-                      strokeWidth: 2,
-                    )
-                  : Icon(
-                      _isLiked ? Icons.favorite : Icons.favorite_border,
-                      size: 18,
-                      color: _isLiked ? Colors.red : Colors.grey[600],
-                    ),
-            ),
+          AppReactionButton(
+            isLiked: _isLiked,
+            reactionCount: widget.comment.reactions.length,
+            isLoading: _isLiking,
+            onTap: _toggleLike,
+            showCount: false,
+            compact: true,
+            size: DesignTokens.iconMD,
           ),
           // More options
           PopupMenuButton<String>(

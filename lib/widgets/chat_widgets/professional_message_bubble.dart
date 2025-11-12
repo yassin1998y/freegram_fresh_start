@@ -54,7 +54,7 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
   void initState() {
     super.initState();
     _highlightController = AnimationController(
-      duration: DesignTokens.durationSlow,
+      duration: AnimationTokens.slow,
       vsync: this,
     );
 
@@ -210,7 +210,7 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
                     // Message bubble
                     AnimatedScale(
                       scale: _isPressed ? 0.98 : 1.0,
-                      duration: DesignTokens.durationFast,
+                      duration: AnimationTokens.fast,
                       child: _buildMessageContent(context),
                     ),
 
@@ -262,7 +262,10 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
                 : null,
             color: widget.isMe
                 ? null
-                : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                : Theme.of(context)
+                    .colorScheme
+                    .surfaceContainerHighest
+                    .withOpacity(0.5),
             borderRadius: _getBubbleBorderRadius(),
             boxShadow: [
               BoxShadow(
@@ -332,7 +335,8 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
 
   Widget _buildStoryReplyPreview(BuildContext context) {
     final theme = Theme.of(context);
-    final storyThumbnail = widget.message.storyThumbnailUrl ?? widget.message.storyMediaUrl;
+    final storyThumbnail =
+        widget.message.storyThumbnailUrl ?? widget.message.storyMediaUrl;
     final isVideo = widget.message.storyMediaType == 'video';
 
     return GestureDetector(
@@ -397,7 +401,8 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.black.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
+                            borderRadius:
+                                BorderRadius.circular(DesignTokens.radiusXS),
                           ),
                           child: const Icon(
                             Icons.play_arrow,

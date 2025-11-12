@@ -133,8 +133,12 @@ class _FriendsListScreenState extends State<FriendsListScreen>
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(state.message),
-                        backgroundColor: Colors.green,
+                        backgroundColor: SemanticColors.success,
                         behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(DesignTokens.radiusMD),
+                        ),
                         duration: const Duration(seconds: 2),
                       ),
                     );
@@ -233,7 +237,10 @@ class _FriendsListScreenState extends State<FriendsListScreen>
                 ),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear, size: 20),
+                        icon: Icon(
+                          Icons.clear,
+                          size: DesignTokens.iconMD,
+                        ),
                         onPressed: () {
                           _searchController.clear();
                         },
@@ -280,7 +287,7 @@ class _FriendsListScreenState extends State<FriendsListScreen>
         underline: const SizedBox.shrink(),
         icon: Icon(
           Icons.sort,
-          size: 18,
+          size: DesignTokens.iconSM,
           color: Theme.of(context).colorScheme.primary,
         ),
         items: FriendSortOption.values.map((option) {
@@ -288,10 +295,10 @@ class _FriendsListScreenState extends State<FriendsListScreen>
             value: option,
             child: Text(
               FriendListHelpers.getSortOptionName(option),
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontSize: DesignTokens.fontSizeSM,
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
           );
         }).toList(),
@@ -566,9 +573,11 @@ class _FriendsListScreenState extends State<FriendsListScreen>
           children: [
             Icon(
               icon,
-              size: 80,
-              color:
-                  iconColor ?? SonarPulseTheme.primaryAccent.withOpacity(0.3),
+              size: DesignTokens.iconXXL * 2,
+              color: iconColor ??
+                  SonarPulseTheme.primaryAccent.withOpacity(
+                    DesignTokens.opacityMedium,
+                  ),
             ),
             const SizedBox(height: DesignTokens.spaceLG),
             Text(
@@ -602,7 +611,7 @@ class _FriendsListScreenState extends State<FriendsListScreen>
         children: [
           Icon(
             Icons.error_outline,
-            size: 64,
+            size: DesignTokens.iconXXL * 1.6,
             color: Theme.of(context).colorScheme.error,
           ),
           const SizedBox(height: DesignTokens.spaceLG),
@@ -655,8 +664,8 @@ class EnhancedFriendCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
+            color: Theme.of(context).colorScheme.scrim.withOpacity(0.05),
+            blurRadius: DesignTokens.elevation2,
             offset: const Offset(0, 2),
           ),
         ],
@@ -699,8 +708,9 @@ class EnhancedFriendCard extends StatelessWidget {
         Hero(
           tag: 'avatar_${user.id}',
           child: CircleAvatar(
-            radius: 28,
-            backgroundColor: Colors.grey.shade300,
+            radius: AvatarSize.medium.radius,
+            backgroundColor:
+                Theme.of(context).colorScheme.surfaceContainerHighest,
             backgroundImage: user.photoUrl.isNotEmpty
                 ? CachedNetworkImageProvider(user.photoUrl)
                 : null,
@@ -709,10 +719,10 @@ class EnhancedFriendCard extends StatelessWidget {
                     user.username.isNotEmpty
                         ? user.username[0].toUpperCase()
                         : '?',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontSize: DesignTokens.fontSizeXXXL,
+                          fontWeight: FontWeight.bold,
+                        ),
                   )
                 : null,
           ),
@@ -726,7 +736,7 @@ class EnhancedFriendCard extends StatelessWidget {
               width: 14,
               height: 14,
               decoration: BoxDecoration(
-                color: Colors.green,
+                color: SemanticColors.success,
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: Theme.of(context).cardColor,
@@ -766,9 +776,9 @@ class EnhancedFriendCard extends StatelessWidget {
               Container(
                 width: 6,
                 height: 6,
-                margin: const EdgeInsets.only(right: 6),
-                decoration: const BoxDecoration(
-                  color: Colors.green,
+                margin: const EdgeInsets.only(right: DesignTokens.spaceXS),
+                decoration: BoxDecoration(
+                  color: SemanticColors.success,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -801,10 +811,10 @@ class EnhancedFriendCard extends StatelessWidget {
         children: [
           Icon(
             Icons.location_on_outlined,
-            size: 12,
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+            size: DesignTokens.iconXS,
+            color: SemanticColors.textSecondary(context),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: DesignTokens.spaceXS),
           Text(
             user.country,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -822,7 +832,8 @@ class EnhancedFriendCard extends StatelessWidget {
       case FriendCardType.friend:
         return Icon(
           Icons.chevron_right,
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+          color: SemanticColors.iconDefault(context),
+          size: DesignTokens.iconMD,
         );
 
       case FriendCardType.request:
@@ -831,12 +842,16 @@ class EnhancedFriendCard extends StatelessWidget {
           children: [
             IconButton(
               icon: Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(DesignTokens.spaceSM),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
+                  color: SemanticColors.success.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check, color: Colors.green, size: 20),
+                child: Icon(
+                  Icons.check,
+                  color: SemanticColors.success,
+                  size: DesignTokens.iconMD,
+                ),
               ),
               tooltip: 'Accept',
               onPressed: () {
@@ -847,7 +862,7 @@ class EnhancedFriendCard extends StatelessWidget {
             const SizedBox(width: DesignTokens.spaceXS),
             IconButton(
               icon: Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(DesignTokens.spaceSM),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.error.withOpacity(0.1),
                   shape: BoxShape.circle,
@@ -855,7 +870,7 @@ class EnhancedFriendCard extends StatelessWidget {
                 child: Icon(
                   Icons.close,
                   color: Theme.of(context).colorScheme.error,
-                  size: 20,
+                  size: DesignTokens.iconMD,
                 ),
               ),
               tooltip: 'Decline',
@@ -875,7 +890,7 @@ class EnhancedFriendCard extends StatelessWidget {
           },
           icon: Icon(
             Icons.block_outlined,
-            size: 18,
+            size: DesignTokens.iconSM,
             color: Theme.of(context).colorScheme.error,
           ),
           label: Text(
