@@ -56,14 +56,14 @@ class AuthRepository {
     final now = DateTime.now();
     final newUser = UserModel(
       id: uid,
-      username: username ??
-          'User', // Temporary username, will be updated in onboarding
+      username: username ?? '', // Empty by default for first-time users
       email: email,
       photoUrl: photoUrl ?? '',
       lastSeen: now,
       createdAt: now,
       lastFreeSuperLike: now.subtract(const Duration(days: 1)),
       lastNearbyDiscoveryDate: DateTime.fromMillisecondsSinceEpoch(0),
+      lastDailyRewardClaim: DateTime.fromMillisecondsSinceEpoch(0),
     );
     final userMap = newUser.toMap();
     _debugLog("Creating user document for UID: $uid");
@@ -74,6 +74,7 @@ class AuthRepository {
     required String email,
     required String password,
     String? username,
+    String? photoUrl,
   }) async {
     User? user;
     try {
@@ -94,10 +95,17 @@ class AuthRepository {
         _debugLog("Display name updated for ${user.uid}");
       }
 
+      // Update photo URL if provided
+      if (photoUrl != null && photoUrl.isNotEmpty) {
+        await user.updatePhotoURL(photoUrl);
+        _debugLog("Photo URL updated for ${user.uid}");
+      }
+
       await createUser(
         uid: user.uid,
         email: email,
         username: username,
+        photoUrl: photoUrl,
       );
       _debugLog("Firestore document created successfully for ${user.uid}");
 
@@ -163,9 +171,11 @@ class AuthRepository {
         final userDoc = await _db.collection('users').doc(user.uid).get();
         if (!userDoc.exists) {
           _debugLog("Creating new Firestore doc for ${user.uid}");
+          // Use Google account display name or empty string for first-time users
+          final googleDisplayName = googleUser.displayName ?? user.displayName;
           await createUser(
             uid: user.uid,
-            username: user.displayName ?? 'Google User',
+            username: googleDisplayName ?? '',
             email: user.email ?? '',
             photoUrl: user.photoURL,
           );
@@ -175,7 +185,8 @@ class AuthRepository {
         } else {
           _debugLog("Firestore doc found for ${user.uid}");
           // Ensure uidShort exists
-          if (!userDoc.data()!.containsKey('uidShort')) {
+          final userData = userDoc.data() ?? {};
+          if (!userData.containsKey('uidShort')) {
             final calculatedShortId = _uidShortFromFullAuth(user.uid);
             await _db
                 .collection('users')
@@ -278,9 +289,11 @@ class AuthRepository {
             _debugLog("Warning: Email permission not granted by user");
           }
 
+          // Use Facebook account name or empty string for first-time users
+          final facebookName = userData['name'] ?? user.displayName;
           await createUser(
             uid: user.uid,
-            username: userData['name'] ?? user.displayName ?? 'Facebook User',
+            username: facebookName ?? '',
             email: email,
             photoUrl: userData['picture']?['data']?['url'] ?? user.photoURL,
           );
@@ -290,7 +303,8 @@ class AuthRepository {
         } else {
           _debugLog("Firestore doc found for ${user.uid}");
           // Ensure uidShort exists
-          if (!userDoc.data()!.containsKey('uidShort')) {
+          final userData = userDoc.data() ?? {};
+          if (!userData.containsKey('uidShort')) {
             final calculatedShortId = _uidShortFromFullAuth(user.uid);
             await _db
                 .collection('users')

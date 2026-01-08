@@ -19,6 +19,7 @@ class PostActions extends StatefulWidget {
   final PostModel post;
   final ValueChanged<int>? onReactionCountChanged;
   final VoidCallback? onCommentTap;
+  final VoidCallback? onGiftTap;
   final VoidCallback? onShareTap;
 
   const PostActions({
@@ -26,6 +27,7 @@ class PostActions extends StatefulWidget {
     required this.post,
     this.onReactionCountChanged,
     this.onCommentTap,
+    this.onGiftTap,
     this.onShareTap,
   });
 
@@ -202,76 +204,114 @@ class _PostActionsState extends State<PostActions>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final isSelfPost =
+        currentUser != null && widget.post.authorId == currentUser.uid;
 
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: DesignTokens.spaceXS,
-        vertical: DesignTokens.spaceSM,
-      ),
-      child: Row(
-        children: [
-          // Like button - Minimum 44x44px hit area for accessibility
-          Expanded(
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: _toggleLike,
-                borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
-                child: Container(
-                  constraints: const BoxConstraints(
-                    minHeight: 44.0, // Accessibility minimum
-                    minWidth: 44.0,
-                  ),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: DesignTokens.spaceMD,
-                    vertical: DesignTokens.spaceSM,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ScaleTransition(
-                        scale: _heartScaleAnimation,
-                        child: Icon(
-                          _isLiked ? Icons.favorite : Icons.favorite_border,
-                          size: DesignTokens.iconLG,
-                          color: _isLiked
-                              ? SemanticColors.reactionLiked
-                              : theme.iconTheme.color,
-                        ),
+    return Row(
+      children: [
+        // Like button - Minimum 44x44px hit area for accessibility
+        Expanded(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _toggleLike,
+              borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
+              child: Container(
+                constraints: const BoxConstraints(
+                  minHeight: 44.0, // Accessibility minimum
+                  minWidth: 44.0,
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spaceMD,
+                  vertical: DesignTokens.spaceSM,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ScaleTransition(
+                      scale: _heartScaleAnimation,
+                      child: Icon(
+                        _isLiked ? Icons.favorite : Icons.favorite_border,
+                        size: DesignTokens.iconLG,
+                        color: _isLiked
+                            ? SemanticColors.reactionLiked
+                            : theme.iconTheme.color,
                       ),
-                      if (_localReactionCount > 0) ...[
-                        SizedBox(width: DesignTokens.spaceXS),
-                        Text(
-                          _localReactionCount.toString(),
-                          style: theme.textTheme.labelLarge,
-                        ),
-                      ],
+                    ),
+                    if (_localReactionCount > 0) ...[
+                      SizedBox(width: DesignTokens.spaceXS),
+                      Text(
+                        _localReactionCount.toString(),
+                        style: theme.textTheme.labelLarge,
+                      ),
                     ],
-                  ),
+                  ],
                 ),
               ),
             ),
           ),
+        ),
 
-          // Comment button - Minimum 44x44px hit area
+        // Comment button - Minimum 44x44px hit area
+        Expanded(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.onCommentTap ??
+                  () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => CommentsSheet(post: widget.post),
+                    );
+                  },
+              borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
+              child: Container(
+                constraints: const BoxConstraints(
+                  minHeight: 44.0, // Accessibility minimum
+                  minWidth: 44.0,
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spaceMD,
+                  vertical: DesignTokens.spaceSM,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.comment_outlined,
+                      size: DesignTokens.iconLG, // Use standard large icon size
+                      color: theme.iconTheme.color,
+                    ),
+                    if (widget.post.commentCount > 0) ...[
+                      SizedBox(width: DesignTokens.spaceXS),
+                      Text(
+                        widget.post.commentCount.toString(),
+                        style: theme.textTheme.labelLarge,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // Gift button
+        if (!isSelfPost)
           Expanded(
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: widget.onCommentTap ??
-                    () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (context) => CommentsSheet(post: widget.post),
-                      );
-                    },
+                onTap: widget.onGiftTap,
                 borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
                 child: Container(
                   constraints: const BoxConstraints(
-                    minHeight: 44.0, // Accessibility minimum
+                    minHeight: 44.0,
                     minWidth: 44.0,
                   ),
                   padding: EdgeInsets.symmetric(
@@ -283,17 +323,11 @@ class _PostActionsState extends State<PostActions>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        Icons.comment_outlined,
+                        Icons.card_giftcard,
                         size: DesignTokens.iconLG,
                         color: theme.iconTheme.color,
                       ),
-                      if (widget.post.commentCount > 0) ...[
-                        SizedBox(width: DesignTokens.spaceXS),
-                        Text(
-                          widget.post.commentCount.toString(),
-                          style: theme.textTheme.labelLarge,
-                        ),
-                      ],
+                      // Optional: Show gift count if we had it
                     ],
                   ),
                 ),
@@ -301,18 +335,18 @@ class _PostActionsState extends State<PostActions>
             ),
           ),
 
-          // Share button - IconButton already has 48x48px hit area (meets requirement)
-          Expanded(
-            child: IconButton(
-              icon: Icon(
-                Icons.share_outlined,
-                color: theme.iconTheme.color,
-              ),
-              onPressed: _sharePost,
+        // Share button - IconButton already has 48x48px hit area (meets requirement)
+        Expanded(
+          child: IconButton(
+            icon: Icon(
+              Icons.share_outlined,
+              size: DesignTokens.iconLG,
+              color: theme.iconTheme.color,
             ),
+            onPressed: _sharePost,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

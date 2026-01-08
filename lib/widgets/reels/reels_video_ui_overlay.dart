@@ -15,6 +15,8 @@ class ReelsVideoUIOverlay extends StatelessWidget {
   final VoidCallback onComment;
   final VoidCallback onShare;
   final VoidCallback onProfileTap;
+  final String? currentUserId;
+  final VoidCallback? onDelete;
 
   const ReelsVideoUIOverlay({
     Key? key,
@@ -24,6 +26,8 @@ class ReelsVideoUIOverlay extends StatelessWidget {
     required this.onComment,
     required this.onShare,
     required this.onProfileTap,
+    this.currentUserId,
+    this.onDelete,
   }) : super(key: key);
 
   String _formatCount(int count) {
@@ -35,7 +39,9 @@ class ReelsVideoUIOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final safeAreaBottom = MediaQuery.of(context).padding.bottom;
+    final safeAreaTop = MediaQuery.of(context).padding.top;
     final screenHeight = MediaQuery.of(context).size.height;
+    final isOwnReel = currentUserId != null && currentUserId == reel.uploaderId;
 
     return Stack(
       children: [
@@ -69,6 +75,31 @@ class ReelsVideoUIOverlay extends StatelessWidget {
             ),
           ),
         ),
+
+        // Top-right menu button (only for own reels)
+        if (isOwnReel && onDelete != null)
+          Positioned(
+            top: safeAreaTop + DesignTokens.spaceSM,
+            right: DesignTokens.spaceMD,
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                _showDeleteConfirmation(context);
+              },
+              child: Container(
+                padding: const EdgeInsets.all(DesignTokens.spaceSM),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(DesignTokens.opacityMedium),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.more_vert,
+                  color: Colors.white,
+                  size: DesignTokens.iconLG,
+                ),
+              ),
+            ),
+          ),
 
         // User info and caption (bottom-left) - Facebook Reels style
         Positioned(
@@ -196,6 +227,95 @@ class ReelsVideoUIOverlay extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  void _showDeleteConfirmation(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(DesignTokens.radiusXL),
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: DesignTokens.spaceSM),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: DesignTokens.spaceMD),
+              // Delete option
+              ListTile(
+                leading: const Icon(
+                  Icons.delete_outline,
+                  color: Colors.red,
+                  size: DesignTokens.iconLG,
+                ),
+                title: const Text(
+                  'Delete Reel',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontSize: DesignTokens.fontSizeMD,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: const Text(
+                  'This action cannot be undone',
+                  style: TextStyle(
+                    fontSize: DesignTokens.fontSizeSM,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showDeleteDialog(context);
+                },
+              ),
+              const SizedBox(height: DesignTokens.spaceSM),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showDeleteDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Reel?'),
+        content: const Text(
+          'Are you sure you want to delete this reel? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              onDelete?.call();
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
   }
 }

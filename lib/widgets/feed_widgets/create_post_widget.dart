@@ -25,6 +25,8 @@ import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:freegram/widgets/common/media_header.dart';
+import 'package:freegram/services/user_stream_provider.dart';
+import 'package:freegram/models/user_model.dart';
 
 class CreatePostWidget extends StatefulWidget {
   const CreatePostWidget({Key? key}) : super(key: key);
@@ -1202,49 +1204,61 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final user = FirebaseAuth.instance.currentUser;
-    final username = user?.displayName ?? 'User';
+    final userId = FirebaseAuth.instance.currentUser?.uid;
 
-    // Get selected page or user
-    PageModel? selectedPage;
-    if (_selectedPageId != null && _userPages.isNotEmpty) {
-      try {
-        selectedPage = _userPages.firstWhere(
-          (p) => p.pageId == _selectedPageId,
-        );
-      } catch (e) {
-        selectedPage = null;
-      }
+    if (userId == null) {
+      return const SizedBox.shrink();
     }
-    final displayName = selectedPage?.pageName ?? username;
-    final displayPhotoUrl = selectedPage?.profileImageUrl ?? user?.photoURL;
 
-    return AnimatedContainer(
-      duration: AnimationTokens.normal,
-      curve: AnimationTokens.easeInOut,
-      color: theme.scaffoldBackgroundColor,
-      padding: const EdgeInsets.symmetric(
-        horizontal: DesignTokens.spaceMD,
-        vertical: DesignTokens.spaceSM,
-      ),
-      child: Card(
-        elevation: 0,
-        color: theme.cardTheme.color,
-        shape: theme.cardTheme.shape,
-        margin: EdgeInsets.zero,
-        child: _isExpanded
-            ? _buildExpandedState(
-                context, theme, user, displayName, displayPhotoUrl)
-            : _buildCollapsedState(
-                context, theme, user, displayName, displayPhotoUrl),
-      ),
+    return StreamBuilder<UserModel>(
+      stream: UserStreamProvider().getUserStream(userId),
+      builder: (context, snapshot) {
+        // Use cached data or wait for stream
+        final userModel = snapshot.data;
+        final username = userModel?.username ?? 'User';
+        final userPhotoUrl = userModel?.photoUrl;
+
+        // Get selected page or user
+        PageModel? selectedPage;
+        if (_selectedPageId != null && _userPages.isNotEmpty) {
+          try {
+            selectedPage = _userPages.firstWhere(
+              (p) => p.pageId == _selectedPageId,
+            );
+          } catch (e) {
+            selectedPage = null;
+          }
+        }
+        final displayName = selectedPage?.pageName ?? username;
+        final displayPhotoUrl = selectedPage?.profileImageUrl ?? userPhotoUrl;
+
+        return AnimatedContainer(
+          duration: AnimationTokens.normal,
+          curve: AnimationTokens.easeInOut,
+          color: theme.scaffoldBackgroundColor,
+          padding: const EdgeInsets.symmetric(
+            horizontal: DesignTokens.spaceMD,
+            vertical: DesignTokens.spaceSM,
+          ),
+          child: Card(
+            elevation: 0,
+            color: theme.cardTheme.color,
+            shape: theme.cardTheme.shape,
+            margin: EdgeInsets.zero,
+            child: _isExpanded
+                ? _buildExpandedState(
+                    context, theme, displayName, displayPhotoUrl)
+                : _buildCollapsedState(
+                    context, theme, displayName, displayPhotoUrl),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildCollapsedState(
     BuildContext context,
     ThemeData theme,
-    User? user,
     String displayName,
     String? displayPhotoUrl,
   ) {
@@ -1320,7 +1334,6 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
   Widget _buildExpandedState(
     BuildContext context,
     ThemeData theme,
-    User? user,
     String displayName,
     String? displayPhotoUrl,
   ) {

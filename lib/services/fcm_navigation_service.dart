@@ -86,6 +86,11 @@ class FcmNavigationService {
         _navigateToPost(context, data);
         break;
 
+      case 'reelLike':
+      case 'reelComment':
+        _navigateToReel(context, data);
+        break;
+
       default:
         if (kDebugMode) {
           debugPrint('[FCM Navigation] Unknown notification type: $type');
@@ -209,6 +214,66 @@ class FcmNavigationService {
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[FCM Navigation] Error navigating to post: $e');
+      }
+    }
+  }
+
+  /// Navigate to reel screen
+  void navigateToReel(String reelId) {
+    try {
+      final context = navigatorKey.currentContext;
+      if (context == null) {
+        if (kDebugMode) {
+          debugPrint(
+              '[FCM Navigation] Context is null, cannot navigate to reel');
+        }
+        return;
+      }
+
+      if (kDebugMode) {
+        debugPrint('[FCM Navigation] Navigating to reel: $reelId');
+      }
+
+      if (reelId.isEmpty) {
+        if (kDebugMode) {
+          debugPrint('[FCM Navigation] Reel ID is empty');
+        }
+        return;
+      }
+
+      // Navigate to reels feed with specific reel ID
+      locator<NavigationService>().navigateNamed(
+        AppRoutes.reels,
+        arguments: {'reelId': reelId},
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[FCM Navigation] Error navigating to reel: $e');
+      }
+    }
+  }
+
+  /// Navigate to reel from notification data
+  void _navigateToReel(BuildContext context, Map<String, dynamic> data) {
+    try {
+      final reelId = data['contentId'];
+
+      if (kDebugMode) {
+        debugPrint('[FCM Navigation] Navigating to reel from notification');
+        debugPrint('[FCM Navigation] Reel ID: $reelId');
+      }
+
+      if (reelId == null || reelId.isEmpty) {
+        if (kDebugMode) {
+          debugPrint('[FCM Navigation] Reel ID is null or empty');
+        }
+        return;
+      }
+
+      navigateToReel(reelId);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[FCM Navigation] Error navigating to reel: $e');
       }
     }
   }

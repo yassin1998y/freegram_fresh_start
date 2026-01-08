@@ -63,9 +63,14 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
     final chatRepository = locator<ChatRepository>();
     final userRepository = locator<UserRepository>();
     final chatData = widget.chat.data() as Map<String, dynamic>;
-    final usernames = chatData['usernames'] as Map<String, dynamic>;
-    final otherUserId = (chatData['users'] as List)
+    final usernames = chatData['usernames'] as Map<String, dynamic>? ?? {};
+    var otherUserId = (chatData['users'] as List)
         .firstWhere((id) => id != widget.currentUserId, orElse: () => '');
+
+    // Fallback for self-chat or single-user chat
+    if (otherUserId == '') {
+      otherUserId = widget.currentUserId;
+    }
     final otherUsername = usernames[otherUserId] ?? 'User';
 
     // Get presence stream from optimized PresenceManager

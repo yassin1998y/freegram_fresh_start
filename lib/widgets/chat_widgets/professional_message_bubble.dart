@@ -4,11 +4,16 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:freegram/locator.dart';
-import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/models/message.dart';
+import 'package:freegram/services/cloudinary_service.dart';
+import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/utils/image_save_util.dart';
 import 'package:freegram/widgets/chat_widgets/message_reaction_display.dart';
+import 'package:freegram/widgets/chat_widgets/voice_message_bubble.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/widgets/island_popup.dart';
+import 'package:intl/intl.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 /// Professional Message Bubble with gradients, clustering, and animations
@@ -95,6 +100,45 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
     super.dispose();
   }
 
+  void _showTimestamp(BuildContext context) {
+    if (widget.message.timestamp == null) return;
+
+    final date = widget.message.timestamp!.toDate();
+    final formattedDate = DateFormat('MMM d, y').format(date);
+    final formattedTime = DateFormat('h:mm a').format(date);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              formattedDate,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: DesignTokens.spaceXS),
+            Text(
+              formattedTime,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withOpacity(0.7),
+                  ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // Message clustering logic
   bool get _isFirstInCluster {
     if (widget.previousMessage == null) return true;
@@ -157,6 +201,9 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
     return _isFirstInCluster ? DesignTokens.spaceMD : DesignTokens.spaceXS;
   }
 
+  double _swipeOffset = 0.0;
+  bool _isSwiping = false;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -166,65 +213,124 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
         animation: _highlightAnimation,
         builder: (context, child) {
           return GestureDetector(
+            onHorizontalDragStart: (_) {
+              setState(() {
+                _isSwiping = true;
+              });
+            },
+            onHorizontalDragUpdate: (details) {
+              if (!_isSwiping) return;
+
+              // Only allow swipe right for reply, swipe left for delete (own messages)
+              if (details.delta.dx > 0 && !widget.isMe) {
+                // Swipe right to reply (received messages)
+                setState(() {
+                  _swipeOffset =
+                      (_swipeOffset + details.delta.dx).clamp(0.0, 100.0);
+                });
+              } else if (details.delta.dx < 0 && widget.isMe) {
+                // Swipe left to delete (own messages)
+                setState(() {
+                  _swipeOffset =
+                      (_swipeOffset + details.delta.dx).clamp(-100.0, 0.0);
+                });
+              }
+            },
+            onHorizontalDragEnd: (details) {
+              if (!_isSwiping) return;
+
+              setState(() {
+                _isSwiping = false;
+              });
+
+              // Trigger action if swiped enough
+              if (_swipeOffset > 50 && !widget.isMe) {
+                // Swipe right to reply
+                HapticFeedback.mediumImpact();
+                widget
+                    .onLongPress(); // Use long press handler to show actions, which includes reply
+                _swipeOffset = 0.0;
+              } else if (_swipeOffset < -50 && widget.isMe) {
+                // Swipe left to delete
+                HapticFeedback.mediumImpact();
+                widget.onLongPress(); // Show delete option in actions
+                _swipeOffset = 0.0;
+              } else {
+                // Reset position
+                _swipeOffset = 0.0;
+              }
+            },
             onLongPress: () {
               HapticFeedback.mediumImpact();
               widget.onLongPress();
             },
-            onTap: widget.onTap,
+            onTap: () {
+              // If there's a custom onTap handler, use it
+              // Otherwise, show timestamp on tap
+              if (widget.onTap != null) {
+                widget.onTap?.call();
+              } else if (widget.message.timestamp != null) {
+                _showTimestamp(context);
+              }
+            },
             onTapDown: (_) => setState(() => _isPressed = true),
             onTapUp: (_) => setState(() => _isPressed = false),
             onTapCancel: () => setState(() => _isPressed = false),
-            child: Container(
-              color: _highlightAnimation.value,
-              padding: EdgeInsets.only(
-                top: _topPadding,
-                left: DesignTokens.spaceSM,
-                right: DesignTokens.spaceSM,
-                bottom: DesignTokens.spaceXS,
-              ),
-              child: Align(
-                alignment:
-                    widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
-                child: Column(
-                  crossAxisAlignment: widget.isMe
-                      ? CrossAxisAlignment.end
-                      : CrossAxisAlignment.start,
-                  children: [
-                    // Show sender name for first message in cluster (group chats)
-                    if (_isFirstInCluster && !widget.isMe)
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          left: DesignTokens.spaceMD,
-                          bottom: DesignTokens.spaceXS,
-                        ),
-                        child: Text(
-                          widget.otherUsername,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: DesignTokens.fontSizeXS,
+            child: Transform.translate(
+              offset: Offset(_swipeOffset, 0),
+              child: Container(
+                color: _highlightAnimation.value,
+                padding: EdgeInsets.only(
+                  top: _topPadding,
+                  left: DesignTokens.spaceSM,
+                  right: DesignTokens.spaceSM,
+                  bottom: DesignTokens.spaceXS,
+                ),
+                child: Align(
+                  alignment: widget.isMe
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  child: Column(
+                    crossAxisAlignment: widget.isMe
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
+                    children: [
+                      // Show sender name for first message in cluster (group chats)
+                      if (_isFirstInCluster && !widget.isMe)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            left: DesignTokens.spaceMD,
+                            bottom: DesignTokens.spaceXS,
+                          ),
+                          child: Text(
+                            widget.otherUsername,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: DesignTokens.fontSizeXS,
+                            ),
                           ),
                         ),
+
+                      // Message bubble
+                      AnimatedScale(
+                        scale: _isPressed ? 0.98 : 1.0,
+                        duration: AnimationTokens.fast,
+                        child: _buildMessageContent(context),
                       ),
 
-                    // Message bubble
-                    AnimatedScale(
-                      scale: _isPressed ? 0.98 : 1.0,
-                      duration: AnimationTokens.fast,
-                      child: _buildMessageContent(context),
-                    ),
-
-                    // Timestamp and status (shown on last message in cluster)
-                    if (_isLastInCluster)
-                      Padding(
-                        padding: EdgeInsets.only(
-                          top: DesignTokens.spaceXS,
-                          left: widget.isMe ? 0 : DesignTokens.spaceMD,
-                          right: widget.isMe ? DesignTokens.spaceMD : 0,
+                      // Timestamp and status (shown on last message in cluster)
+                      if (_isLastInCluster)
+                        Padding(
+                          padding: EdgeInsets.only(
+                            top: DesignTokens.spaceXS,
+                            left: widget.isMe ? 0 : DesignTokens.spaceMD,
+                            right: widget.isMe ? DesignTokens.spaceMD : 0,
+                          ),
+                          child: _buildMessageStatus(),
                         ),
-                        child: _buildMessageStatus(),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -563,6 +669,13 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
   }
 
   Widget _buildContent(BuildContext context) {
+    if (widget.message.isAudio && widget.message.audioUrl != null) {
+      return VoiceMessageBubble(
+        message: widget.message,
+        isMe: widget.isMe,
+      );
+    }
+
     if (widget.message.imageUrl != null) {
       return GestureDetector(
         onTap: () {
@@ -580,7 +693,11 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
           child: ClipRRect(
             borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
             child: CachedNetworkImage(
-              imageUrl: widget.message.imageUrl!,
+              imageUrl: CloudinaryService.getOptimizedImageUrl(
+                widget.message.imageUrl!,
+                width: 800, // Max width for chat images
+                quality: ImageQuality.medium,
+              ),
               fit: BoxFit.cover,
               maxHeightDiskCache: 800,
               maxWidthDiskCache: 800,
@@ -722,20 +839,38 @@ class _EnhancedImageViewer extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.download),
-            onPressed: () {
-              // TODO: Implement image save
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Download feature coming soon')),
-              );
+            onPressed: () async {
+              HapticFeedback.lightImpact();
+              final saved = await ImageSaveUtil.saveImageToDevice(imageUrl);
+              if (context.mounted) {
+                if (saved != null) {
+                  showIslandPopup(
+                    context: context,
+                    message: 'Image saved successfully!',
+                    icon: Icons.check_circle,
+                  );
+                } else {
+                  showIslandPopup(
+                    context: context,
+                    message: 'Failed to save image. Please check permissions.',
+                    icon: Icons.error_outline,
+                  );
+                }
+              }
             },
           ),
           IconButton(
             icon: const Icon(Icons.share),
-            onPressed: () {
-              // TODO: Implement image share
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Share feature coming soon')),
-              );
+            onPressed: () async {
+              HapticFeedback.lightImpact();
+              final shared = await ImageSaveUtil.shareImage(imageUrl);
+              if (context.mounted && !shared) {
+                showIslandPopup(
+                  context: context,
+                  message: 'Failed to share image',
+                  icon: Icons.error_outline,
+                );
+              }
             },
           ),
         ],

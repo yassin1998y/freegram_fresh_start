@@ -8,6 +8,7 @@ import 'package:freegram/locator.dart';
 import 'package:freegram/blocs/unified_feed_bloc.dart';
 import 'package:freegram/repositories/post_repository.dart';
 import 'package:freegram/repositories/user_repository.dart';
+import 'package:freegram/repositories/friend_repository.dart'; // Added import
 import 'package:freegram/repositories/reel_repository.dart';
 import 'package:freegram/repositories/page_repository.dart';
 import 'package:freegram/services/ad_service.dart';
@@ -51,6 +52,7 @@ class _FeedScreenState extends State<FeedScreen>
     _feedBloc = UnifiedFeedBloc(
       postRepository: locator<PostRepository>(),
       userRepository: locator<UserRepository>(),
+      friendRepository: locator<FriendRepository>(), // Added injection
       adService: locator<AdService>(),
       reelRepository: locator<ReelRepository>(),
       pageRepository: locator<PageRepository>(),

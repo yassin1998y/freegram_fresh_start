@@ -329,6 +329,24 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
       _nameController.text = widget.currentUserData!.username;
       _nameValidated = widget.currentUserData!.username.isNotEmpty;
 
+      // NEW: Pre-fill profile picture
+      if (widget.currentUserData!.photoUrl.isNotEmpty) {
+        _uploadedImageUrl = widget.currentUserData!.photoUrl;
+      }
+
+      // NEW: Skip Step 1 if name and photo are already present - REMOVED to allow user to review/edit
+      // if (_nameValidated &&
+      //     _uploadedImageUrl != null &&
+      //     _uploadedImageUrl!.isNotEmpty) {
+      //   _currentStep = 1;
+      //   // Update page controller initial page
+      //   WidgetsBinding.instance.addPostFrameCallback((_) {
+      //     if (_pageController.hasClients) {
+      //       _pageController.jumpToPage(1);
+      //     }
+      //   });
+      // }
+
       if (widget.currentUserData!.bio.isNotEmpty) {
         _bioController.text = widget.currentUserData!.bio;
       }
@@ -371,6 +389,79 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
     _bioController.addListener(_saveDraft);
     _nearbyStatusController.addListener(_saveDraft);
     _nearbyStatusEmojiController.addListener(_saveDraft);
+  }
+
+  @override
+  void didUpdateWidget(MultiStepOnboardingScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // --- DEBUG LOGGING ---
+    if (widget.currentUserData != oldWidget.currentUserData) {
+      debugPrint("MultiStepOnboardingScreen: currentUserData updated.");
+      debugPrint("Old username: '${oldWidget.currentUserData?.username}'");
+      debugPrint("New username: '${widget.currentUserData?.username}'");
+      debugPrint("New photoUrl: '${widget.currentUserData?.photoUrl}'");
+    }
+    // ---------------------
+
+    // Check if currentUserData has changed and update fields if they are empty
+    if (widget.currentUserData != oldWidget.currentUserData &&
+        widget.currentUserData != null) {
+      // Update Name if empty
+      if (_nameController.text.isEmpty &&
+          widget.currentUserData!.username.isNotEmpty) {
+        debugPrint(
+            "MultiStepOnboardingScreen: Pre-filling name with '${widget.currentUserData!.username}'");
+        _nameController.text = widget.currentUserData!.username;
+        _nameValidated = true;
+      }
+
+      // Update Photo if empty
+      if ((_uploadedImageUrl == null || _uploadedImageUrl!.isEmpty) &&
+          widget.currentUserData!.photoUrl.isNotEmpty) {
+        debugPrint("MultiStepOnboardingScreen: Pre-filling photo URL");
+        setState(() {
+          _uploadedImageUrl = widget.currentUserData!.photoUrl;
+        });
+      }
+
+      // Update Bio if empty
+      if (_bioController.text.isEmpty &&
+          widget.currentUserData!.bio.isNotEmpty) {
+        _bioController.text = widget.currentUserData!.bio;
+      }
+
+      // Update Gender if not selected
+      if (_selectedGender == null &&
+          widget.currentUserData!.gender.isNotEmpty) {
+        setState(() {
+          _selectedGender = widget.currentUserData!.gender;
+          _genderValidated = true;
+        });
+      }
+
+      // Update Country if not selected
+      if (_selectedCountry == null &&
+          widget.currentUserData!.country.isNotEmpty) {
+        setState(() {
+          _selectedCountry = widget.currentUserData!.country;
+          _countryValidated = true;
+        });
+      }
+
+      // Update DOB if not selected
+      if (_selectedDateOfBirth == null && widget.currentUserData!.age > 0) {
+        final now = DateTime.now();
+        setState(() {
+          _selectedDateOfBirth = DateTime(
+            now.year - widget.currentUserData!.age,
+            now.month,
+            now.day,
+          );
+          _dobValidated = true;
+        });
+      }
+    }
   }
 
   // IMPROVEMENT #24: Age calculation helper
@@ -429,7 +520,11 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
   void _deserializeDraft(String draft) {
     final parts = draft.split('|');
     if (parts.length >= 7) {
-      _nameController.text = parts[0];
+      // Only restore name if current controller is empty (prioritize social login data)
+      if (_nameController.text.isEmpty) {
+        _nameController.text = parts[0];
+      }
+
       if (parts[1] != 'null' && parts[1].isNotEmpty) {
         final timestamp = int.tryParse(parts[1]);
         if (timestamp != null) {
@@ -437,13 +532,29 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
           _dobValidated = true;
         }
       }
-      _selectedGender = parts[2] != 'null' ? parts[2] : null;
-      _genderValidated = _selectedGender != null;
-      _selectedCountry = parts[3] != 'null' ? parts[3] : null;
-      _countryValidated = _selectedCountry != null;
-      _bioController.text = parts[4];
-      _nearbyStatusController.text = parts[5];
-      _nearbyStatusEmojiController.text = parts[6];
+
+      if (_selectedGender == null) {
+        _selectedGender = parts[2] != 'null' ? parts[2] : null;
+        _genderValidated = _selectedGender != null;
+      }
+
+      if (_selectedCountry == null) {
+        _selectedCountry = parts[3] != 'null' ? parts[3] : null;
+        _countryValidated = _selectedCountry != null;
+      }
+
+      if (_bioController.text.isEmpty) {
+        _bioController.text = parts[4];
+      }
+
+      if (_nearbyStatusController.text.isEmpty) {
+        _nearbyStatusController.text = parts[5];
+      }
+
+      if (_nearbyStatusEmojiController.text.isEmpty) {
+        _nearbyStatusEmojiController.text = parts[6];
+      }
+
       _nameValidated = _nameController.text.isNotEmpty;
     }
   }
@@ -480,6 +591,8 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
       return;
     }
 
+    // PHASE 1: Add mounted check before setState in async function
+    if (!mounted) return;
     setState(() {
       _locationDetecting = true;
       _locationDetectionAttempted = true;
@@ -497,9 +610,11 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
             icon: Icons.location_off,
           );
         }
-        setState(() {
-          _locationDetecting = false;
-        });
+        if (mounted) {
+          setState(() {
+            _locationDetecting = false;
+          });
+        }
         return;
       }
 
@@ -516,9 +631,11 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
               icon: Icons.location_off,
             );
           }
-          setState(() {
-            _locationDetecting = false;
-          });
+          if (mounted) {
+            setState(() {
+              _locationDetecting = false;
+            });
+          }
           return;
         }
       }
@@ -532,9 +649,11 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
             icon: Icons.settings,
           );
         }
-        setState(() {
-          _locationDetecting = false;
-        });
+        if (mounted) {
+          setState(() {
+            _locationDetecting = false;
+          });
+        }
         return;
       }
 
@@ -556,13 +675,15 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
         final country = place.country ?? place.isoCountryCode;
 
         if (country != null && country.isNotEmpty) {
-          setState(() {
-            _selectedCountry = country;
-            _userLocation = GeoPoint(position.latitude, position.longitude);
-            _countryValidated = true;
-            _locationDetecting = false;
-          });
-          _saveDraft();
+          if (mounted) {
+            setState(() {
+              _selectedCountry = country;
+              _userLocation = GeoPoint(position.latitude, position.longitude);
+              _countryValidated = true;
+              _locationDetecting = false;
+            });
+            _saveDraft();
+          }
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -582,9 +703,11 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
               icon: Icons.error_outline,
             );
           }
-          setState(() {
-            _locationDetecting = false;
-          });
+          if (mounted) {
+            setState(() {
+              _locationDetecting = false;
+            });
+          }
         }
       } else {
         if (mounted) {
@@ -593,10 +716,10 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
             message: 'Could not get location information. Please try again.',
             icon: Icons.error_outline,
           );
+          setState(() {
+            _locationDetecting = false;
+          });
         }
-        setState(() {
-          _locationDetecting = false;
-        });
       }
     } catch (e) {
       debugPrint('Error detecting location: $e');
@@ -620,36 +743,52 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
           message: errorMessage,
           icon: Icons.error_outline,
         );
+        setState(() {
+          _locationDetecting = false;
+        });
       }
-      setState(() {
-        _locationDetecting = false;
-      });
     }
   }
 
   @override
   void dispose() {
-    // OPTIMIZATION: Cancel draft save timer
+    // PHASE 1: Memory Leak Fix - Ensure all resources are properly disposed
+    // Cancel draft save timer
     _draftSaveTimer?.cancel();
 
-    // Save draft one final time before disposal
-    _performDraftSave();
+    // Save draft one final time before disposal (fire-and-forget to prevent blocking)
+    _performDraftSave().catchError((e) {
+      debugPrint('Error saving draft on dispose: $e');
+    });
 
+    // Dispose all controllers in correct order
     _pageController.dispose();
     _stepAnimationController.dispose();
     _celebrationAnimationController.dispose();
+
+    // Dispose text controllers
     _nameController.dispose();
     _bioController.dispose();
     _nearbyStatusController.dispose();
     _nearbyStatusEmojiController.dispose();
+
     // Dispose scroll controllers
     for (var controller in _stepScrollControllers.values) {
       controller.dispose();
     }
+    _stepScrollControllers.clear();
+
     // Dispose focus nodes
     for (var focusNode in _fieldFocusNodes.values) {
       focusNode.dispose();
     }
+    _fieldFocusNodes.clear();
+
+    // PHASE 1: Dispose image picker resources (if any)
+    // ImagePicker doesn't require explicit disposal, but we clear the reference
+    _imageFile = null;
+    _uploadedImageUrl = null;
+
     super.dispose();
   }
 
@@ -692,8 +831,8 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                 return GestureDetector(
                   onTap: () => Navigator.pop(context, emoji),
                   child: Container(
-                    width: 60,
-                    height: 60,
+                    width: DesignTokens.iconXXL * 1.5,
+                    height: DesignTokens.iconXXL * 1.5,
                     decoration: BoxDecoration(
                       color: Colors.grey[200],
                       borderRadius:
@@ -702,7 +841,8 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                     child: Center(
                       child: Text(
                         emoji,
-                        style: const TextStyle(fontSize: 32),
+                        style: const TextStyle(
+                            fontSize: DesignTokens.fontSizeDisplay),
                       ),
                     ),
                   ),
@@ -720,9 +860,12 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
     );
 
     if (selectedEmoji != null) {
-      setState(() {
-        _nearbyStatusEmojiController.text = selectedEmoji;
-      });
+      // PHASE 1: Add mounted check before setState
+      if (mounted) {
+        setState(() {
+          _nearbyStatusEmojiController.text = selectedEmoji;
+        });
+      }
     }
   }
 
@@ -843,6 +986,8 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
     // UX IMPROVEMENT: Set loading state to prevent multiple submissions
     if (_isCompletingOnboarding) return;
 
+    // PHASE 1: Add mounted check before setState
+    if (!mounted) return;
     setState(() {
       _isCompletingOnboarding = true;
     });
@@ -851,9 +996,12 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
     _celebrationAnimationController.forward();
 
     // IMPROVEMENT #40: Show success screen before navigation
-    setState(() {
-      _showSuccessScreen = true;
-    });
+    // PHASE 1: Add mounted check before setState
+    if (mounted) {
+      setState(() {
+        _showSuccessScreen = true;
+      });
+    }
 
     // Wait for celebration animation
     await Future.delayed(const Duration(milliseconds: 1500));
@@ -916,13 +1064,14 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 40,
-                height: 4,
+                width: DesignTokens.bottomSheetHandleWidth,
+                height: DesignTokens.bottomSheetHandleHeight,
                 margin:
                     const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
                 decoration: BoxDecoration(
                   color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: BorderRadius.circular(
+                      DesignTokens.bottomSheetHandleHeight / 2),
                 ),
               ),
               ListTile(
@@ -987,6 +1136,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
             return;
           }
 
+          // PHASE 1: Add mounted check before setState
           if (mounted) {
             setState(() {
               _imageFile = pickedFile;
@@ -1058,7 +1208,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                 border: Border(
                   bottom: BorderSide(
                     color: Colors.grey[300]!,
-                    width: 1,
+                    width: DesignTokens.borderWidthThin,
                   ),
                 ),
               ),
@@ -1233,11 +1383,14 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
     );
 
     if (picked != null) {
-      setState(() {
-        _selectedDateOfBirth = picked;
-        _dobValidated = true;
-        _saveDraft();
-      });
+      // PHASE 1: Add mounted check before setState
+      if (mounted) {
+        setState(() {
+          _selectedDateOfBirth = picked;
+          _dobValidated = true;
+          _saveDraft();
+        });
+      }
     }
   }
 
@@ -1261,9 +1414,12 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
 
           if (state is ProfileImageUploaded) {
             // Image uploaded successfully - store the URL
-            setState(() {
-              _uploadedImageUrl = state.imageUrl;
-            });
+            // PHASE 1: Add mounted check before setState
+            if (mounted) {
+              setState(() {
+                _uploadedImageUrl = state.imageUrl;
+              });
+            }
             showIslandPopup(
               context: context,
               message: 'Image uploaded successfully!',
@@ -1314,8 +1470,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                   final isProfileComplete = updatedUser.age > 0 &&
                       updatedUser.country.isNotEmpty &&
                       updatedUser.gender.isNotEmpty &&
-                      updatedUser.username.isNotEmpty &&
-                      updatedUser.username != 'User';
+                      updatedUser.username.isNotEmpty;
 
                   if (isProfileComplete && mounted) {
                     debugPrint(
@@ -1818,7 +1973,9 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                       color: _nameValidated
                           ? SemanticColors.success
                           : Colors.grey[300]!,
-                      width: _nameValidated ? 2 : 1,
+                      width: _nameValidated
+                          ? DesignTokens.borderWidthThick
+                          : DesignTokens.borderWidthThin,
                     ),
                   ),
                   helperText: _nameController.text.isEmpty
@@ -1893,7 +2050,9 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                       color: _dobValidated
                           ? SemanticColors.success
                           : Colors.grey[300]!,
-                      width: _dobValidated ? 2 : 1,
+                      width: _dobValidated
+                          ? DesignTokens.borderWidthThick
+                          : DesignTokens.borderWidthThin,
                     ),
                   ),
                   prefixIcon: const Icon(Icons.calendar_today),
@@ -1939,7 +2098,9 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                     color: _genderValidated
                         ? SemanticColors.success
                         : Colors.grey[300]!,
-                    width: _genderValidated ? 2 : 1,
+                    width: _genderValidated
+                        ? DesignTokens.borderWidthThick
+                        : DesignTokens.borderWidthThin,
                   ),
                 ),
                 prefixIcon: const Icon(Icons.person_outline),
@@ -2020,7 +2181,8 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                   color: _countryValidated
                       ? SemanticColors.success
                       : Theme.of(context).colorScheme.primary,
-                  width: _countryValidated ? 2 : 1.5,
+                  width:
+                      _countryValidated ? DesignTokens.borderWidthThick : 1.5,
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
@@ -2037,7 +2199,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
                 border: Border.all(
                   color: SemanticColors.success.withOpacity(0.3),
-                  width: 1,
+                  width: DesignTokens.borderWidthThin,
                 ),
               ),
               child: Row(

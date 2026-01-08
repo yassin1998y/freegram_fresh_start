@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/utils/image_url_validator.dart';
+import 'package:freegram/services/cloudinary_service.dart';
 
 /// Standardized user avatar widget with memory optimization
 ///
@@ -77,7 +78,13 @@ class UserAvatar extends StatelessWidget {
       child: ClipOval(
         child: isValidUrl
             ? CachedNetworkImage(
-                imageUrl: url!,
+                imageUrl: CloudinaryService.getOptimizedImageUrl(
+                  url!,
+                  width: size.size.toInt(), // Optimize to avatar size
+                  height: size.size.toInt(),
+                  quality:
+                      ImageQuality.thumbnail, // Thumbnail quality for avatars
+                ),
                 // CRITICAL: Memory optimization - decode image at 2x size for retina
                 // This prevents decoding a 4000px image for a 40px avatar
                 memCacheWidth: size.memCacheWidth,

@@ -26,7 +26,7 @@ class _MyReelsTabState extends State<MyReelsTab> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final currentUser = FirebaseAuth.instance.currentUser;
-    
+
     if (currentUser == null) {
       return Container(
         color: Colors.black,
@@ -44,6 +44,8 @@ class _MyReelsTabState extends State<MyReelsTab> {
     return BlocProvider(
       create: (context) => ReelsFeedBloc(
         reelRepository: locator<ReelRepository>(),
+        userRepository: locator(), // Support personalized feed
+        usePersonalizedFeed: false, // Disable for user-specific reels
       )..add(LoadMyReels(currentUser.uid)),
       child: BlocBuilder<ReelsFeedBloc, ReelsFeedState>(
         builder: (context, state) {
@@ -99,21 +101,24 @@ class _MyReelsTabState extends State<MyReelsTab> {
                     children: [
                       Icon(
                         Icons.video_library_outlined,
-                        color: Colors.white.withOpacity(DesignTokens.opacityMedium),
+                        color: Colors.white
+                            .withOpacity(DesignTokens.opacityMedium),
                         size: DesignTokens.iconXXL * 1.6,
                       ),
                       const SizedBox(height: DesignTokens.spaceMD),
                       Text(
                         'No reels yet',
                         style: theme.textTheme.titleMedium?.copyWith(
-                          color: Colors.white.withOpacity(DesignTokens.opacityHigh),
+                          color: Colors.white
+                              .withOpacity(DesignTokens.opacityHigh),
                         ),
                       ),
                       const SizedBox(height: DesignTokens.spaceSM),
                       Text(
                         'Tap the + button to create your first reel',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.white.withOpacity(DesignTokens.opacityMedium),
+                          color: Colors.white
+                              .withOpacity(DesignTokens.opacityMedium),
                         ),
                       ),
                     ],
@@ -156,7 +161,7 @@ class _ReelGridItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return GestureDetector(
       onTap: () {
         // Navigate to reel detail or play in full screen
@@ -225,4 +230,3 @@ class _ReelGridItem extends StatelessWidget {
     return count.toString();
   }
 }
-

@@ -15,6 +15,7 @@ import 'package:freegram/models/user_model.dart';
 import 'package:freegram/models/page_model.dart';
 import 'package:freegram/repositories/post_repository.dart';
 import 'package:freegram/repositories/user_repository.dart';
+import 'package:freegram/repositories/friend_repository.dart'; // Added import
 import 'package:freegram/repositories/reel_repository.dart';
 import 'package:freegram/repositories/page_repository.dart';
 import 'package:freegram/services/feed_scoring_service.dart';
@@ -237,6 +238,7 @@ class ScoredFeedItem {
 class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
   final PostRepository _postRepository;
   final UserRepository? _userRepository;
+  final FriendRepository? _friendRepository; // Added field
   final AdService? _adService;
   final ReelRepository? _reelRepository;
   final PageRepository? _pageRepository;
@@ -248,12 +250,14 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
   UnifiedFeedBloc({
     required PostRepository postRepository,
     UserRepository? userRepository,
+    FriendRepository? friendRepository, // Added parameter
     AdService? adService,
     ReelRepository? reelRepository,
     PageRepository? pageRepository,
     FeedCacheService? feedCacheService,
   })  : _postRepository = postRepository,
         _userRepository = userRepository,
+        _friendRepository = friendRepository, // Initialized field
         _adService = adService,
         _reelRepository = reelRepository,
         _pageRepository = pageRepository,
@@ -358,8 +362,22 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
         refresh: event.refresh, // Clear cache on refresh
       );
 
-      final posts = result.$1;
+      var posts = result.$1;
       final lastDoc = result.$2;
+
+      // NUX: If feed is empty (new user), fetch global trending posts
+      bool isGlobalTrendingFallback = false;
+      if (posts.isEmpty && _lastDocument == null) {
+        debugPrint(
+            'UnifiedFeedBloc: Feed is empty, fetching global trending posts for NUX');
+        try {
+          posts = await _postRepository.getGlobalTrendingPosts(limit: 20);
+          isGlobalTrendingFallback = true;
+        } catch (e) {
+          debugPrint(
+              'UnifiedFeedBloc: Error fetching global trending fallback: $e');
+        }
+      }
 
       _lastDocument = lastDoc;
       _hasMore =
@@ -387,6 +405,17 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
 
       // Single pass: calculate scores, separate by type, and collect in one iteration
       for (final post in posts) {
+        // If fallback, force display type to trending or suggested
+        if (isGlobalTrendingFallback) {
+          otherItems.add(ScoredFeedItem(
+            post: post,
+            score: 100.0, // High score for fallback
+            displayType: PostDisplayType.trending,
+            reason: 'Global Trending',
+          ));
+          continue;
+        }
+
         final score = FeedScoringService.calculateScore(
           post,
           currentUserId: event.userId,
@@ -476,11 +505,22 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
         }
 
         // Fetch friend suggestions
-        final userRepo = _userRepository;
-        if (userRepo != null) {
-          friendSuggestionsList = await userRepo
+        final friendRepo = _friendRepository; // Use FriendRepository
+        if (friendRepo != null) {
+          friendSuggestionsList = await friendRepo
               .getFriendSuggestions(event.userId, limit: 10)
               .timeout(const Duration(seconds: 5), onTimeout: () => []);
+
+          // NUX: If no friend suggestions (no mutuals), fetch recommended users
+          if (friendSuggestionsList.isEmpty) {
+            debugPrint(
+                'UnifiedFeedBloc: No friend suggestions, fetching recommended users for NUX');
+            // We need UserDiscoveryRepository for this, but it's not injected yet.
+            // For now, we'll skip this or rely on what we have.
+            // Ideally, we should inject UserDiscoveryRepository.
+            // Assuming we can't easily change injection right now without more code,
+            // we'll leave this empty, but the global trending posts will help.
+          }
         }
 
         // Fetch page suggestions

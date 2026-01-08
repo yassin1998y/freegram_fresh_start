@@ -32,7 +32,7 @@ class ProfessionalNotificationManager {
   Future<void> initialize() async {
     // Android initialization
     const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('ic_stat_freegram');
 
     // iOS initialization
     const DarwinInitializationSettings iosSettings =
@@ -702,6 +702,226 @@ class ProfessionalNotificationManager {
     if (kDebugMode) {
       debugPrint(
           '[Pro Notification Background] Showed friend accepted from $fromUsername');
+    }
+  }
+
+  /// Show reel notification in background (like, comment)
+  Future<void> showBackgroundReelNotification({
+    required String reelId,
+    required String fromUserId,
+    required String fromUsername,
+    required String fromPhotoUrl,
+    required String notificationType,
+    required int count,
+  }) async {
+    try {
+      if (kDebugMode) {
+        debugPrint(
+            '[Pro Notification Background] Showing reel notification: $notificationType from $fromUsername');
+      }
+
+      final notificationId =
+          _getNotificationId('reel_${notificationType}_$reelId');
+
+      // Download profile picture
+      String? largeIconPath;
+      if (fromPhotoUrl.isNotEmpty) {
+        largeIconPath = await _downloadAndSaveImage(
+          fromPhotoUrl,
+          'avatar_$fromUserId.jpg',
+        );
+      }
+
+      // Format title and body based on type and count
+      String title;
+      String body;
+
+      if (notificationType == 'reelLike') {
+        if (count == 1) {
+          title = 'Reel Like ❤️';
+          body = '$fromUsername liked your reel';
+        } else {
+          title = 'Reel Likes ❤️';
+          body =
+              '$fromUsername and ${count - 1} other${count > 2 ? 's' : ''} liked your reel';
+        }
+      } else if (notificationType == 'reelComment') {
+        if (count == 1) {
+          title = 'Reel Comment 💬';
+          body = '$fromUsername commented on your reel';
+        } else {
+          title = 'Reel Comments 💬';
+          body =
+              '$fromUsername and ${count - 1} other${count > 2 ? 's' : ''} commented on your reel';
+        }
+      } else {
+        title = 'Reel Notification';
+        body = '$fromUsername interacted with your reel';
+      }
+
+      // Android notification
+      final AndroidNotificationDetails androidDetails =
+          AndroidNotificationDetails(
+        'general_channel',
+        'General',
+        channelDescription: 'General app notifications',
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+        largeIcon:
+            largeIconPath != null ? FilePathAndroidBitmap(largeIconPath) : null,
+        styleInformation: BigTextStyleInformation(
+          body,
+          contentTitle: title,
+        ),
+        color: notificationType == 'reelLike'
+            ? const Color(0xFFE91E63)
+            : const Color(0xFF2196F3),
+        autoCancel: true,
+      );
+
+      // iOS notification
+      final DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+        threadIdentifier: 'reel_notifications',
+        subtitle: fromUsername,
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      final NotificationDetails platformDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      await _notificationsPlugin.show(
+        notificationId,
+        title,
+        body,
+        platformDetails,
+        payload: 'reel:$reelId:$fromUserId',
+      );
+
+      if (kDebugMode) {
+        debugPrint(
+            '[Pro Notification Background] Showed reel notification from $fromUsername');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+            '[Pro Notification Background] Error showing reel notification: $e');
+      }
+    }
+  }
+
+  /// Show post notification in background (like, comment, mention)
+  Future<void> showBackgroundPostNotification({
+    required String postId,
+    required String fromUserId,
+    required String fromUsername,
+    required String fromPhotoUrl,
+    required String notificationType,
+    required int count,
+    String? commentText,
+  }) async {
+    try {
+      if (kDebugMode) {
+        debugPrint(
+            '[Pro Notification Background] Showing post notification: $notificationType from $fromUsername');
+      }
+
+      final notificationId =
+          _getNotificationId('post_${notificationType}_$postId');
+
+      // Download profile picture
+      String? largeIconPath;
+      if (fromPhotoUrl.isNotEmpty) {
+        largeIconPath = await _downloadAndSaveImage(
+          fromPhotoUrl,
+          'avatar_$fromUserId.jpg',
+        );
+      }
+
+      // Format title and body based on type and count
+      String title;
+      String body;
+
+      if (notificationType == 'reaction' || notificationType == 'like') {
+        if (count == 1) {
+          title = 'New Like ❤️';
+          body = '$fromUsername liked your post';
+        } else {
+          title = 'New Likes ❤️';
+          body =
+              '$fromUsername and ${count - 1} other${count > 2 ? 's' : ''} liked your post';
+        }
+      } else if (notificationType == 'comment') {
+        if (count == 1) {
+          title = 'New Comment 💬';
+          body = '$fromUsername commented: ${commentText ?? "on your post"}';
+        } else {
+          title = 'New Comments 💬';
+          body =
+              '$fromUsername and ${count - 1} other${count > 2 ? 's' : ''} commented on your post';
+        }
+      } else if (notificationType == 'mention') {
+        title = 'New Mention @';
+        body = '$fromUsername mentioned you in a post';
+      } else {
+        title = 'New Notification';
+        body = '$fromUsername interacted with your post';
+      }
+
+      // Android notification
+      final AndroidNotificationDetails androidDetails =
+          AndroidNotificationDetails(
+        'general_channel',
+        'General',
+        channelDescription: 'General app notifications',
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+        largeIcon:
+            largeIconPath != null ? FilePathAndroidBitmap(largeIconPath) : null,
+        styleInformation: BigTextStyleInformation(
+          body,
+          contentTitle: title,
+        ),
+        color: (notificationType == 'reaction' || notificationType == 'like')
+            ? const Color(0xFFE91E63)
+            : const Color(0xFF2196F3),
+        autoCancel: true,
+      );
+
+      // iOS notification
+      final DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+        threadIdentifier: 'post_notifications',
+        subtitle: fromUsername,
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      final NotificationDetails platformDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      await _notificationsPlugin.show(
+        notificationId,
+        title,
+        body,
+        platformDetails,
+        payload: 'post:$postId:$fromUserId',
+      );
+
+      if (kDebugMode) {
+        debugPrint(
+            '[Pro Notification Background] Showed post notification from $fromUsername');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+            '[Pro Notification Background] Error showing post notification: $e');
+      }
     }
   }
 }

@@ -15,6 +15,7 @@ import 'package:freegram/locator.dart';
 import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/repositories/store_repository.dart';
 import 'package:freegram/repositories/user_repository.dart';
+import 'package:freegram/repositories/match_repository.dart';
 import 'package:freegram/screens/store_screen.dart';
 import 'package:freegram/services/ad_helper.dart';
 import 'package:freegram/utils/match_screen_constants.dart';
@@ -161,7 +162,7 @@ class _MatchScreenState extends State<MatchScreen>
     final currentUser = FirebaseAuth.instance.currentUser!;
     try {
       final matches =
-          await locator<UserRepository>().getPotentialMatches(currentUser.uid);
+          await locator<MatchRepository>().getPotentialMatches(currentUser.uid);
       if (mounted) {
         // Convert to CardItems and inject ads
         final cardItems = <CardItem>[];
@@ -250,10 +251,11 @@ class _MatchScreenState extends State<MatchScreen>
   Future<void> _onSwipe(String action, String otherUserId) async {
     final currentUser = FirebaseAuth.instance.currentUser!;
     final userRepository = locator<UserRepository>();
+    final matchRepository = locator<MatchRepository>();
     final messenger = ScaffoldMessenger.of(context);
 
     try {
-      await userRepository.recordSwipe(currentUser.uid, otherUserId, action);
+      await matchRepository.recordSwipe(currentUser.uid, otherUserId, action);
 
       if (action == 'super_like') {
         messenger.showSnackBar(
@@ -271,13 +273,13 @@ class _MatchScreenState extends State<MatchScreen>
 
       if (action == 'smash' || action == 'super_like') {
         final isMatch =
-            await userRepository.checkForMatch(currentUser.uid, otherUserId);
+            await matchRepository.checkForMatch(currentUser.uid, otherUserId);
         if (isMatch && mounted) {
           final currentUserModel =
               await userRepository.getUser(currentUser.uid);
           final otherUserModel = await userRepository.getUser(otherUserId);
 
-          await userRepository.createMatch(currentUser.uid, otherUserId);
+          await matchRepository.createMatch(currentUser.uid, otherUserId);
 
           // Use NavigationService with fade transition for match animation
           // Opaque: false is handled by NavigationService's fade transition
@@ -408,7 +410,7 @@ class _MatchScreenState extends State<MatchScreen>
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(
-            MatchScreenConstants.rewardSnackBarRadius,
+            DesignTokens.radiusMD,
           ),
         ),
       ),
@@ -461,11 +463,15 @@ class _MatchScreenState extends State<MatchScreen>
                     Container(
                       padding: const EdgeInsets.all(DesignTokens.spaceMD),
                       decoration: BoxDecoration(
-                        color: SemanticColors.success.withOpacity(0.1),
+                        color: SemanticColors.success.withOpacity(
+                          DesignTokens.opacityMedium,
+                        ),
                         borderRadius:
                             BorderRadius.circular(DesignTokens.radiusMD),
                         border: Border.all(
-                          color: SemanticColors.success.withOpacity(0.3),
+                          color: SemanticColors.success.withOpacity(
+                            DesignTokens.opacityMedium,
+                          ),
                         ),
                       ),
                       child: Row(
@@ -511,11 +517,15 @@ class _MatchScreenState extends State<MatchScreen>
                   Container(
                     padding: const EdgeInsets.all(DesignTokens.spaceMD),
                     decoration: BoxDecoration(
-                      color: SemanticColors.info.withOpacity(0.1),
+                      color: SemanticColors.info.withOpacity(
+                        DesignTokens.opacityMedium,
+                      ),
                       borderRadius:
                           BorderRadius.circular(DesignTokens.radiusMD),
                       border: Border.all(
-                        color: SemanticColors.info.withOpacity(0.3),
+                        color: SemanticColors.info.withOpacity(
+                          DesignTokens.opacityMedium,
+                        ),
                       ),
                     ),
                     child: Row(
@@ -687,17 +697,17 @@ class _MatchScreenState extends State<MatchScreen>
                 Icon(
                   Icons.star,
                   color: Theme.of(context).colorScheme.onPrimary,
-                  size: MatchScreenConstants.rewardSnackBarIconSize,
+                  size: DesignTokens.iconLG,
                 ),
                 const SizedBox(
-                  width: MatchScreenConstants.rewardSnackBarIconSpacing,
+                  width: DesignTokens.spaceMD,
                 ),
                 Expanded(
                   child: Text(
                     "You got +1 Super Like!",
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.bold,
-                          fontSize: MatchScreenConstants.rewardSnackBarFontSize,
+                          fontSize: DesignTokens.fontSizeLG,
                           color: Theme.of(context).colorScheme.onPrimary,
                         ),
                   ),
@@ -707,12 +717,12 @@ class _MatchScreenState extends State<MatchScreen>
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(
-                MatchScreenConstants.rewardSnackBarRadius,
+                DesignTokens.radiusMD,
               ),
             ),
             duration: MatchScreenConstants.snackBarDuration,
             margin: const EdgeInsets.all(
-              MatchScreenConstants.rewardSnackBarMargin,
+              DesignTokens.spaceMD,
             ),
           ),
         );
@@ -923,37 +933,30 @@ class _MatchScreenState extends State<MatchScreen>
                         if (cardItems.length > 1)
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: MatchScreenConstants
-                                  .progressIndicatorPaddingHorizontal,
-                              vertical: MatchScreenConstants
-                                  .progressIndicatorPaddingVertical,
+                              horizontal: DesignTokens.spaceMD,
+                              vertical: DesignTokens.spaceMD,
                             ),
                             child: Row(
                               children: [
                                 Expanded(
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(
-                                      MatchScreenConstants
-                                          .progressIndicatorRadius,
+                                      DesignTokens.radiusMD,
                                     ),
                                     child: AppLinearProgressIndicator(
                                       value: _swipeCount /
                                           (_swipeCount + cardItems.length),
                                       backgroundColor: Colors.grey[300],
                                       color: Theme.of(context).primaryColor,
-                                      minHeight: MatchScreenConstants
-                                          .progressIndicatorHeight,
+                                      minHeight: 4.0,
                                     ),
                                   ),
                                 ),
-                                const SizedBox(
-                                    width: MatchScreenConstants
-                                        .progressTextSpacing),
+                                const SizedBox(width: DesignTokens.spaceMD),
                                 Text(
                                   '${cardItems.length} left',
                                   style: TextStyle(
-                                    fontSize: MatchScreenConstants
-                                        .progressTextFontSize,
+                                    fontSize: DesignTokens.fontSizeSM,
                                     color: Colors.grey[600],
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -965,10 +968,10 @@ class _MatchScreenState extends State<MatchScreen>
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(
-                              MatchScreenConstants.cardPaddingHorizontal,
-                              MatchScreenConstants.cardPaddingTop,
-                              MatchScreenConstants.cardPaddingHorizontal,
-                              MatchScreenConstants.cardPaddingBottom,
+                              DesignTokens.spaceMD,
+                              DesignTokens.spaceXS,
+                              DesignTokens.spaceMD,
+                              DesignTokens.spaceSM,
                             ),
                             child: Stack(
                               alignment: Alignment.center,
@@ -1111,10 +1114,10 @@ class _MatchScreenState extends State<MatchScreen>
       label: MatchScreenConstants.semanticLabelActionButtons,
       child: Padding(
         padding: const EdgeInsets.only(
-          left: MatchScreenConstants.actionButtonRowPaddingHorizontal,
-          right: MatchScreenConstants.actionButtonRowPaddingHorizontal,
-          bottom: MatchScreenConstants.actionButtonRowPaddingBottom,
-          top: MatchScreenConstants.actionButtonRowPaddingTop,
+          left: DesignTokens.spaceMD,
+          right: DesignTokens.spaceMD,
+          bottom: DesignTokens.spaceSM,
+          top: DesignTokens.spaceSM,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -1250,7 +1253,7 @@ class _MatchScreenState extends State<MatchScreen>
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(
-                  MatchScreenConstants.rewardSnackBarRadius,
+                  DesignTokens.radiusMD,
                 ),
               ),
             ),
@@ -1326,16 +1329,13 @@ class _RewardCelebrationDialogState extends State<_RewardCelebrationDialog>
               angle: _rotationAnimation.value,
               child: Container(
                 margin: const EdgeInsets.symmetric(
-                  horizontal:
-                      MatchScreenConstants.celebrationDialogHorizontalMargin,
+                  horizontal: DesignTokens.spaceXL,
                 ),
-                padding: const EdgeInsets.all(
-                  MatchScreenConstants.celebrationDialogPadding,
-                ),
+                padding: const EdgeInsets.all(DesignTokens.spaceXL),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(
-                    MatchScreenConstants.celebrationDialogRadius,
+                    DesignTokens.radiusXXL,
                   ),
                   boxShadow: [
                     BoxShadow(
@@ -1349,51 +1349,48 @@ class _RewardCelebrationDialogState extends State<_RewardCelebrationDialog>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(
-                        MatchScreenConstants.celebrationIconPadding,
-                      ),
+                      padding: const EdgeInsets.all(DesignTokens.spaceMD),
                       decoration: BoxDecoration(
                         color: MatchScreenConstants.superLikeColor
-                            .withOpacity(0.1),
+                            .withOpacity(DesignTokens.opacityMedium),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
                         Icons.star,
-                        size: MatchScreenConstants.celebrationIconSize,
+                        size: DesignTokens.iconXXL,
                         color: MatchScreenConstants.superLikeColor,
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: DesignTokens.spaceMD),
                     const Text(
                       'Awesome!',
                       style: TextStyle(
-                        fontSize: MatchScreenConstants.celebrationTitleFontSize,
+                        fontSize: DesignTokens.fontSizeXXXL,
                         fontWeight: FontWeight.bold,
                         color: MatchScreenConstants.likeColor,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: DesignTokens.spaceSM),
                     Text(
                       '+1 Super Like',
                       style: TextStyle(
-                        fontSize:
-                            MatchScreenConstants.celebrationSubtitleFontSize,
+                        fontSize: DesignTokens.fontSizeXXL,
                         fontWeight: FontWeight.w600,
                         color: Colors.grey[800],
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: DesignTokens.spaceMD),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: MatchScreenConstants
-                            .celebrationBadgePaddingHorizontal,
-                        vertical: MatchScreenConstants
-                            .celebrationBadgePaddingVertical,
+                        horizontal: DesignTokens.spaceMD,
+                        vertical: DesignTokens.spaceSM,
                       ),
                       decoration: BoxDecoration(
-                        color: MatchScreenConstants.likeColor.withOpacity(0.1),
+                        color: MatchScreenConstants.likeColor.withOpacity(
+                          DesignTokens.opacityMedium,
+                        ),
                         borderRadius: BorderRadius.circular(
-                          MatchScreenConstants.celebrationBadgeRadius,
+                          DesignTokens.radiusXL,
                         ),
                       ),
                       child: const Row(
@@ -1402,16 +1399,15 @@ class _RewardCelebrationDialogState extends State<_RewardCelebrationDialog>
                           Icon(
                             Icons.celebration,
                             color: MatchScreenConstants.likeColor,
-                            size: MatchScreenConstants.celebrationBadgeIconSize,
+                            size: DesignTokens.iconMD,
                           ),
-                          SizedBox(width: 8),
+                          SizedBox(width: DesignTokens.spaceSM),
                           Text(
                             'Reward Unlocked!',
                             style: TextStyle(
                               color: MatchScreenConstants.likeColor,
                               fontWeight: FontWeight.w600,
-                              fontSize:
-                                  MatchScreenConstants.celebrationBadgeFontSize,
+                              fontSize: DesignTokens.fontSizeSM,
                             ),
                           ),
                         ],
@@ -1465,7 +1461,8 @@ class _MatchCardState extends State<MatchCard> {
 
     return Card(
       elevation: widget.isBackground ? 4 : 12,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(DesignTokens.radiusXL)),
       clipBehavior: Clip.antiAlias,
       child: Stack(
         fit: StackFit.expand,
@@ -1547,9 +1544,9 @@ class _MatchCardState extends State<MatchCard> {
           // Photo indicators (placeholder for multiple photos)
           if (!widget.isBackground && photos.length > 1)
             Positioned(
-              top: 12,
-              left: 12,
-              right: 12,
+              top: DesignTokens.spaceMD,
+              left: DesignTokens.spaceMD,
+              right: DesignTokens.spaceMD,
               child: Row(
                 children: List.generate(
                   photos.length,
@@ -1600,7 +1597,7 @@ class _MatchCardState extends State<MatchCard> {
                             _getActiveStatus(lastActive)!,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 11,
+                              fontSize: DesignTokens.fontSizeXS,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -1690,7 +1687,7 @@ class _MatchCardState extends State<MatchCard> {
                             occupation,
                             style: const TextStyle(
                               color: Colors.white70,
-                              fontSize: 15,
+                              fontSize: DesignTokens.fontSizeMD,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -1709,7 +1706,7 @@ class _MatchCardState extends State<MatchCard> {
                           '${distance.toStringAsFixed(1)} km away',
                           style: const TextStyle(
                             color: Colors.white70,
-                            fontSize: 14,
+                            fontSize: DesignTokens.fontSizeSM,
                           ),
                         ),
                       ],
@@ -1737,7 +1734,7 @@ class _MatchCardState extends State<MatchCard> {
                             interest,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 13,
+                              fontSize: DesignTokens.fontSizeSM,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -1751,7 +1748,7 @@ class _MatchCardState extends State<MatchCard> {
                       bio,
                       style: const TextStyle(
                         color: Colors.white70,
-                        fontSize: 14,
+                        fontSize: DesignTokens.fontSizeSM,
                         height: 1.3,
                       ),
                       maxLines: 2,
@@ -1813,7 +1810,8 @@ class ProfileDetailSheet extends StatelessWidget {
         return Container(
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: BorderRadius.vertical(
+                top: Radius.circular(DesignTokens.radiusXL)),
           ),
           child: Column(
             children: [
@@ -1984,7 +1982,8 @@ class AdCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: isBackground ? 4 : 12,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(DesignTokens.radiusXL)),
       clipBehavior: Clip.antiAlias,
       child: Stack(
         fit: StackFit.expand, // Match MatchCard behavior
@@ -2009,7 +2008,7 @@ class AdCard extends StatelessWidget {
                     Text(
                       'Sponsored',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: DesignTokens.fontSizeXS,
                         color: Colors.grey[600],
                         fontWeight: FontWeight.w500,
                       ),

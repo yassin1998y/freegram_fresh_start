@@ -1,285 +1,379 @@
-import 'package:cloud_firestore/cloud_firestore.dart'; // Keep for FieldValue if UserRepository uses it
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:freegram/locator.dart';
-import 'package:freegram/repositories/store_repository.dart'; // Keep
-import 'package:freegram/repositories/user_repository.dart'; // Keep
-import 'package:freegram/services/ad_helper.dart'; // Keep
-import 'package:freegram/services/in_app_purchase_service.dart'; // Keep
 import 'package:freegram/widgets/freegram_app_bar.dart';
-import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/screens/store_tabs/coins_tab.dart';
+import 'package:freegram/screens/store_tabs/boosts_tab.dart';
+import 'package:freegram/screens/store_tabs/gifts_tab.dart';
+import 'package:freegram/screens/store_tabs/profile_tab.dart';
+import 'package:freegram/screens/store_tabs/marketplace_tab.dart';
+import 'package:freegram/screens/limited_editions_screen.dart';
 
-class StoreScreen extends StatelessWidget {
+import 'package:freegram/locator.dart';
+import 'package:freegram/repositories/gift_repository.dart';
+import 'package:freegram/repositories/profile_repository.dart';
+
+import 'package:freegram/services/daily_reward_service.dart';
+import 'package:freegram/widgets/gamification/daily_reward_dialog.dart';
+import 'package:freegram/repositories/user_repository.dart';
+import 'package:freegram/screens/achievements_screen.dart';
+import 'package:freegram/screens/referral_screen.dart';
+import 'package:freegram/screens/inventory_screen.dart';
+import 'package:freegram/models/user_model.dart';
+
+class StoreScreen extends StatefulWidget {
   const StoreScreen({super.key});
+
+  @override
+  State<StoreScreen> createState() => _StoreScreenState();
+}
+
+class _StoreScreenState extends State<StoreScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Trigger seeding of catalogs
+    _seedCatalogs();
+    // Check for daily reward
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkDailyReward());
+  }
+
+  Future<void> _seedCatalogs() async {
+    await locator<GiftRepository>().seedGifts();
+    await locator<ProfileRepository>().seedProfileItems();
+  }
+
+  Future<void> _checkDailyReward() async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      final service = locator<DailyRewardService>();
+      final status = await service.checkRewardStatus(currentUser.uid);
+
+      if (status == DailyRewardStatus.available && mounted) {
+        _showDailyRewardDialog(currentUser.uid);
+      }
+    } catch (e) {
+      // Silently fail - don't interrupt user experience
+      debugPrint('Error checking daily reward: $e');
+    }
+  }
+
+  void _showDailyRewardDialog(String userId) async {
+    // Fetch current streak first
+    final user = await locator<UserRepository>().getUser(userId);
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => DailyRewardDialog(
+          userId: userId,
+          currentStreak: user.dailyLoginStreak,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     debugPrint('📱 SCREEN: store_screen.dart');
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      // Handle not logged in state
       return const Scaffold(
-        //appBar: AppBar(title: Text("Store")),
         body: Center(child: Text("Please log in to access the store.")),
       );
     }
 
-    // Keep DefaultTabController and Scaffold structure
-    return DefaultTabController(
-      length: 2, // "Get Items" and "Get Coins"
-      child: Scaffold(
-        appBar: const FreegramAppBar(
-          title: 'Store',
-          showBackButton: true,
-          bottom: TabBar(
-            tabs: [
-              Tab(text: "Get Items"),
-              Tab(text: "Get Coins"),
-            ],
+    return Scaffold(
+      appBar: FreegramAppBar(
+        title: 'Store',
+        showBackButton: true,
+        actions: [
+          // Coin balance display
+          StreamBuilder<UserModel>(
+            stream: locator<UserRepository>().getUserStream(currentUser.uid),
+            builder: (context, snapshot) {
+              // Handle error state
+              if (snapshot.hasError) {
+                return Container(
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: const Icon(Icons.error, color: Colors.red),
+                );
+              }
+
+              // Show loading or current balance
+              final coins = snapshot.data?.coins ?? 0;
+              final isLoading =
+                  snapshot.connectionState == ConnectionState.waiting;
+
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.amber, width: 2),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.monetization_on,
+                        color: Colors.amber, size: 20),
+                    const SizedBox(width: 6),
+                    isLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.amber),
+                            ),
+                          )
+                        : Text(
+                            coins.toString(),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.black87,
+                            ),
+                          ),
+                  ],
+                ),
+              );
+            },
           ),
-        ),
-        body: TabBarView(
-          children: [
-            _GetItemsTab(userId: currentUser.uid),
-            _GetCoinsTab(userId: currentUser.uid),
-          ],
+          // Daily reward button
+          IconButton(
+            icon: const Icon(Icons.calendar_today, color: Colors.amber),
+            onPressed: () => _showDailyRewardDialog(currentUser.uid),
+            tooltip: "Daily Reward",
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Balance & Stats Card
+          Container(
+            margin: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.amber.shade400, Colors.orange.shade400],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.amber.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: StreamBuilder<UserModel>(
+              stream: locator<UserRepository>().getUserStream(currentUser.uid),
+              builder: (context, snapshot) {
+                final coins = snapshot.data?.coins ?? 0;
+                final level = snapshot.data?.userLevel ?? 1;
+                final streak = snapshot.data?.dailyLoginStreak ?? 0;
+
+                return Row(
+                  children: [
+                    // Coin Balance
+                    Expanded(
+                      child: _BalanceItem(
+                        icon: Icons.monetization_on,
+                        label: "Coins",
+                        value: coins.toString(),
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 40,
+                      color: Colors.white.withOpacity(0.3),
+                    ),
+                    // Level
+                    Expanded(
+                      child: _BalanceItem(
+                        icon: Icons.star,
+                        label: "Level",
+                        value: level.toString(),
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 40,
+                      color: Colors.white.withOpacity(0.3),
+                    ),
+                    // Streak
+                    Expanded(
+                      child: _BalanceItem(
+                        icon: Icons.local_fire_department,
+                        label: "Streak",
+                        value: "${streak}d",
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+
+          // Store Grid
+          Expanded(
+            child: GridView.count(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              crossAxisCount: 3,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 0.95,
+              children: [
+                _CompactStoreCard(
+                  title: "Get Coins",
+                  icon: Icons.monetization_on,
+                  iconColor: Colors.amber,
+                  onTap: () => _navigateTo(
+                      context, "Get Coins", CoinsTab(userId: currentUser.uid)),
+                ),
+                _CompactStoreCard(
+                  title: "Boosts",
+                  icon: Icons.rocket_launch,
+                  iconColor: Colors.orange,
+                  onTap: () => _navigateTo(
+                      context, "Boosts", BoostsTab(userId: currentUser.uid)),
+                ),
+                _CompactStoreCard(
+                  title: "Collectibles",
+                  icon: Icons.card_giftcard,
+                  iconColor: Colors.pink,
+                  onTap: () =>
+                      _navigateTo(context, "Collectibles", const GiftsTab()),
+                ),
+                _CompactStoreCard(
+                  title: "Skins",
+                  icon: Icons.palette,
+                  iconColor: Colors.purple,
+                  onTap: () =>
+                      _navigateTo(context, "Skins", const ProfileTab()),
+                ),
+                _CompactStoreCard(
+                  title: "Trade Market",
+                  icon: Icons.storefront,
+                  iconColor: Colors.green,
+                  onTap: () => _navigateTo(
+                      context, "Trade Market", const MarketplaceTab()),
+                ),
+                _CompactStoreCard(
+                  title: "Limited",
+                  icon: Icons.timer,
+                  iconColor: Colors.deepOrange,
+                  badge: "HOT",
+                  onTap: () => _navigateTo(context, "Limited Editions",
+                      const LimitedEditionsScreen()),
+                ),
+                _CompactStoreCard(
+                  title: "Achievements",
+                  icon: Icons.emoji_events,
+                  iconColor: Colors.amber.shade700,
+                  onTap: () => _navigateTo(
+                      context, "Achievements", const AchievementsScreen()),
+                ),
+                _CompactStoreCard(
+                  title: "Referrals",
+                  icon: Icons.people,
+                  iconColor: Colors.blue,
+                  onTap: () =>
+                      _navigateTo(context, "Referrals", const ReferralScreen()),
+                ),
+                _CompactStoreCard(
+                  title: "My Items",
+                  icon: Icons.inventory_2,
+                  iconColor: Colors.indigo,
+                  onTap: () => _navigateTo(
+                      context, "My Inventory", const InventoryScreen()),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _navigateTo(BuildContext context, String title, Widget content) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: FreegramAppBar(
+            title: title,
+            showBackButton: true,
+          ),
+          body: content,
         ),
       ),
     );
   }
 }
 
-// _GetItemsTab remains the same
-class _GetItemsTab extends StatefulWidget {
-  final String userId;
-  const _GetItemsTab({required this.userId});
+// Balance Item Widget
+class _BalanceItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
 
-  @override
-  State<_GetItemsTab> createState() => _GetItemsTabState();
-}
-
-class _GetItemsTabState extends State<_GetItemsTab> {
-  final AdHelper _adHelper = AdHelper();
-  bool _isAdButtonLoading = false;
-  bool _isCoinButtonLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // Preload ad
-    _adHelper.loadRewardedAd();
-  }
-
-  // _showAd remains the same (uses StoreRepository.grantAdReward)
-  void _showAd() {
-    setState(() => _isAdButtonLoading = true);
-    try {
-      _adHelper.showRewardedAd(() {
-        // Grant reward using StoreRepository
-        locator<StoreRepository>().grantAdReward(widget.userId);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                backgroundColor: Colors.green,
-                content: Text("Success! 1 Super Like has been added.")),
-          );
-        }
-        // Reload ad for next time
-        _adHelper.loadRewardedAd();
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              backgroundColor: Colors.red,
-              content: Text("Failed to show ad: $e")),
-        );
-      }
-      _adHelper.loadRewardedAd(); // Try reloading even on failure
-    } finally {
-      // AdHelper callbacks handle disposal and state internally,
-      // but we reset button loading state here.
-      if (mounted) {
-        // Add a small delay to allow ad overlay to dismiss if needed
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) setState(() => _isAdButtonLoading = false);
-        });
-      }
-    }
-  }
-
-  // _purchaseWithCoins remains the same (uses StoreRepository.purchaseWithCoins)
-  void _purchaseWithCoins() async {
-    setState(() => _isCoinButtonLoading = true);
-    try {
-      // Use StoreRepository to handle coin purchase logic
-      await locator<StoreRepository>().purchaseWithCoins(widget.userId,
-          coinCost: 50, superLikeAmount: 5); // Example values
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              backgroundColor: Colors.green,
-              content: Text("Purchase successful! 5 Super Likes added.")),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              backgroundColor: Colors.red,
-              content: Text("Purchase failed: ${e.toString()}")),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isCoinButtonLoading = false);
-      }
-    }
-  }
+  const _BalanceItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Keep ListView structure
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
+        Icon(icon, color: Colors.white, size: 24),
+        const SizedBox(height: 4),
         Text(
-          // Keep "Earn for Free" section
-          "Earn for Free",
-          style: Theme.of(context).textTheme.titleLarge, // Use theme
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        const SizedBox(height: 8),
-        _StoreItemCard(
-          // Keep Free Super Like card
-          title: "Free Super Like",
-          subtitle: "Watch a short ad to get one free Super Like.",
-          icon: Icons.star,
-          iconColor: Colors.blue,
-          buttonText: "Watch Ad",
-          isLoading: _isAdButtonLoading,
-          onPressed: _showAd,
-        ),
-        const Divider(height: 32),
         Text(
-          // Keep "Spend Coins" section
-          "Spend Coins",
-          style: Theme.of(context).textTheme.titleLarge, // Use theme
+          label,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.9),
+            fontSize: 11,
+          ),
         ),
-        const SizedBox(height: 8),
-        _StoreItemCard(
-          // Keep Super Like purchase card
-          title: "5 Super Likes",
-          subtitle: "Get a pack of five Super Likes to stand out.",
-          icon: Icons.star,
-          iconColor: Colors.blue,
-          buttonText: "50 Coins", // Example price
-          isLoading: _isCoinButtonLoading,
-          onPressed: _purchaseWithCoins,
-        ),
-        // Add more items here if needed
       ],
     );
   }
 }
 
-// _GetCoinsTab remains the same (uses InAppPurchaseService and UserRepository)
-class _GetCoinsTab extends StatefulWidget {
-  final String userId;
-  const _GetCoinsTab({required this.userId});
-
-  @override
-  State<_GetCoinsTab> createState() => _GetCoinsTabState();
-}
-
-class _GetCoinsTabState extends State<_GetCoinsTab> {
-  late InAppPurchaseService _iapService;
-  bool _iapLoading = true; // Track loading state for IAP
-
-  @override
-  void initState() {
-    super.initState();
-    _iapService = InAppPurchaseService(onPurchaseSuccess: (int amount) {
-      // Use UserRepository to update coin balance
-      locator<UserRepository>()
-          .updateUser(widget.userId, {'coins': FieldValue.increment(amount)});
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              backgroundColor: Colors.green,
-              content: Text("Success! $amount coins have been added.")),
-        );
-      }
-    });
-    // Initialize IAP and update loading state
-    _iapService.initialize().then((_) {
-      if (mounted) setState(() => _iapLoading = false);
-    });
-  }
-
-  @override
-  void dispose() {
-    _iapService.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Show loading indicator while IAP service initializes
-    if (_iapLoading) {
-      return const Center(child: AppProgressIndicator());
-    }
-
-    // Keep ListView structure for coin packs
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
-      children: [
-        _StoreItemCard(
-          // Keep 100 Coins card
-          title: "100 Coins",
-          subtitle: "A starter pack of coins.",
-          icon: Icons.monetization_on,
-          iconColor: Colors.amber,
-          buttonText: "\$0.99", // Example price
-          onPressed: () {
-            _iapService.buyProduct('com.freegram.coins100'); // Use Product ID
-          },
-        ),
-        const SizedBox(height: 12),
-        _StoreItemCard(
-          // Keep 550 Coins card
-          title: "550 Coins",
-          subtitle: "Best value pack!",
-          icon: Icons.monetization_on,
-          iconColor: Colors.amber,
-          buttonText: "\$4.99", // Example price
-          onPressed: () {
-            _iapService.buyProduct('com.freegram.coins550'); // Use Product ID
-          },
-        ),
-        // Add more coin packs here if needed
-      ],
-    );
-  }
-}
-
-// _StoreItemCard remains the same
-class _StoreItemCard extends StatelessWidget {
+// Compact Store Card Widget
+class _CompactStoreCard extends StatelessWidget {
   final String title;
-  final String subtitle;
   final IconData icon;
   final Color iconColor;
-  final String buttonText;
-  final VoidCallback onPressed;
-  final bool isLoading;
+  final String? badge;
+  final VoidCallback onTap;
 
-  const _StoreItemCard({
+  const _CompactStoreCard({
     required this.title,
-    required this.subtitle,
     required this.icon,
     required this.iconColor,
-    required this.buttonText,
-    required this.onPressed,
-    this.isLoading = false,
+    this.badge,
+    required this.onTap,
   });
 
   @override
@@ -287,36 +381,59 @@ class _StoreItemCard extends StatelessWidget {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Stack(
           children: [
-            Icon(icon, size: 40, color: iconColor),
-            const SizedBox(width: 16),
-            Expanded(
+            Padding(
+              padding: const EdgeInsets.all(12.0),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(title, style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 4),
-                  Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: iconColor.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, size: 28, color: iconColor),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(width: 16),
-            ElevatedButton(
-              onPressed: isLoading ? null : onPressed,
-              style: ElevatedButton.styleFrom(
+            if (badge != null)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
-              child: isLoading
-                  ? AppProgressIndicator(
-                      size: 20,
-                      strokeWidth: 2,
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    badge!,
+                    style: const TextStyle(
                       color: Colors.white,
-                    )
-                  : Text(buttonText),
-            ),
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

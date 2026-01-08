@@ -49,13 +49,15 @@ class SignUpRequested extends AuthEvent {
   final String email;
   final String password;
   final String? username;
+  final File? imageFile;
 
   const SignUpRequested({
     required this.email,
     required this.password,
     this.username,
+    this.imageFile,
   });
 
   @override
-  List<Object> get props => [email, password, username ?? ''];
+  List<Object> get props => [email, password, username ?? '', imageFile ?? ''];
 }

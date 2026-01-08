@@ -9,6 +9,9 @@ class Message {
   final String id;
   final String? text;
   final String? imageUrl;
+  final String? audioUrl;
+  final Duration? audioDuration;
+  final List<double>? waveform;
   final String senderId;
   final Timestamp? timestamp;
   final bool isEdited;
@@ -28,6 +31,10 @@ class Message {
   final String? storyAuthorId;
   final String? storyAuthorUsername;
 
+  // Gift information
+  final bool isGiftMessage;
+  final String? giftId;
+
   // Client-side status for Optimistic UI
   final MessageStatus status;
 
@@ -36,6 +43,9 @@ class Message {
     this.text,
     this.imageUrl,
     required this.senderId,
+    this.audioUrl,
+    this.audioDuration,
+    this.waveform,
     this.timestamp,
     this.isEdited = false,
     this.reactions = const {},
@@ -49,12 +59,21 @@ class Message {
     this.storyMediaType,
     this.storyAuthorId,
     this.storyAuthorUsername,
+    this.isGiftMessage = false,
+    this.giftId,
     this.status = MessageStatus.sent, // Default to sent
   });
+
+  bool get isAudio => audioUrl != null && audioUrl!.isNotEmpty;
 
   /// Creates a Message object from a Firestore document snapshot.
   factory Message.fromDoc(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    return Message.fromMap(doc.id, data);
+  }
+
+  /// Creates a Message object from a raw Firestore map.
+  factory Message.fromMap(String id, Map<String, dynamic> data) {
     final bool isSeen = data['isSeen'] ?? false;
     final bool isDelivered = data['isDelivered'] ?? false;
 
@@ -67,10 +86,23 @@ class Message {
       currentStatus = MessageStatus.sent;
     }
 
+    final waveformData = data['waveform'];
+    final List<double>? waveform = waveformData is List
+        ? waveformData
+            .where((value) => value is num)
+            .map((value) => (value as num).toDouble())
+            .toList()
+        : null;
+
     return Message(
-      id: doc.id,
+      id: id,
       text: data['text'],
       imageUrl: data['imageUrl'],
+      audioUrl: data['audioUrl'],
+      audioDuration: data['audioDurationMs'] != null
+          ? Duration(milliseconds: data['audioDurationMs'] as int)
+          : null,
+      waveform: waveform,
       senderId: data['senderId'] ?? '',
       timestamp: data['timestamp'] as Timestamp?,
       isEdited: data['edited'] ?? false,
@@ -85,8 +117,37 @@ class Message {
       storyMediaType: data['storyMediaType'],
       storyAuthorId: data['storyAuthorId'],
       storyAuthorUsername: data['storyAuthorUsername'],
+      isGiftMessage: data['isGiftMessage'] ?? false,
+      giftId: data['giftId'],
       status: currentStatus,
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'text': text,
+      'imageUrl': imageUrl,
+      'audioUrl': audioUrl,
+      'audioDurationMs': audioDuration?.inMilliseconds,
+      if (waveform != null) 'waveform': waveform,
+      'senderId': senderId,
+      'timestamp': timestamp,
+      'edited': isEdited,
+      'reactions': reactions,
+      'replyToMessageId': replyToMessageId,
+      'replyToMessageText': replyToMessageText,
+      'replyToImageUrl': replyToImageUrl,
+      'replyToSender': replyToSender,
+      'storyReplyId': storyReplyId,
+      'storyThumbnailUrl': storyThumbnailUrl,
+      'storyMediaUrl': storyMediaUrl,
+      'storyMediaType': storyMediaType,
+      'storyAuthorId': storyAuthorId,
+      'storyAuthorUsername': storyAuthorUsername,
+      'isGiftMessage': isGiftMessage,
+      'giftId': giftId,
+      'status': status.name,
+    };
   }
 
   /// Creates a temporary, client-side message for the Optimistic UI.
@@ -94,6 +155,9 @@ class Message {
     required String senderId,
     String? text,
     String? imageUrl,
+    String? audioUrl,
+    Duration? audioDuration,
+    List<double>? waveform,
     String? replyToMessageId,
     String? replyToMessageText,
     String? replyToImageUrl,
@@ -110,6 +174,9 @@ class Message {
       senderId: senderId,
       text: text,
       imageUrl: imageUrl,
+      audioUrl: audioUrl,
+      audioDuration: audioDuration,
+      waveform: waveform,
       timestamp: Timestamp.now(),
       status: MessageStatus.sending, // Set status to 'sending'
       replyToMessageId: replyToMessageId,

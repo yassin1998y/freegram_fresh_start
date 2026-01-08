@@ -11,6 +11,7 @@ import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/chat_repository.dart';
 import 'package:freegram/repositories/user_repository.dart';
+import 'package:freegram/repositories/user_discovery_repository.dart';
 import 'package:freegram/screens/improved_chat_screen.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/widgets/chat_widgets/professional_chat_list_item.dart';
@@ -20,6 +21,7 @@ import 'package:freegram/widgets/freegram_app_bar.dart';
 import 'package:freegram/utils/app_constants.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:freegram/widgets/common/app_button.dart';
+import 'package:freegram/widgets/common/empty_state_widget.dart';
 
 class ImprovedChatListScreen extends StatefulWidget {
   const ImprovedChatListScreen({super.key});
@@ -49,10 +51,11 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
   String _getOtherUserId(Map<String, dynamic> chatData, String currentUserId) {
     final users = chatData['users'] as List?;
     if (users == null) return '';
-    return users.firstWhere(
+    final otherId = users.firstWhere(
       (id) => id != currentUserId,
       orElse: () => '',
     );
+    return otherId.isEmpty ? currentUserId : otherId;
   }
 
   @override
@@ -69,6 +72,10 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
   void dispose() {
     _searchController.dispose();
     _searchDebounce?.cancel();
+    // CRITICAL: Clear memoization cache to prevent memory leaks
+    _cachedChats = null;
+    _cacheKey = null;
+    // Note: StreamBuilder automatically cancels subscriptions when disposed
     super.dispose();
   }
 
@@ -165,7 +172,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
           prefixIcon: Icon(
             Icons.search_rounded,
             color: theme.colorScheme.onSurface.withOpacity(0.5),
-            size: 22,
+            size: DesignTokens.iconLG,
           ),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
@@ -187,7 +194,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
                     color: _showUnreadOnly
                         ? theme.colorScheme.primary
                         : theme.colorScheme.onSurface.withOpacity(0.5),
-                    size: 22,
+                    size: DesignTokens.iconLG,
                   ),
                   tooltip: 'Filter',
                   onPressed: () {
@@ -335,7 +342,12 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
         }
 
         if (!chatSnapshot.hasData || chatSnapshot.data!.docs.isEmpty) {
-          return _buildEmptyState();
+          return const EmptyStateWidget(
+            icon: Icons.chat_bubble_outline,
+            title: 'No Messages Yet',
+            subtitle: 'Start a conversation with a friend!',
+            actionLabel: 'Find Friends',
+          );
         }
 
         var chats = chatSnapshot.data!.docs;
@@ -373,7 +385,8 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
             final chatSortData = chats.map((chat) {
               final data = chatDataCache[chat]!;
               final otherUserId = _getOtherUserId(data, currentUser.uid);
-              final usernames = data['usernames'] as Map<String, dynamic>;
+              final usernames =
+                  data['usernames'] as Map<String, dynamic>? ?? {};
               final otherUserName = usernames[otherUserId] ?? '';
               return (chat: chat, sortKey: otherUserName);
             }).toList();
@@ -391,7 +404,11 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
         }
 
         if (chats.isEmpty) {
-          return _buildEmptyState(message: 'No unread chats');
+          return const EmptyStateWidget(
+            icon: Icons.mark_chat_unread_outlined,
+            title: 'No Unread Chats',
+            subtitle: 'All caught up! You have no unread messages.',
+          );
         }
 
         return ListView.builder(
@@ -445,19 +462,23 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
   }
 
   Widget _buildSearchResults() {
-    final userRepository = locator<UserRepository>();
+    final userDiscoveryRepository = locator<UserDiscoveryRepository>();
     final chatRepository = locator<ChatRepository>();
     final currentUser = FirebaseAuth.instance.currentUser!;
 
     return StreamBuilder<QuerySnapshot>(
-      stream: userRepository.searchUsers(_searchQuery),
+      stream: userDiscoveryRepository.searchUsers(_searchQuery),
       builder: (context, userSnapshot) {
         if (userSnapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: AppProgressIndicator(strokeWidth: 2));
         }
 
         if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
-          return _buildEmptyState(message: 'No users found');
+          return const EmptyStateWidget(
+            icon: Icons.search_off,
+            title: 'No Users Found',
+            subtitle: 'Try searching with a different username.',
+          );
         }
 
         final users = userSnapshot.data!.docs
@@ -465,7 +486,11 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
             .toList();
 
         if (users.isEmpty) {
-          return _buildEmptyState(message: 'No users found');
+          return const EmptyStateWidget(
+            icon: Icons.search_off,
+            title: 'No Users Found',
+            subtitle: 'Try searching with a different username.',
+          );
         }
 
         return ListView.builder(
@@ -534,7 +559,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
             border: Border(
               bottom: BorderSide(
                 color: Theme.of(context).dividerColor.withOpacity(0.1),
-                width: 0.5,
+                width: DesignTokens.borderWidthHairline,
               ),
             ),
           ),
@@ -587,38 +612,6 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState({String? message}) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.chat_bubble_outline,
-            size: DesignTokens.iconXXL * 1.6,
-            color: SemanticColors.textSecondary(context),
-          ),
-          const SizedBox(height: DesignTokens.spaceMD),
-          Text(
-            message ?? 'No active chats',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: SemanticColors.textSecondary(context),
-                  fontSize: DesignTokens.fontSizeLG,
-                  fontWeight: FontWeight.w500,
-                ),
-          ),
-          const SizedBox(height: DesignTokens.spaceSM),
-          Text(
-            'Start a conversation with someone!',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: SemanticColors.textSecondary(context),
-                  fontSize: DesignTokens.fontSizeSM,
-                ),
-          ),
-        ],
       ),
     );
   }

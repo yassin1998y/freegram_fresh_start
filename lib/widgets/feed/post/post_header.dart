@@ -220,7 +220,7 @@ class PostHeader extends StatelessWidget {
       actionButton: null, // Moved to footer (opposite to likes/comments)
       menuItems: menuItems,
       onMenuSelected: onMenuSelected,
-      padding: EdgeInsets.all(DesignTokens.spaceMD),
+      padding: EdgeInsets.zero, // No padding - handled by parent
     );
   }
 }

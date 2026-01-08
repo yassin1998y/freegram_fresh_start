@@ -1,13 +1,17 @@
 // lib/blocs/auth_bloc.dart
 import 'dart:async';
+import 'dart:io';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/repositories/auth_repository.dart';
 import 'package:freegram/services/fcm_token_service.dart';
+import 'package:freegram/services/presence_manager.dart';
 import 'package:freegram/utils/auth_error_mapper.dart';
 import 'package:freegram/locator.dart';
 import 'package:flutter/foundation.dart';
+import 'package:freegram/services/cloudinary_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 part 'auth_event.dart';
 part 'auth_state.dart';
@@ -65,6 +69,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final stateBeforeSignOut = state;
       debugPrint(
           "AuthBloc: SignOut started. Current state: ${stateBeforeSignOut.runtimeType}");
+
+      // CRITICAL FIX: Set presence offline BEFORE signing out
+      // This ensures the user is marked offline even if signOut happens quickly
+      try {
+        final presenceManager = locator<PresenceManager>();
+        await presenceManager.setOffline();
+        debugPrint("AuthBloc: Presence set offline successfully");
+      } catch (e) {
+        debugPrint("AuthBloc: Error setting presence offline: $e");
+        // Don't fail logout if presence cleanup fails, but log it
+      }
 
       // Remove FCM token before logging out
       try {
@@ -186,10 +201,28 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             "AuthBloc: Handling SignUpRequested event for email: ${event.email}");
       }
       try {
+        String? photoUrl;
+
+        // Upload image if provided
+        if (event.imageFile != null) {
+          if (kDebugMode) {
+            debugPrint("AuthBloc: Uploading profile image...");
+          }
+          // Note: We don't have progress tracking here as AuthState doesn't support it yet
+          // Ideally we would add a loading state with progress
+          photoUrl = await CloudinaryService.uploadImageFromXFile(
+            XFile(event.imageFile!.path),
+          );
+          if (kDebugMode) {
+            debugPrint("AuthBloc: Image uploaded: $photoUrl");
+          }
+        }
+
         await _authRepository.signUp(
           email: event.email,
           password: event.password,
           username: event.username,
+          photoUrl: photoUrl,
         );
         if (kDebugMode) {
           debugPrint(

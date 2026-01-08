@@ -37,6 +37,11 @@ class NotificationService {
   static const String discoveryChannelDescription =
       'Notifications for new users nearby';
 
+  static const String giftChannelId = 'gifts_channel';
+  static const String giftChannelName = 'Gifts';
+  static const String giftChannelDescription =
+      'Notifications for received gifts';
+
   /// Initializes the notification plugin and sets up channels.
   Future<void> initialize() async {
     // Android Initialization Settings
@@ -97,6 +102,15 @@ class NotificationService {
       enableVibration: false, // Optional: No vibration for discovery
     );
 
+    const AndroidNotificationChannel giftChannel = AndroidNotificationChannel(
+      giftChannelId,
+      giftChannelName,
+      description: giftChannelDescription,
+      importance: Importance.max, // High importance for gifts
+      playSound: true,
+      enableVibration: true,
+    );
+
     // Get platform implementation and create channels
     final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
         _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
@@ -104,6 +118,7 @@ class NotificationService {
 
     await androidImplementation?.createNotificationChannel(waveChannel);
     await androidImplementation?.createNotificationChannel(discoveryChannel);
+    await androidImplementation?.createNotificationChannel(giftChannel);
 
     debugPrint("NotificationService: Android channels created.");
   }
@@ -191,6 +206,50 @@ class NotificationService {
         "NotificationService: Showing discovery notification. Payload: $payload");
   }
 
+  /// Shows a notification for a received gift.
+  Future<void> showGiftReceivedNotification({
+    required String title,
+    required String body,
+    String? payload, // Format: "gift:giftId:senderId"
+  }) async {
+    // Define Android details
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+      giftChannelId,
+      giftChannelName,
+      channelDescription: giftChannelDescription,
+      importance: Importance.max,
+      ticker: 'ticker',
+      icon: '@mipmap/ic_launcher',
+      largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+    );
+
+    // Define iOS details
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    // Combine platform details
+    const NotificationDetails platformDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    // Show the notification
+    await _flutterLocalNotificationsPlugin.show(
+      2, // Use ID 2 for gifts
+      title,
+      body,
+      platformDetails,
+      payload: payload,
+    );
+
+    debugPrint(
+        "NotificationService: Showing gift notification. Payload: $payload");
+  }
+
   // --- Notification Tap Handlers ---
 
   // Callback for iOS when notification is received while app is in foreground
@@ -252,6 +311,18 @@ class NotificationService {
               locator<NavigationService>().navigateNamed(
                 AppRoutes.profile,
                 arguments: {'userId': userId},
+              );
+            }
+            break;
+
+          case 'gift':
+            if (parts.length >= 2) {
+              final giftId = parts[1];
+              debugPrint(
+                  "[Local Notification] Navigating to inventory for gift: $giftId");
+              locator<NavigationService>().navigateNamed(
+                AppRoutes.inventory,
+                arguments: {'highlightGiftId': giftId},
               );
             }
             break;

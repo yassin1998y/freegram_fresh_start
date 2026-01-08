@@ -15,6 +15,7 @@ import 'package:freegram/screens/profile_screen.dart';
 import 'package:freegram/screens/page_profile_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/theme/design_tokens.dart';
 
 class SearchScreen extends StatelessWidget {
   const SearchScreen({Key? key}) : super(key: key);
@@ -48,6 +49,21 @@ class _SearchScreenViewState extends State<_SearchScreenView>
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
+  }
+
+  String _getUserFriendlyErrorMessage(String errorMessage) {
+    final lowerError = errorMessage.toLowerCase();
+    if (lowerError.contains('network') ||
+        lowerError.contains('connection') ||
+        lowerError.contains('internet')) {
+      return 'Network error. Please check your connection and try again.';
+    } else if (lowerError.contains('permission') ||
+        lowerError.contains('denied')) {
+      return 'Permission denied. Please check your settings.';
+    } else if (lowerError.contains('timeout')) {
+      return 'Request timed out. Please try again.';
+    }
+    return 'An error occurred while searching. Please try again.';
   }
 
   @override
@@ -89,7 +105,7 @@ class _SearchScreenViewState extends State<_SearchScreenView>
         children: [
           // Search Bar
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(DesignTokens.spaceMD),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -107,7 +123,7 @@ class _SearchScreenViewState extends State<_SearchScreenView>
                       )
                     : null,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.0),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
                 ),
               ),
               onChanged: (value) {
@@ -129,25 +145,66 @@ class _SearchScreenViewState extends State<_SearchScreenView>
                   return _buildResultsView(context, state);
                 } else if (state is SearchError) {
                   return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline,
-                            size: 64, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text('Error: ${state.message}'),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () {
-                            if (_searchController.text.isNotEmpty) {
-                              context.read<SearchBloc>().add(
-                                    SearchQueryChanged(_searchController.text),
-                                  );
-                            }
-                          },
-                          child: const Text('Retry'),
-                        ),
-                      ],
+                    child: Padding(
+                      padding: const EdgeInsets.all(DesignTokens.spaceXL),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: DesignTokens.iconXXL * 1.5,
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                          const SizedBox(height: DesignTokens.spaceLG),
+                          Text(
+                            'Search Error',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  fontSize: DesignTokens.fontSizeXL,
+                                  fontWeight: FontWeight.w600,
+                                  color: SemanticColors.textPrimary(context),
+                                ),
+                          ),
+                          const SizedBox(height: DesignTokens.spaceMD),
+                          Text(
+                            _getUserFriendlyErrorMessage(state.message),
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  fontSize: DesignTokens.fontSizeMD,
+                                  color: SemanticColors.textSecondary(context),
+                                ),
+                          ),
+                          const SizedBox(height: DesignTokens.spaceXL),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              if (_searchController.text.isNotEmpty) {
+                                context.read<SearchBloc>().add(
+                                      SearchQueryChanged(
+                                          _searchController.text),
+                                    );
+                              }
+                            },
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Retry'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: DesignTokens.spaceXL,
+                                vertical: DesignTokens.spaceMD,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  DesignTokens.radiusXL,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }
@@ -162,7 +219,7 @@ class _SearchScreenViewState extends State<_SearchScreenView>
 
   Widget _buildInitialView(BuildContext context, SearchInitial state) {
     return ListView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(DesignTokens.spaceMD),
       children: [
         // Recent Searches
         if (state.recentSearches.isNotEmpty) ...[
@@ -172,7 +229,7 @@ class _SearchScreenViewState extends State<_SearchScreenView>
               const Text(
                 'Recent Searches',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: DesignTokens.fontSizeLG,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -184,11 +241,12 @@ class _SearchScreenViewState extends State<_SearchScreenView>
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: DesignTokens.spaceSM),
           ...state.recentSearches.map((search) => ListTile(
                 leading: const Icon(Icons.history),
                 title: Text(search),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                trailing: const Icon(Icons.arrow_forward_ios,
+                    size: DesignTokens.iconSM),
                 onTap: () {
                   _searchController.text = search;
                   context.read<SearchBloc>().add(
@@ -203,14 +261,14 @@ class _SearchScreenViewState extends State<_SearchScreenView>
           const Text(
             'Trending Hashtags',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: DesignTokens.fontSizeLG,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 8),
           Wrap(
-            spacing: 8.0,
-            runSpacing: 8.0,
+            spacing: DesignTokens.spaceSM,
+            runSpacing: DesignTokens.spaceSM,
             children: state.trendingHashtags.map((hashtag) {
               return InkWell(
                 onTap: () {
@@ -220,7 +278,7 @@ class _SearchScreenViewState extends State<_SearchScreenView>
                       );
                 },
                 child: Chip(
-                  avatar: const Icon(Icons.tag, size: 18),
+                  avatar: const Icon(Icons.tag, size: DesignTokens.iconSM),
                   label: Text('#$hashtag'),
                 ),
               );
@@ -231,11 +289,11 @@ class _SearchScreenViewState extends State<_SearchScreenView>
         if (state.recentSearches.isEmpty && state.trendingHashtags.isEmpty)
           const Center(
             child: Padding(
-              padding: EdgeInsets.all(32.0),
+              padding: EdgeInsets.all(DesignTokens.spaceXL),
               child: Column(
                 children: [
                   Icon(Icons.search, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
+                  SizedBox(height: DesignTokens.spaceMD),
                   Text(
                     'Start searching to find posts, users, pages, and hashtags',
                     textAlign: TextAlign.center,
@@ -259,7 +317,8 @@ class _SearchScreenViewState extends State<_SearchScreenView>
             SizedBox(height: 16),
             Text(
               'No results found',
-              style: TextStyle(fontSize: 18, color: Colors.grey),
+              style: TextStyle(
+                  fontSize: DesignTokens.fontSizeLG, color: Colors.grey),
             ),
           ],
         ),
@@ -374,7 +433,7 @@ class _SearchScreenViewState extends State<_SearchScreenView>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.all(DesignTokens.spaceXS),
       itemCount: posts.length,
       itemBuilder: (context, index) {
         return PostCard(
@@ -395,7 +454,7 @@ class _SearchScreenViewState extends State<_SearchScreenView>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.all(DesignTokens.spaceXS),
       itemCount: users.length,
       itemBuilder: (context, index) {
         return _buildUserTile(context, users[index]);
@@ -411,7 +470,7 @@ class _SearchScreenViewState extends State<_SearchScreenView>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.all(DesignTokens.spaceXS),
       itemCount: pages.length,
       itemBuilder: (context, index) {
         return _buildPageTile(context, pages[index]);
@@ -427,7 +486,7 @@ class _SearchScreenViewState extends State<_SearchScreenView>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.all(DesignTokens.spaceXS),
       itemCount: hashtags.length,
       itemBuilder: (context, index) {
         return PostCard(
@@ -442,11 +501,12 @@ class _SearchScreenViewState extends State<_SearchScreenView>
 
   Widget _buildSectionHeader(String title, int count) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: const EdgeInsets.symmetric(
+          horizontal: DesignTokens.spaceMD, vertical: DesignTokens.spaceSM),
       child: Text(
         '$title ($count)',
         style: const TextStyle(
-          fontSize: 16,
+          fontSize: DesignTokens.fontSizeMD,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -489,8 +549,9 @@ class _SearchScreenViewState extends State<_SearchScreenView>
             child: Text(page.pageName),
           ),
           if (page.verificationStatus == VerificationStatus.verified) ...[
-            const SizedBox(width: 8),
-            const Icon(Icons.verified, size: 18, color: Colors.blue),
+            const SizedBox(width: DesignTokens.spaceSM),
+            const Icon(Icons.verified,
+                size: DesignTokens.iconSM, color: Colors.blue),
           ],
         ],
       ),

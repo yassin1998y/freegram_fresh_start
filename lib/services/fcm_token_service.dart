@@ -1,4 +1,5 @@
 // lib/services/fcm_token_service.dart
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -21,8 +22,11 @@ class FcmTokenService {
 
   bool _isInitialized = false;
 
-  // OPTIMIZATION: Cache last saved token to prevent redundant Firestore writes
+  // PHASE 2: Cache last saved token to prevent redundant Firestore writes
   String? _lastSavedToken;
+
+  // PHASE 2: Debounce timer to prevent rapid token updates
+  Timer? _tokenUpdateDebounceTimer;
 
   /// Initialize FCM token management
   /// Call this on app launch after user is authenticated
@@ -38,14 +42,19 @@ class FcmTokenService {
         return;
       }
 
-      // Listen for token refresh (only set up once)
+      // PHASE 2: Listen for token refresh with debouncing (only set up once)
       _messaging.onTokenRefresh.listen((newToken) {
         if (kDebugMode) {
           debugPrint('[FCM] Token refreshed: ${newToken.substring(0, 20)}...');
         }
         final currentUser = _auth.currentUser;
         if (currentUser != null) {
-          _saveTokenToFirestore(newToken, currentUser.uid);
+          // PHASE 2: Debounce token updates to prevent rapid writes
+          _tokenUpdateDebounceTimer?.cancel();
+          _tokenUpdateDebounceTimer =
+              Timer(const Duration(milliseconds: 500), () {
+            _saveTokenToFirestore(newToken, currentUser.uid);
+          });
         }
       });
 
@@ -169,6 +178,9 @@ class FcmTokenService {
   /// Important for privacy and preventing notifications to wrong device
   /// Accepts userId parameter to avoid race condition with Firebase signOut
   Future<void> removeTokenOnLogout(String userId) async {
+    // PHASE 2: Cancel any pending token updates
+    _tokenUpdateDebounceTimer?.cancel();
+    _tokenUpdateDebounceTimer = null;
     try {
       final token = await _messaging.getToken();
       if (token == null) return;

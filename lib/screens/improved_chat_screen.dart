@@ -16,13 +16,14 @@ import 'package:freegram/models/message.dart';
 import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/chat_repository.dart';
 import 'package:freegram/repositories/user_repository.dart';
+import 'package:freegram/repositories/friend_repository.dart';
+import 'package:freegram/services/user_stream_provider.dart';
 import 'package:freegram/services/cloudinary_service.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/widgets/chat_widgets/professional_message_bubble.dart';
 import 'package:freegram/widgets/chat_widgets/professional_message_actions_modal.dart';
 import 'package:freegram/widgets/chat_widgets/chat_date_separator.dart';
 import 'package:freegram/widgets/chat_widgets/enhanced_message_input.dart';
-import 'package:freegram/widgets/chat_widgets/celebration_match_badge.dart';
 import 'package:freegram/widgets/chat_widgets/professional_presence_indicator.dart';
 import 'package:freegram/widgets/island_popup.dart';
 import 'package:freegram/widgets/freegram_app_bar.dart';
@@ -36,6 +37,9 @@ import 'package:freegram/blocs/friends_bloc/friends_bloc.dart';
 import 'package:freegram/blocs/connectivity_bloc.dart';
 import 'profile_screen.dart';
 import 'package:hive/hive.dart';
+import 'package:freegram/widgets/chat_widgets/gift_message_banner.dart';
+import 'package:freegram/widgets/chat_widgets/celebration_match_badge.dart';
+import 'package:freegram/widgets/chat_widgets/message_reaction_display.dart';
 
 class ImprovedChatScreen extends StatelessWidget {
   final String chatId;
@@ -54,6 +58,7 @@ class ImprovedChatScreen extends StatelessWidget {
     return BlocProvider(
       create: (context) => FriendsBloc(
         userRepository: locator<UserRepository>(),
+        friendRepository: locator<FriendRepository>(),
       )..add(LoadFriends()),
       child: _ImprovedChatScreenContent(
         chatId: chatId,
@@ -83,7 +88,6 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
   final ImagePicker _picker = ImagePicker();
   final ScrollController _scrollController = ScrollController();
   late final ChatRepository _chatRepository;
-  late final UserRepository _userRepository;
   late final PresenceManager _presenceManager;
 
   // State
@@ -92,8 +96,9 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
   StreamSubscription? _connectivitySubscription;
   Timer? _typingTimer;
   Timer? _draftSaveTimer;
-  final bool _isUploading = false;
+  bool _isUploading = false;
   static const Duration _sendTimeout = Duration(seconds: 8);
+  String? _otherUserId; // Track other user ID for stream cleanup
 
   bool get _isOffline {
     final state = context.read<ConnectivityBloc>().state;
@@ -123,7 +128,6 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
   void initState() {
     super.initState();
     _chatRepository = locator<ChatRepository>();
-    _userRepository = locator<UserRepository>();
     _presenceManager = locator<PresenceManager>();
 
     // Professional behavior: Register that user is viewing this chat
@@ -216,6 +220,10 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
     _messageSubscription?.cancel();
     _connectivitySubscription?.cancel();
     _updateTypingStatus(false);
+    // CRITICAL: Release user stream subscription
+    if (_otherUserId != null) {
+      UserStreamProvider().releaseUserStream(_otherUserId!);
+    }
     super.dispose();
   }
 
@@ -383,9 +391,6 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
       final box = Hive.box('settings');
       box.delete('draft_${widget.chatId}');
     } catch (_) {}
-
-    // Dismiss keyboard after sending message
-    FocusScope.of(context).unfocus();
 
     // If offline, mark as error immediately so user can retry
     if (_isOffline) {
@@ -563,11 +568,6 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
       // Add optimistic message to UI immediately
       _addMessageToList(optimisticMessage);
       _cancelReply();
-
-      // Dismiss keyboard when sending image
-      if (mounted) {
-        FocusScope.of(context).unfocus();
-      }
 
       // Show uploading indicator in bottom sheet area instead of blocking whole UI
       if (mounted) {
@@ -903,6 +903,16 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
 
           final otherUserId =
               users.firstWhere((id) => id != currentUser.uid, orElse: () => '');
+
+          // CRITICAL: Store otherUserId for cleanup
+          if (_otherUserId != otherUserId) {
+            // Release previous user stream if different
+            if (_otherUserId != null) {
+              UserStreamProvider().releaseUserStream(_otherUserId!);
+            }
+            _otherUserId = otherUserId;
+          }
+
           final chatType = chatData['chatType'] ?? 'friend';
           final bool isContactRequest = chatType == 'contact_request';
           final initiatorId = chatData['initiatorId'];
@@ -911,7 +921,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
           final Timestamp? matchTimestamp = chatData['matchTimestamp'];
 
           return StreamBuilder<UserModel>(
-            stream: _userRepository.getUserStream(otherUserId),
+            stream: UserStreamProvider().getUserStream(otherUserId),
             builder: (context, userSnapshot) {
               if (!userSnapshot.hasData) {
                 return _buildLoadingScaffold();
@@ -943,6 +953,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                         child: EnhancedMessageInput(
                           controller: _messageController,
                           onSend: _sendMessage,
+                          onSendAudio: _handleSendAudio,
                           onCamera: () =>
                               _sendImage(source: ImageSource.camera),
                           onGallery: () =>
@@ -961,6 +972,46 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
         },
       ),
     );
+  }
+
+  Future<void> _handleSendAudio(String path, Duration duration) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+    setState(() {
+      _isUploading = true;
+    });
+
+    bool didSend = false;
+    try {
+      await _chatRepository.sendVoiceMessage(
+        chatId: widget.chatId,
+        senderId: currentUser.uid,
+        audioFile: File(path),
+        audioDuration: duration,
+      );
+      didSend = true;
+    } catch (e) {
+      if (!mounted) return;
+      showIslandPopup(
+        context: context,
+        message: 'Voice message failed to send. Please try again.',
+        icon: Icons.error_outline,
+      );
+    } finally {
+      if (didSend) {
+        try {
+          final file = File(path);
+          if (await file.exists()) {
+            await file.delete();
+          }
+        } catch (_) {}
+      }
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+      }
+    }
   }
 
   PreferredSizeWidget _buildProfessionalAppBar(
@@ -990,7 +1041,10 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(
+            horizontal: DesignTokens.spaceSM,
+            vertical: DesignTokens.spaceXS,
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1001,8 +1055,8 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                   clipBehavior: Clip.none,
                   children: [
                     Container(
-                      width: 38,
-                      height: 38,
+                      width: DesignTokens.avatarSizeSmall + 6,
+                      height: DesignTokens.avatarSizeSmall + 6,
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                       ),
@@ -1283,30 +1337,37 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                   setState(() => _firstUnreadMessageId = null);
                 },
               ),
-            RepaintBoundary(
-              child: ProfessionalMessageBubble(
-                key: ValueKey(message.id),
-                message: message,
+            if (message.isGiftMessage && message.giftId != null)
+              GiftMessageBanner(
+                giftId: message.giftId!,
+                timestamp: message.timestamp?.toDate() ?? DateTime.now(),
                 isMe: message.senderId == currentUserId,
-                onTap: () {
-                  final isMe = message.senderId == currentUserId;
-                  if (isMe && message.status == MessageStatus.error) {
-                    _retryMessage(message);
-                  }
-                },
-                previousMessage: previousMessage,
-                nextMessage: nextMessage,
-                otherUsername: widget.otherUsername,
-                onLongPress: () => _showMessageActions(
-                  message,
-                  message.senderId == currentUserId,
+              )
+            else
+              RepaintBoundary(
+                child: ProfessionalMessageBubble(
+                  key: ValueKey(message.id),
+                  message: message,
+                  isMe: message.senderId == currentUserId,
+                  onTap: () {
+                    final isMe = message.senderId == currentUserId;
+                    if (isMe && message.status == MessageStatus.error) {
+                      _retryMessage(message);
+                    }
+                  },
+                  previousMessage: previousMessage,
+                  nextMessage: nextMessage,
+                  otherUsername: widget.otherUsername,
+                  onLongPress: () => _showMessageActions(
+                    message,
+                    message.senderId == currentUserId,
+                  ),
+                  onReplyTap: message.replyToMessageId != null
+                      ? () => _scrollToMessage(message.replyToMessageId!)
+                      : null,
+                  shouldHighlight: message.id == _highlightedMessageId,
                 ),
-                onReplyTap: message.replyToMessageId != null
-                    ? () => _scrollToMessage(message.replyToMessageId!)
-                    : null,
-                shouldHighlight: message.id == _highlightedMessageId,
               ),
-            ),
           ],
         );
       },
@@ -1382,10 +1443,10 @@ class _SenderInfoBanner extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: DesignTokens.spaceSM),
       padding: const EdgeInsets.symmetric(
         horizontal: DesignTokens.spaceMD,
-        vertical: 12,
+        vertical: DesignTokens.spaceMD,
       ),
       decoration: BoxDecoration(
         color: backgroundColor,

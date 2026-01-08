@@ -1,15 +1,20 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_database/firebase_database.dart' as rtdb;
 import 'package:flutter/widgets.dart';
 import 'package:freegram/utils/chat_presence_constants.dart';
+import 'package:freegram/services/realtime_presence_service.dart';
 
 /// Professional Presence Manager
 ///
+/// **REFACTORED FOR COST OPTIMIZATION:**
+/// - Uses RealtimePresenceService (RTDB) for real-time presence (no Firestore writes)
+/// - Only writes to Firestore once per session (on connect/disconnect) for long-term storage
+/// - Eliminates 30-second heartbeat loop that was causing expensive Firestore writes
+/// - Maintains real-time accuracy via RTDB streams
+///
 /// Handles all user presence/online status logic with:
 /// - Automatic lifecycle integration
-/// - Heartbeat mechanism
 /// - Multi-state presence (Active/Online/Away/Offline)
 /// - Debouncing and retry logic
 /// - Platform-specific optimizations
@@ -21,28 +26,24 @@ class PresenceManager with WidgetsBindingObserver {
 
   // Firebase instances
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final rtdb.FirebaseDatabase _rtdb = rtdb.FirebaseDatabase.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final RealtimePresenceService _realtimePresence = RealtimePresenceService();
 
   // State
-  Timer? _heartbeatTimer;
   Timer? _debounceTimer;
-  DateTime? _lastUpdate;
   PresenceState _currentState = PresenceState.offline;
   bool _isInitialized = false;
-  int _retryCount = 0;
+  String? _currentUserId; // Track which user is currently initialized
 
-  // Cache for other users' presence (reduces Firestore reads)
+  // Cache for other users' presence (reduces RTDB reads)
   final Map<String, _CachedPresence> _presenceCache = {};
+
+  // Cache for broadcast streams (allows multiple listeners)
+  final Map<String, Stream<PresenceData>> _streamCache = {};
 
   /// Initialize the presence manager
   /// Call this once during app initialization
   Future<void> initialize() async {
-    if (_isInitialized) {
-      debugPrint('[PresenceManager] Already initialized');
-      return;
-    }
-
     final user = _auth.currentUser;
     if (user == null) {
       debugPrint(
@@ -50,36 +51,99 @@ class PresenceManager with WidgetsBindingObserver {
       return;
     }
 
+    // CRITICAL FIX: Check if user changed - if so, dispose old user first
+    if (_isInitialized &&
+        _currentUserId != null &&
+        _currentUserId != user.uid) {
+      debugPrint(
+          '[PresenceManager] User changed from $_currentUserId to ${user.uid} - disposing old user');
+      // Dispose old user's presence before initializing new user
+      await _disposeForUser(_currentUserId!);
+    }
+
+    // If already initialized for this user, skip
+    if (_isInitialized && _currentUserId == user.uid) {
+      debugPrint('[PresenceManager] Already initialized for user: ${user.uid}');
+      return;
+    }
+
     debugPrint('[PresenceManager] Initializing for user: ${user.uid}');
 
-    // Add lifecycle observer
+    // Add lifecycle observer (safe to call multiple times)
     WidgetsBinding.instance.addObserver(this);
 
-    // Set initial online state
-    await _updatePresenceState(PresenceState.online);
+    // Connect to RTDB (this sets user online in RTDB)
+    try {
+      await _realtimePresence
+          .connect(user.uid)
+          .timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint(
+          '[PresenceManager] Warning: RTDB connection timed out or failed: $e');
+      // Continue initialization even if RTDB fails
+    }
 
-    // Start heartbeat
-    _startHeartbeat();
+    // Write to Firestore ONCE for session start (long-term storage)
+    try {
+      await _updateFirestorePresence(user.uid, PresenceState.online)
+          .timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint(
+          '[PresenceManager] Warning: Firestore presence update timed out or failed: $e');
+    }
 
+    _currentState = PresenceState.online;
+    _currentUserId = user.uid;
     _isInitialized = true;
-    debugPrint('[PresenceManager] Initialization complete');
+
+    debugPrint(
+        '[PresenceManager] Initialization complete (RTDB connected, Firestore updated once)');
   }
 
   /// Clean up resources
+  /// CRITICAL FIX: Uses stored user ID instead of currentUser (which may be null on logout)
   Future<void> dispose() async {
     debugPrint('[PresenceManager] Disposing');
 
+    // Use stored user ID if available, fallback to currentUser
+    final userIdToDispose = _currentUserId ?? _auth.currentUser?.uid;
+
+    if (userIdToDispose != null) {
+      await _disposeForUser(userIdToDispose);
+    } else {
+      // No user to dispose, just clean up local state
+      WidgetsBinding.instance.removeObserver(this);
+      _debounceTimer?.cancel();
+      _presenceCache.clear();
+      _streamCache.clear();
+      _isInitialized = false;
+      _currentUserId = null;
+      debugPrint('[PresenceManager] Cleanup complete (no user to dispose)');
+    }
+  }
+
+  /// Internal method to dispose for a specific user
+  /// This ensures we can dispose even if currentUser is already null
+  Future<void> _disposeForUser(String userId) async {
+    debugPrint('[PresenceManager] Disposing for user: $userId');
+
     WidgetsBinding.instance.removeObserver(this);
-    _heartbeatTimer?.cancel();
     _debounceTimer?.cancel();
 
-    // Skip offline update on dispose - Firebase RTDB onDisconnect() handles this automatically
-    // Trying to update after logout causes permission errors
-    debugPrint(
-        '[PresenceManager] Cleanup complete (onDisconnect handler will set offline)');
+    // Write to Firestore ONCE for session end (long-term storage)
+    await _updateFirestorePresence(userId, PresenceState.offline);
+
+    // Disconnect from RTDB (onDisconnect handler will set offline automatically)
+    await _realtimePresence.disconnect();
 
     _presenceCache.clear();
+    _streamCache.clear();
     _isInitialized = false;
+    _currentUserId = null;
+    _currentState = PresenceState.offline;
+
+    debugPrint(
+        '[PresenceManager] Cleanup complete for user $userId (Firestore updated once, RTDB disconnected)');
   }
 
   // ========== LIFECYCLE HANDLING ==========
@@ -111,13 +175,11 @@ class PresenceManager with WidgetsBindingObserver {
   void _handleAppResumed() {
     debugPrint('[PresenceManager] App resumed - setting Active');
     _updatePresenceState(PresenceState.active);
-    _startHeartbeat();
   }
 
   void _handleAppPaused() {
     debugPrint('[PresenceManager] App paused - setting Away');
     _updatePresenceState(PresenceState.away);
-    _stopHeartbeat();
   }
 
   void _handleAppInactive() {
@@ -128,163 +190,70 @@ class PresenceManager with WidgetsBindingObserver {
   void _handleAppDetached() {
     debugPrint('[PresenceManager] App detached - setting Offline');
     _updatePresenceState(PresenceState.offline);
-    _stopHeartbeat();
-  }
-
-  // ========== HEARTBEAT MECHANISM ==========
-
-  void _startHeartbeat() {
-    _heartbeatTimer?.cancel();
-
-    debugPrint(
-        '[PresenceManager] Starting heartbeat (interval: ${ChatPresenceConstants.heartbeatInterval.inSeconds}s)');
-
-    _heartbeatTimer = Timer.periodic(
-      ChatPresenceConstants.heartbeatInterval,
-      (_) => _sendHeartbeat(),
-    );
-  }
-
-  void _stopHeartbeat() {
-    debugPrint('[PresenceManager] Stopping heartbeat');
-    _heartbeatTimer?.cancel();
-    _heartbeatTimer = null;
-  }
-
-  Future<void> _sendHeartbeat() async {
-    final user = _auth.currentUser;
-    if (user == null) return;
-
-    debugPrint('[PresenceManager] Sending heartbeat');
-
-    // Update last heartbeat timestamp
-    await _updatePresenceInternal(
-      userId: user.uid,
-      state: _currentState,
-      updateHeartbeat: true,
-    );
   }
 
   // ========== PRESENCE STATE UPDATES ==========
 
   /// Update user's presence state
+  /// This only updates RTDB (lightweight) - NOT Firestore
   Future<void> _updatePresenceState(PresenceState newState) async {
-    final user = _auth.currentUser;
-    if (user == null) {
+    // CRITICAL FIX: Use stored user ID to prevent updates for wrong user
+    final userId = _currentUserId ?? _auth.currentUser?.uid;
+    if (userId == null) {
       debugPrint('[PresenceManager] Cannot update presence: No user logged in');
       return;
     }
 
-    // Don't update if state hasn't changed (unless it's been a while)
-    if (_currentState == newState && _lastUpdate != null) {
-      final timeSinceLastUpdate = DateTime.now().difference(_lastUpdate!);
-      if (timeSinceLastUpdate < ChatPresenceConstants.presenceDebounce) {
-        debugPrint('[PresenceManager] Debouncing presence update (too soon)');
-        return;
-      }
+    // CRITICAL FIX: Validate that current user matches initialized user
+    final currentUser = _auth.currentUser;
+    if (currentUser != null && currentUser.uid != userId) {
+      debugPrint(
+          '[PresenceManager] User mismatch: initialized for $userId but current user is ${currentUser.uid}. Skipping update.');
+      return;
+    }
+
+    // Don't update if state hasn't changed
+    if (_currentState == newState) {
+      return;
     }
 
     _currentState = newState;
     debugPrint(
-        '[PresenceManager] Updating presence state to: ${newState.name}');
+        '[PresenceManager] Updating presence state to: ${newState.name} for user: $userId (RTDB only)');
 
-    await _updatePresenceInternal(
-      userId: user.uid,
-      state: newState,
-      updateHeartbeat: false,
-    );
+    // Update RTDB only (lightweight, real-time)
+    await _realtimePresence.updateState(userId, newState);
+
+    // NOTE: We do NOT update Firestore here to save costs
+    // Firestore is only updated on session start/end
   }
 
-  Future<void> _updatePresenceInternal({
-    required String userId,
-    required PresenceState state,
-    required bool updateHeartbeat,
-  }) async {
-    // Debounce updates
-    _debounceTimer?.cancel();
-
-    _debounceTimer = Timer(const Duration(milliseconds: 500), () async {
-      try {
-        final isOnline =
-            state == PresenceState.active || state == PresenceState.online;
-        final now = DateTime.now();
-
-        // Update RTDB (for real-time presence)
-        final rtdbRef =
-            _rtdb.ref('${ChatPresenceConstants.rtdbStatusPath}/$userId');
-
-        // Cancel old disconnect handler
-        await rtdbRef.onDisconnect().cancel();
-
-        // Set current status
-        final rtdbData = {
-          'presence': isOnline,
-          'state': state.name,
-          'lastSeen': rtdb.ServerValue.timestamp,
-          if (updateHeartbeat) 'lastHeartbeat': rtdb.ServerValue.timestamp,
-        };
-
-        await rtdbRef.set(rtdbData);
-
-        // Set disconnect handler
-        await rtdbRef.onDisconnect().set({
-          'presence': false,
-          'state': PresenceState.offline.name,
-          'lastSeen': rtdb.ServerValue.timestamp,
-        });
-
-        // Update Firestore (for querying and persistence)
-        final firestoreRef = _firestore
-            .collection(ChatPresenceConstants.usersCollection)
-            .doc(userId);
-
-        final firestoreData = {
-          ChatPresenceConstants.presenceField: isOnline,
-          ChatPresenceConstants.presenceStateField: state.name,
-          ChatPresenceConstants.lastSeenField: FieldValue.serverTimestamp(),
-        };
-
-        if (updateHeartbeat) {
-          firestoreData[ChatPresenceConstants.lastHeartbeatField] =
-              FieldValue.serverTimestamp();
-        }
-
-        await firestoreRef.update(firestoreData);
-
-        _lastUpdate = now;
-        _retryCount = 0; // Reset retry count on success
-
-        debugPrint(
-            '[PresenceManager] Successfully updated presence: ${state.name}');
-      } catch (e) {
-        debugPrint('[PresenceManager] Error updating presence: $e');
-        _handlePresenceUpdateError(userId, state, updateHeartbeat);
-      }
-    });
-  }
-
-  void _handlePresenceUpdateError(
+  /// Update Firestore presence (called once per session)
+  /// This is for long-term storage and querying, not real-time presence
+  Future<void> _updateFirestorePresence(
     String userId,
     PresenceState state,
-    bool updateHeartbeat,
-  ) {
-    if (_retryCount >= ChatPresenceConstants.maxRetries) {
-      debugPrint('[PresenceManager] Max retries reached, giving up');
-      _retryCount = 0;
-      return;
+  ) async {
+    try {
+      final isOnline =
+          state == PresenceState.active || state == PresenceState.online;
+
+      final firestoreRef = _firestore
+          .collection(ChatPresenceConstants.usersCollection)
+          .doc(userId);
+
+      await firestoreRef.update({
+        ChatPresenceConstants.presenceField: isOnline,
+        ChatPresenceConstants.presenceStateField: state.name,
+        ChatPresenceConstants.lastSeenField: FieldValue.serverTimestamp(),
+      });
+
+      debugPrint(
+          '[PresenceManager] Updated Firestore presence (once per session): ${state.name}');
+    } catch (e) {
+      debugPrint('[PresenceManager] Error updating Firestore presence: $e');
+      // Don't rethrow - Firestore update is for long-term storage only
     }
-
-    _retryCount++;
-    debugPrint(
-        '[PresenceManager] Retry attempt $_retryCount/${ChatPresenceConstants.maxRetries}');
-
-    Timer(ChatPresenceConstants.retryDelay, () {
-      _updatePresenceInternal(
-        userId: userId,
-        state: state,
-        updateHeartbeat: updateHeartbeat,
-      );
-    });
   }
 
   // ========== PUBLIC API ==========
@@ -311,8 +280,37 @@ class PresenceManager with WidgetsBindingObserver {
   }
 
   /// Set user as offline (called when logging out)
+  /// CRITICAL FIX: This method now properly handles logout even if user is already signed out
   Future<void> setOffline() async {
-    await _updatePresenceState(PresenceState.offline);
+    // Use stored user ID if available (user might already be signed out)
+    final userId = _currentUserId ?? _auth.currentUser?.uid;
+    if (userId == null) {
+      debugPrint(
+          '[PresenceManager] setOffline called but no user ID available');
+      // Still clean up local state
+      _currentState = PresenceState.offline;
+      return;
+    }
+
+    debugPrint('[PresenceManager] Setting user offline: $userId');
+
+    // Update state first
+    _currentState = PresenceState.offline;
+
+    // Update RTDB
+    await _realtimePresence.updateState(userId, PresenceState.offline);
+
+    // Update Firestore for logout
+    await _updateFirestorePresence(userId, PresenceState.offline);
+
+    // Disconnect from RTDB
+    await _realtimePresence.disconnect();
+
+    // Clear state
+    _isInitialized = false;
+    _currentUserId = null;
+
+    debugPrint('[PresenceManager] User set offline and disconnected: $userId');
   }
 
   /// Get current user's presence state
@@ -324,25 +322,26 @@ class PresenceManager with WidgetsBindingObserver {
   // ========== PRESENCE CACHE FOR OTHER USERS ==========
 
   /// Get another user's presence (with caching)
+  /// Now streams from RTDB for real-time updates (not Firestore)
+  /// Returns a broadcast stream that can be listened to multiple times
   Stream<PresenceData> getUserPresence(String userId) {
-    // Return cached if fresh
-    final cached = _presenceCache[userId];
-    if (cached != null && cached.isFresh) {
-      debugPrint('[PresenceManager] Returning cached presence for: $userId');
+    // Return cached broadcast stream if it exists
+    if (_streamCache.containsKey(userId)) {
+      debugPrint(
+          '[PresenceManager] Returning cached broadcast stream for: $userId');
+      return _streamCache[userId]!;
     }
 
-    // Stream from Firestore with caching
-    return _firestore
-        .collection(ChatPresenceConstants.usersCollection)
-        .doc(userId)
-        .snapshots()
-        .map((doc) {
-      if (!doc.exists) {
-        return PresenceData.offline();
-      }
-
-      final data = doc.data()!;
-      final presenceData = PresenceData.fromMap(data);
+    // Create broadcast stream from RTDB (real-time, no Firestore reads)
+    final broadcastStream =
+        _realtimePresence.getUserPresenceStream(userId).map((rtdbData) {
+      // Convert RealtimePresenceData to PresenceData for compatibility
+      final presenceData = PresenceData(
+        isOnline: rtdbData.isOnline,
+        state: rtdbData.presenceState,
+        lastSeen: rtdbData.lastChanged,
+        lastHeartbeat: null, // RTDB doesn't track heartbeat separately
+      );
 
       // Cache it
       _presenceCache[userId] = _CachedPresence(
@@ -354,7 +353,21 @@ class PresenceManager with WidgetsBindingObserver {
       _cleanCache();
 
       return presenceData;
-    });
+    }).asBroadcastStream(
+      onListen: (subscription) {
+        debugPrint('[PresenceManager] First listener added for: $userId');
+      },
+      onCancel: (subscription) {
+        debugPrint('[PresenceManager] Last listener removed for: $userId');
+        // Optionally clean up stream cache when no listeners
+        // But keep it for a bit in case widget rebuilds quickly
+      },
+    );
+
+    // Cache the broadcast stream
+    _streamCache[userId] = broadcastStream;
+
+    return broadcastStream;
   }
 
   void _cleanCache() {
@@ -378,11 +391,13 @@ class PresenceManager with WidgetsBindingObserver {
   /// Invalidate cache for a specific user
   void invalidateCache(String userId) {
     _presenceCache.remove(userId);
+    _streamCache.remove(userId);
   }
 
   /// Clear all cached presence data
   void clearCache() {
     _presenceCache.clear();
+    _streamCache.clear();
   }
 }
 

@@ -6,9 +6,16 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 // in the Google Play Console and App Store Connect.
 const String _kProductId100Coins = 'com.freegram.coins100';
 const String _kProductId550Coins = 'com.freegram.coins550';
+const String _kProductId1200Coins = 'com.freegram.coins1200';
+const String _kProductId2500Coins = 'com.freegram.coins2500';
+const String _kProductId6500Coins = 'com.freegram.coins6500';
+
 const List<String> _kProductIds = <String>[
   _kProductId100Coins,
   _kProductId550Coins,
+  _kProductId1200Coins,
+  _kProductId2500Coins,
+  _kProductId6500Coins,
 ];
 
 class InAppPurchaseService {
@@ -33,20 +40,20 @@ class InAppPurchaseService {
     await _loadProducts();
 
     // Listen to purchase updates
-    _subscription =
-        _inAppPurchase.purchaseStream.listen((List<PurchaseDetails> purchaseDetailsList) {
-          _listenToPurchaseUpdated(purchaseDetailsList);
-        }, onDone: () {
-          _subscription.cancel();
-        }, onError: (error) {
-          // Handle error here.
-        });
+    _subscription = _inAppPurchase.purchaseStream.listen(
+        (List<PurchaseDetails> purchaseDetailsList) {
+      _listenToPurchaseUpdated(purchaseDetailsList);
+    }, onDone: () {
+      _subscription.cancel();
+    }, onError: (error) {
+      // Handle error here.
+    });
   }
 
   /// Fetches product details from the app store.
   Future<void> _loadProducts() async {
     final ProductDetailsResponse response =
-    await _inAppPurchase.queryProductDetails(_kProductIds.toSet());
+        await _inAppPurchase.queryProductDetails(_kProductIds.toSet());
     if (response.error != null) {
       debugPrint('Failed to load products: ${response.error}');
       return;
@@ -84,6 +91,12 @@ class InAppPurchaseService {
       amount = 100;
     } else if (purchaseDetails.productID == _kProductId550Coins) {
       amount = 550;
+    } else if (purchaseDetails.productID == _kProductId1200Coins) {
+      amount = 1200;
+    } else if (purchaseDetails.productID == _kProductId2500Coins) {
+      amount = 2500;
+    } else if (purchaseDetails.productID == _kProductId6500Coins) {
+      amount = 6500;
     }
 
     if (amount > 0) {
@@ -100,7 +113,7 @@ class InAppPurchaseService {
     }
 
     final PurchaseParam purchaseParam =
-    PurchaseParam(productDetails: productDetails);
+        PurchaseParam(productDetails: productDetails);
     await _inAppPurchase.buyConsumable(purchaseParam: purchaseParam);
   }
 

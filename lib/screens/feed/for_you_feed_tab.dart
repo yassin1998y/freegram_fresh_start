@@ -169,7 +169,11 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
         }
 
         if (state is UnifiedFeedLoaded) {
-          if (state.items.isEmpty) {
+          // NUX: Even if items are empty, we might want to show suggestions or welcome screen
+          // But with the new logic, items should rarely be empty due to global trending fallback
+          if (state.items.isEmpty &&
+              state.friendSuggestions.isEmpty &&
+              state.trendingReels.isEmpty) {
             return _buildEmptyState(context);
           }
 
@@ -257,6 +261,11 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
     // New posts banner (part of scroll now)
     if (state.getNewPostsCount() > 0) count++;
 
+    // NUX: Welcome Header (if user has no friends/following but has content)
+    // We can infer this if we are showing fallback content (e.g. no organic posts from friends)
+    // For now, we'll add a slot for it and check logic in builder
+    count++;
+
     // Count trending posts section if it has posts OR if it's refreshing (show skeleton)
     if (_hasTrendingPosts(state) || state.isRefreshing) count++;
 
@@ -317,13 +326,26 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
       );
     }
 
-    // 2: Create Post Widget
+    // 2: Welcome Header (NUX)
+    // Show if user has no friends (proxy: friend suggestions are shown prominently or empty friends list)
+    // For robust check, we use _currentUserFriends
+    currentIndex++;
+    if (index == currentIndex) {
+      final isNewUser =
+          _currentUserFriends != null && _currentUserFriends!.isEmpty;
+      if (isNewUser) {
+        return _buildWelcomeHeader(context);
+      }
+      return const SizedBox.shrink();
+    }
+
+    // 3: Create Post Widget
     currentIndex++;
     if (index == currentIndex) {
       return const CreatePostWidget();
     }
 
-    // 3: Trending Posts
+    // 4: Trending Posts
     if (index == currentIndex++) {
       final hasTrendingPosts = _hasTrendingPosts(state);
       if (hasTrendingPosts) {
@@ -335,7 +357,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
       currentIndex--;
     }
 
-    // 4: Trending Reels
+    // 5: Trending Reels
     if (index == currentIndex++) {
       if (hasTrendingReels) {
         return TrendingReelsCarouselWidget(reels: state.trendingReels);
@@ -346,7 +368,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
       currentIndex--;
     }
 
-    // 5: Boosted Posts
+    // 6: Boosted Posts
     if (index == currentIndex++) {
       if (hasBoostedPosts) {
         return BoostedPostsSectionWidget(boostedPosts: state.boostedPosts);
@@ -357,7 +379,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
       currentIndex--;
     }
 
-    // 6: Friends Suggestions
+    // 7: Friends Suggestions
     if (index == currentIndex++) {
       if (hasFriendSuggestions) {
         return SuggestionCarouselWidget(
@@ -408,6 +430,59 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
     }
 
     return const SizedBox.shrink();
+  }
+
+  Widget _buildWelcomeHeader(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: EdgeInsets.symmetric(
+          horizontal: DesignTokens.spaceMD, vertical: DesignTokens.spaceSM),
+      padding: EdgeInsets.all(DesignTokens.spaceMD),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            theme.colorScheme.primaryContainer,
+            theme.colorScheme.primaryContainer.withOpacity(0.7),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+        border: Border.all(
+          color: theme.colorScheme.primary.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.waving_hand,
+                color: theme.colorScheme.primary,
+                size: 24,
+              ),
+              SizedBox(width: DesignTokens.spaceSM),
+              Text(
+                'Welcome to Freegram!',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onPrimaryContainer,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: DesignTokens.spaceXS),
+          Text(
+            'Here are some trending posts and people you might like to get you started.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onPrimaryContainer.withOpacity(0.8),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildFeedItem(FeedItem item, {bool isNewPost = false}) {
@@ -491,7 +566,8 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
                 left: DesignTokens.spaceMD,
                 right: DesignTokens.spaceMD,
                 top: DesignTokens.spaceSM,
-                bottom: DesignTokens.spaceXS, // Reduced bottom padding for closer spacing
+                bottom: DesignTokens
+                    .spaceXS, // Reduced bottom padding for closer spacing
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -10,6 +10,8 @@ import 'package:freegram/theme/design_tokens.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -22,9 +24,16 @@ class _SignUpScreenState extends State<SignUpScreen>
     with TickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _usernameController =
+      TextEditingController(); // NEW: Username controller
   final _formKey = GlobalKey<FormState>();
   final _emailFocusNode = FocusNode();
   final _passwordFocusNode = FocusNode();
+  final _usernameFocusNode = FocusNode(); // NEW: Username focus node
+
+  // NEW: Image picker variables
+  File? _imageFile;
+  final ImagePicker _picker = ImagePicker();
 
   bool _isSigningUp = false;
   bool _passwordVisible = false;
@@ -32,6 +41,7 @@ class _SignUpScreenState extends State<SignUpScreen>
   String _passwordStrengthLabel = '';
   bool _emailValidated = false;
   bool _passwordValidated = false;
+  bool _usernameValidated = false; // NEW: Username validation
 
   static const _kSignupEmailKey = 'signup_draft_email';
   static const _kRememberEmailKey = 'remember_signup_email';
@@ -48,7 +58,7 @@ class _SignUpScreenState extends State<SignUpScreen>
     debugPrint('📱 SCREEN: signup_screen.dart');
     // IMPROVEMENT #9: Auto-focus on first field
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _emailFocusNode.requestFocus();
+      _usernameFocusNode.requestFocus(); // Focus username first now
     });
 
     // IMPROVEMENT #17: Success animation setup
@@ -69,6 +79,7 @@ class _SignUpScreenState extends State<SignUpScreen>
     _passwordController
         .addListener(() => _onPasswordChanged(_passwordController.text));
     _emailController.addListener(_onEmailChanged);
+    _usernameController.addListener(_onUsernameChanged); // NEW
   }
 
   @override
@@ -78,10 +89,87 @@ class _SignUpScreenState extends State<SignUpScreen>
     _performDraftSave();
     _emailController.dispose();
     _passwordController.dispose();
+    _usernameController.dispose(); // NEW
     _emailFocusNode.dispose();
     _passwordFocusNode.dispose();
+    _usernameFocusNode.dispose(); // NEW
     _successAnimationController.dispose();
     super.dispose();
+  }
+
+  // NEW: Username change handler
+  void _onUsernameChanged() {
+    final username = _usernameController.text.trim();
+    if (mounted) {
+      setState(() {
+        _usernameValidated = username.isNotEmpty && username.length >= 3;
+      });
+    }
+  }
+
+  // NEW: Image picker handler
+  Future<void> _pickImage() async {
+    try {
+      final source = await showModalBottomSheet<ImageSource>(
+        context: context,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(DesignTokens.radiusXL),
+          ),
+        ),
+        builder: (context) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin:
+                    const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Camera'),
+                onTap: () => Navigator.of(context).pop(ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Gallery'),
+                onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+              ),
+              const SizedBox(height: DesignTokens.spaceMD),
+            ],
+          ),
+        ),
+      );
+
+      if (source != null) {
+        final XFile? pickedFile = await _picker.pickImage(
+          source: source,
+          imageQuality: 70,
+          maxWidth: 1024,
+          maxHeight: 1024,
+        );
+
+        if (pickedFile != null) {
+          setState(() {
+            _imageFile = File(pickedFile.path);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick image: $e')),
+        );
+      }
+    }
   }
 
   void _onEmailChanged() {
@@ -140,7 +228,8 @@ class _SignUpScreenState extends State<SignUpScreen>
           SignUpRequested(
             email: _emailController.text.trim(),
             password: _passwordController.text.trim(),
-            username: '', // Username will be collected in onboarding
+            username: _usernameController.text.trim(), // NEW
+            imageFile: _imageFile, // NEW
           ),
         );
     if (kDebugMode) {
@@ -296,7 +385,9 @@ class _SignUpScreenState extends State<SignUpScreen>
                 textColor: Theme.of(context).colorScheme.onError,
                 onPressed: () {
                   // Retry signup if form is still valid
-                  if (_emailValidated && _passwordValidated) {
+                  if (_emailValidated &&
+                      _passwordValidated &&
+                      _usernameValidated) {
                     _signUp();
                   }
                 },
@@ -328,7 +419,10 @@ class _SignUpScreenState extends State<SignUpScreen>
       },
       builder: (context, state) {
         final isLoading = state is AuthLoading || _isSigningUp;
-        final canSubmit = _emailValidated && _passwordValidated && !isLoading;
+        final canSubmit = _emailValidated &&
+            _passwordValidated &&
+            _usernameValidated &&
+            !isLoading;
 
         return Scaffold(
           // CRITICAL: Explicit background color to prevent black screen during transitions
@@ -367,10 +461,65 @@ class _SignUpScreenState extends State<SignUpScreen>
                             ),
                           )
                         else
-                          Icon(
-                            Icons.person_add_outlined,
-                            size: DesignTokens.iconXXL * 2,
-                            color: Theme.of(context).colorScheme.primary,
+                          // NEW: Profile Picture Picker
+                          Center(
+                            child: GestureDetector(
+                              onTap: isLoading ? null : _pickImage,
+                              child: Stack(
+                                children: [
+                                  Container(
+                                    width: 100,
+                                    height: 100,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHighest,
+                                      image: _imageFile != null
+                                          ? DecorationImage(
+                                              image: FileImage(_imageFile!),
+                                              fit: BoxFit.cover,
+                                            )
+                                          : null,
+                                    ),
+                                    child: _imageFile == null
+                                        ? Icon(
+                                            Icons.person_add_outlined,
+                                            size: 40,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary,
+                                          )
+                                        : null,
+                                  ),
+                                  Positioned(
+                                    bottom: 0,
+                                    right: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Theme.of(context)
+                                              .scaffoldBackgroundColor,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: Icon(
+                                        Icons.camera_alt,
+                                        size: 16,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         const SizedBox(height: DesignTokens.spaceLG),
                         Text(
@@ -398,6 +547,57 @@ class _SignUpScreenState extends State<SignUpScreen>
                               ),
                         ),
                         const SizedBox(height: DesignTokens.spaceXXL),
+
+                        // NEW: Username Field
+                        TextFormField(
+                          controller: _usernameController,
+                          focusNode: _usernameFocusNode,
+                          textInputAction: TextInputAction.next,
+                          autovalidateMode: AutovalidateMode.onUserInteraction,
+                          decoration: InputDecoration(
+                            labelText: 'Username',
+                            hintText: 'Choose a unique username',
+                            prefixIcon: const Icon(Icons.person_outline),
+                            suffixIcon: _usernameValidated &&
+                                    _usernameController.text.isNotEmpty
+                                ? const Icon(
+                                    Icons.check_circle,
+                                    color: SemanticColors.success,
+                                  )
+                                : null,
+                            border: OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(DesignTokens.radiusMD),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(DesignTokens.radiusMD),
+                              borderSide: BorderSide(
+                                color: _usernameValidated
+                                    ? SemanticColors.success
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .outline
+                                        .withOpacity(
+                                            DesignTokens.opacityMedium),
+                                width: _usernameValidated ? 2 : 1,
+                              ),
+                            ),
+                          ),
+                          enabled: !isLoading,
+                          onFieldSubmitted: (_) =>
+                              _emailFocusNode.requestFocus(),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Username is required';
+                            }
+                            if (value.length < 3) {
+                              return 'Username must be at least 3 characters';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: DesignTokens.spaceMD),
 
                         // IMPROVEMENT #2: Email field with validation feedback
                         TextFormField(
@@ -588,85 +788,63 @@ class _SignUpScreenState extends State<SignUpScreen>
                           const SizedBox(height: DesignTokens.spaceSM),
                           // IMPROVEMENT #3: Password requirements checklist
                           ..._getPasswordRequirements(_passwordController.text)
-                              .map((req) => Padding(
-                                    padding: const EdgeInsets.only(
-                                        bottom: DesignTokens.spaceXS),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          _passwordController.text.isNotEmpty &&
-                                                      (req.contains(
-                                                              '6 characters') &&
-                                                          _passwordController
-                                                                  .text
-                                                                  .length >=
-                                                              6) ||
-                                                  (req.contains('uppercase') &&
-                                                      RegExp(r'[A-Z]').hasMatch(
-                                                          _passwordController
-                                                              .text)) ||
-                                                  (req.contains('number') &&
-                                                      RegExp(r'[0-9]').hasMatch(
-                                                          _passwordController
-                                                              .text))
-                                              ? Icons.check_circle
-                                              : Icons.radio_button_unchecked,
-                                          size: DesignTokens.iconSM,
-                                          color: _passwordController
-                                                          .text.isNotEmpty &&
-                                                      (req.contains('6 characters') &&
-                                                          _passwordController
-                                                                  .text
-                                                                  .length >=
-                                                              6) ||
-                                                  (req.contains('uppercase') &&
-                                                      RegExp(r'[A-Z]').hasMatch(
-                                                          _passwordController
-                                                              .text)) ||
-                                                  (req.contains('number') &&
-                                                      RegExp(r'[0-9]').hasMatch(
-                                                          _passwordController
-                                                              .text))
-                                              ? SemanticColors.success
-                                              : SemanticColors.textSecondary(context)
-                                                  .withOpacity(DesignTokens.opacityMedium),
+                              .map(
+                            (req) => Padding(
+                              padding: const EdgeInsets.only(
+                                  bottom: DesignTokens.spaceXS),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    _passwordController.text.isNotEmpty &&
+                                                (req.contains('6 characters') &&
+                                                    _passwordController
+                                                            .text.length >=
+                                                        6) ||
+                                            (req.contains('uppercase') &&
+                                                RegExp(r'[A-Z]').hasMatch(
+                                                    _passwordController
+                                                        .text)) ||
+                                            (req.contains('number') &&
+                                                RegExp(r'[0-9]').hasMatch(
+                                                    _passwordController.text))
+                                        ? Icons.check_circle
+                                        : Icons.radio_button_unchecked,
+                                    size: DesignTokens.iconSM,
+                                    color: _passwordController
+                                                    .text.isNotEmpty &&
+                                                (req.contains('6 characters') &&
+                                                    _passwordController
+                                                            .text.length >=
+                                                        6) ||
+                                            (req.contains('uppercase') &&
+                                                RegExp(r'[A-Z]').hasMatch(
+                                                    _passwordController
+                                                        .text)) ||
+                                            (req.contains('number') &&
+                                                RegExp(r'[0-9]').hasMatch(
+                                                    _passwordController.text))
+                                        ? SemanticColors.success
+                                        : SemanticColors.textSecondary(context)
+                                            .withOpacity(
+                                                DesignTokens.opacityMedium),
+                                  ),
+                                  const SizedBox(width: DesignTokens.spaceXS),
+                                  Text(
+                                    req,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          fontSize: DesignTokens.fontSizeSM,
+                                          color: SemanticColors.textSecondary(
+                                              context),
                                         ),
-                                        const SizedBox(
-                                            width: DesignTokens.spaceXS),
-                                        Text(
-                                          req,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall
-                                              ?.copyWith(
-                                                fontSize:
-                                                    DesignTokens.fontSizeSM,
-                                                color: SemanticColors
-                                                    .textSecondary(context),
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                  )),
-                          const SizedBox(height: DesignTokens.spaceMD),
-                        ],
-
-                        // IMPROVEMENT #8: Terms & Privacy link
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: DesignTokens.spaceSM),
-                          child: Text(
-                            'By signing up, you agree to our Terms of Service and Privacy Policy',
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  fontSize: DesignTokens.fontSizeSM,
-                                  color: SemanticColors.textSecondary(context),
-                                ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
 
                         const SizedBox(height: DesignTokens.spaceLG),
 

@@ -1,0 +1,35 @@
+{
+  "rules": {
+    "status": {
+      "$userId": {
+        // Users can read any user's presence status
+        ".read": "auth != null",
+        
+        // Users can only write their own presence status
+        ".write": "auth != null && auth.uid === $userId",
+        
+        // Validate presence state
+        "state": {
+          ".validate": "newData.isString() && (newData.val() === 'active' || newData.val() === 'online' || newData.val() === 'away' || newData.val() === 'offline')"
+        },
+        
+        // Validate last_changed timestamp (must be a positive number)
+        "last_changed": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+        
+        // Allow onDisconnect handlers (system operations)
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    
+    // Default deny all other paths
+    "$other": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}
+

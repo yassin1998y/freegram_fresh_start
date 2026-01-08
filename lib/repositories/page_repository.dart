@@ -350,17 +350,18 @@ class PageRepository {
 
   /// Get page suggestions for a user
   /// Returns popular pages, pages with similar interests, or trending pages
-  Future<List<PageModel>> getPageSuggestions(String userId, {int limit = 10}) async {
+  Future<List<PageModel>> getPageSuggestions(String userId,
+      {int limit = 10}) async {
     try {
       debugPrint('PageRepository: Getting page suggestions for $userId');
-      
+
       // Get user's followed pages to exclude them
       final userDoc = await _db.collection('users').doc(userId).get();
       if (!userDoc.exists) {
         return [];
       }
 
-      final userData = userDoc.data()!;
+      final userData = userDoc.data() ?? {};
       final followedPages = List<String>.from(userData['followedPages'] ?? []);
       final userInterests = List<String>.from(userData['interests'] ?? []);
 
@@ -382,12 +383,14 @@ class PageRepository {
         pages.sort((a, b) {
           // Prioritize pages with categories matching user interests
           final aMatches = userInterests
-              .where((interest) => 
-                  a.category?.toLowerCase().contains(interest.toLowerCase()) ?? false)
+              .where((interest) =>
+                  a.category?.toLowerCase().contains(interest.toLowerCase()) ??
+                  false)
               .length;
           final bMatches = userInterests
-              .where((interest) => 
-                  b.category?.toLowerCase().contains(interest.toLowerCase()) ?? false)
+              .where((interest) =>
+                  b.category?.toLowerCase().contains(interest.toLowerCase()) ??
+                  false)
               .length;
 
           if (aMatches != bMatches) {
@@ -795,7 +798,7 @@ class PageRepository {
         throw Exception('Verification request not found');
       }
 
-      final requestData = requestDoc.data()!;
+      final requestData = requestDoc.data() ?? {};
       final pageId = requestData['pageId'] as String?;
       final status = requestData['status'] as String?;
 
@@ -844,7 +847,7 @@ class PageRepository {
         throw Exception('Verification request not found');
       }
 
-      final requestData = requestDoc.data()!;
+      final requestData = requestDoc.data() ?? {};
       final pageId = requestData['pageId'] as String?;
       final status = requestData['status'] as String?;
 
@@ -892,7 +895,7 @@ class PageRepository {
         throw Exception('Page not found');
       }
 
-      final pageData = pageDoc.data()!;
+      final pageData = pageDoc.data() ?? {};
       final currentStatus = pageData['verificationStatus'] as String?;
 
       if (currentStatus != 'verified') {

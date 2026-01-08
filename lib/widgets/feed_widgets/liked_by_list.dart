@@ -2,10 +2,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:freegram/locator.dart';
-import 'package:freegram/repositories/post_repository.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/screens/profile_screen.dart';
 
 class LikedByList extends StatefulWidget {
   final String postId;
@@ -35,44 +34,68 @@ class _LikedByListState extends State<LikedByList> {
   }
 
   Future<void> _loadLikedUsers() async {
-    if (!_hasMore || _isLoading) return;
+    // CRITICAL FIX: Allow initial load even if _isLoading is true
+    // Only prevent loading if we're already loading AND have data, or if no more data
+    if ((_isLoading && _likedUserIds.isNotEmpty) || !_hasMore) return;
 
     setState(() => _isLoading = true);
 
     try {
-      final userIds = await locator<PostRepository>().getLikedByUsers(
-        widget.postId,
-        lastDocument: _lastDocument,
+      // CRITICAL FIX: Get reactions with documents for pagination
+      Query reactionsQuery = FirebaseFirestore.instance
+          .collection('posts')
+          .doc(widget.postId)
+          .collection('reactions')
+          .orderBy('timestamp', descending: true)
+          .limit(20);
+
+      if (_lastDocument != null) {
+        reactionsQuery = reactionsQuery.startAfterDocument(_lastDocument!);
+      }
+
+      final reactionsSnapshot = await reactionsQuery.get();
+
+      if (reactionsSnapshot.docs.isEmpty) {
+        setState(() {
+          _hasMore = false;
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Update last document for pagination
+      _lastDocument = reactionsSnapshot.docs.last;
+
+      // Extract user IDs from document IDs (userId is the document ID)
+      final userIds = reactionsSnapshot.docs.map((doc) => doc.id).toList();
+
+      // Get user data for each user ID
+      final usersRef = FirebaseFirestore.instance.collection('users');
+      final userSnapshots = await Future.wait(
+        userIds.map((userId) => usersRef.doc(userId).get()),
       );
 
-      if (userIds.isNotEmpty) {
-        // Get user data for each user ID
-        final usersRef = FirebaseFirestore.instance.collection('users');
-        final userSnapshots = await Future.wait(
-          userIds.map((userId) => usersRef.doc(userId).get()),
-        );
-
-        final newUserData = <String, Map<String, dynamic>>{};
-        for (var i = 0; i < userIds.length; i++) {
-          if (userSnapshots[i].exists) {
-            newUserData[userIds[i]] = userSnapshots[i].data()!;
-          }
+      final newUserData = <String, Map<String, dynamic>>{};
+      for (var i = 0; i < userIds.length; i++) {
+        if (userSnapshots[i].exists) {
+          newUserData[userIds[i]] = userSnapshots[i].data()!;
         }
-
-        setState(() {
-          _likedUserIds.addAll(userIds);
-          _userData.addAll(newUserData);
-          _hasMore = userIds.length == 20; // Assuming limit is 20
-        });
-      } else {
-        setState(() => _hasMore = false);
       }
+
+      setState(() {
+        _likedUserIds.addAll(userIds);
+        _userData.addAll(newUserData);
+        // If we got less than 20, there's no more data
+        _hasMore = reactionsSnapshot.docs.length == 20;
+      });
     } catch (e) {
+      debugPrint('LikedByList: Error loading users: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load users: ${e.toString()}')),
         );
       }
+      setState(() => _hasMore = false);
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -80,13 +103,24 @@ class _LikedByListState extends State<LikedByList> {
     }
   }
 
-  void _onUserTap(String userId) {
-    // TODO: Navigate to user profile screen
-    // For now, just show a snackbar
-    final username = _userData[userId]?['username'] ?? 'Unknown';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('View profile: $username')),
-    );
+  void _onUserTap(String userId) async {
+    // Navigate to user profile screen
+    try {
+      Navigator.of(context).pop(); // Close the dialog first
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProfileScreen(userId: userId),
+        ),
+      );
+    } catch (e) {
+      debugPrint('LikedByList: Error navigating to profile: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to open profile: ${e.toString()}')),
+        );
+      }
+    }
   }
 
   @override

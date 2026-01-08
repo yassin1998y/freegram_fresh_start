@@ -4,6 +4,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:freegram/models/user_model.dart';
 import 'dart:async';
 
@@ -20,6 +21,7 @@ import 'dart:async';
 class FriendCacheService {
   static const String _boxName = 'friendsCache';
   static const Duration cacheExpiry = Duration(hours: 24);
+  static const int _maxCacheSize = 500; // LRU cache size limit
 
   Box<Map<dynamic, dynamic>>? _cacheBox;
 
@@ -29,6 +31,9 @@ class FriendCacheService {
   // Bug #30 fix: Track cache statistics properly
   int _totalRequests = 0;
   int _cacheHits = 0;
+
+  // LRU tracking: Map of userId -> last access time
+  final Map<String, DateTime> _accessTimes = {};
 
   /// Initialize the cache service
   Future<void> init() async {
@@ -82,12 +87,17 @@ class FriendCacheService {
 
       // Bug #30 fix: Track hits
       _cacheHits++;
+      // Update access time for LRU tracking
+      _accessTimes[userId] = DateTime.now();
+
       final userData = Map<String, dynamic>.from(cached['data'] as Map);
+      // CRITICAL: Convert Map back to GeoPoint for UserModel
+      final restoredUserData = _restoreUserModelFromCache(userData);
       if (kDebugMode) {
         debugPrint(
             '[FriendCacheService] Cache hit for user: $userId (age: ${age.inMinutes}m)');
       }
-      return UserModel.fromMap(userId, userData);
+      return UserModel.fromMap(userId, restoredUserData);
     } catch (e) {
       if (kDebugMode) {
         debugPrint(
@@ -114,26 +124,100 @@ class FriendCacheService {
     }
   }
 
-  /// Cache friend profile
+  /// Cache friend profile with LRU eviction
   Future<void> cacheFriend(String userId, UserModel user) async {
     await init();
     if (_cacheBox == null) return;
 
     await _withLock('cache_$userId', () async {
       try {
+        // LRU: Evict oldest entries if cache is full
+        if (_cacheBox!.length >= _maxCacheSize) {
+          await _evictLRUEntries(10); // Evict 10 oldest entries
+        }
+
+        final now = DateTime.now();
+        // CRITICAL: Convert GeoPoint to Map for Hive serialization
+        final userMap = _convertUserModelForCache(user.toMap());
         await _cacheBox!.put(userId, {
-          'data': user.toMap(),
-          'cachedAt': DateTime.now().toIso8601String(),
+          'data': userMap,
+          'cachedAt': now.toIso8601String(),
         });
+
+        // Update access time for LRU tracking
+        _accessTimes[userId] = now;
+
         if (kDebugMode) {
-          debugPrint('[FriendCacheService] Cached user: $userId');
+          debugPrint(
+              '[FriendCacheService] Cached user: $userId (LRU cache: ${_cacheBox!.length}/$_maxCacheSize)');
         }
       } catch (e) {
         if (kDebugMode) {
           debugPrint('[FriendCacheService] Error caching user $userId: $e');
         }
+        // CRITICAL: Don't throw - allow app to continue even if cache fails
+        // The cache is an optimization, not critical for functionality
       }
     });
+  }
+
+  /// Evict least recently used cache entries
+  Future<void> _evictLRUEntries(int count) async {
+    if (_cacheBox == null) return;
+
+    try {
+      // Build access time map from cache if not in memory
+      if (_accessTimes.isEmpty) {
+        for (final key in _cacheBox!.keys) {
+          final cached = _cacheBox!.get(key);
+          if (cached != null && cached['cachedAt'] != null) {
+            try {
+              _accessTimes[key as String] = DateTime.parse(cached['cachedAt']);
+            } catch (e) {
+              // Invalid timestamp, skip
+            }
+          }
+        }
+      }
+
+      // Sort by access time and evict oldest
+      final sortedEntries = _accessTimes.entries.toList()
+        ..sort((a, b) => a.value.compareTo(b.value));
+
+      final toEvict = sortedEntries.take(count).map((e) => e.key).toList();
+      for (final userId in toEvict) {
+        await _cacheBox!.delete(userId);
+        _accessTimes.remove(userId);
+      }
+
+      if (kDebugMode) {
+        debugPrint('[FriendCacheService] Evicted $count LRU entries');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[FriendCacheService] Error evicting LRU entries: $e');
+      }
+    }
+  }
+
+  /// Handle memory pressure by clearing old cache entries
+  Future<void> handleMemoryPressure() async {
+    await init();
+    if (_cacheBox == null) return;
+
+    try {
+      // Clear 30% of cache when under memory pressure
+      final toEvict = (_cacheBox!.length * 0.3).ceil();
+      await _evictLRUEntries(toEvict);
+      if (kDebugMode) {
+        debugPrint(
+            '[FriendCacheService] Handled memory pressure: evicted $toEvict entries');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[FriendCacheService] Error handling memory pressure: $e');
+      }
+    }
   }
 
   /// Cache multiple friends at once
@@ -148,8 +232,10 @@ class FriendCacheService {
         final entries = <String, Map<dynamic, dynamic>>{};
 
         for (final user in users) {
+          // CRITICAL: Convert GeoPoint to Map for Hive serialization
+          final userMap = _convertUserModelForCache(user.toMap());
           entries[user.id] = {
-            'data': user.toMap(),
+            'data': userMap,
             'cachedAt': now,
           };
         }
@@ -162,6 +248,8 @@ class FriendCacheService {
         if (kDebugMode) {
           debugPrint('[FriendCacheService] Error batch caching users: $e');
         }
+        // CRITICAL: Don't throw - allow app to continue even if cache fails
+        // The cache is an optimization, not critical for functionality
       }
     });
   }
@@ -284,6 +372,47 @@ class FriendCacheService {
         cacheHits: _cacheHits,
       );
     }
+  }
+
+  /// Convert UserModel map for Hive cache (GeoPoint -> Map)
+  Map<String, dynamic> _convertUserModelForCache(Map<String, dynamic> userMap) {
+    final converted = Map<String, dynamic>.from(userMap);
+
+    // Convert GeoPoint to Map for Hive serialization
+    if (converted['location'] is GeoPoint) {
+      final geoPoint = converted['location'] as GeoPoint;
+      converted['location'] = {
+        'latitude': geoPoint.latitude,
+        'longitude': geoPoint.longitude,
+        '_type': 'geopoint', // Marker for restoration
+      };
+    } else if (converted['location'] == null) {
+      converted['location'] = null;
+    }
+    // If already a Map, keep it as is (already converted)
+
+    return converted;
+  }
+
+  /// Restore UserModel map from Hive cache (Map -> GeoPoint)
+  Map<String, dynamic> _restoreUserModelFromCache(
+      Map<String, dynamic> userMap) {
+    final restored = Map<String, dynamic>.from(userMap);
+
+    // Convert Map back to GeoPoint
+    if (restored['location'] is Map) {
+      final locationMap = restored['location'] as Map;
+      if (locationMap['_type'] == 'geopoint') {
+        restored['location'] = GeoPoint(
+          (locationMap['latitude'] as num?)?.toDouble() ?? 0.0,
+          (locationMap['longitude'] as num?)?.toDouble() ?? 0.0,
+        );
+      }
+      // If it's already a Map without _type, it might be from Firestore directly
+      // UserModel.fromMap can handle this
+    }
+
+    return restored;
   }
 
   /// Dispose the service

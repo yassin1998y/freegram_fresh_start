@@ -1,0 +1,414 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions for common checks
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isUserInArray(array) {
+      return isAuthenticated() && request.auth.uid in array;
+    }
+    
+    // ============================================================================
+    // USERS COLLECTION
+    // ============================================================================
+    match /users/{userId} {
+      // Users can read their own profile and other users' public profiles
+      allow read: if isAuthenticated();
+      
+      // Only the user can create their own profile (auth.uid must match userId)
+      allow create: if isOwner(userId);
+      
+      // Users can update their own profile
+      // Allow system updates to specific fields (coins, superLikes, etc.)
+      // Allow friend-related operations to update ANY user (bidirectional friend operations)
+      // This is safe because FieldValue.arrayUnion/arrayRemove only modify arrays, not replace them
+      allow update: if isOwner(userId) 
+        || (isAuthenticated() 
+            && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['coins', 'superLikes', 'fcmToken', 'presence', 'lastSeen']))
+        || (isAuthenticated() 
+            && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['friends', 'friendRequestsSent', 'friendRequestsReceived', 'blockedUsers']));
+      
+      // Users cannot delete their own profile (handled by admin or deletion flow)
+      allow delete: if false; // Prevent user deletion via rules - handle in Cloud Functions
+      
+      // ============================================================================
+      // USER NOTIFICATIONS SUBCOLLECTION
+      // ============================================================================
+      match /notifications/{notificationId} {
+        // Users can only read their own notifications
+        allow read: if isOwner(userId);
+        
+        // Cloud Functions create notifications, but allow authenticated users
+        // to create notifications for themselves (edge cases)
+        allow create: if isAuthenticated();
+        
+        // Users can update their own notifications (mark as read)
+        allow update: if isOwner(userId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['read']);
+        
+        // Users can delete their own notifications
+        allow delete: if isOwner(userId);
+      }
+      
+      // ============================================================================
+      // USER SWIPES SUBCOLLECTION (Match System)
+      // ============================================================================
+      match /swipes/{swipeId} {
+        // Users can only read their own swipes
+        allow read: if isOwner(userId);
+        
+        // Users can create swipes for themselves only
+        allow create: if isOwner(userId)
+          && request.resource.data.timestamp == request.time;
+        
+        // Users cannot update swipes (immutable)
+        allow update: if false;
+        
+        // Users can delete their own swipes
+        allow delete: if isOwner(userId);
+      }
+    }
+    
+    // ============================================================================
+    // CHATS COLLECTION
+    // ============================================================================
+    match /chats/{chatId} {
+      // Users can read chats they are part of
+      allow read: if isAuthenticated() 
+        && isUserInArray(resource.data.users);
+      
+      // Users can create chats if they are in the users array
+      allow create: if isAuthenticated()
+        && request.auth.uid in request.resource.data.users;
+      
+      // Users can update chats they are part of
+      // Allow system updates to engagement fields
+      allow update: if isAuthenticated()
+        && isUserInArray(resource.data.users);
+      
+      // Users can delete chats they are part of (if both users agree)
+      allow delete: if isAuthenticated()
+        && isUserInArray(resource.data.users);
+      
+      // ============================================================================
+      // CHAT MESSAGES SUBCOLLECTION
+      // ============================================================================
+      match /messages/{messageId} {
+        // Users can read messages in chats they are part of
+        allow read: if isAuthenticated()
+          && isUserInArray(get(/databases/$(database)/documents/chats/$(chatId)).data.users);
+        
+        // Users can create messages if they are in the chat
+        allow create: if isAuthenticated()
+          && request.resource.data.senderId == request.auth.uid
+          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.users;
+        
+        // Users can update their own messages (for editing)
+        allow update: if isAuthenticated()
+          && resource.data.senderId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['text', 'edited', 'isSeen', 'isDelivered', 'seenAt', 'deliveredAt']);
+        
+        // Users can delete their own messages
+        // Also allow system to update delivery/seen status
+        allow delete: if isAuthenticated()
+          && resource.data.senderId == request.auth.uid;
+      }
+    }
+    
+    // ============================================================================
+    // FRIEND REQUEST MESSAGES COLLECTION
+    // ============================================================================
+    match /friendRequestMessages/{messageId} {
+      // Users can read friend request messages they are part of
+      // Format: messageId = "{fromUserId}_{toUserId}"
+      allow read: if isAuthenticated()
+        && (request.auth.uid == resource.data.fromUserId
+            || request.auth.uid == resource.data.toUserId);
+      
+      // Users can create friend request messages if they are the sender
+      allow create: if isAuthenticated()
+        && request.resource.data.fromUserId == request.auth.uid;
+      
+      // Users cannot update friend request messages
+      allow update: if false;
+      
+      // Either user can delete friend request messages
+      allow delete: if isAuthenticated()
+        && (request.auth.uid == resource.data.fromUserId
+            || request.auth.uid == resource.data.toUserId);
+    }
+    
+    // ============================================================================
+    // POSTS COLLECTION (Social Feed)
+    // ============================================================================
+    match /posts/{postId} {
+      // All authenticated users can read posts (filtering done client-side for visibility)
+      allow read: if isAuthenticated();
+      
+      // Users can create posts if they are the author
+      allow create: if isAuthenticated()
+        && request.resource.data.authorId == request.auth.uid;
+      
+      // Users can update their own posts
+      // Allow system to update engagement metrics (reactionCount, commentCount, trendingScore)
+      // Allow post owners to update boost fields (isBoosted, boostEndTime, boostTargeting)
+      // Allow authenticated users (via Cloud Functions) to update boostStats for analytics
+      allow update: if isAuthenticated()
+        && (resource.data.authorId == request.auth.uid
+            || (request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['reactionCount', 'commentCount', 'trendingScore', 'lastEngagementTimestamp', 'updatedAt'])
+                || (resource.data.authorId == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['isBoosted', 'boostEndTime', 'boostTargeting', 'updatedAt']))
+                || request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['boostStats', 'updatedAt'])));
+      
+      // Users can delete their own posts
+      allow delete: if isAuthenticated()
+        && resource.data.authorId == request.auth.uid;
+      
+      // ============================================================================
+      // POST REACTIONS SUBCOLLECTION (Likes)
+      // ============================================================================
+      match /reactions/{reactionId} {
+        // All authenticated users can read reactions
+        allow read: if isAuthenticated();
+        
+        // Users can create reactions for themselves
+        allow create: if isAuthenticated()
+          && request.resource.data.userId == request.auth.uid;
+        
+        // Reactions are immutable - users can only delete their own
+        allow update: if false;
+        
+        // Users can delete their own reactions
+        allow delete: if isAuthenticated()
+          && resource.data.userId == request.auth.uid;
+      }
+      
+      // ============================================================================
+      // POST COMMENTS SUBCOLLECTION
+      // ============================================================================
+      match /comments/{commentId} {
+        // All authenticated users can read comments
+        allow read: if isAuthenticated();
+        
+        // Users can create comments if they are the comment author
+        allow create: if isAuthenticated()
+          && request.resource.data.userId == request.auth.uid;
+        
+        // Users can update their own comments
+        allow update: if isAuthenticated()
+          && resource.data.userId == request.auth.uid;
+        
+        // Users can delete their own comments
+        allow delete: if isAuthenticated()
+          && resource.data.userId == request.auth.uid;
+      }
+    }
+    
+    // ============================================================================
+    // PAGES COLLECTION (Future: Phase 6C)
+    // ============================================================================
+    match /pages/{pageId} {
+      // All authenticated users can read pages
+      allow read: if isAuthenticated();
+      
+      // Users can create pages (they become the owner)
+      allow create: if isAuthenticated()
+        && request.resource.data.ownerId == request.auth.uid;
+      
+      // Page owners and admins can update pages
+      allow update: if isAuthenticated()
+        && (resource.data.ownerId == request.auth.uid
+            || request.auth.uid in resource.data.get('admins', []));
+      
+      // Only page owner can delete pages
+      allow delete: if isAuthenticated()
+        && resource.data.ownerId == request.auth.uid;
+      
+      // ============================================================================
+      // PAGE FOLLOWERS SUBCOLLECTION
+      // ============================================================================
+      match /followers/{followerId} {
+        // Users can read page followers
+        allow read: if isAuthenticated();
+        
+        // Users can follow pages (create follower document with their userId)
+        allow create: if isAuthenticated()
+          && request.resource.data.userId == request.auth.uid;
+        
+        // Followers cannot be updated
+        allow update: if false;
+        
+        // Users can unfollow (delete their own follower document)
+        allow delete: if isAuthenticated()
+          && resource.data.userId == request.auth.uid;
+      }
+    }
+    
+    // ============================================================================
+    // REPORTS COLLECTION (Future: Phase 6G)
+    // ============================================================================
+    match /reports/{reportId} {
+      // Users can read their own reports
+      allow read: if isAuthenticated()
+        && resource.data.reportedBy == request.auth.uid;
+      
+      // Users can create reports
+      allow create: if isAuthenticated()
+        && request.resource.data.reportedBy == request.auth.uid;
+      
+      // Only admins can update reports (review status, actions taken)
+      // For now, allow update only to change status (handled by Cloud Functions)
+      allow update: if isAuthenticated()
+        && request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['status', 'reviewedBy', 'reviewedAt', 'actionTaken']);
+      
+      // Users cannot delete reports once submitted
+      allow delete: if false;
+    }
+    
+    // ============================================================================
+    // POST TEMPLATES COLLECTION (Future: Phase 6F)
+    // ============================================================================
+    match /postTemplates/{templateId} {
+      // Users can read their own templates and public templates
+      allow read: if isAuthenticated()
+        && (resource.data.createdBy == request.auth.uid
+            || resource.data.isPublic == true);
+      
+      // Users can create templates for themselves
+      allow create: if isAuthenticated()
+        && request.resource.data.createdBy == request.auth.uid;
+      
+      // Users can update their own templates
+      allow update: if isAuthenticated()
+        && resource.data.createdBy == request.auth.uid;
+      
+      // Users can delete their own templates
+      allow delete: if isAuthenticated()
+        && resource.data.createdBy == request.auth.uid;
+    }
+    
+    // ============================================================================
+    // STORY MEDIA COLLECTION (Stories Feature)
+    // ============================================================================
+    match /story_media/{storyId} {
+      // All authenticated users can read active, non-expired stories
+      allow read: if isAuthenticated()
+        && resource.data.isActive == true
+        && resource.data.expiresAt > request.time;
+      
+      // Users can create stories for themselves
+      allow create: if isAuthenticated()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.isActive == true;
+      
+      // Users can update their own stories (soft delete, update metrics)
+      // Allow system to update viewerCount and replyCount
+      allow update: if isAuthenticated()
+        && (resource.data.authorId == request.auth.uid
+            || request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['viewerCount', 'replyCount', 'isActive']));
+      
+      // Users can delete their own stories (soft delete via isActive = false)
+      // Physical deletion handled by TTL policy
+      allow delete: if false; // Prevent physical deletion, use soft delete
+      
+      // ============================================================================
+      // STORY VIEWERS SUBCOLLECTION
+      // ============================================================================
+      match /viewers/{viewerId} {
+        // Story author can read viewers list
+        // Viewers can check if they've viewed
+        allow read: if isAuthenticated()
+          && (get(/databases/$(database)/documents/story_media/$(storyId)).data.authorId == request.auth.uid
+              || request.auth.uid == viewerId);
+        
+        // Users can mark themselves as viewers
+        allow create: if isAuthenticated()
+          && request.resource.data.viewerId == request.auth.uid
+          && request.auth.uid == viewerId;
+        
+        // Viewers cannot be updated
+        allow update: if false;
+        
+        // Viewers cannot be deleted (immutable)
+        allow delete: if false;
+      }
+      
+      // ============================================================================
+      // STORY REPLIES SUBCOLLECTION
+      // ============================================================================
+      match /replies/{replyId} {
+        // Story author and replier can read replies
+        allow read: if isAuthenticated()
+          && (get(/databases/$(database)/documents/story_media/$(storyId)).data.authorId == request.auth.uid
+              || resource.data.replierId == request.auth.uid);
+        
+        // Users can create replies for themselves
+        allow create: if isAuthenticated()
+          && request.resource.data.replierId == request.auth.uid;
+        
+        // Replies cannot be updated
+        allow update: if false;
+        
+        // Users can delete their own replies
+        allow delete: if isAuthenticated()
+          && resource.data.replierId == request.auth.uid;
+      }
+    }
+    
+    // ============================================================================
+    // USER HIGHLIGHTS SUBCOLLECTION (Stories Feature - Future Enhancement)
+    // ============================================================================
+    match /users/{userId}/highlights/{highlightId} {
+      // All authenticated users can read highlights
+      allow read: if isAuthenticated();
+      
+      // Users can create highlights for themselves
+      allow create: if isAuthenticated()
+        && isOwner(userId);
+      
+      // Users can update their own highlights
+      allow update: if isAuthenticated()
+        && isOwner(userId);
+      
+      // Users can delete their own highlights
+      allow delete: if isAuthenticated()
+        && isOwner(userId);
+      
+      // ============================================================================
+      // HIGHLIGHT STORIES SUBCOLLECTION
+      // ============================================================================
+      match /stories/{storyId} {
+        // All authenticated users can read highlight stories
+        allow read: if isAuthenticated();
+        
+        // Users can add stories to their own highlights
+        allow create: if isAuthenticated()
+          && isOwner(userId);
+        
+        // Users can update stories in their own highlights
+        allow update: if isAuthenticated()
+          && isOwner(userId);
+        
+        // Users can remove stories from their own highlights
+        allow delete: if isAuthenticated()
+          && isOwner(userId);
+      }
+    }
+  }
+}

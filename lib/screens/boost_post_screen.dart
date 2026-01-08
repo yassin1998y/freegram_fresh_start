@@ -545,7 +545,7 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
         side: isSelected
             ? BorderSide(
                 color: theme.colorScheme.primary,
-                width: 2,
+                width: DesignTokens.borderWidthThick,
               )
             : BorderSide.none,
       ),

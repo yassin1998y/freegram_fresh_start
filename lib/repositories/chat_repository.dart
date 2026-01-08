@@ -1,15 +1,21 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/repositories/action_queue_repository.dart';
 import 'package:freegram/utils/app_constants.dart';
+import 'package:freegram/utils/firestore_error_handler.dart';
+import 'package:path/path.dart' as p;
 // import 'package:freegram/repositories/gamification_repository.dart'; // Removed
 // import 'package:freegram/repositories/task_repository.dart'; // Removed
 
 class ChatRepository {
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
+  final FirebaseStorage _storage;
   // final GamificationRepository _gamificationRepository; // Removed
   // final TaskRepository _taskRepository; // Removed
   final ActionQueueRepository _actionQueueRepository;
@@ -17,10 +23,12 @@ class ChatRepository {
   ChatRepository({
     FirebaseFirestore? firestore,
     FirebaseAuth? firebaseAuth,
+    FirebaseStorage? firebaseStorage,
     // required GamificationRepository gamificationRepository, // Removed
     // required TaskRepository taskRepository, // Removed
   })  : _db = firestore ?? FirebaseFirestore.instance,
         _auth = firebaseAuth ?? FirebaseAuth.instance,
+        _storage = firebaseStorage ?? FirebaseStorage.instance,
         // _gamificationRepository = gamificationRepository, // Removed
         // _taskRepository = taskRepository, // Removed
         _actionQueueRepository = locator<ActionQueueRepository>();
@@ -51,12 +59,18 @@ class ChatRepository {
     return chatId;
   }
 
-  // sendMessage updated to remove gamification/task calls
+  /// Sends a message with atomic chat update.
+  ///
+  /// Uses WriteBatch to ensure message creation and chat document update
+  /// happen atomically, preventing inconsistent state.
   Future<void> sendMessage({
     required String chatId,
     required String senderId,
     String? text,
     String? imageUrl,
+    String? audioUrl,
+    Duration? audioDuration,
+    List<double>? waveform,
     String? replyToMessageId,
     String? replyToMessageText,
     String? replyToImageUrl,
@@ -77,6 +91,9 @@ class ChatRepository {
         'senderId': senderId,
         'text': text,
         'imageUrl': imageUrl,
+        'audioUrl': audioUrl,
+        'audioDurationMs': audioDuration?.inMilliseconds,
+        'waveform': waveform,
         'replyToMessageId': replyToMessageId,
         'replyToMessageText': replyToMessageText,
         'replyToImageUrl': replyToImageUrl,
@@ -93,7 +110,7 @@ class ChatRepository {
       return;
     }
 
-    // Online: Proceed with existing logic
+    // Online: Proceed with atomic batch write
     final chatRef = _db.collection('chats').doc(chatId);
     final chatDoc = await chatRef.get();
     if (!chatDoc.exists) return; // Exit if chat doesn't exist
@@ -115,20 +132,22 @@ class ChatRepository {
 
         // Allow max 2 messages before reply/accept
         if ((messagesFromInitiator.count ?? 0) >= 2) {
-          throw Exception(
-              "You cannot send more than two messages until they reply or accept.");
+          throw Exception(ErrorMessages.cannotSendMessage);
         }
       } else {
         // If sender is NOT the initiator in a 'contact_request' chat
-        throw Exception(
-            "You cannot reply until you accept the friend request.");
+        throw Exception(ErrorMessages.mustAcceptFirst);
       }
     }
 
-    // Add message to subcollection
-    await chatRef.collection('messages').add({
+    // Prepare message data
+    final messageData = <String, dynamic>{
       'text': text,
       'imageUrl': imageUrl,
+      if (audioUrl != null) 'audioUrl': audioUrl,
+      if (audioDuration != null)
+        'audioDurationMs': audioDuration.inMilliseconds,
+      if (waveform != null) 'waveform': waveform,
       'senderId': senderId,
       'timestamp': FieldValue.serverTimestamp(),
       'isSeen': false,
@@ -144,16 +163,15 @@ class ChatRepository {
       if (storyMediaUrl != null) 'storyMediaUrl': storyMediaUrl,
       if (storyMediaType != null) 'storyMediaType': storyMediaType,
       if (storyAuthorId != null) 'storyAuthorId': storyAuthorId,
-      if (storyAuthorUsername != null) 'storyAuthorUsername': storyAuthorUsername,
-    });
-
-    // Update the main chat document for previews and unread status
-    final otherUserId = (chatData['users'] as List)
-        .firstWhere((id) => id != senderId, orElse: () => '');
+      if (storyAuthorUsername != null)
+        'storyAuthorUsername': storyAuthorUsername,
+    };
 
     // Determine last message preview text
     String lastMessagePreview;
-    if (storyReplyId != null) {
+    if (audioUrl != null) {
+      lastMessagePreview = '🎙️ Voice message';
+    } else if (storyReplyId != null) {
       lastMessagePreview = '📸 Story reply';
     } else if (imageUrl != null) {
       lastMessagePreview = '📷 Photo';
@@ -161,8 +179,19 @@ class ChatRepository {
       lastMessagePreview = text ?? '';
     }
 
+    final otherUserId = (chatData['users'] as List)
+        .firstWhere((id) => id != senderId, orElse: () => '');
+
+    // Use WriteBatch for atomic operations
+    final batch = _db.batch();
+    
+    // Generate message ID and add to batch
+    final messageRef = chatRef.collection('messages').doc();
+    batch.set(messageRef, messageData);
+
+    // Update chat document in same batch
     if (otherUserId.isNotEmpty) {
-      await chatRef.update({
+      batch.update(chatRef, {
         'lastMessage': lastMessagePreview,
         'lastMessageIsImage': imageUrl != null,
         'lastMessageTimestamp': FieldValue.serverTimestamp(),
@@ -171,12 +200,15 @@ class ChatRepository {
       });
     } else {
       // Handle case where other user ID couldn't be found (e.g., chat with self?)
-      await chatRef.update({
+      batch.update(chatRef, {
         'lastMessage': lastMessagePreview,
         'lastMessageIsImage': imageUrl != null,
         'lastMessageTimestamp': FieldValue.serverTimestamp(),
       });
     }
+
+    // Commit batch atomically
+    await batch.commit();
 
     // --- Removed Gamification/Task calls ---
     // await _gamificationRepository.addXp(senderId, 2, isSeasonal: true);
@@ -221,7 +253,10 @@ class ChatRepository {
     return batch.commit();
   }
 
-  // toggleMessageReaction remains the same
+  /// Toggles a message reaction with transaction safety.
+  ///
+  /// Uses Firestore transaction to ensure atomic read-modify-write,
+  /// preventing lost reactions when multiple users react simultaneously.
   Future<void> toggleMessageReaction(
       String chatId, String messageId, String userId, String emoji) async {
     final messageRef = _db
@@ -229,16 +264,27 @@ class ChatRepository {
         .doc(chatId)
         .collection('messages')
         .doc(messageId);
-    final doc = await messageRef.get();
-    final reactions = Map<String, String>.from(doc.data()?['reactions'] ?? {});
-    // If user already reacted with the same emoji, remove reaction
-    if (reactions[userId] == emoji) {
-      reactions.remove(userId);
-    } else {
-      // Otherwise, add/update reaction
-      reactions[userId] = emoji;
-    }
-    await messageRef.update({'reactions': reactions});
+
+    // Use transaction for atomic read-modify-write
+    await _db.runTransaction((transaction) async {
+      final doc = await transaction.get(messageRef);
+      
+      if (!doc.exists) {
+        throw Exception(ErrorMessages.messageNotFound);
+      }
+
+      final reactions = Map<String, String>.from(doc.data()?['reactions'] ?? {});
+      
+      // If user already reacted with the same emoji, remove reaction
+      if (reactions[userId] == emoji) {
+        reactions.remove(userId);
+      } else {
+        // Otherwise, add/update reaction
+        reactions[userId] = emoji;
+      }
+      
+      transaction.update(messageRef, {'reactions': reactions});
+    });
   }
 
   // markMultipleMessagesAsSeen remains the same
@@ -324,13 +370,14 @@ class ChatRepository {
     return _db.collection('chats').doc(chatId).snapshots();
   }
 
-  // getMessagesStream remains the same
-  Stream<QuerySnapshot> getMessagesStream(String chatId) {
+  // getMessagesStream with pagination limit to reduce Firestore reads
+  Stream<QuerySnapshot> getMessagesStream(String chatId, {int limit = 50}) {
     return _db
         .collection('chats')
         .doc(chatId)
         .collection('messages')
         .orderBy('timestamp', descending: true)
+        .limit(limit) // CRITICAL: Limit messages to reduce reads
         .snapshots();
   }
 
@@ -342,5 +389,62 @@ class ChatRepository {
         .snapshots()
         .map((snapshot) => snapshot
             .docs.length); // Count documents where user is in 'unreadFor'
+  }
+
+  Future<void> sendVoiceMessage({
+    required String chatId,
+    required String senderId,
+    required File audioFile,
+    required Duration audioDuration,
+    List<double>? waveform,
+    String? replyToMessageId,
+    String? replyToMessageText,
+    String? replyToImageUrl,
+    String? replyToSender,
+  }) async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      throw Exception(ErrorMessages.voiceMessageOffline);
+    }
+
+    final audioUrl = await _uploadChatAudio(
+      audioFile: audioFile,
+      chatId: chatId,
+      senderId: senderId,
+    );
+
+    await sendMessage(
+      chatId: chatId,
+      senderId: senderId,
+      audioUrl: audioUrl,
+      audioDuration: audioDuration,
+      waveform: waveform,
+      replyToMessageId: replyToMessageId,
+      replyToMessageText: replyToMessageText,
+      replyToImageUrl: replyToImageUrl,
+      replyToSender: replyToSender,
+    );
+  }
+
+  Future<String> _uploadChatAudio({
+    required File audioFile,
+    required String chatId,
+    required String senderId,
+  }) async {
+    final originalName = p.basename(audioFile.path);
+    final fileExtension = p.extension(audioFile.path).replaceFirst('.', '');
+    final safeExtension =
+        fileExtension.isEmpty ? 'm4a' : fileExtension.toLowerCase();
+
+    final fileName =
+        '${DateTime.now().millisecondsSinceEpoch}_${senderId}_$originalName';
+    final Reference ref = _storage.ref().child('chat_audio/$chatId/$fileName');
+
+    final metadata = SettableMetadata(
+      contentType: 'audio/$safeExtension',
+    );
+
+    await ref.putFile(audioFile, metadata);
+    return ref.getDownloadURL();
   }
 }

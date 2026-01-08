@@ -13,14 +13,14 @@ import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/user_repository.dart';
 import 'package:freegram/screens/profile_screen.dart';
 import 'package:freegram/services/friend_cache_service.dart';
-import 'package:freegram/theme/app_theme.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/utils/activity_helper.dart';
 import 'package:freegram/utils/friend_list_helpers.dart';
 import 'package:freegram/widgets/freegram_app_bar.dart';
 import 'package:freegram/widgets/network_status_banner.dart';
-import 'package:freegram/widgets/friend_loading_skeleton.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/widgets/skeletons/list_skeleton.dart';
+import 'package:freegram/widgets/common/empty_state_widget.dart';
 
 class FriendsListScreen extends StatefulWidget {
   final int initialIndex;
@@ -162,7 +162,7 @@ class _FriendsListScreenState extends State<FriendsListScreen>
                 },
                 builder: (context, state) {
                   if (state is FriendsLoading || state is FriendsInitial) {
-                    return const Center(child: AppProgressIndicator());
+                    return const ListSkeleton(itemCount: 8);
                   }
 
                   if (state is FriendsError) {
@@ -219,7 +219,7 @@ class _FriendsListScreenState extends State<FriendsListScreen>
         border: Border(
           bottom: BorderSide(
             color: Theme.of(context).dividerColor,
-            width: 1,
+            width: DesignTokens.borderWidthHairline,
           ),
         ),
       ),
@@ -319,12 +319,19 @@ class _FriendsListScreenState extends State<FriendsListScreen>
 
   Widget _buildFriendsList(List<String> friendIds, [UserModel? currentUser]) {
     if (friendIds.isEmpty) {
-      return _buildEmptyState(
+      return EmptyStateWidget(
         icon: Icons.people_outline,
         title: 'No Friends Yet',
-        message: _isSelectionMode
+        subtitle: _isSelectionMode
             ? 'You need friends to select from.'
             : 'Start connecting with people!\nSwipe to find matches and make new friends.',
+        actionLabel: _isSelectionMode ? null : 'Find Friends',
+        onAction: _isSelectionMode
+            ? null
+            : () {
+                // Navigate to match screen or nearby screen
+                // This can be implemented based on your navigation structure
+              },
       );
     }
 
@@ -352,10 +359,10 @@ class _FriendsListScreenState extends State<FriendsListScreen>
         friends = FriendListHelpers.sortFriends(friends, _sortOption);
 
         if (friends.isEmpty && _searchQuery.isNotEmpty) {
-          return _buildEmptyState(
+          return EmptyStateWidget(
             icon: Icons.search_off,
             title: 'No Results',
-            message: 'No friends found matching "$_searchQuery"',
+            subtitle: 'No friends found matching "$_searchQuery"',
           );
         }
 
@@ -390,10 +397,10 @@ class _FriendsListScreenState extends State<FriendsListScreen>
 
   Widget _buildRequestsTab(List<String> requestIds) {
     if (requestIds.isEmpty) {
-      return _buildEmptyState(
+      return const EmptyStateWidget(
         icon: Icons.notifications_none_outlined,
         title: 'No Pending Requests',
-        message:
+        subtitle:
             'When someone sends you a friend request,\nit will appear here.',
       );
     }
@@ -435,10 +442,10 @@ class _FriendsListScreenState extends State<FriendsListScreen>
 
   Widget _buildBlockedTab(List<String> blockedUserIds) {
     if (blockedUserIds.isEmpty) {
-      return _buildEmptyState(
+      return EmptyStateWidget(
         icon: Icons.block_outlined,
         title: 'No Blocked Users',
-        message:
+        subtitle:
             'You haven\'t blocked anyone.\nBlocked users will appear here.',
         iconColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
       );
@@ -559,51 +566,6 @@ class _FriendsListScreenState extends State<FriendsListScreen>
     return friends;
   }
 
-  Widget _buildEmptyState({
-    required IconData icon,
-    required String title,
-    required String message,
-    Color? iconColor,
-  }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(DesignTokens.spaceXL),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: DesignTokens.iconXXL * 2,
-              color: iconColor ??
-                  SonarPulseTheme.primaryAccent.withOpacity(
-                    DesignTokens.opacityMedium,
-                  ),
-            ),
-            const SizedBox(height: DesignTokens.spaceLG),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: DesignTokens.spaceMD),
-            Text(
-              message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withOpacity(0.6),
-                  ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildErrorState(String message) {
     return Center(
       child: Column(
@@ -632,7 +594,7 @@ class _FriendsListScreenState extends State<FriendsListScreen>
 
   // ⭐ UI POLISH: Loading skeleton for better perceived performance
   Widget _buildLoadingSkeleton() {
-    return const FriendLoadingSkeleton(itemCount: 5);
+    return const ListSkeleton(itemCount: 5, showSubtitle: true);
   }
 }
 

@@ -11,6 +11,7 @@ import 'package:freegram/theme/app_theme.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:freegram/repositories/page_repository.dart';
 import 'package:freegram/repositories/user_repository.dart';
+import 'package:freegram/repositories/friend_repository.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/screens/profile_screen.dart';
@@ -353,8 +354,8 @@ class _SuggestionCardWidgetState extends State<SuggestionCardWidget> {
     });
 
     try {
-      final userRepository = locator<UserRepository>();
-      await userRepository.sendFriendRequest(currentUser.uid, userId);
+      final friendRepository = locator<FriendRepository>();
+      await friendRepository.sendFriendRequest(currentUser.uid, userId);
 
       // Success - clear loading, refresh user data to get updated friendRequestsSent
       if (mounted) {

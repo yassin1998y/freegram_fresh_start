@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:freegram/models/user_model.dart';
+import 'package:freegram/utils/level_calculator.dart';
 
 /// A repository for all store and currency-related operations.
 class StoreRepository {
@@ -31,9 +32,16 @@ class StoreRepository {
         throw Exception("Not enough coins.");
       }
 
+      // Calculate new level
+      final int newLifetimeSpent = user.lifetimeCoinsSpent + coinCost;
+      final int newLevel = LevelCalculator.calculateLevel(newLifetimeSpent);
+
       transaction.update(userRef, {
         'coins': FieldValue.increment(-coinCost),
         'superLikes': FieldValue.increment(superLikeAmount),
+        // Gamification updates
+        'lifetimeCoinsSpent': FieldValue.increment(coinCost),
+        'userLevel': newLevel,
       });
     });
   }

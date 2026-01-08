@@ -1,0 +1,26 @@
+name: record_linux
+description: "> linux implementation for the record plugin (patched)"
+version: 0.7.2+patched
+homepage: https://github.com/llfbandit/record/tree/master/record_linux
+
+environment:
+  sdk: ^3.2.0
+  flutter: ">=3.16.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  record_platform_interface: ^1.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  plugin:
+    implements: record
+    platforms:
+      linux:
+        pluginClass: RecordLinuxPlugin
+        dartPluginClass: RecordLinux
+

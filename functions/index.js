@@ -2,12 +2,18 @@
 // Firebase Cloud Functions for FCM Push Notifications
 // Freegram - Professional Implementation (2nd Gen)
 
-const {onDocumentCreated, onDocumentWritten, onDocumentDeleted} = require('firebase-functions/v2/firestore');
-const {onRequest, onCall, HttpsError} = require('firebase-functions/v2/https');
-const {onSchedule} = require('firebase-functions/v2/scheduler');
-const {setGlobalOptions} = require('firebase-functions/v2');
+const { onDocumentCreated, onDocumentWritten, onDocumentDeleted } = require('firebase-functions/v2/firestore');
+const { onRequest, onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { setGlobalOptions } = require('firebase-functions/v2');
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
+
+// Import notification helpers
+const { formatGroupedNotification, shouldDeduplicate, capitalize } = require('./helpers/notificationFormatter');
+const { getOrCreateBatch, addInteractionToBatch, shouldBatchInteraction } = require('./helpers/batchManager');
+const { checkRateLimit, recordInteraction } = require('./helpers/rateLimiter');
+
 
 admin.initializeApp();
 
@@ -80,7 +86,12 @@ exports.sendFriendRequestNotification = onDocumentCreated(
       // Get FCM token(s) - check both single token and tokens array
       let tokens = [];
       if (receiverData.fcmTokens && Array.isArray(receiverData.fcmTokens)) {
-        tokens = receiverData.fcmTokens;
+        // Handle both strings and objects (new format)
+        tokens = receiverData.fcmTokens.map(t => {
+          if (typeof t === 'string') return t;
+          if (t && typeof t === 'object' && t.token) return t.token;
+          return null;
+        });
       } else if (receiverData.fcmToken) {
         tokens = [receiverData.fcmToken];
       }
@@ -89,13 +100,28 @@ exports.sendFriendRequestNotification = onDocumentCreated(
         tokens.push(receiverData.fcmToken);
       }
 
+      // Filter out invalid tokens
+      tokens = tokens.filter(t => t && typeof t === 'string' && t.trim().length > 0);
+
+      // Deduplicate tokens to prevent sending multiple notifications to the same device
+      tokens = [...new Set(tokens)];
+
+
       if (tokens.length === 0) {
-        console.log('No FCM tokens found for recipient');
+        console.log(`No valid FCM tokens found for recipient ${receiverId}`);
         return null;
       }
 
+      console.log(`Sending friend request notification to ${tokens.length} tokens for user ${receiverId}`);
+
       const message = {
-        // NO 'notification' field - data-only message for custom handling
+        // Include BOTH notification and data for reliable delivery
+        // notification: triggers system notification in background
+        // data: allows custom handling in foreground
+        notification: {
+          title: 'Friend Request',
+          body: `${senderData.username || 'Someone'} sent you a friend request`,
+        },
         data: {
           type: 'friendRequest',
           fromUserId: fromUserId,
@@ -104,6 +130,9 @@ exports.sendFriendRequestNotification = onDocumentCreated(
           notificationId: notificationId,
           screen: 'ProfileScreen',
           click_action: 'FLUTTER_NOTIFICATION_CLICK',
+          // Add title and body for foreground handler
+          title: 'Friend Request',
+          body: `${senderData.username || 'Someone'} sent you a friend request`,
         },
         android: {
           priority: 'high',
@@ -121,7 +150,15 @@ exports.sendFriendRequestNotification = onDocumentCreated(
       };
 
       const response = await admin.messaging().sendEachForMulticast(message);
-      console.log(`Sent friend request notification to ${response.successCount} device(s)`);
+      console.log(`Sent friend request notification to ${response.successCount} device(s). Failures: ${response.failureCount}`);
+
+      if (response.failureCount > 0) {
+        response.responses.forEach((resp, idx) => {
+          if (!resp.success) {
+            console.log(`Failure for token ${idx}:`, resp.error);
+          }
+        });
+      }
 
       return response;
     } catch (error) {
@@ -163,7 +200,7 @@ exports.sendMessageNotification = onDocumentCreated(
       }
 
       const chatData = chatDoc.data();
-      
+
       // Find recipient (the user who didn't send the message)
       const recipientId = chatData.users.find(id => id !== message.senderId);
       if (!recipientId) {
@@ -222,7 +259,7 @@ exports.sendMessageNotification = onDocumentCreated(
 
       const recentMessages = [];
       const messageLines = [];
-      
+
       messagesSnapshot.docs.forEach((doc) => {
         const msg = doc.data();
         const isFromRecipient = msg.senderId === recipientId;
@@ -236,7 +273,12 @@ exports.sendMessageNotification = onDocumentCreated(
       // Get FCM token(s) - check both single token and tokens array
       let tokens = [];
       if (recipientData.fcmTokens && Array.isArray(recipientData.fcmTokens)) {
-        tokens = recipientData.fcmTokens;
+        // Handle both strings and objects (new format)
+        tokens = recipientData.fcmTokens.map(t => {
+          if (typeof t === 'string') return t;
+          if (t && typeof t === 'object' && t.token) return t.token;
+          return null;
+        });
       } else if (recipientData.fcmToken) {
         tokens = [recipientData.fcmToken];
       }
@@ -244,8 +286,14 @@ exports.sendMessageNotification = onDocumentCreated(
         tokens.push(recipientData.fcmToken);
       }
 
+      // Filter out invalid tokens
+      tokens = tokens.filter(t => t && typeof t === 'string' && t.trim().length > 0);
+
+      // Deduplicate tokens to prevent sending multiple notifications to the same device
+      tokens = [...new Set(tokens)];
+
       if (tokens.length === 0) {
-        console.log('No FCM tokens found for recipient');
+        console.log('No valid FCM tokens found for recipient');
         return null;
       }
 
@@ -256,7 +304,11 @@ exports.sendMessageNotification = onDocumentCreated(
       // Construct DATA-ONLY notification (no automatic notification)
       // This prevents duplicate notifications (FCM auto + our custom)
       const notification = {
-        // NO 'notification' field - data-only message for custom handling
+        // Add notification payload to wake background app
+        notification: {
+          title: senderData.username,
+          body: messagePreview,
+        },
         data: {
           type: 'newMessage',
           chatId: chatId,
@@ -275,7 +327,6 @@ exports.sendMessageNotification = onDocumentCreated(
         },
         android: {
           priority: 'high',
-          // NO automatic notification - our background handler creates it
         },
         apns: {
           payload: {
@@ -316,6 +367,7 @@ exports.sendRequestAcceptedNotification = onDocumentCreated(
     try {
       const notification = snap.data();
       const receiverId = context.userId;
+      const notificationId = context.notificationId;
 
       // Only process request accepted notifications
       if (notification.type !== 'requestAccepted') {
@@ -361,39 +413,65 @@ exports.sendRequestAcceptedNotification = onDocumentCreated(
       const fromUsername = senderData.username || 'Someone';
       const fromPhotoUrl = senderData.photoUrl || '';
 
-      // Get FCM token(s)
+      // Get FCM token(s) - check both single token and tokens array
       let tokens = [];
       if (receiverData.fcmTokens && Array.isArray(receiverData.fcmTokens)) {
-        tokens = receiverData.fcmTokens;
+        // Handle both strings and objects (new format)
+        tokens = receiverData.fcmTokens.map(t => {
+          if (typeof t === 'string') return t;
+          if (t && typeof t === 'object' && t.token) return t.token;
+          return null;
+        });
       } else if (receiverData.fcmToken) {
         tokens = [receiverData.fcmToken];
       }
+
       if (tokens.length === 0 && receiverData.fcmToken) {
         tokens.push(receiverData.fcmToken);
       }
 
+      // Filter out invalid tokens
+      tokens = tokens.filter(t => t && typeof t === 'string' && t.trim().length > 0);
+
+      // Deduplicate tokens to prevent sending multiple notifications to the same device
+      tokens = [...new Set(tokens)];
+
       if (tokens.length === 0) {
-        console.log('No FCM tokens found for recipient');
+        console.log(`No valid FCM tokens found for recipient ${receiverId}`);
         return null;
       }
 
+      console.log(`Sending friend request accepted notification to ${tokens.length} tokens for user ${receiverId}`);
+
       const message = {
+        // Include BOTH notification and data for reliable delivery
+        // notification: triggers system notification in background
+        // data: allows custom handling in foreground
+        notification: {
+          title: 'Request Accepted',
+          body: `${fromUsername} accepted your friend request`,
+        },
         data: {
           type: 'requestAccepted',
           fromUserId: fromUserId,
           fromUsername: fromUsername,
           fromPhotoUrl: fromPhotoUrl,
+          notificationId: notificationId,
+          screen: 'ProfileScreen',
+          click_action: 'FLUTTER_NOTIFICATION_CLICK',
+          // Add title and body for foreground handler
+          title: 'Request Accepted',
+          body: `${fromUsername} accepted your friend request`,
         },
         android: {
-          priority: 'default',
-          // NO automatic notification - our background handler creates it
+          priority: 'high',
         },
         apns: {
           payload: {
             aps: {
               sound: 'default',
-              badge: userData.unreadNotificationCount || 1,
-              'content-available': 1, // Silent notification for iOS
+              badge: receiverData.unreadNotificationCount || 1,
+              'content-available': 1,
             }
           }
         },
@@ -401,7 +479,15 @@ exports.sendRequestAcceptedNotification = onDocumentCreated(
       };
 
       const response = await admin.messaging().sendEachForMulticast(message);
-      console.log(`Sent to ${response.successCount} device(s)`);
+      console.log(`Sent friend request accepted notification to ${response.successCount} device(s). Failures: ${response.failureCount}`);
+
+      if (response.failureCount > 0) {
+        response.responses.forEach((resp, idx) => {
+          if (!resp.success) {
+            console.log(`Failure for token ${idx}:`, resp.error);
+          }
+        });
+      }
 
       return response;
     } catch (error) {
@@ -478,7 +564,7 @@ exports.onPostCreated = onDocumentCreated(
 
       if (followers.length > 0) {
         console.log(`Fanning out post ${postId} to ${followers.length} followers`);
-        
+
         // Fan-out in batches (500 at a time - Firestore batch limit)
         const batchSize = 500;
         for (let i = 0; i < followers.length; i += batchSize) {
@@ -491,7 +577,7 @@ exports.onPostCreated = onDocumentCreated(
             batch
           );
         }
-        
+
         console.log(`Completed fan-out for post ${postId}`);
       }
 
@@ -514,6 +600,12 @@ exports.onPostCreated = onDocumentCreated(
           const notificationPromises = mentions.map(async (mentionedUserId) => {
             if (mentionedUserId === authorId) {
               return null; // Don't notify if user mentions themselves
+            }
+
+            // Check rate limit
+            if (!await checkRateLimit(authorId, mentionedUserId, 'mention')) {
+              console.log(`Rate limit exceeded: ${authorId} mentioning ${mentionedUserId}`);
+              return null;
             }
 
             const mentionedUserDoc = await admin.firestore()
@@ -562,6 +654,7 @@ exports.onPostCreated = onDocumentCreated(
                   type: 'mention',
                   fromUserId: authorId,
                   fromUsername: authorData.username || 'Someone',
+                  fromUserPhotoUrl: authorData.photoUrl || '',
                   postId: postId,
                 },
                 notification: {
@@ -686,6 +779,12 @@ exports.sendCommentNotification = onDocumentCreated(
       const commenterId = commentData.userId;
       const commentText = commentData.text || '';
 
+      // Check rate limit
+      if (!await checkRateLimit(commenterId, postId, 'comment')) {
+        console.log(`Rate limit exceeded: ${commenterId} hit comment limit on ${postId}`);
+        return null;
+      }
+
       // Get post document to find author
       const postDoc = await admin.firestore()
         .collection('posts')
@@ -718,28 +817,16 @@ exports.sendCommentNotification = onDocumentCreated(
 
       const commenterData = commenterDoc.data();
 
-      // Get post author data
-      const authorDoc = await admin.firestore()
-        .collection('users')
-        .doc(postAuthorId)
-        .get();
-
-      if (!authorDoc.exists) {
-        console.log('Post author not found');
-        return null;
-      }
-
-      const authorData = authorDoc.data();
-
-      // Check notification preferences
+      // Get author data for preferences
+      const authorDoc = await admin.firestore().collection('users').doc(postAuthorId).get();
+      const authorData = authorDoc.exists ? authorDoc.data() : {};
       const prefs = authorData.notificationPreferences || {};
-      if (prefs.allNotificationsEnabled === false || prefs.commentsEnabled === false) {
-        console.log('User has disabled comment notifications');
-        return null;
-      }
+
+      // ALWAYS send immediate notification (no batching)
+      console.log(`Sending immediate comment notification for ${postId}`);
 
       // Create notification document
-      await admin.firestore()
+      const notificationRef = await admin.firestore()
         .collection('users')
         .doc(postAuthorId)
         .collection('notifications')
@@ -755,50 +842,82 @@ exports.sendCommentNotification = onDocumentCreated(
           read: false,
         });
 
-      // Get FCM token(s)
-      let tokens = [];
-      if (authorData.fcmTokens && Array.isArray(authorData.fcmTokens)) {
-        tokens = authorData.fcmTokens;
-      } else if (authorData.fcmToken) {
-        tokens = [authorData.fcmToken];
+      const notificationId = notificationRef.id;
+
+      // Send FCM
+      if (authorDoc.exists) {
+        if (prefs.allNotificationsEnabled !== false && prefs.commentsEnabled !== false) {
+          let tokens = [];
+          if (authorData.fcmTokens && Array.isArray(authorData.fcmTokens)) {
+            tokens = authorData.fcmTokens.map(t => {
+              if (typeof t === 'string') return t;
+              if (t && typeof t === 'object' && t.token) return t.token;
+              return null;
+            });
+          } else if (authorData.fcmToken) {
+            tokens = [authorData.fcmToken];
+          }
+
+          // Filter out invalid tokens
+          tokens = tokens.filter(t => t && typeof t === 'string' && t.trim().length > 0);
+
+          // Deduplicate tokens
+          tokens = [...new Set(tokens)];
+
+          if (tokens.length > 0) {
+            const message = {
+              notification: {
+                title: 'New Comment',
+                body: `${commenterData.username || 'Someone'} commented on your post`,
+              },
+              data: {
+                type: 'comment',
+                fromUserId: commenterId,
+                fromUsername: commenterData.username || 'Someone',
+                fromPhotoUrl: commenterData.photoUrl || '',
+                postId: postId,
+                commentId: commentId,
+                notificationId: notificationId,
+                screen: 'PostDetailScreen',
+                click_action: 'FLUTTER_NOTIFICATION_CLICK',
+                title: 'New Comment',
+                body: `${commenterData.username || 'Someone'} commented on your post`,
+                message: commentText,
+              },
+              android: {
+                priority: 'high',
+              },
+              apns: {
+                payload: {
+                  aps: {
+                    sound: 'default',
+                    badge: authorData.unreadNotificationCount || 1,
+                    'content-available': 1,
+                  }
+                }
+              },
+              tokens: tokens,
+            };
+
+            await admin.messaging().sendEachForMulticast(message);
+            console.log(`Sent comment notification to ${tokens.length} tokens`);
+          }
+        }
       }
 
-      if (tokens.length === 0) {
-        console.log('No FCM tokens found for recipient');
-        return null;
-      }
-
-      // Send FCM notification
-      const message = {
-        data: {
-          type: 'comment',
-          fromUserId: commenterId,
-          fromUsername: commenterData.username || 'Someone',
-          postId: postId,
-          commentId: commentId,
-        },
-        notification: {
-          title: `${commenterData.username || 'Someone'} commented on your post`,
-          body: commentText.length > 100 ? commentText.substring(0, 100) + '...' : commentText,
-        },
-        tokens: tokens,
-      };
-
-      const response = await admin.messaging().sendEachForMulticast(message);
-      console.log(`Sent comment notification. Success: ${response.successCount}, Failed: ${response.failureCount}`);
+      await recordInteraction(commenterId, postId, 'comment');
 
       // Phase 2: Update affinity when user comments on a post
       try {
-        const postAuthorId = postData.authorId;
         const postPageId = postData.pageId || null;
         const targetId = postPageId || postAuthorId;
-        
+
         // Update affinity (increment by 0.2, max 10.0)
         await updateAffinity(commenterId, targetId, 0.2);
-        
+
         // Recalculate feed scores for this user
         await recalculateFeedScores(commenterId, targetId);
-        
+
         console.log(`Updated affinity for user ${commenterId} -> ${targetId} (comment)`);
       } catch (affinityError) {
         console.error('Error updating affinity on comment:', affinityError);
@@ -829,7 +948,13 @@ exports.sendReactionNotification = onDocumentCreated(
     const context = event.params;
     try {
       const postId = context.postId;
-      const reactorId = context.userId; // userId is the document ID in reactions subcollection
+      const reactorId = context.userId;
+
+      // Check rate limit
+      if (!await checkRateLimit(reactorId, postId, 'reaction')) {
+        console.log(`Rate limit exceeded: ${reactorId} hit reaction limit on ${postId}`);
+        return null;
+      }
 
       // Get post document to find author
       const postDoc = await admin.firestore()
@@ -875,16 +1000,13 @@ exports.sendReactionNotification = onDocumentCreated(
       }
 
       const authorData = authorDoc.data();
-
-      // Check notification preferences
       const prefs = authorData.notificationPreferences || {};
-      if (prefs.allNotificationsEnabled === false || prefs.reactionsEnabled === false) {
-        console.log('User has disabled reaction notifications');
-        return null;
-      }
+
+      // ALWAYS send immediate notification (no batching)
+      console.log(`Sending immediate reaction notification for ${postId}`);
 
       // Create notification document
-      await admin.firestore()
+      const notificationRef = await admin.firestore()
         .collection('users')
         .doc(postAuthorId)
         .collection('notifications')
@@ -894,57 +1016,88 @@ exports.sendReactionNotification = onDocumentCreated(
           fromUsername: reactorData.username || 'Someone',
           fromUserPhotoUrl: reactorData.photoUrl || '',
           postId: postId,
+          message: 'liked your post',
           timestamp: admin.firestore.FieldValue.serverTimestamp(),
           read: false,
         });
 
-      // Get FCM token(s)
-      let tokens = [];
-      if (authorData.fcmTokens && Array.isArray(authorData.fcmTokens)) {
-        tokens = authorData.fcmTokens;
-      } else if (authorData.fcmToken) {
-        tokens = [authorData.fcmToken];
+      const notificationId = notificationRef.id;
+
+      // Send FCM
+      if (authorDoc.exists) {
+        if (prefs.allNotificationsEnabled !== false && prefs.likesEnabled !== false) {
+          let tokens = [];
+          if (authorData.fcmTokens && Array.isArray(authorData.fcmTokens)) {
+            tokens = authorData.fcmTokens.map(t => {
+              if (typeof t === 'string') return t;
+              if (t && typeof t === 'object' && t.token) return t.token;
+              return null;
+            });
+          } else if (authorData.fcmToken) {
+            tokens = [authorData.fcmToken];
+          }
+
+          // Filter out invalid tokens
+          tokens = tokens.filter(t => t && typeof t === 'string' && t.trim().length > 0);
+
+          // Deduplicate tokens
+          tokens = [...new Set(tokens)];
+
+          if (tokens.length > 0) {
+            const message = {
+              notification: {
+                title: 'New Like',
+                body: `${reactorData.username || 'Someone'} liked your post`,
+              },
+              data: {
+                type: 'reaction',
+                fromUserId: reactorId,
+                fromUsername: reactorData.username || 'Someone',
+                fromPhotoUrl: reactorData.photoUrl || '',
+                postId: postId,
+                notificationId: notificationId,
+                screen: 'PostDetailScreen',
+                click_action: 'FLUTTER_NOTIFICATION_CLICK',
+                title: 'New Like',
+                body: `${reactorData.username || 'Someone'} liked your post`,
+              },
+              android: {
+                priority: 'high',
+              },
+              apns: {
+                payload: {
+                  aps: {
+                    sound: 'default',
+                    badge: authorData.unreadNotificationCount || 1,
+                    'content-available': 1,
+                  }
+                }
+              },
+              tokens: tokens,
+            };
+
+            await admin.messaging().sendEachForMulticast(message);
+            console.log(`Sent reaction notification to ${tokens.length} tokens`);
+          }
+        }
       }
 
-      if (tokens.length === 0) {
-        console.log('No FCM tokens found for recipient');
-        return null;
-      }
+      await recordInteraction(reactorId, postId, 'reaction');
 
-      // Send FCM notification
-      const message = {
-        data: {
-          type: 'reaction',
-          fromUserId: reactorId,
-          fromUsername: reactorData.username || 'Someone',
-          postId: postId,
-        },
-        notification: {
-          title: `${reactorData.username || 'Someone'} liked your post`,
-          body: postData.content ? (postData.content.length > 50 ? postData.content.substring(0, 50) + '...' : postData.content) : 'Your post',
-        },
-        tokens: tokens,
-      };
-
-      const response = await admin.messaging().sendEachForMulticast(message);
-      console.log(`Sent reaction notification. Success: ${response.successCount}, Failed: ${response.failureCount}`);
-
-      // Phase 2: Update affinity when user likes a post
+      // Phase 2: Update affinity when user reacts to a post
       try {
-        const postAuthorId = postData.authorId;
         const postPageId = postData.pageId || null;
         const targetId = postPageId || postAuthorId;
-        
+
         // Update affinity (increment by 0.1, max 10.0)
         await updateAffinity(reactorId, targetId, 0.1);
-        
+
         // Recalculate feed scores for this user
         await recalculateFeedScores(reactorId, targetId);
-        
-        console.log(`Updated affinity for user ${reactorId} -> ${targetId} (like)`);
+
+        console.log(`Updated affinity for user ${reactorId} -> ${targetId} (reaction)`);
       } catch (affinityError) {
-        console.error('Error updating affinity on like:', affinityError);
-        // Don't fail the notification if affinity update fails
+        console.error('Error updating affinity on reaction:', affinityError);
       }
 
       return null;
@@ -952,6 +1105,688 @@ exports.sendReactionNotification = onDocumentCreated(
       console.error('Error sending reaction notification:', error);
       return null;
     }
+  }
+);
+
+/**
+ * Send notification when someone likes a reel
+ * Triggered when a like is created in reels/{reelId}/likes/{userId}
+ */
+exports.sendReelLikeNotification = onDocumentCreated(
+  'reels/{reelId}/likes/{userId}',
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      console.log('No data associated with the event');
+      return null;
+    }
+    const context = event.params;
+    try {
+      const reelId = context.reelId;
+      const likerId = context.userId;
+
+      // Get reel document to find author
+      const reelDoc = await admin.firestore()
+        .collection('reels')
+        .doc(reelId)
+        .get();
+
+      if (!reelDoc.exists) {
+        console.log('Reel not found');
+        return null;
+      }
+
+      const reelData = reelDoc.data();
+      const reelAuthorId = reelData.authorId;
+
+      // Don't send notification if user likes their own reel
+      if (likerId === reelAuthorId) {
+        return null;
+      }
+
+      // Get liker data
+      const likerDoc = await admin.firestore()
+        .collection('users')
+        .doc(likerId)
+        .get();
+
+      if (!likerDoc.exists) {
+        console.log('Liker user not found');
+        return null;
+      }
+
+      const likerData = likerDoc.data();
+
+      // Get author data for preferences
+      const authorDoc = await admin.firestore().collection('users').doc(reelAuthorId).get();
+      const authorData = authorDoc.exists ? authorDoc.data() : {};
+      const prefs = authorData.notificationPreferences || {};
+
+      // Check preferences
+      if (prefs.allNotificationsEnabled === false || prefs.reelLikesEnabled === false) {
+        console.log('User has disabled reel like notifications');
+        return null;
+      }
+
+      console.log(`Sending immediate reel like notification for ${reelId}`);
+
+      // Create notification document
+      const notificationRef = await admin.firestore()
+        .collection('users')
+        .doc(reelAuthorId)
+        .collection('notifications')
+        .add({
+          type: 'reelLike',
+          fromUserId: likerId,
+          fromUsername: likerData.username || 'Someone',
+          fromUserPhotoUrl: likerData.photoUrl || '',
+          reelId: reelId,
+          message: 'liked your reel',
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          read: false,
+        });
+
+      const notificationId = notificationRef.id;
+
+      // Send FCM
+      if (authorDoc.exists) {
+        let tokens = [];
+        if (authorData.fcmTokens && Array.isArray(authorData.fcmTokens)) {
+          tokens = authorData.fcmTokens.map(t => {
+            if (typeof t === 'string') return t;
+            if (t && typeof t === 'object' && t.token) return t.token;
+            return null;
+          });
+        } else if (authorData.fcmToken) {
+          tokens = [authorData.fcmToken];
+        }
+
+        // Filter out invalid tokens
+        tokens = tokens.filter(t => t && typeof t === 'string' && t.trim().length > 0);
+
+        // Deduplicate tokens
+        tokens = [...new Set(tokens)];
+
+        if (tokens.length > 0) {
+          const message = {
+            notification: {
+              title: 'New Reel Like',
+              body: `${likerData.username || 'Someone'} liked your reel`,
+            },
+            data: {
+              type: 'reelLike',
+              fromUserId: likerId,
+              fromUsername: likerData.username || 'Someone',
+              fromPhotoUrl: likerData.photoUrl || '',
+              reelId: reelId,
+              notificationId: notificationId,
+              screen: 'ReelScreen',
+              click_action: 'FLUTTER_NOTIFICATION_CLICK',
+              title: 'New Reel Like',
+              body: `${likerData.username || 'Someone'} liked your reel`,
+            },
+            android: {
+              priority: 'high',
+            },
+            apns: {
+              payload: {
+                aps: {
+                  sound: 'default',
+                  badge: authorData.unreadNotificationCount || 1,
+                  'content-available': 1,
+                }
+              }
+            },
+            tokens: tokens,
+          };
+
+          await admin.messaging().sendEachForMulticast(message);
+          console.log(`Sent reel like notification to ${tokens.length} tokens`);
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error sending reel like notification:', error);
+      return null;
+    }
+  }
+);
+
+/**
+ * Send notification when someone comments on a reel
+ * Triggered when a comment is created in reels/{reelId}/comments/{commentId}
+ */
+exports.sendReelCommentNotification = onDocumentCreated(
+  'reels/{reelId}/comments/{commentId}',
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      console.log('No data associated with the event');
+      return null;
+    }
+    const context = event.params;
+    try {
+      const reelId = context.reelId;
+      const commentId = context.commentId;
+      const commentData = snap.data();
+
+      // Skip if comment is deleted or invalid
+      if (commentData.deleted || !commentData.userId || !commentData.reelId) {
+        return null;
+      }
+
+      const commenterId = commentData.userId;
+      const commentText = commentData.text || '';
+
+      // Get reel document to find author
+      const reelDoc = await admin.firestore()
+        .collection('reels')
+        .doc(reelId)
+        .get();
+
+      if (!reelDoc.exists) {
+        console.log('Reel not found');
+        return null;
+      }
+
+      const reelData = reelDoc.data();
+      const reelAuthorId = reelData.authorId;
+
+      // Don't send notification if user comments on their own reel
+      if (commenterId === reelAuthorId) {
+        return null;
+      }
+
+      // Get commenter data
+      const commenterDoc = await admin.firestore()
+        .collection('users')
+        .doc(commenterId)
+        .get();
+
+      if (!commenterDoc.exists) {
+        console.log('Commenter user not found');
+        return null;
+      }
+
+      const commenterData = commenterDoc.data();
+
+      // Get author data for preferences
+      const authorDoc = await admin.firestore().collection('users').doc(reelAuthorId).get();
+      const authorData = authorDoc.exists ? authorDoc.data() : {};
+      const prefs = authorData.notificationPreferences || {};
+
+      // Check preferences
+      if (prefs.allNotificationsEnabled === false || prefs.reelCommentsEnabled === false) {
+        console.log('User has disabled reel comment notifications');
+        return null;
+      }
+
+      console.log(`Sending immediate reel comment notification for ${reelId}`);
+
+      // Create notification document
+      const notificationRef = await admin.firestore()
+        .collection('users')
+        .doc(reelAuthorId)
+        .collection('notifications')
+        .add({
+          type: 'reelComment',
+          fromUserId: commenterId,
+          fromUsername: commenterData.username || 'Someone',
+          fromUserPhotoUrl: commenterData.photoUrl || '',
+          reelId: reelId,
+          commentId: commentId,
+          message: commentText,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          read: false,
+        });
+
+      const notificationId = notificationRef.id;
+
+      // Send FCM
+      if (authorDoc.exists) {
+        let tokens = [];
+        if (authorData.fcmTokens && Array.isArray(authorData.fcmTokens)) {
+          tokens = authorData.fcmTokens.map(t => {
+            if (typeof t === 'string') return t;
+            if (t && typeof t === 'object' && t.token) return t.token;
+            return null;
+          });
+        } else if (authorData.fcmToken) {
+          tokens = [authorData.fcmToken];
+        }
+
+        // Filter out invalid tokens
+        tokens = tokens.filter(t => t && typeof t === 'string' && t.trim().length > 0);
+
+        // Deduplicate tokens
+        tokens = [...new Set(tokens)];
+
+        if (tokens.length > 0) {
+          const message = {
+            notification: {
+              title: 'New Reel Comment',
+              body: `${commenterData.username || 'Someone'} commented on your reel`,
+            },
+            data: {
+              type: 'reelComment',
+              fromUserId: commenterId,
+              fromUsername: commenterData.username || 'Someone',
+              fromPhotoUrl: commenterData.photoUrl || '',
+              reelId: reelId,
+              commentId: commentId,
+              notificationId: notificationId,
+              screen: 'ReelScreen',
+              click_action: 'FLUTTER_NOTIFICATION_CLICK',
+              title: 'New Reel Comment',
+              body: `${commenterData.username || 'Someone'} commented on your reel`,
+              message: commentText,
+            },
+            android: {
+              priority: 'high',
+            },
+            apns: {
+              payload: {
+                aps: {
+                  sound: 'default',
+                  badge: authorData.unreadNotificationCount || 1,
+                  'content-available': 1,
+                }
+              }
+            },
+            tokens: tokens,
+          };
+
+          await admin.messaging().sendEachForMulticast(message);
+          console.log(`Sent reel comment notification to ${tokens.length} tokens`);
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error sending reel comment notification:', error);
+      return null;
+    }
+  }
+);
+
+/**
+ * Send notification when someone is mentioned in a post
+ * Triggered when a post is created in posts/{postId}
+ */
+exports.sendPostMentionNotification = onDocumentCreated(
+  'posts/{postId}',
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+
+    const postData = snap.data();
+    const postId = event.params.postId;
+    const authorId = postData.authorId;
+    const content = postData.content || '';
+
+    // Parse mentions from content
+    const mentionRegex = /@(\w+)/g;
+    const mentions = [...content.matchAll(mentionRegex)].map(m => m[1]);
+    const uniqueMentions = [...new Set(mentions)];
+
+    if (uniqueMentions.length === 0) return null;
+
+    // Get author data
+    const authorDoc = await admin.firestore().collection('users').doc(authorId).get();
+    const authorData = authorDoc.exists ? authorDoc.data() : {};
+
+    // Send notification to each mentioned user
+    for (const username of uniqueMentions) {
+      try {
+        // Find user by username
+        const userQuery = await admin.firestore()
+          .collection('users')
+          .where('username', '==', username)
+          .limit(1)
+          .get();
+
+        if (userQuery.empty) continue;
+
+        const mentionedUserDoc = userQuery.docs[0];
+        const mentionedUserId = mentionedUserDoc.id;
+        const mentionedUserData = mentionedUserDoc.data();
+
+        // Skip if user mentions themselves
+        if (mentionedUserId === authorId) continue;
+
+        // Check preferences
+        const prefs = mentionedUserData.notificationPreferences || {};
+        if (prefs.allNotificationsEnabled === false || prefs.mentionsEnabled === false) {
+          continue;
+        }
+
+        // Create notification document
+        const notificationRef = await admin.firestore()
+          .collection('users')
+          .doc(mentionedUserId)
+          .collection('notifications')
+          .add({
+            type: 'mention',
+            fromUserId: authorId,
+            fromUsername: authorData.username || 'Someone',
+            fromUserPhotoUrl: authorData.photoUrl || '',
+            postId: postId,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            read: false,
+          });
+
+        const notificationId = notificationRef.id;
+
+        // Get and deduplicate FCM tokens
+        let tokens = [];
+        if (mentionedUserData.fcmTokens && Array.isArray(mentionedUserData.fcmTokens)) {
+          tokens = mentionedUserData.fcmTokens.map(t => {
+            if (typeof t === 'string') return t;
+            if (t && typeof t === 'object' && t.token) return t.token;
+            return null;
+          });
+        } else if (mentionedUserData.fcmToken) {
+          tokens = [mentionedUserData.fcmToken];
+        }
+
+        tokens = tokens.filter(t => t && typeof t === 'string' && t.trim().length > 0);
+        tokens = [...new Set(tokens)];
+
+        if (tokens.length === 0) continue;
+
+        // Send FCM
+        const message = {
+          notification: {
+            title: 'Mentioned in Post',
+            body: `${authorData.username || 'Someone'} mentioned you in a post`,
+          },
+          data: {
+            type: 'mention',
+            fromUserId: authorId,
+            fromUsername: authorData.username || 'Someone',
+            fromPhotoUrl: authorData.photoUrl || '',
+            postId: postId,
+            notificationId: notificationId,
+            screen: 'PostDetailScreen',
+            click_action: 'FLUTTER_NOTIFICATION_CLICK',
+            title: 'Mentioned in Post',
+            body: `${authorData.username || 'Someone'} mentioned you in a post`,
+          },
+          android: {
+            priority: 'high',
+          },
+          apns: {
+            payload: {
+              aps: {
+                sound: 'default',
+                badge: mentionedUserData.unreadNotificationCount || 1,
+                'content-available': 1,
+              }
+            }
+          },
+          tokens: tokens,
+        };
+
+        await admin.messaging().sendEachForMulticast(message);
+        console.log(`Sent mention notification to ${username}`);
+      } catch (error) {
+        console.error(`Error sending mention notification to ${username}:`, error);
+      }
+    }
+
+    return null;
+  }
+);
+
+/**
+ * Send notification when someone is mentioned in a reel
+ * Triggered when a reel is created in reels/{reelId}
+ */
+exports.sendReelMentionNotification = onDocumentCreated(
+  'reels/{reelId}',
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+
+    const reelData = snap.data();
+    const reelId = event.params.reelId;
+    const authorId = reelData.authorId;
+    const caption = reelData.caption || '';
+
+    // Parse mentions from caption
+    const mentionRegex = /@(\w+)/g;
+    const mentions = [...caption.matchAll(mentionRegex)].map(m => m[1]);
+    const uniqueMentions = [...new Set(mentions)];
+
+    if (uniqueMentions.length === 0) return null;
+
+    // Get author data
+    const authorDoc = await admin.firestore().collection('users').doc(authorId).get();
+    const authorData = authorDoc.exists ? authorDoc.data() : {};
+
+    // Send notification to each mentioned user
+    for (const username of uniqueMentions) {
+      try {
+        // Find user by username
+        const userQuery = await admin.firestore()
+          .collection('users')
+          .where('username', '==', username)
+          .limit(1)
+          .get();
+
+        if (userQuery.empty) continue;
+
+        const mentionedUserDoc = userQuery.docs[0];
+        const mentionedUserId = mentionedUserDoc.id;
+        const mentionedUserData = mentionedUserDoc.data();
+
+        // Skip if user mentions themselves
+        if (mentionedUserId === authorId) continue;
+
+        // Check preferences
+        const prefs = mentionedUserData.notificationPreferences || {};
+        if (prefs.allNotificationsEnabled === false || prefs.mentionsEnabled === false) {
+          continue;
+        }
+
+        // Create notification document
+        const notificationRef = await admin.firestore()
+          .collection('users')
+          .doc(mentionedUserId)
+          .collection('notifications')
+          .add({
+            type: 'reelMention',
+            fromUserId: authorId,
+            fromUsername: authorData.username || 'Someone',
+            fromUserPhotoUrl: authorData.photoUrl || '',
+            reelId: reelId,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            read: false,
+          });
+
+        const notificationId = notificationRef.id;
+
+        // Get and deduplicate FCM tokens
+        let tokens = [];
+        if (mentionedUserData.fcmTokens && Array.isArray(mentionedUserData.fcmTokens)) {
+          tokens = mentionedUserData.fcmTokens.map(t => {
+            if (typeof t === 'string') return t;
+            if (t && typeof t === 'object' && t.token) return t.token;
+            return null;
+          });
+        } else if (mentionedUserData.fcmToken) {
+          tokens = [mentionedUserData.fcmToken];
+        }
+
+        tokens = tokens.filter(t => t && typeof t === 'string' && t.trim().length > 0);
+        tokens = [...new Set(tokens)];
+
+        if (tokens.length === 0) continue;
+
+        // Send FCM
+        const message = {
+          notification: {
+            title: 'Mentioned in Reel',
+            body: `${authorData.username || 'Someone'} mentioned you in a reel`,
+          },
+          data: {
+            type: 'reelMention',
+            fromUserId: authorId,
+            fromUsername: authorData.username || 'Someone',
+            fromPhotoUrl: authorData.photoUrl || '',
+            reelId: reelId,
+            notificationId: notificationId,
+            screen: 'ReelScreen',
+            click_action: 'FLUTTER_NOTIFICATION_CLICK',
+            title: 'Mentioned in Reel',
+            body: `${authorData.username || 'Someone'} mentioned you in a reel`,
+          },
+          android: {
+            priority: 'high',
+          },
+          apns: {
+            payload: {
+              aps: {
+                sound: 'default',
+                badge: mentionedUserData.unreadNotificationCount || 1,
+                'content-available': 1,
+              }
+            }
+          },
+          tokens: tokens,
+        };
+
+        await admin.messaging().sendEachForMulticast(message);
+        console.log(`Sent reel mention notification to ${username}`);
+      } catch (error) {
+        console.error(`Error sending reel mention notification to ${username}:`, error);
+      }
+    }
+
+    return null;
+  }
+);
+
+/**
+ * Generic notification sender for types that don't have their own specific triggers
+ * Triggered when a notification is created in users/{userId}/notifications/{notificationId}
+ * Handles: superLike, nearbyWave
+ */
+exports.sendNotificationOnCreate = onDocumentCreated(
+  'users/{userId}/notifications/{notificationId}',
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+
+    const notificationData = snap.data();
+    const notificationId = event.params.notificationId;
+    const userId = event.params.userId;
+    const type = notificationData.type;
+
+    // Only handle specific types that don't have their own triggers
+    const handledTypes = ['superLike', 'nearbyWave'];
+    if (!handledTypes.includes(type)) {
+      return null;
+    }
+
+    console.log(`Processing ${type} notification for user ${userId}`);
+
+    try {
+      // Get recipient user data
+      const userDoc = await admin.firestore().collection('users').doc(userId).get();
+      if (!userDoc.exists) {
+        console.log('User not found');
+        return null;
+      }
+
+      const userData = userDoc.data();
+      const prefs = userData.notificationPreferences || {};
+
+      // Check preferences
+      if (prefs.allNotificationsEnabled === false) return null;
+
+      if (type === 'superLike' && prefs.superLikesEnabled === false) return null;
+      if (type === 'nearbyWave' && prefs.nearbyWavesEnabled === false) return null;
+
+      // Get sender data (from notification data)
+      const fromUserId = notificationData.fromUserId;
+      const fromUsername = notificationData.fromUsername || 'Someone';
+      const fromPhotoUrl = notificationData.fromUserPhotoUrl || '';
+
+      // Construct message based on type
+      let title = '';
+      let body = '';
+
+      if (type === 'superLike') {
+        title = 'Super Like!';
+        body = `${fromUsername} super liked you!`;
+      } else if (type === 'nearbyWave') {
+        title = 'Nearby Wave';
+        body = `${fromUsername} waved at you!`;
+      }
+
+      // Get and deduplicate FCM tokens
+      let tokens = [];
+      if (userData.fcmTokens && Array.isArray(userData.fcmTokens)) {
+        tokens = userData.fcmTokens.map(t => {
+          if (typeof t === 'string') return t;
+          if (t && typeof t === 'object' && t.token) return t.token;
+          return null;
+        });
+      } else if (userData.fcmToken) {
+        tokens = [userData.fcmToken];
+      }
+
+      tokens = tokens.filter(t => t && typeof t === 'string' && t.trim().length > 0);
+      tokens = [...new Set(tokens)];
+
+      if (tokens.length === 0) {
+        console.log('No FCM tokens found');
+        return null;
+      }
+
+      // Send FCM
+      const message = {
+        notification: {
+          title: title,
+          body: body,
+        },
+        data: {
+          type: type,
+          fromUserId: fromUserId,
+          fromUsername: fromUsername,
+          fromPhotoUrl: fromPhotoUrl,
+          notificationId: notificationId,
+          screen: type === 'superLike' ? 'MatchScreen' : 'NearbyScreen',
+          click_action: 'FLUTTER_NOTIFICATION_CLICK',
+          title: title,
+          body: body,
+          ...notificationData // Include other data like message, postId etc
+        },
+        android: {
+          priority: 'high',
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: 'default',
+              badge: userData.unreadNotificationCount || 1,
+              'content-available': 1,
+            }
+          }
+        },
+        tokens: tokens,
+      };
+
+      await admin.messaging().sendEachForMulticast(message);
+      console.log(`Sent ${type} notification to ${tokens.length} tokens`);
+
+    } catch (error) {
+      console.error(`Error sending ${type} notification:`, error);
+    }
+
+    return null;
   }
 );
 
@@ -990,7 +1825,7 @@ async function isAdmin(userId) {
  */
 async function verifyAdmin(req, res) {
   const authHeader = req.headers.authorization;
-  
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return { valid: false, userId: null, error: 'Missing authorization token' };
   }
@@ -1026,9 +1861,9 @@ exports.approvePageVerification = onRequest(async (req, res) => {
   if (!auth.valid) {
     return res.status(401).json({ error: auth.error });
   }
-  
+
   const { requestId } = req.body;
-  
+
   if (!requestId) {
     return res.status(400).json({ error: 'Missing requestId' });
   }
@@ -1045,10 +1880,10 @@ exports.approvePageVerification = onRequest(async (req, res) => {
     }
 
     const requestData = requestDoc.data();
-    
+
     if (requestData.status !== 'pending') {
-      return res.status(400).json({ 
-        error: `Request is already ${requestData.status}` 
+      return res.status(400).json({
+        error: `Request is already ${requestData.status}`
       });
     }
 
@@ -1094,10 +1929,10 @@ exports.approvePageVerification = onRequest(async (req, res) => {
 
     console.log(`Page ${pageId} verification approved by admin ${auth.userId}`);
 
-    return res.json({ 
-      success: true, 
+    return res.json({
+      success: true,
       message: 'Page verification approved',
-      pageId: pageId 
+      pageId: pageId
     });
   } catch (error) {
     console.error('Error approving page verification:', error);
@@ -1116,9 +1951,9 @@ exports.rejectPageVerification = onRequest(async (req, res) => {
   if (!auth.valid) {
     return res.status(401).json({ error: auth.error });
   }
-  
+
   const { requestId, reason } = req.body;
-  
+
   if (!requestId) {
     return res.status(400).json({ error: 'Missing requestId' });
   }
@@ -1134,10 +1969,10 @@ exports.rejectPageVerification = onRequest(async (req, res) => {
     }
 
     const requestData = requestDoc.data();
-    
+
     if (requestData.status !== 'pending') {
-      return res.status(400).json({ 
-        error: `Request is already ${requestData.status}` 
+      return res.status(400).json({
+        error: `Request is already ${requestData.status}`
       });
     }
 
@@ -1183,10 +2018,10 @@ exports.rejectPageVerification = onRequest(async (req, res) => {
 
     console.log(`Page ${pageId} verification rejected by admin ${auth.userId}`);
 
-    return res.json({ 
-      success: true, 
+    return res.json({
+      success: true,
       message: 'Page verification rejected',
-      pageId: pageId 
+      pageId: pageId
     });
   } catch (error) {
     console.error('Error rejecting page verification:', error);
@@ -1300,7 +2135,7 @@ exports.updateStoryViewCount = onDocumentWritten(
   async (event) => {
     const beforeSnap = event.data.before;
     const afterSnap = event.data.after;
-    
+
     // Only process if viewer was just created (not deleted)
     if (!afterSnap.exists || beforeSnap.exists) {
       return null;
@@ -1308,16 +2143,16 @@ exports.updateStoryViewCount = onDocumentWritten(
 
     try {
       const storyId = event.params.storyId;
-      
+
       // Count viewers in subcollection
       const viewersSnapshot = await admin.firestore()
         .collection('story_media')
         .doc(storyId)
         .collection('viewers')
         .get();
-      
+
       const viewerCount = viewersSnapshot.size;
-      
+
       // Update story document
       await admin.firestore()
         .collection('story_media')
@@ -1325,7 +2160,7 @@ exports.updateStoryViewCount = onDocumentWritten(
         .update({
           viewerCount: viewerCount,
         });
-      
+
       console.log(`Updated viewer count for story ${storyId}: ${viewerCount}`);
     } catch (error) {
       console.error('Error updating story view count:', error);
@@ -1349,62 +2184,62 @@ exports.sendStoryReplyNotification = onDocumentCreated(
     try {
       const reply = snap.data();
       const storyId = event.params.storyId;
-      
+
       // Get story document
       const storyDoc = await admin.firestore()
         .collection('story_media')
         .doc(storyId)
         .get();
-      
+
       if (!storyDoc.exists) {
         console.log('Story not found');
         return null;
       }
-      
+
       const story = storyDoc.data();
       const authorId = story.authorId;
       const replierId = reply.replierId;
-      
+
       // Don't notify if user replied to their own story
       if (authorId === replierId) {
         console.log('User replied to own story, skipping notification');
         return null;
       }
-      
+
       // Get author's user document
       const authorDoc = await admin.firestore()
         .collection('users')
         .doc(authorId)
         .get();
-      
+
       if (!authorDoc.exists) {
         console.log('Author not found');
         return null;
       }
-      
+
       const authorData = authorDoc.data();
-      
+
       // Check notification preferences
       const prefs = authorData.notificationPreferences || {};
       if (prefs.allNotificationsEnabled === false || prefs.storyRepliesEnabled === false) {
         console.log('User has disabled story reply notifications');
         return null;
       }
-      
+
       // Get replier's user document
       const replierDoc = await admin.firestore()
         .collection('users')
         .doc(replierId)
         .get();
-      
+
       if (!replierDoc.exists) {
         console.log('Replier not found');
         return null;
       }
-      
+
       const replierData = replierDoc.data();
       const replierUsername = replierData.username || 'Someone';
-      
+
       // Get FCM token(s)
       let tokens = [];
       if (authorData.fcmTokens && Array.isArray(authorData.fcmTokens)) {
@@ -1412,18 +2247,18 @@ exports.sendStoryReplyNotification = onDocumentCreated(
       } else if (authorData.fcmToken) {
         tokens = [authorData.fcmToken];
       }
-      
+
       if (tokens.length === 0) {
         console.log('No FCM tokens found for recipient');
         return null;
       }
-      
+
       // Prepare notification message
       const replyContent = reply.content || '';
-      const replyPreview = replyContent.length > 50 
-        ? replyContent.substring(0, 50) + '...' 
+      const replyPreview = replyContent.length > 50
+        ? replyContent.substring(0, 50) + '...'
         : replyContent;
-      
+
       const message = {
         data: {
           type: 'storyReply',
@@ -1439,11 +2274,11 @@ exports.sendStoryReplyNotification = onDocumentCreated(
         },
         tokens: tokens,
       };
-      
+
       // Send notification
       const response = await admin.messaging().sendMulticast(message);
       console.log(`Story reply notification sent: ${response.successCount} successful, ${response.failureCount} failed`);
-      
+
       // Create notification document
       await admin.firestore()
         .collection('users')
@@ -1458,7 +2293,7 @@ exports.sendStoryReplyNotification = onDocumentCreated(
           read: false,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-      
+
     } catch (error) {
       console.error('Error sending story reply notification:', error);
     }
@@ -1500,7 +2335,7 @@ exports.onReportCreated = onDocumentCreated(
 
         // Send notification to admins (can be enhanced with FCM)
         console.log(`High-priority report created: ${event.params.reportId}, Category: ${category}`);
-        
+
         // TODO: Send FCM notification to admins if needed
         // For now, just log it. Admins will see it in the dashboard.
       }
@@ -1526,7 +2361,7 @@ exports.trackBoostImpression = onCall(async (request) => {
   }
 
   const { postId } = request.data;
-  
+
   if (!postId) {
     throw new HttpsError(
       'invalid-argument',
@@ -1539,7 +2374,7 @@ exports.trackBoostImpression = onCall(async (request) => {
 
     return await admin.firestore().runTransaction(async (transaction) => {
       const postDoc = await transaction.get(postRef);
-      
+
       if (!postDoc.exists) {
         throw new HttpsError(
           'not-found',
@@ -1548,7 +2383,7 @@ exports.trackBoostImpression = onCall(async (request) => {
       }
 
       const postData = postDoc.data();
-      
+
       if (!postData.isBoosted) {
         throw new HttpsError(
           'failed-precondition',
@@ -1575,12 +2410,12 @@ exports.trackBoostImpression = onCall(async (request) => {
     });
   } catch (error) {
     console.error('Error tracking boost impression:', error);
-    
+
     // If it's already an HttpsError, rethrow it
     if (error instanceof HttpsError) {
       throw error;
     }
-    
+
     // Otherwise, wrap it in an HttpsError
     throw new HttpsError(
       'internal',
@@ -1608,14 +2443,14 @@ exports.trackBoostEngagement = onDocumentCreated(
       const postRef = admin.firestore().collection('posts').doc(postId);
 
       const postDoc = await postRef.get();
-      
+
       if (!postDoc.exists) {
         console.log('Post not found');
         return null;
       }
 
       const postData = postDoc.data();
-      
+
       // Only track if post is boosted
       if (!postData.isBoosted) {
         console.log('Post is not boosted, skipping engagement tracking');
@@ -1664,38 +2499,38 @@ function calculateContentWeight(postData) {
       default: return 1.0;
     }
   }
-  
+
   // Infer from mediaItems or legacy mediaUrls
   const mediaItems = postData.mediaItems || [];
   const mediaUrls = postData.mediaUrls || [];
   const hasLink = postData.linkPreview != null;
-  
+
   // Check for video and image in mediaItems
   let hasVideo = false;
   let hasImage = false;
-  
+
   if (mediaItems.length > 0) {
-    hasVideo = mediaItems.some(item => 
-      item.type === 'video' || 
-      item.url?.includes('.mp4') || 
+    hasVideo = mediaItems.some(item =>
+      item.type === 'video' ||
+      item.url?.includes('.mp4') ||
       item.url?.includes('.mov')
     );
-    hasImage = mediaItems.some(item => 
-      item.type === 'image' || 
-      item.url?.includes('.jpg') || 
+    hasImage = mediaItems.some(item =>
+      item.type === 'image' ||
+      item.url?.includes('.jpg') ||
       item.url?.includes('.png') ||
       item.url?.includes('.jpeg')
     );
   } else if (mediaUrls.length > 0) {
     // Legacy format
-    hasVideo = mediaUrls.some(url => 
+    hasVideo = mediaUrls.some(url =>
       url.includes('.mp4') || url.includes('.mov')
     );
-    hasImage = mediaUrls.some(url => 
+    hasImage = mediaUrls.some(url =>
       url.includes('.jpg') || url.includes('.png') || url.includes('.jpeg')
     );
   }
-  
+
   // Determine weight
   if (hasLink) return 1.3; // Link
   if (hasVideo && hasImage) return 1.4; // Mixed
@@ -1711,26 +2546,26 @@ function inferContentType(postData) {
   const mediaItems = postData.mediaItems || [];
   const mediaUrls = postData.mediaUrls || [];
   const hasLink = postData.linkPreview != null;
-  
+
   let hasVideo = false;
   let hasImage = false;
-  
+
   if (mediaItems.length > 0) {
-    hasVideo = mediaItems.some(item => 
-      item.type === 'video' || 
-      item.url?.includes('.mp4') || 
+    hasVideo = mediaItems.some(item =>
+      item.type === 'video' ||
+      item.url?.includes('.mp4') ||
       item.url?.includes('.mov')
     );
-    hasImage = mediaItems.some(item => 
-      item.type === 'image' || 
-      item.url?.includes('.jpg') || 
+    hasImage = mediaItems.some(item =>
+      item.type === 'image' ||
+      item.url?.includes('.jpg') ||
       item.url?.includes('.png')
     );
   } else if (mediaUrls.length > 0) {
     hasVideo = mediaUrls.some(url => url.includes('.mp4') || url.includes('.mov'));
     hasImage = mediaUrls.some(url => url.includes('.jpg') || url.includes('.png'));
   }
-  
+
   if (hasLink) return 'link';
   if (hasVideo && hasImage) return 'mixed';
   if (hasVideo) return 'video';
@@ -1743,7 +2578,7 @@ function inferContentType(postData) {
  */
 async function getFollowers(authorId, pageId) {
   const followers = new Set();
-  
+
   // Get friends (if user post)
   if (!pageId) {
     try {
@@ -1751,7 +2586,7 @@ async function getFollowers(authorId, pageId) {
         .collection('users')
         .doc(authorId)
         .get();
-      
+
       if (authorDoc.exists) {
         const friends = authorDoc.data()?.friends || [];
         friends.forEach(friendId => {
@@ -1764,7 +2599,7 @@ async function getFollowers(authorId, pageId) {
       console.error(`Error getting friends for ${authorId}:`, error);
     }
   }
-  
+
   // Get page followers (if page post)
   if (pageId) {
     try {
@@ -1775,20 +2610,20 @@ async function getFollowers(authorId, pageId) {
         .where('followedPages', 'array-contains', pageId)
         .limit(1000) // Adjust based on your needs
         .get();
-      
+
       usersSnapshot.docs.forEach(doc => {
         const userId = doc.id;
         if (userId && userId !== authorId) {
           followers.add(userId);
         }
       });
-      
+
       console.log(`Found ${usersSnapshot.size} page followers for page ${pageId}`);
     } catch (error) {
       console.error(`Error getting page followers for ${pageId}:`, error);
     }
   }
-  
+
   return Array.from(followers);
 }
 
@@ -1803,16 +2638,16 @@ async function fanOutToFollowers(
   followerIds
 ) {
   if (followerIds.length === 0) return;
-  
+
   const batch = admin.firestore().batch();
   const now = admin.firestore.Timestamp.now();
   const expiresAt = admin.firestore.Timestamp.fromDate(
     new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
   );
-  
+
   const targetId = pageId || authorId;
   const postRef = admin.firestore().collection('posts').doc(postId);
-  
+
   // Get affinities for all followers in parallel
   const affinityPromises = followerIds.map(async (followerId) => {
     try {
@@ -1820,35 +2655,35 @@ async function fanOutToFollowers(
         .collection('users')
         .doc(followerId)
         .get();
-      
+
       if (!userDoc.exists) {
         return { followerId, affinity: 1.0 };
       }
-      
+
       const userData = userDoc.data();
       const affinities = userData?.userAffinities || {};
       const affinity = affinities[targetId] ?? 1.0;
-      
+
       return { followerId, affinity };
     } catch (error) {
       console.error(`Error getting affinity for follower ${followerId}:`, error);
       return { followerId, affinity: 1.0 };
     }
   });
-  
+
   const affinities = await Promise.all(affinityPromises);
-  
+
   // Create personalized feed entries
   affinities.forEach(({ followerId, affinity }) => {
     const timeDecay = 1.0; // Always 1.0 at creation
     const score = affinity * contentWeight * timeDecay;
-    
+
     const feedRef = admin.firestore()
       .collection('users')
       .doc(followerId)
       .collection('personalizedFeed')
       .doc(postId);
-    
+
     batch.set(feedRef, {
       postId,
       authorId,
@@ -1862,7 +2697,7 @@ async function fanOutToFollowers(
       timeDecayMultiplier: timeDecay,
     });
   });
-  
+
   await batch.commit();
   console.log(`Fan-out completed for ${followerIds.length} followers`);
 }
@@ -1874,25 +2709,25 @@ async function fanOutToFollowers(
  */
 async function updateAffinity(userId, targetId, increment) {
   const userRef = admin.firestore().collection('users').doc(userId);
-  
+
   return admin.firestore().runTransaction(async (transaction) => {
     const userDoc = await transaction.get(userRef);
     if (!userDoc.exists) {
       console.log(`User ${userId} not found for affinity update`);
       return;
     }
-    
+
     const userData = userDoc.data();
     const affinities = userData.userAffinities || {};
     const currentAffinity = affinities[targetId] ?? 1.0;
-    
+
     // Calculate new affinity and clamp between 0.1 and 10.0
     const newAffinity = Math.max(0.1, Math.min(10.0, currentAffinity + increment));
-    
+
     // Enforce max 200 entries (LRU eviction if needed)
     const updatedAffinities = { ...affinities };
     updatedAffinities[targetId] = newAffinity;
-    
+
     if (Object.keys(updatedAffinities).length > 200) {
       // Remove lowest affinity entry (LRU eviction)
       const sorted = Object.entries(updatedAffinities)
@@ -1900,7 +2735,7 @@ async function updateAffinity(userId, targetId, increment) {
       delete updatedAffinities[sorted[0][0]];
       console.log(`LRU eviction: Removed lowest affinity entry for user ${userId}`);
     }
-    
+
     transaction.update(userRef, {
       userAffinities: updatedAffinities,
     });
@@ -1917,15 +2752,15 @@ async function recalculateFeedScores(userId, targetId) {
       .collection('users')
       .doc(userId)
       .get();
-    
+
     if (!userDoc.exists) {
       return;
     }
-    
+
     const userData = userDoc.data();
     const affinities = userData.userAffinities || {};
     const affinity = affinities[targetId] ?? 1.0;
-    
+
     // Get all posts from this target in user's personalized feed
     // Query by authorId (for user posts) or pageId (for page posts)
     const feedSnapshotByAuthor = await admin.firestore()
@@ -1934,14 +2769,14 @@ async function recalculateFeedScores(userId, targetId) {
       .collection('personalizedFeed')
       .where('authorId', '==', targetId)
       .get();
-    
+
     const feedSnapshotByPage = await admin.firestore()
       .collection('users')
       .doc(userId)
       .collection('personalizedFeed')
       .where('pageId', '==', targetId)
       .get();
-    
+
     // Combine results and deduplicate
     const allFeedDocs = new Map();
     feedSnapshotByAuthor.docs.forEach(doc => {
@@ -1950,35 +2785,35 @@ async function recalculateFeedScores(userId, targetId) {
     feedSnapshotByPage.docs.forEach(doc => {
       allFeedDocs.set(doc.id, doc);
     });
-    
+
     if (allFeedDocs.size === 0) {
       return; // No posts to recalculate
     }
-    
+
     // Recalculate scores for all posts
     const now = admin.firestore.Timestamp.now();
     let batchCount = 0;
     let batch = admin.firestore().batch();
-    
+
     for (const feedDoc of allFeedDocs.values()) {
       const feedData = feedDoc.data();
       const contentWeight = feedData.contentWeight || 1.0;
       const calculatedAt = feedData.calculatedAt;
-      
+
       // Calculate time decay
       const timeDecay = calculateTimeDecay(calculatedAt);
-      
+
       const newScore = affinity * contentWeight * timeDecay;
-      
+
       batch.update(feedDoc.ref, {
         score: newScore,
         affinityScore: affinity,
         timeDecayMultiplier: timeDecay,
         calculatedAt: now,
       });
-      
+
       batchCount++;
-      
+
       // Firestore batch limit is 500 - commit and start new batch
       if (batchCount >= 500) {
         await batch.commit();
@@ -1986,12 +2821,12 @@ async function recalculateFeedScores(userId, targetId) {
         batchCount = 0;
       }
     }
-    
+
     // Commit remaining updates
     if (batchCount > 0) {
       await batch.commit();
     }
-    
+
     console.log(`Recalculated ${allFeedDocs.size} feed scores for user ${userId}, target ${targetId}`);
   } catch (error) {
     console.error(`Error recalculating feed scores for user ${userId}, target ${targetId}:`, error);
@@ -2005,11 +2840,11 @@ function calculateTimeDecay(calculatedAtTimestamp) {
   if (!calculatedAtTimestamp) {
     return 1.0; // No decay if timestamp is missing
   }
-  
+
   const now = Date.now();
   const calculatedAt = calculatedAtTimestamp.toMillis();
   const hoursSinceCreation = (now - calculatedAt) / (1000 * 60 * 60);
-  
+
   // Exponential decay: e^(-0.1 * hours)
   // After 24 hours: ~0.08
   // After 48 hours: ~0.006
@@ -2027,19 +2862,19 @@ exports.recalculateTimeDecay = onSchedule({
 }, async (event) => {
   try {
     console.log('Starting time decay recalculation...');
-    
+
     // Get all users (or sample if too many - process in batches)
     const usersSnapshot = await admin.firestore()
       .collection('users')
       .limit(1000) // Process 1000 users per run
       .get();
-    
+
     let totalProcessed = 0;
     let totalUpdated = 0;
-    
+
     for (const userDoc of usersSnapshot.docs) {
       const userId = userDoc.id;
-      
+
       try {
         // Get all feed entries for this user
         const feedSnapshot = await admin.firestore()
@@ -2047,49 +2882,49 @@ exports.recalculateTimeDecay = onSchedule({
           .doc(userId)
           .collection('personalizedFeed')
           .get();
-        
+
         if (feedSnapshot.empty) {
           continue;
         }
-        
+
         const batch = admin.firestore().batch();
         let batchCount = 0;
-        
+
         feedSnapshot.docs.forEach((feedDoc) => {
           const feedData = feedDoc.data();
           const affinityScore = feedData.affinityScore || 1.0;
           const contentWeight = feedData.contentWeight || 1.0;
           const calculatedAt = feedData.calculatedAt;
-          
+
           const timeDecay = calculateTimeDecay(calculatedAt);
           const newScore = affinityScore * contentWeight * timeDecay;
-          
+
           batch.update(feedDoc.ref, {
             score: newScore,
             timeDecayMultiplier: timeDecay,
           });
-          
+
           batchCount++;
           totalUpdated++;
-          
+
           // Firestore batch limit is 500
           if (batchCount >= 500) {
             batch.commit();
             batchCount = 0;
           }
         });
-        
+
         if (batchCount > 0) {
           await batch.commit();
         }
-        
+
         totalProcessed++;
       } catch (userError) {
         console.error(`Error processing user ${userId}:`, userError);
         // Continue with next user
       }
     }
-    
+
     console.log(`Time decay recalculation complete. Processed ${totalProcessed} users, updated ${totalUpdated} feed entries`);
     return null;
   } catch (error) {
@@ -2108,16 +2943,16 @@ exports.cleanupExpiredFeedEntries = onSchedule({
 }, async (event) => {
   try {
     console.log('Starting cleanup of expired feed entries...');
-    
+
     const now = admin.firestore.Timestamp.now();
     let totalDeleted = 0;
-    
+
     // Get all users (or process in batches)
     const usersSnapshot = await admin.firestore()
       .collection('users')
       .limit(1000) // Process 1000 users per run
       .get();
-    
+
     for (const userDoc of usersSnapshot.docs) {
       try {
         const expiredEntries = await admin.firestore()
@@ -2126,30 +2961,30 @@ exports.cleanupExpiredFeedEntries = onSchedule({
           .collection('personalizedFeed')
           .where('expiresAt', '<=', now)
           .get();
-        
+
         if (expiredEntries.empty) {
           continue;
         }
-        
+
         // Batch delete (Firestore batch limit is 500)
         const batches = [];
         for (let i = 0; i < expiredEntries.docs.length; i += 500) {
           const batch = admin.firestore().batch();
           const batchDocs = expiredEntries.docs.slice(i, i + 500);
-          
+
           batchDocs.forEach(doc => batch.delete(doc.ref));
           batches.push(batch.commit());
-          
+
           totalDeleted += batchDocs.length;
         }
-        
+
         await Promise.all(batches);
       } catch (userError) {
         console.error(`Error cleaning up feed for user ${userDoc.id}:`, userError);
         // Continue with next user
       }
     }
-    
+
     console.log(`Cleanup complete. Deleted ${totalDeleted} expired feed entries`);
     return null;
   } catch (error) {
@@ -2171,38 +3006,38 @@ exports.onUserInteraction = onDocumentCreated(
       console.log('No data associated with the event');
       return null;
     }
-    
+
     try {
       const postId = event.params.postId;
       const userId = event.params.userId; // User who liked
-      
+
       // Get post to find author
       const postDoc = await admin.firestore()
         .collection('posts')
         .doc(postId)
         .get();
-      
+
       if (!postDoc.exists) {
         console.log('Post not found');
         return null;
       }
-      
+
       const postData = postDoc.data();
       const postAuthorId = postData.authorId;
       const postPageId = postData.pageId || null;
-      
+
       // Don't update affinity if user interacts with own post
       if (userId === postAuthorId) {
         console.log('User liked own post, skipping affinity update');
         return null;
       }
-      
+
       // Target is pageId (if page post) or authorId (if user post)
       const targetId = postPageId || postAuthorId;
-      
+
       // Update affinity atomically (+0.5 for like)
       await updateAffinity(userId, targetId, 0.5);
-      
+
       console.log(`Updated affinity for user ${userId} -> ${targetId} (like): +0.5`);
       return null;
     } catch (error) {
@@ -2225,44 +3060,44 @@ exports.onUserInteractionComment = onDocumentCreated(
       console.log('No data associated with the event');
       return null;
     }
-    
+
     try {
       const commentData = snap.data();
       const userId = commentData.userId; // User who commented
       const postId = event.params.postId;
-      
+
       if (!userId) {
         console.log('Comment missing userId');
         return null;
       }
-      
+
       // Get post to find author
       const postDoc = await admin.firestore()
         .collection('posts')
         .doc(postId)
         .get();
-      
+
       if (!postDoc.exists) {
         console.log('Post not found');
         return null;
       }
-      
+
       const postData = postDoc.data();
       const postAuthorId = postData.authorId;
       const postPageId = postData.pageId || null;
-      
+
       // Don't update affinity if user comments on own post
       if (userId === postAuthorId) {
         console.log('User commented on own post, skipping affinity update');
         return null;
       }
-      
+
       // Target is pageId (if page post) or authorId (if user post)
       const targetId = postPageId || postAuthorId;
-      
+
       // Update affinity atomically (+1.0 for comment - worth more than like)
       await updateAffinity(userId, targetId, 1.0);
-      
+
       console.log(`Updated affinity for user ${userId} -> ${targetId} (comment): +1.0`);
       return null;
     } catch (error) {
@@ -2339,3 +3174,552 @@ exports.cleanupExpiredBoosts = onSchedule({
     return null;
   }
 });
+
+/**
+ * Process pending notification batches every minute
+ * This scheduled function finds batches that are ready to send and sends grouped notifications
+ */
+exports.processPendingBatches = onSchedule('every 1 minutes', async (event) => {
+  const now = new Date();
+
+  try {
+    // Find batches ready to send
+    const batchesSnapshot = await admin.firestore()
+      .collection('notificationBatches')
+      .where('status', '==', 'pending')
+      .where('scheduledFor', '<=', now)
+      .limit(50) // Process 50 batches at a time
+      .get();
+
+    console.log(`[Batch Processor] Found ${batchesSnapshot.size} batches to process`);
+
+    if (batchesSnapshot.empty) {
+      return null;
+    }
+
+    // Process each batch
+    const promises = batchesSnapshot.docs.map(async (batchDoc) => {
+      try {
+        await sendGroupedNotification(batchDoc);
+      } catch (error) {
+        console.error(`[Batch Processor] Error processing batch ${batchDoc.id}:`, error);
+      }
+    });
+
+    await Promise.all(promises);
+
+    console.log(`[Batch Processor] Processed ${batchesSnapshot.size} batches`);
+    return null;
+  } catch (error) {
+    console.error('[Batch Processor] Error in processPendingBatches:', error);
+    return null;
+  }
+});
+
+/**
+ * Send a grouped notification from a batch
+ * @param {FirebaseFirestore.DocumentSnapshot} batchDoc - Batch document
+ */
+async function sendGroupedNotification(batchDoc) {
+  const batch = batchDoc.data();
+
+  try {
+    // Skip if no interactions
+    if (!batch.interactions || batch.interactions.length === 0) {
+      console.log(`[Batch ${batchDoc.id}] No interactions, marking as cancelled`);
+      await batchDoc.ref.update({ status: 'cancelled' });
+      return;
+    }
+
+    // Get author data for FCM tokens
+    const authorDoc = await admin.firestore()
+      .collection('users')
+      .doc(batch.authorId)
+      .get();
+
+    if (!authorDoc.exists) {
+      console.log(`[Batch ${batchDoc.id}] Author not found, marking as cancelled`);
+      await batchDoc.ref.update({ status: 'cancelled' });
+      return;
+    }
+
+    const authorData = authorDoc.data();
+
+    // Check notification preferences
+    const prefs = authorData.notificationPreferences || {};
+    const prefKey = `${batch.contentType}${capitalize(batch.interactionType)}sEnabled`;
+
+    if (prefs.allNotificationsEnabled === false || prefs[prefKey] === false) {
+      console.log(`[Batch ${batchDoc.id}] User has disabled ${prefKey}, marking as cancelled`);
+      await batchDoc.ref.update({ status: 'cancelled' });
+      return;
+    }
+
+    // Check for deduplication
+    const dedupeKey = `${batch.authorId}_${batch.contentId}_${batch.interactionType}`;
+    const lastSentDoc = await admin.firestore()
+      .collection('sentNotifications')
+      .doc(dedupeKey)
+      .get();
+
+    if (lastSentDoc.exists && shouldDeduplicate(batch, lastSentDoc.data())) {
+      console.log(`[Batch ${batchDoc.id}] Duplicate notification, marking as cancelled`);
+      await batchDoc.ref.update({ status: 'cancelled' });
+      return;
+    }
+
+    // Get FCM tokens
+    let tokens = [];
+    if (authorData.fcmTokens && Array.isArray(authorData.fcmTokens)) {
+      tokens = authorData.fcmTokens.map(t => typeof t === 'string' ? t : t.token).filter(Boolean);
+    } else if (authorData.fcmToken) {
+      tokens = [authorData.fcmToken];
+    }
+
+    if (tokens.length === 0) {
+      console.log(`[Batch ${batchDoc.id}] No FCM tokens found, marking as cancelled`);
+      await batchDoc.ref.update({ status: 'cancelled' });
+      return;
+    }
+
+    // Format notification
+    const notification = formatGroupedNotification(batch);
+
+    if (!notification) {
+      console.log(`[Batch ${batchDoc.id}] Failed to format notification, marking as cancelled`);
+      await batchDoc.ref.update({ status: 'cancelled' });
+      return;
+    }
+
+    // Send notification
+    const message = {
+      data: notification.data,
+      notification: {
+        title: notification.title,
+        body: notification.body
+      },
+      android: {
+        priority: 'high',
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: authorData.unreadNotificationCount || 1,
+            'content-available': 1,
+          }
+        }
+      },
+      tokens: tokens
+    };
+
+    const response = await admin.messaging().sendEachForMulticast(message);
+
+    console.log(`[Batch ${batchDoc.id}] Sent grouped notification. Success: ${response.successCount}, Failed: ${response.failureCount}`);
+
+    // Create notification document in Firestore for Activity feed
+    await admin.firestore()
+      .collection('users')
+      .doc(batch.authorId)
+      .collection('notifications')
+      .add({
+        type: batch.interactionType,
+        contentType: batch.contentType,
+        contentId: batch.contentId,
+        fromUserId: batch.interactions[0].userId,
+        fromUsername: batch.interactions[0].username,
+        fromUserPhotoUrl: batch.interactions[0].photoUrl || '',
+        count: batch.interactions.length,
+        message: notification.body,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        read: false,
+        isBatched: true,
+        batchId: batch.batchId
+      });
+
+    // Update batch status
+    await batchDoc.ref.update({
+      status: 'sent',
+      sentAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Record sent notification for deduplication
+    await admin.firestore()
+      .collection('sentNotifications')
+      .doc(dedupeKey)
+      .set({
+        userId: batch.authorId,
+        contentId: batch.contentId,
+        contentType: batch.contentType,
+        interactionType: batch.interactionType,
+        lastSentAt: Date.now(),
+        lastInteractors: batch.interactions.map(i => i.userId),
+        totalCount: batch.interactions.length
+      });
+
+  } catch (error) {
+    console.error(`[Batch ${batchDoc.id}] Error sending notification:`, error);
+    // Mark as failed but don't throw
+    await batchDoc.ref.update({
+      status: 'failed',
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Send notification when someone likes a reel
+ * Triggered when a like is created in reels/{reelId}/likes/{userId}
+ * Uses batching to prevent spam
+ */
+exports.onReelLike = onDocumentCreated(
+  'reels/{reelId}/likes/{userId}',
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      console.log('No data associated with the event');
+      return null;
+    }
+    const context = event.params;
+
+    try {
+      const reelId = context.reelId;
+      const likerId = context.userId;
+
+      console.log(`[Reel Like] Processing like from ${likerId} on reel ${reelId}`);
+
+      // Check rate limit
+      if (!await checkRateLimit(likerId, reelId, 'reaction')) {
+        console.log(`[Reel Like] Rate limit exceeded for ${likerId} on ${reelId}`);
+        return null;
+      }
+
+      // Get reel data
+      const reelDoc = await admin.firestore()
+        .collection('reels')
+        .doc(reelId)
+        .get();
+
+      if (!reelDoc.exists) {
+        console.log('[Reel Like] Reel not found');
+        return null;
+      }
+
+      const reelData = reelDoc.data();
+      const creatorId = reelData.uploaderId;
+
+      // Don't notify if user likes their own reel
+      if (likerId === creatorId) {
+        console.log('[Reel Like] User liked own reel, skipping notification');
+        return null;
+      }
+
+      // Get liker data
+      const likerDoc = await admin.firestore()
+        .collection('users')
+        .doc(likerId)
+        .get();
+
+      if (!likerDoc.exists) {
+        console.log('[Reel Like] Liker user not found');
+        return null;
+      }
+
+      const likerData = likerDoc.data();
+
+      // Get creator data for preferences
+      const creatorDoc = await admin.firestore().collection('users').doc(creatorId).get();
+      const creatorData = creatorDoc.exists ? creatorDoc.data() : {};
+      const prefs = creatorData.notificationPreferences || {};
+
+      // Check if should batch or send immediately
+      if (!shouldBatchInteraction(reelData, 'like', prefs)) {
+        // Send immediately (first like or milestone)
+        console.log(`[Reel Like] Sending immediate notification (likeCount: ${reelData.likeCount})`);
+        await sendImmediateReelLikeNotification(reelId, creatorId, likerData, creatorData);
+        await recordInteraction(likerId, reelId, 'reaction');
+        return null;
+      }
+
+      // Add to batch
+      const batch = await getOrCreateBatch('reel', reelId, creatorId, 'like');
+
+      await addInteractionToBatch(batch.id, {
+        userId: likerId,
+        username: likerData.username || 'Someone',
+        photoUrl: likerData.photoUrl || '',
+        timestamp: Date.now(),
+        type: 'like'
+      });
+
+      // Record for rate limiting
+      await recordInteraction(likerId, reelId, 'reaction');
+
+      console.log(`[Reel Like] Added to batch ${batch.id}`);
+      return null;
+    } catch (error) {
+      console.error('[Reel Like] Error processing like:', error);
+      return null;
+    }
+  }
+);
+
+/**
+ * Send notification when someone comments on a reel
+ * Triggered when a comment is created in reels/{reelId}/comments/{commentId}
+ * Uses batching to prevent spam
+ */
+exports.onReelComment = onDocumentCreated(
+  'reels/{reelId}/comments/{commentId}',
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      console.log('No data associated with the event');
+      return null;
+    }
+    const context = event.params;
+
+    try {
+      const reelId = context.reelId;
+      const commentId = context.commentId;
+      const commentData = snap.data();
+
+      const commenterId = commentData.userId;
+      const commentText = commentData.text || '';
+
+      console.log(`[Reel Comment] Processing comment from ${commenterId} on reel ${reelId}`);
+
+      // Check rate limit
+      if (!await checkRateLimit(commenterId, reelId, 'comment')) {
+        console.log(`[Reel Comment] Rate limit exceeded for ${commenterId} on ${reelId}`);
+        return null;
+      }
+
+      // Get reel data
+      const reelDoc = await admin.firestore()
+        .collection('reels')
+        .doc(reelId)
+        .get();
+
+      if (!reelDoc.exists) {
+        console.log('[Reel Comment] Reel not found');
+        return null;
+      }
+
+      const reelData = reelDoc.data();
+      const creatorId = reelData.uploaderId;
+
+      // Don't notify if user comments on their own reel
+      if (commenterId === creatorId) {
+        console.log('[Reel Comment] User commented on own reel, skipping notification');
+        return null;
+      }
+
+      // Get commenter data
+      const commenterDoc = await admin.firestore()
+        .collection('users')
+        .doc(commenterId)
+        .get();
+
+      if (!commenterDoc.exists) {
+        console.log('[Reel Comment] Commenter user not found');
+        return null;
+      }
+
+      const commenterData = commenterDoc.data();
+
+      // Get creator data for preferences
+      const creatorDoc = await admin.firestore().collection('users').doc(creatorId).get();
+      const creatorData = creatorDoc.exists ? creatorDoc.data() : {};
+      const prefs = creatorData.notificationPreferences || {};
+
+      // Check if should batch or send immediately
+      if (!shouldBatchInteraction(reelData, 'comment', prefs)) {
+        // Send immediately (first comment)
+        console.log(`[Reel Comment] Sending immediate notification (commentCount: ${reelData.commentCount})`);
+        await sendImmediateReelCommentNotification(
+          reelId,
+          commentId,
+          creatorId,
+          commenterData,
+          commentText,
+          creatorData
+        );
+        await recordInteraction(commenterId, reelId, 'comment');
+        return null;
+      }
+
+      // Add to batch
+      const batch = await getOrCreateBatch('reel', reelId, creatorId, 'comment');
+
+      await addInteractionToBatch(batch.id, {
+        userId: commenterId,
+        username: commenterData.username || 'Someone',
+        photoUrl: commenterData.photoUrl || '',
+        timestamp: Date.now(),
+        type: 'comment',
+        data: { text: commentText, commentId }
+      });
+
+      // Record for rate limiting
+      await recordInteraction(commenterId, reelId, 'comment');
+
+      console.log(`[Reel Comment] Added to batch ${batch.id}`);
+      return null;
+    } catch (error) {
+      console.error('[Reel Comment] Error processing comment:', error);
+      return null;
+    }
+  }
+);
+
+/**
+ * Send immediate notification for reel like (first like or milestone)
+ */
+async function sendImmediateReelLikeNotification(reelId, creatorId, likerData, creatorData = null) {
+  try {
+    // Get creator data if not provided
+    if (!creatorData) {
+      const creatorDoc = await admin.firestore()
+        .collection('users')
+        .doc(creatorId)
+        .get();
+
+      if (!creatorDoc.exists) {
+        console.log('[Immediate Reel Like] Creator not found');
+        return;
+      }
+      creatorData = creatorDoc.data();
+    }
+
+    // Check notification preferences
+    const prefs = creatorData.notificationPreferences || {};
+    if (prefs.allNotificationsEnabled === false || prefs.reelLikesEnabled === false) {
+      console.log('[Immediate Reel Like] User has disabled reel like notifications');
+      return;
+    }
+
+    // Get FCM tokens
+    let tokens = [];
+    if (creatorData.fcmTokens && Array.isArray(creatorData.fcmTokens)) {
+      tokens = creatorData.fcmTokens.map(t => typeof t === 'string' ? t : t.token).filter(Boolean);
+    } else if (creatorData.fcmToken) {
+      tokens = [creatorData.fcmToken];
+    }
+
+    if (tokens.length === 0) {
+      console.log('[Immediate Reel Like] No FCM tokens found');
+      return;
+    }
+
+    // Send notification
+    const message = {
+      data: {
+        type: 'reelLike',
+        contentId: reelId,
+        fromUserId: likerData.uid || '',
+        fromUsername: likerData.username || 'Someone',
+        fromPhotoUrl: likerData.photoUrl || '',
+        click_action: 'FLUTTER_NOTIFICATION_CLICK'
+      },
+      notification: {
+        title: `${likerData.username || 'Someone'} liked your reel`,
+        body: 'Tap to view your reel'
+      },
+      android: {
+        priority: 'high',
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: creatorData.unreadNotificationCount || 1,
+            'content-available': 1,
+          }
+        }
+      },
+      tokens: tokens
+    };
+
+    const response = await admin.messaging().sendEachForMulticast(message);
+    console.log(`[Immediate Reel Like] Sent. Success: ${response.successCount}, Failed: ${response.failureCount}`);
+  } catch (error) {
+    console.error('[Immediate Reel Like] Error sending notification:', error);
+  }
+}
+
+/**
+ * Send immediate notification for reel comment (first comment)
+ */
+async function sendImmediateReelCommentNotification(reelId, commentId, creatorId, commenterData, commentText, creatorData = null) {
+  try {
+    // Get creator data if not provided
+    if (!creatorData) {
+      const creatorDoc = await admin.firestore()
+        .collection('users')
+        .doc(creatorId)
+        .get();
+
+      if (!creatorDoc.exists) {
+        console.log('[Immediate Reel Comment] Creator not found');
+        return;
+      }
+      creatorData = creatorDoc.data();
+    }
+
+    // Check notification preferences
+    const prefs = creatorData.notificationPreferences || {};
+    if (prefs.allNotificationsEnabled === false || prefs.reelCommentsEnabled === false) {
+      console.log('[Immediate Reel Comment] User has disabled reel comment notifications');
+      return;
+    }
+
+    // Get FCM tokens
+    let tokens = [];
+    if (creatorData.fcmTokens && Array.isArray(creatorData.fcmTokens)) {
+      tokens = creatorData.fcmTokens.map(t => typeof t === 'string' ? t : t.token).filter(Boolean);
+    } else if (creatorData.fcmToken) {
+      tokens = [creatorData.fcmToken];
+    }
+
+    if (tokens.length === 0) {
+      console.log('[Immediate Reel Comment] No FCM tokens found');
+      return;
+    }
+
+    // Send notification
+    const message = {
+      data: {
+        type: 'reelComment',
+        contentId: reelId,
+        commentId: commentId,
+        fromUserId: commenterData.uid || '',
+        fromUsername: commenterData.username || 'Someone',
+        fromPhotoUrl: commenterData.photoUrl || '',
+        click_action: 'FLUTTER_NOTIFICATION_CLICK'
+      },
+      notification: {
+        title: `${commenterData.username || 'Someone'} commented on your reel`,
+        body: commentText.length > 100 ? commentText.substring(0, 100) + '...' : commentText
+      },
+      android: {
+        priority: 'high',
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: creatorData.unreadNotificationCount || 1,
+            'content-available': 1,
+          }
+        }
+      },
+      tokens: tokens
+    };
+
+    const response = await admin.messaging().sendEachForMulticast(message);
+    console.log(`[Immediate Reel Comment] Sent. Success: ${response.successCount}, Failed: ${response.failureCount}`);
+  } catch (error) {
+    console.error('[Immediate Reel Comment] Error sending notification:', error);
+  }
+}

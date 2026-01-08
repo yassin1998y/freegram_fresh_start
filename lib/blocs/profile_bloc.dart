@@ -106,6 +106,9 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
           await currentUser.updatePhotoURL(dataToUpdate['photoUrl']);
           _debugLog('Updated Firebase Auth photo URL');
         }
+        // RELOAD USER to ensure local cache is updated
+        await currentUser.reload();
+        _debugLog('Reloaded Firebase Auth user to refresh cache');
       }
 
       emit(ProfileUpdateSuccess());

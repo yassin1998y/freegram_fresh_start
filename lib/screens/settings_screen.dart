@@ -5,6 +5,7 @@ import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/widgets/freegram_app_bar.dart';
 import 'package:freegram/widgets/common/keyboard_safe_area.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/screens/notification_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -41,9 +42,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (currentUser != null) {
         await currentUser.updatePassword(_newPasswordController.text);
         messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Password updated successfully!'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text('Password updated successfully!'),
+            backgroundColor: SemanticColors.success,
           ),
         );
         navigator.pop();
@@ -54,14 +55,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text('Error: ${e.message ?? "Could not update password."}'),
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     } catch (e) {
       messenger.showSnackBar(
         SnackBar(
           content: Text('An unexpected error occurred: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     } finally {
@@ -84,13 +85,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: KeyboardSafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(DesignTokens.spaceMD),
           children: [
             _buildSectionHeader(context, 'Account'),
             Card(
               clipBehavior: Clip.antiAlias,
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(DesignTokens.spaceMD),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -100,7 +101,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         'Change Password',
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: DesignTokens.spaceMD),
                       TextFormField(
                         controller: _newPasswordController,
                         obscureText: true,
@@ -115,7 +116,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: DesignTokens.spaceMD),
                       TextFormField(
                         controller: _confirmPasswordController,
                         obscureText: true,
@@ -130,15 +131,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: DesignTokens.spaceMD),
                       ElevatedButton(
                         onPressed: _isLoading ? null : _changePassword,
                         style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: DesignTokens.spaceMD,
+                          ),
                         ),
                         child: _isLoading
                             ? const AppProgressIndicator(
-                                size: 24,
+                                size: DesignTokens.iconLG,
                                 strokeWidth: 2,
                               )
                             : const Text('Update Password'),
@@ -148,7 +151,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
             ),
-            const Divider(height: 40),
+            const Divider(height: DesignTokens.spaceXL),
             _buildSectionHeader(context, 'Preferences'),
             _SettingsTile(
               icon: Icons.notifications_outlined,
@@ -172,7 +175,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 );
               },
             ),
-            const Divider(height: 40),
+            const Divider(height: DesignTokens.spaceXL),
             _buildSectionHeader(context, 'About'),
             _SettingsTile(
               icon: Icons.shield_outlined,
@@ -192,7 +195,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildSectionHeader(BuildContext context, String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.only(bottom: DesignTokens.spaceSM),
       child: Text(
         title.toUpperCase(),
         style: Theme.of(context)

@@ -152,10 +152,13 @@ class _EditProfileViewState extends State<_EditProfileView> {
 
   @override
   void dispose() {
+    // CRITICAL: Dispose all text controllers
     _usernameController.dispose();
     _bioController.dispose();
     _nearbyStatusController.dispose();
     _nearbyStatusEmojiController.dispose();
+    // CRITICAL: Clear image file reference to free memory
+    _imageFile = null;
     super.dispose();
   }
 
@@ -178,7 +181,8 @@ class _EditProfileViewState extends State<_EditProfileView> {
               Container(
                 width: 40,
                 height: 4,
-                margin: const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
+                margin:
+                    const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
                 decoration: BoxDecoration(
                   color: Colors.grey[300],
                   borderRadius: BorderRadius.circular(2),
@@ -333,7 +337,8 @@ class _EditProfileViewState extends State<_EditProfileView> {
           showBackButton: true,
           // Custom leading to handle conditional back button
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                size: DesignTokens.iconSM),
             tooltip: widget.isCompletingProfile ? 'Disabled' : 'Back',
             onPressed: widget.isCompletingProfile
                 ? null // Disabled when completing profile
@@ -349,7 +354,7 @@ class _EditProfileViewState extends State<_EditProfileView> {
                   return const Padding(
                     padding: EdgeInsets.all(DesignTokens.spaceMD),
                     child: AppProgressIndicator(
-                      size: 20,
+                      size: DesignTokens.iconSM,
                       strokeWidth: 2,
                     ),
                   );
@@ -541,7 +546,8 @@ class _EditProfileViewState extends State<_EditProfileView> {
       children: [
         const Text(
           "Public Profile",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              fontSize: DesignTokens.fontSizeLG, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: DesignTokens.spaceMD),
 
@@ -658,7 +664,9 @@ class _EditProfileViewState extends State<_EditProfileView> {
           children: [
             const Text(
               "Your Interests",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  fontSize: DesignTokens.fontSizeLG,
+                  fontWeight: FontWeight.bold),
             ),
             Text(
               '${_selectedInterests.length}/$_maxInterests',
@@ -714,12 +722,14 @@ class _EditProfileViewState extends State<_EditProfileView> {
       children: [
         const Text(
           "Nearby Profile",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              fontSize: DesignTokens.fontSizeLG, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: DesignTokens.spaceSM),
         const Text(
           "This is only shown to users you discover via Sonar.",
-          style: TextStyle(color: Colors.grey, fontSize: 13),
+          style:
+              TextStyle(color: Colors.grey, fontSize: DesignTokens.fontSizeSM),
         ),
         const SizedBox(height: DesignTokens.spaceMD),
         Row(

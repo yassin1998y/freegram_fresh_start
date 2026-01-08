@@ -13,6 +13,7 @@ import 'package:freegram/locator.dart';
 import 'package:freegram/repositories/chat_repository.dart';
 import 'package:freegram/repositories/notification_repository.dart';
 import 'package:freegram/repositories/user_repository.dart';
+import 'package:freegram/repositories/friend_repository.dart';
 import 'package:freegram/screens/improved_chat_list_screen.dart';
 import 'package:freegram/screens/friends_list_screen.dart';
 import 'package:freegram/screens/menu_screen.dart';
@@ -21,13 +22,14 @@ import 'package:freegram/screens/notifications_screen.dart';
 import 'package:freegram/screens/feed_screen.dart';
 import 'package:freegram/screens/feed/for_you_feed_tab.dart'
     show kForYouFeedTabKey;
-import 'package:freegram/screens/match_screen.dart';
+import 'package:freegram/screens/random_chat/random_chat_screen.dart';
 import 'package:freegram/theme/app_theme.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/widgets/guided_overlay.dart';
 import 'package:freegram/widgets/navigation/main_bottom_nav.dart';
 import 'package:freegram/widgets/core/hide_on_scroll_wrapper.dart';
 import 'package:freegram/services/navigation_service.dart';
+import 'package:freegram/services/gift_notification_service.dart';
 import 'package:hive/hive.dart';
 
 const bool _enableBlurEffects = true;
@@ -61,10 +63,17 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _fetchUserPhotoUrl();
+    _initializeGiftNotifications();
   }
 
   @override
   void dispose() {
+    // Stop listening to gift notifications
+    try {
+      locator<GiftNotificationService>().stopListening();
+    } catch (e) {
+      debugPrint('MainScreen: Error stopping gift notification listener: $e');
+    }
     _isScrollingDownNotifier.dispose();
     super.dispose();
   }
@@ -82,6 +91,25 @@ class _MainScreenState extends State<MainScreen> {
       }
     } catch (e) {
       debugPrint('MainScreen: Error fetching user photo: $e');
+    }
+  }
+
+  Future<void> _initializeGiftNotifications() async {
+    try {
+      final giftNotificationService = locator<GiftNotificationService>();
+
+      // Start listening for new notifications
+      giftNotificationService.startListening();
+
+      // Check for pending notifications (gifts received while app was closed)
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        await giftNotificationService.checkPendingNotifications();
+      }
+
+      debugPrint('MainScreen: Gift notification service initialized');
+    } catch (e) {
+      debugPrint('MainScreen: Error initializing gift notifications: $e');
     }
   }
 
@@ -169,13 +197,14 @@ class _MainScreenState extends State<MainScreen> {
             body: const SizedBox.shrink(),
           );
         }
-
         _maybeStartGuide();
 
         // Calculate bottom nav height for HideOnScrollWrapper
-        // Account for nav bar height (65) + bottom padding + spacing
+        // Account for nav bar height (DesignTokens.bottomNavBarHeight) + bottom padding + spacing
         final bottomPadding = MediaQuery.of(context).padding.bottom;
-        final bottomNavHeight = 65.0 + bottomPadding + DesignTokens.spaceSM;
+        final bottomNavHeight = DesignTokens.bottomNavBarHeight +
+            bottomPadding +
+            DesignTokens.spaceSM;
 
         return Stack(
           children: [
@@ -203,7 +232,7 @@ class _MainScreenState extends State<MainScreen> {
                         style:
                             Theme.of(context).textTheme.displayMedium?.copyWith(
                                   color: SonarPulseTheme.primaryAccent,
-                                  fontSize: DesignTokens.fontSizeXXXL,
+                                  fontSize: DesignTokens.fontSizeDisplay,
                                   height: DesignTokens.lineHeightTight,
                                 ),
                       ),
@@ -266,8 +295,8 @@ class _MainScreenState extends State<MainScreen> {
                         isScrollControlled: true,
                         backgroundColor: Theme.of(context).colorScheme.surface,
                         shape: const RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.vertical(top: Radius.circular(20)),
+                          borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(DesignTokens.radiusXL)),
                         ),
                         builder: (modalContext) {
                           return DraggableScrollableSheet(
@@ -312,13 +341,14 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                     _VisibilityWrapper(
                       isVisible: _selectedIndex == 2,
-                      child: const MatchScreen(),
+                      child: const RandomChatScreen(),
                     ),
                     _VisibilityWrapper(
                       isVisible: _selectedIndex == 3,
                       child: BlocProvider(
                         create: (_) => FriendsBloc(
-                            userRepository: locator<UserRepository>())
+                            userRepository: locator<UserRepository>(),
+                            friendRepository: locator<FriendRepository>())
                           ..add(LoadFriends()),
                         child: const FriendsListScreen(hideBackButton: true),
                       ),
@@ -400,7 +430,8 @@ class _MainScreenState extends State<MainScreen> {
     if (!_enableBlurEffects) return Container(color: appBarColor);
     return ClipRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        filter: ImageFilter.blur(
+            sigmaX: DesignTokens.blurMedium, sigmaY: DesignTokens.blurMedium),
         child: Container(
           decoration: BoxDecoration(
             color: appBarColor.withOpacity(0.85),

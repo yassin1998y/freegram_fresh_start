@@ -764,6 +764,49 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
     );
   }
 
+  void _handleDelete() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    HapticFeedback.mediumImpact();
+
+    try {
+      // Delete the reel
+      final reelRepository = locator<ReelRepository>();
+      await reelRepository.deleteReel(widget.reel.reelId, currentUser.uid);
+
+      if (mounted) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Reel deleted successfully'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Trigger feed refresh via BLoC
+        final bloc = context.read<ReelsFeedBloc>();
+        bloc.add(RefreshReelsFeed());
+
+        // Navigate back if in a modal or detail view
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
+      }
+    } catch (e) {
+      debugPrint('ReelsPlayerWidget: Error deleting reel: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete reel: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
   void _handleVideoTap() {
     // Prevent accidental taps - require a small delay between taps
     final now = DateTime.now();
@@ -936,6 +979,8 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
                   onComment: _handleComment,
                   onShare: _handleShare,
                   onProfileTap: _handleProfileTap,
+                  currentUserId: FirebaseAuth.instance.currentUser?.uid,
+                  onDelete: _handleDelete,
                 ),
             ],
           ),

@@ -4,7 +4,7 @@
       "android": {
         "default": {
           "projectId": "prototype-29c26",
-          "appId": "1:60183775527:android:efd28f0a996a0085674102",
+          "appId": "1:60183775527:android:ee81b78fe213d33b674102",
           "fileOutput": "android/app/google-services.json"
         }
       },
@@ -12,10 +12,10 @@
         "lib/firebase_options.dart": {
           "projectId": "prototype-29c26",
           "configurations": {
-            "android": "1:60183775527:android:efd28f0a996a0085674102",
-            "ios": "1:60183775527:ios:e4cd05cc89685cca674102",
-            "macos": "1:60183775527:ios:e4cd05cc89685cca674102",
-            "web": "1:60183775527:web:09a3e485884b081c674102",
+            "android": "1:60183775527:android:ee81b78fe213d33b674102",
+            "ios": "1:60183775527:ios:df7206a6a5f5278c674102",
+            "macos": "1:60183775527:ios:df7206a6a5f5278c674102",
+            "web": "1:60183775527:web:c69ff7a2c243fe95674102",
             "windows": "1:60183775527:web:2050b80db184fc5a674102"
           }
         }
@@ -25,6 +25,9 @@
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
+  },
+  "database": {
+    "rules": "database.rules.json"
   },
   "functions": [
     {

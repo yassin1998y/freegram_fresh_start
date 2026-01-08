@@ -21,6 +21,68 @@ class DesignTokens {
   static const double radiusXL = 20.0; // Modals, sheets
   static const double radiusXXL = 24.0; // Large modals
 
+  // ===== SEMANTIC SPACING TOKENS =====
+  // Screen-level spacing
+  static const double screenPadding = spaceMD; // 16px - Standard screen padding
+  static const double screenPaddingHorizontal = spaceMD; // 16px
+  static const double screenPaddingVertical = spaceMD; // 16px
+
+  // List & Card spacing
+  static const double listItemPadding =
+      spaceMD; // 16px - List item internal padding
+  static const double listItemSpacing = spaceSM; // 8px - Between list items
+  static const double cardPadding = spaceMD; // 16px - Card internal padding
+  static const double cardMargin = spaceSM; // 8px - Card external margin
+
+  // Section spacing
+  static const double sectionSpacing = spaceLG; // 24px - Between major sections
+  static const double sectionHeaderSpacing =
+      spaceSM; // 8px - Below section headers
+  static const double sectionPadding =
+      spaceMD; // 16px - Section internal padding
+
+  // Component sizing
+  // buttonHeight is already defined (48.0)
+  static const double buttonHeightSmall = 36.0; // Small button height
+  static const double buttonPaddingHorizontal = spaceLG; // 24px
+  static const double buttonPaddingVertical = 14.0; // Specific to buttons
+
+  static const double inputHeight = 48.0; // Standard input field height
+  static const double inputPadding = spaceMD; // 16px - Input internal padding
+  static const double inputBorderRadius =
+      radiusMD; // 12px - Input border radius
+
+  // Avatar sizing
+  static const double avatarSizeXS = 24.0; // Extra small avatar
+  static const double avatarSizeSmall = 32.0; // Small avatar (lists)
+  static const double avatarSizeMedium = 48.0; // Medium avatar (posts)
+  // avatarSizeLarge is already defined (64.0)
+  static const double avatarSizeXL =
+      96.0; // Extra large avatar (profile header)
+
+  // Dialog & Modal spacing
+  static const double dialogPadding = spaceLG; // 24px - Dialog internal padding
+  static const double dialogButtonSpacing =
+      spaceSM; // 8px - Between dialog buttons
+  static const double modalPadding = spaceMD; // 16px - Modal internal padding
+
+  // Bottom sheet spacing
+  static const double bottomSheetPadding =
+      spaceMD; // 16px - Bottom sheet padding
+  static const double bottomSheetHandleWidth = 40.0; // Handle width
+  static const double bottomSheetHandleHeight = 4.0; // Handle height
+  static const double bottomNavBarHeight = 65.0; // Navigation bar height
+
+  // Post Card Spacing
+  static const double postHeaderPadding = spaceSM;
+  static const double postCaptionPadding = spaceMD;
+  static const double postActionsPadding = spaceSM;
+
+  // Borders
+  static const double borderWidthHairline = 0.5;
+  static const double borderWidthThin = 1.0;
+  static const double borderWidthThick = 2.0;
+
   // ===== ELEVATION/SHADOWS =====
   static const double elevation1 = 2.0; // Subtle
   static const double elevation2 = 4.0; // Standard
@@ -47,6 +109,7 @@ class DesignTokens {
       22.0; // Large headings (between XXL and XXXL)
   static const double fontSizeXXXL = 24.0; // Large headings
   static const double fontSizeDisplay = 32.0; // Display text
+  static const double fontSizeHero = 48.0; // Hero text (e.g. Profile emoji)
 
   // ===== LINE HEIGHTS =====
   static const double lineHeightTight = 1.2; // Headings

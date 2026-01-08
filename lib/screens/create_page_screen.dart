@@ -57,6 +57,7 @@ class _CreatePageScreenState extends State<CreatePageScreen> {
 
   @override
   void dispose() {
+    // CRITICAL: Dispose all text controllers
     _nameController.dispose();
     _handleController.dispose();
     _descriptionController.dispose();
@@ -64,6 +65,9 @@ class _CreatePageScreenState extends State<CreatePageScreen> {
     _websiteController.dispose();
     _contactEmailController.dispose();
     _contactPhoneController.dispose();
+    // CRITICAL: Clear image file references to free memory
+    _profileImage = null;
+    _coverImage = null;
     super.dispose();
   }
 
@@ -357,8 +361,7 @@ class _CreatePageScreenState extends State<CreatePageScreen> {
                                   child: SizedBox(
                                     width: 20,
                                     height: 20,
-                                    child: AppProgressIndicator(
-                                        strokeWidth: 2),
+                                    child: AppProgressIndicator(strokeWidth: 2),
                                   ),
                                 )
                               : null,

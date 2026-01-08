@@ -8,20 +8,12 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:60183775527:android:efd28f0a996a0085674102",
+        "mobilesdk_app_id": "1:60183775527:android:ee81b78fe213d33b674102",
         "android_client_info": {
-          "package_name": "com.example.freegram_fresh_start"
+          "package_name": "com.freegram.app"
         }
       },
       "oauth_client": [
-        {
-          "client_id": "60183775527-2t0jjrovodmnurvlj7g3afdkhiuf0921.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.example.freegram_fresh_start",
-            "certificate_hash": "80A972FD29AEC0DE7E8897822A98BE88ADD8C24D"
-          }
-        },
         {
           "client_id": "60183775527-mifomgjm2uvpt3esk1so8580asto7vk6.apps.googleusercontent.com",
           "client_type": 3

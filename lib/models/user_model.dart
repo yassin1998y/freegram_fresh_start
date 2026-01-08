@@ -44,6 +44,22 @@ class UserModel extends Equatable {
   final int coins;
   final int superLikes; // Keep this field
   final DateTime lastFreeSuperLike;
+
+  // --- GAMIFICATION FIELDS ---
+  final int lifetimeCoinsSpent; // For level calculation
+  final int userLevel; // Calculated from spending
+  final String? equippedBorderId; // Currently equipped border
+  final String? equippedBadgeId; // Currently equipped badge
+
+  // Inventory stats
+  final int totalGiftsReceived;
+  final int totalGiftsSent;
+  final int uniqueGiftsCollected;
+
+  // Engagement
+  final DateTime lastDailyRewardClaim;
+  final int dailyLoginStreak;
+  // ---------------------------
   // Removed equippedProfileFrameId
   // Removed equippedBadgeId
   // Removed xp
@@ -84,6 +100,17 @@ class UserModel extends Equatable {
     this.coins = 0,
     this.superLikes = 1, // Keep
     required this.lastFreeSuperLike,
+
+    // Gamification defaults
+    this.lifetimeCoinsSpent = 0,
+    this.userLevel = 1,
+    this.equippedBorderId,
+    this.equippedBadgeId,
+    this.totalGiftsReceived = 0,
+    this.totalGiftsSent = 0,
+    this.uniqueGiftsCollected = 0,
+    required this.lastDailyRewardClaim, // Initialize with epoch in factory
+    this.dailyLoginStreak = 0,
     // Remove fields from constructor
     this.nearbyStatusMessage = '',
     this.nearbyStatusEmoji = '',
@@ -92,6 +119,8 @@ class UserModel extends Equatable {
     this.sharedMusicTrack,
     this.nearbyDataVersion = 0,
   }) : uidShort = _uidShortFromFull(id);
+
+  bool get isOnline => presence;
 
   // _toDateTime, _getList, _getIntList remain the same
   static DateTime _toDateTime(dynamic timestamp) {
@@ -168,7 +197,7 @@ class UserModel extends Equatable {
 
     return UserModel(
       id: id,
-      username: data['username'] ?? 'Anonymous',
+      username: data['username'] ?? '',
       email: data['email'] ?? '',
       photoUrl: photoUrl,
       pictureVersion: data['pictureVersion'] ?? 0,
@@ -198,6 +227,17 @@ class UserModel extends Equatable {
       coins: data['coins'] ?? 0,
       superLikes: data['superLikes'] ?? 1, // Keep
       lastFreeSuperLike: _toDateTime(data['lastFreeSuperLike']),
+
+      // Gamification
+      lifetimeCoinsSpent: data['lifetimeCoinsSpent'] ?? 0,
+      userLevel: data['userLevel'] ?? 1,
+      equippedBorderId: data['equippedBorderId'],
+      equippedBadgeId: data['equippedBadgeId'],
+      totalGiftsReceived: data['totalGiftsReceived'] ?? 0,
+      totalGiftsSent: data['totalGiftsSent'] ?? 0,
+      uniqueGiftsCollected: data['uniqueGiftsCollected'] ?? 0,
+      lastDailyRewardClaim: _toDateTime(data['lastDailyRewardClaim']),
+      dailyLoginStreak: data['dailyLoginStreak'] ?? 0,
       // xp: data['xp'] ?? 0, // Removed
       // level: data['level'] ?? 1, // Removed
       // currentSeasonId: data['currentSeasonId'] ?? '', // Removed
@@ -245,6 +285,17 @@ class UserModel extends Equatable {
       'coins': coins,
       'superLikes': superLikes, // Keep
       'lastFreeSuperLike': lastFreeSuperLike.millisecondsSinceEpoch,
+
+      // Gamification
+      'lifetimeCoinsSpent': lifetimeCoinsSpent,
+      'userLevel': userLevel,
+      'equippedBorderId': equippedBorderId,
+      'equippedBadgeId': equippedBadgeId,
+      'totalGiftsReceived': totalGiftsReceived,
+      'totalGiftsSent': totalGiftsSent,
+      'uniqueGiftsCollected': uniqueGiftsCollected,
+      'lastDailyRewardClaim': lastDailyRewardClaim.millisecondsSinceEpoch,
+      'dailyLoginStreak': dailyLoginStreak,
       // 'xp': xp, // Removed
       // 'level': level, // Removed
       // 'currentSeasonId': currentSeasonId, // Removed
@@ -291,6 +342,9 @@ class UserModel extends Equatable {
         nearbyStatusMessage, nearbyStatusEmoji, nearbyDiscoveryStreak,
         lastNearbyDiscoveryDate,
         sharedMusicTrack, nearbyDataVersion, coins, // Added coins
+        lifetimeCoinsSpent, userLevel, equippedBorderId, equippedBadgeId,
+        totalGiftsReceived, totalGiftsSent, uniqueGiftsCollected,
+        lastDailyRewardClaim, dailyLoginStreak,
         // Removed: level
       ];
 }

@@ -9,6 +9,7 @@ import 'package:freegram/widgets/feed_widgets/post_video_player.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:freegram/screens/image_gallery_screen.dart';
 import 'package:freegram/widgets/lqip_image.dart';
+import 'package:freegram/services/cloudinary_service.dart';
 
 /// Post media component with AutomaticKeepAliveClientMixin
 ///
@@ -173,7 +174,12 @@ class _PostMediaState extends State<PostMedia>
                       tag: mediaItem.url,
                       child: widget.loadMedia
                           ? CachedNetworkImage(
-                              imageUrl: mediaItem.url,
+                              imageUrl: CloudinaryService.getOptimizedImageUrl(
+                                mediaItem.url,
+                                width: screenWidth
+                                    .toInt(), // Feed images max width
+                                quality: ImageQuality.medium,
+                              ),
                               fit: BoxFit.contain,
                               width: screenWidth,
                               placeholder: (context, url) => Container(

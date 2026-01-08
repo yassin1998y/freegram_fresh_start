@@ -6,7 +6,7 @@ import 'package:freegram/blocs/auth_bloc.dart';
 import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/navigation/app_routes.dart';
-import 'package:freegram/repositories/user_repository.dart';
+import 'package:freegram/services/user_stream_provider.dart';
 import 'package:freegram/screens/moderation_dashboard_screen.dart';
 import 'package:freegram/screens/feature_discovery_screen.dart';
 import 'package:freegram/screens/qr_display_screen.dart';
@@ -115,6 +115,11 @@ class _MenuScreenState extends State<MenuScreen> {
   @override
   void dispose() {
     _userStreamSubscription?.cancel();
+    // CRITICAL: Release user stream subscription
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      UserStreamProvider().releaseUserStream(currentUser.uid);
+    }
     super.dispose();
   }
 
@@ -127,7 +132,7 @@ class _MenuScreenState extends State<MenuScreen> {
       backgroundColor: theme.scaffoldBackgroundColor,
       body: StreamBuilder<UserModel>(
         stream: currentUser != null
-            ? locator<UserRepository>().getUserStream(currentUser.uid)
+            ? UserStreamProvider().getUserStream(currentUser.uid)
             : null,
         builder: (context, snapshot) {
           final user = snapshot.data;
@@ -564,6 +569,8 @@ class _MenuScreenState extends State<MenuScreen> {
       if (context.mounted) {
         showDialog(
           context: context,
+          useRootNavigator:
+              false, // CRITICAL FIX: Use inner navigator to access AuthBloc provider
           barrierDismissible: false,
           barrierColor: Theme.of(context).colorScheme.scrim.withOpacity(0.5),
           builder: (context) => WillPopScope(
@@ -621,8 +628,8 @@ class _MenuScreenState extends State<MenuScreen> {
               Container(
                 margin:
                     const EdgeInsets.symmetric(vertical: DesignTokens.spaceSM),
-                width: 40,
-                height: 4,
+                width: DesignTokens.bottomSheetHandleWidth,
+                height: DesignTokens.bottomSheetHandleHeight,
                 decoration: BoxDecoration(
                   color:
                       Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
@@ -776,8 +783,8 @@ class _MenuTile extends StatelessWidget {
             children: [
               // Icon container with background
               Container(
-                width: 40,
-                height: 40,
+                width: DesignTokens.iconXXL,
+                height: DesignTokens.iconXXL,
                 decoration: BoxDecoration(
                   color: (isDestructive
                           ? theme.colorScheme.error

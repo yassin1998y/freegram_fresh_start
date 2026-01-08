@@ -15,6 +15,8 @@ import 'package:freegram/widgets/freegram_app_bar.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:freegram/widgets/common/app_button.dart';
+import 'package:freegram/widgets/common/empty_state_widget.dart';
+import 'package:freegram/theme/design_tokens.dart';
 
 class NotificationsScreen extends StatelessWidget {
   // --- Added parameters for Modal Bottom Sheet (Fix #5) ---
@@ -71,7 +73,8 @@ class NotificationsScreen extends StatelessWidget {
                             : () {}, // Disabled state
                         color: hasUnread
                             ? null
-                            : Colors.grey, // Gray when disabled
+                            : SemanticColors.textSecondary(
+                                context), // Disabled color
                         isDisabled: !hasUnread,
                       );
                     },
@@ -114,24 +117,10 @@ class _NotificationsView extends StatelessWidget {
           final notifications = state.notifications;
           // Show empty state if no notifications
           if (notifications.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.notifications_off_outlined,
-                        size: 60, color: Colors.grey),
-                    SizedBox(height: 16),
-                    Text("No Notifications Yet",
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
-                    Text("Waves and friend requests will appear here.",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey)),
-                  ],
-                ),
-              ),
+            return const EmptyStateWidget(
+              icon: Icons.notifications_off_outlined,
+              title: 'No Notifications Yet',
+              subtitle: 'Waves and friend requests will appear here.',
             );
           }
 
@@ -147,15 +136,23 @@ class _NotificationsView extends StatelessWidget {
                 // Custom header for modal with close and mark all buttons
                 if (scrollController != null) // Only show header in modal
                   Container(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                    padding: const EdgeInsets.fromLTRB(
+                      DesignTokens.spaceMD,
+                      DesignTokens.spaceMD,
+                      DesignTokens.spaceMD,
+                      DesignTokens.spaceSM,
+                    ),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surface,
-                      borderRadius:
-                          const BorderRadius.vertical(top: Radius.circular(20)),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(DesignTokens.radiusXL),
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
+                          color: Colors.black.withOpacity(
+                            DesignTokens.opacityMedium,
+                          ),
+                          blurRadius: DesignTokens.elevation2,
                           offset: const Offset(0, -2),
                         ),
                       ],
@@ -164,17 +161,17 @@ class _NotificationsView extends StatelessWidget {
                       children: [
                         // Drag handle
                         Container(
-                          width: 40,
-                          height: 4,
+                          width: DesignTokens.bottomSheetHandleWidth,
+                          height: DesignTokens.bottomSheetHandleHeight,
                           decoration: BoxDecoration(
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSurface
-                                .withOpacity(0.3),
+                                .withOpacity(DesignTokens.opacityMedium),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: DesignTokens.spaceMD),
                         // Header row with title and buttons
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -286,37 +283,37 @@ class NotificationTile extends StatelessWidget {
     switch (notification.type) {
       case NotificationType.friendRequest:
         leadingIcon = Icons.person_add_alt_1;
-        leadingIconColor = Colors.blueAccent;
+        leadingIconColor = SemanticColors.info;
         notificationActionText = ' sent you a friend request.';
         break;
       case NotificationType.requestAccepted:
         leadingIcon = Icons.check_circle;
-        leadingIconColor = Colors.green;
+        leadingIconColor = SemanticColors.success;
         notificationActionText = ' accepted your friend request.';
         break;
       case NotificationType.superLike:
         leadingIcon = Icons.star;
-        leadingIconColor = Colors.amber;
+        leadingIconColor = SemanticColors.warning;
         notificationActionText = ' super liked you!';
         break;
       case NotificationType.nearbyWave:
         leadingIcon = Icons.waving_hand;
-        leadingIconColor = Colors.deepPurpleAccent;
+        leadingIconColor = Theme.of(context).colorScheme.secondary;
         notificationActionText = ' waved at you from nearby!';
         break;
       case NotificationType.comment:
         leadingIcon = Icons.comment;
-        leadingIconColor = Colors.blue;
+        leadingIconColor = SemanticColors.info;
         notificationActionText = ' commented on your post.';
         break;
       case NotificationType.reaction:
         leadingIcon = Icons.favorite;
-        leadingIconColor = Colors.red;
+        leadingIconColor = Theme.of(context).colorScheme.error;
         notificationActionText = ' liked your post.';
         break;
       case NotificationType.mention:
         leadingIcon = Icons.alternate_email;
-        leadingIconColor = Colors.purple;
+        leadingIconColor = Theme.of(context).colorScheme.secondary;
         notificationActionText = ' mentioned you in a post.';
         break;
     }
@@ -335,8 +332,8 @@ class NotificationTile extends StatelessWidget {
             horizontal: 20.0, vertical: 12.0), // Increased padding
         // Leading section with Avatar and Icon Overlay
         leading: SizedBox(
-          width: 60,
-          height: 60,
+          width: DesignTokens.avatarSizeLarge,
+          height: DesignTokens.avatarSizeLarge,
           child: Stack(
             clipBehavior: Clip.none, // Allow icon overlay to overflow
             children: [
@@ -382,7 +379,7 @@ class NotificationTile extends StatelessWidget {
                             style: TextStyle(
                               color: Theme.of(context).colorScheme.primary,
                               fontWeight: FontWeight.bold,
-                              fontSize: 18,
+                              fontSize: DesignTokens.fontSizeLG,
                             ),
                           )
                         : null,
@@ -394,7 +391,7 @@ class NotificationTile extends StatelessWidget {
                 bottom: 0,
                 right: 0,
                 child: Container(
-                  padding: const EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(DesignTokens.spaceXS),
                   decoration: BoxDecoration(
                     color: leadingIconColor,
                     shape: BoxShape.circle,
@@ -404,8 +401,10 @@ class NotificationTile extends StatelessWidget {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 4,
+                        color: Colors.black.withOpacity(
+                          DesignTokens.opacityMedium,
+                        ),
+                        blurRadius: DesignTokens.elevation1,
                         offset: const Offset(0, 2),
                       ),
                     ],
@@ -413,7 +412,7 @@ class NotificationTile extends StatelessWidget {
                   child: Icon(
                     leadingIcon,
                     color: Colors.white,
-                    size: 14,
+                    size: DesignTokens.iconSM,
                   ),
                 ),
               )
@@ -424,7 +423,7 @@ class NotificationTile extends StatelessWidget {
         title: RichText(
           text: TextSpan(
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontSize: 15,
+                  fontSize: DesignTokens.fontSizeMD,
                   fontWeight: isUnread ? FontWeight.w600 : FontWeight.normal,
                 ),
             children: [
@@ -450,11 +449,11 @@ class NotificationTile extends StatelessWidget {
         ),
         // Subtitle (Timestamp)
         subtitle: Padding(
-          padding: const EdgeInsets.only(top: 6.0),
+          padding: const EdgeInsets.only(top: DesignTokens.spaceXS),
           child: Text(
             timeago.format(notification.timestamp.toDate()),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontSize: 12,
+                  fontSize: DesignTokens.fontSizeXS,
                   color:
                       Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                 ),

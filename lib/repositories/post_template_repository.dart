@@ -89,7 +89,7 @@ class PostTemplateRepository {
         throw Exception('Template not found: $templateId');
       }
 
-      final templateData = templateDoc.data()!;
+      final templateData = templateDoc.data() ?? {};
       if (templateData['userId'] != userId) {
         throw Exception('User is not the owner of this template');
       }
@@ -128,7 +128,7 @@ class PostTemplateRepository {
         throw Exception('Template not found: $templateId');
       }
 
-      final templateData = templateDoc.data()!;
+      final templateData = templateDoc.data() ?? {};
       if (templateData['userId'] != userId) {
         throw Exception('User is not the owner of this template');
       }

@@ -9,6 +9,7 @@ import 'package:freegram/services/sonar/local_cache_service.dart';
 import 'package:freegram/repositories/user_repository.dart';
 import 'package:freegram/repositories/chat_repository.dart'; // <<<--- Added for Action Queue
 import 'package:freegram/repositories/action_queue_repository.dart'; // <<<--- Added for Action Queue
+import 'package:freegram/repositories/friend_repository.dart'; // <<<--- Added for FriendRepository
 // Models (Hive & Firestore)
 import 'package:freegram/models/hive/nearby_user.dart';
 import 'package:freegram/models/hive/user_profile.dart';
@@ -24,6 +25,7 @@ class SyncManager {
   final ConnectivityBloc _connectivityBloc;
   final LocalCacheService _localCacheService = locator<LocalCacheService>();
   final UserRepository _userRepository = locator<UserRepository>();
+  final FriendRepository _friendRepository = locator<FriendRepository>();
   // --- START: Added Repositories for Action Queue ---
   final ChatRepository _chatRepository = locator<ChatRepository>();
   final ActionQueueRepository _actionQueueRepository =
@@ -373,7 +375,7 @@ class SyncManager {
               final currentUserId = payload['currentUserId'] as String?;
               final requestingUserId = payload['requestingUserId'] as String?;
               if (currentUserId != null && requestingUserId != null) {
-                await _userRepository.acceptFriendRequest(
+                await _friendRepository.acceptFriendRequest(
                     currentUserId, requestingUserId,
                     isSync: true);
                 success = true;
@@ -539,7 +541,7 @@ class SyncManager {
 
         // debugPrint("SyncManager: Attempting to sync friend request via repo - From: $fromUserId, To (Resolved): $targetFullUuid");
         // Call repository to send the request
-        await _userRepository.sendFriendRequest(fromUserId, targetFullUuid,
+        await _friendRepository.sendFriendRequest(fromUserId, targetFullUuid,
             isSync: true);
 
         // Success - remove from queue

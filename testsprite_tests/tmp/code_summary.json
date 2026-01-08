@@ -1,0 +1,109 @@
+{
+  "tech_stack": [
+    "Dart",
+    "Flutter",
+    "Firebase Auth",
+    "Cloud Firestore",
+    "Firebase Cloud Functions",
+    "BLoC",
+    "video_player plugin"
+  ],
+  "features": [
+    {
+      "name": "Reels Feed Bloc",
+      "description": "Manages paginated reel loading, playback state, likes/shares, and integrates with Firebase Auth using BLoC events/states.",
+      "files": [
+        "lib/blocs/reels_feed/reels_feed_bloc.dart",
+        "lib/blocs/reels_feed/reels_feed_event.dart",
+        "lib/blocs/reels_feed/reels_feed_state.dart"
+      ]
+    },
+    {
+      "name": "Reel Repository",
+      "description": "Firestore data layer that fetches reels, handles likes/comments/shares, and computes trending reels with engagement scoring.",
+      "files": [
+        "lib/repositories/reel_repository.dart"
+      ]
+    },
+    {
+      "name": "Reels Feed Screen",
+      "description": "Full-screen vertical PageView UI that wires the BLoC to ReelsPlayer widgets, restores scroll state, and triggers intelligent prefetching.",
+      "files": [
+        "lib/screens/reels_feed_screen.dart",
+        "lib/widgets/reels/reels_player_widget.dart",
+        "lib/widgets/reels/reels_feed_app_bar.dart"
+      ]
+    },
+    {
+      "name": "Media Prefetch Service",
+      "description": "Handles reel/story video caching with adaptive bitrate selection, controller pooling, and memory pressure safeguards.",
+      "files": [
+        "lib/services/media_prefetch_service.dart",
+        "lib/services/network_quality_service.dart",
+        "lib/services/cache_manager_service.dart"
+      ]
+    },
+    {
+      "name": "Backend Cloud Functions",
+      "description": "Node/TypeScript functions located under functions/ supporting feed ranking, notifications, and Firebase integrations.",
+      "files": [
+        "functions/*"
+      ]
+    }
+  ]
+}
+{
+  "tech_stack": [
+    "Dart",
+    "Flutter",
+    "Firebase Auth",
+    "Cloud Firestore",
+    "Firebase Cloud Functions",
+    "BLoC",
+    "video_player plugin"
+  ],
+  "features": [
+    {
+      "name": "Reels Feed Bloc",
+      "description": "Manages paginated reel loading, playback state, likes/shares, and integrates with Firebase Auth using BLoC events/states.",
+      "files": [
+        "lib/blocs/reels_feed/reels_feed_bloc.dart",
+        "lib/blocs/reels_feed/reels_feed_event.dart",
+        "lib/blocs/reels_feed/reels_feed_state.dart"
+      ]
+    },
+    {
+      "name": "Reel Repository",
+      "description": "Firestore data layer that fetches reels, handles likes/comments/shares, and computes trending reels with engagement scoring.",
+      "files": [
+        "lib/repositories/reel_repository.dart"
+      ]
+    },
+    {
+      "name": "Reels Feed Screen",
+      "description": "Full-screen vertical PageView UI that wires the BLoC to ReelsPlayer widgets, restores scroll state, and triggers intelligent prefetching.",
+      "files": [
+        "lib/screens/reels_feed_screen.dart",
+        "lib/widgets/reels/reels_player_widget.dart",
+        "lib/widgets/reels/reels_feed_app_bar.dart"
+      ]
+    },
+    {
+      "name": "Media Prefetch Service",
+      "description": "Handles reel/story video caching with adaptive bitrate selection, controller pooling, and memory pressure safeguards.",
+      "files": [
+        "lib/services/media_prefetch_service.dart",
+        "lib/services/network_quality_service.dart",
+        "lib/services/cache_manager_service.dart"
+      ]
+    },
+    {
+      "name": "Backend Cloud Functions",
+      "description": "Node/TypeScript functions located under functions/ supporting feed ranking, notifications, and Firebase integrations.",
+      "files": [
+        "functions/*"
+      ]
+    }
+  ]
+}
+

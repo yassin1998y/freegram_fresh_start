@@ -1,7 +1,6 @@
 // lib/widgets/story_widgets/feed/create_story_card.dart
 
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/theme/app_theme.dart';
@@ -14,19 +13,19 @@ import 'package:freegram/utils/image_url_validator.dart';
 /// Shows user's profile picture with "Create a story" button
 /// Displays animated upload border when story is being uploaded
 class CreateStoryCard extends StatelessWidget {
-  final User? user;
+  final String? photoUrl;
   final VoidCallback onTap;
 
   const CreateStoryCard({
     Key? key,
-    required this.user,
+    required this.photoUrl,
     required this.onTap,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final profilePicUrl = user?.photoURL ?? '';
+    final profilePicUrl = photoUrl ?? '';
     final uploadProgressService = UploadProgressService();
 
     return Padding(

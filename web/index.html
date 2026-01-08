@@ -34,8 +34,21 @@
 
   <title>freegram_fresh_start</title>
   <link rel="manifest" href="manifest.json">
+  
+  <!-- Font Preconnects -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 </head>
 <body>
+  <!-- Firebase JS SDKs (Explicit Import to fix Dynamic Import Errors) -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js"></script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

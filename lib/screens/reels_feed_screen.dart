@@ -36,6 +36,8 @@ class _ReelsFeedScreenState extends State<ReelsFeedScreen> {
   final ReelUploadService _uploadService = ReelUploadService();
   final ReelsFeedStateService _stateService = ReelsFeedStateService();
   bool _hasInitialized = false;
+  late ReelsFeedBloc
+      _reelsFeedBloc; // CRITICAL: Create BLoC in initState for proper lifecycle
 
   // Phase 4.1: Track scroll velocity and timing for intelligent prefetching
   DateTime? _lastPageChangeTime;
@@ -53,6 +55,16 @@ class _ReelsFeedScreenState extends State<ReelsFeedScreen> {
     _prefetchService = locator<MediaPrefetchService>();
     // Listen to upload progress changes
     _uploadService.addListener(_onUploadProgressChanged);
+
+    // CRITICAL: Create BLoC in initState for proper lifecycle management
+    _reelsFeedBloc = ReelsFeedBloc(
+      reelRepository: locator(),
+      userRepository: locator(), // Add for personalized feed
+      usePersonalizedFeed: true, // Enable personalized algorithm
+    );
+
+    // Load reels feed
+    _reelsFeedBloc.add(const LoadReelsFeed());
 
     // Restore scroll position if available
     final savedIndex = _stateService.getSavedScrollPosition();
@@ -73,6 +85,8 @@ class _ReelsFeedScreenState extends State<ReelsFeedScreen> {
 
   @override
   void dispose() {
+    // CRITICAL: Close BLoC to prevent memory leaks
+    _reelsFeedBloc.close();
     // Save scroll position before disposing
     _stateService.saveScrollPosition(_currentIndex);
     _uploadService.removeListener(_onUploadProgressChanged);
@@ -98,16 +112,8 @@ class _ReelsFeedScreenState extends State<ReelsFeedScreen> {
           onCreateReel: () =>
               Navigator.pushNamed(context, AppRoutes.createReel),
         ),
-        body: BlocProvider(
-          create: (context) {
-            final bloc = ReelsFeedBloc(
-              reelRepository: locator(),
-            );
-            // Only load if not already loaded (check state service or load fresh)
-            // For now, always load - the BLoC will handle caching
-            bloc.add(const LoadReelsFeed());
-            return bloc;
-          },
+        body: BlocProvider.value(
+          value: _reelsFeedBloc, // CRITICAL: Use existing BLoC from initState
           child: BlocListener<ReelsFeedBloc, ReelsFeedState>(
             listener: (context, state) {
               // Phase 4.1: Track pause state for intelligent prefetching

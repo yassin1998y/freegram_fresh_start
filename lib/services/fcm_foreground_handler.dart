@@ -63,6 +63,10 @@ class FcmForegroundHandler {
       case 'mention':
         _handlePostNotification(data);
         break;
+      case 'reelLike':
+      case 'reelComment':
+        _handleReelNotification(data);
+        break;
       default:
         if (kDebugMode) {
           debugPrint('[FCM Foreground Handler] Unknown type: $type');
@@ -150,7 +154,7 @@ class FcmForegroundHandler {
     final commentId = data['commentId'];
     final fromUsername = data['fromUsername'] ?? 'Someone';
     final type = data['type'] ?? '';
-    
+
     String title;
     String body;
     IconData icon;
@@ -180,7 +184,8 @@ class FcmForegroundHandler {
 
     if (postId.isEmpty) {
       if (kDebugMode) {
-        debugPrint('[FCM Foreground Handler] Post ID is empty, skipping post notification');
+        debugPrint(
+            '[FCM Foreground Handler] Post ID is empty, skipping post notification');
       }
       return;
     }
@@ -201,7 +206,8 @@ class FcmForegroundHandler {
     );
 
     if (kDebugMode) {
-      debugPrint('[FCM Foreground Handler] Island popup shown for $type notification from $fromUsername');
+      debugPrint(
+          '[FCM Foreground Handler] Island popup shown for $type notification from $fromUsername');
     }
   }
 
@@ -238,6 +244,65 @@ class FcmForegroundHandler {
     if (kDebugMode) {
       debugPrint(
           '[FCM Foreground Handler] Island popup shown for request accepted from $fromUsername');
+    }
+  }
+
+  /// Handle reel-related notifications (like, comment)
+  void _handleReelNotification(Map<String, dynamic> data) {
+    final type = data['type'] ?? '';
+    final reelId = data['contentId'] ?? '';
+    final fromUsername = data['fromUsername'] ?? 'Someone';
+    final count = int.tryParse(data['count'] ?? '1') ?? 1;
+
+    if (kDebugMode) {
+      debugPrint(
+          '[FCM Foreground Handler] Handling reel notification: $type from $fromUsername');
+    }
+
+    // Determine icon and message based on type
+    IconData icon;
+    String title;
+    String message;
+
+    if (type == 'reelLike') {
+      icon = Icons.favorite;
+      title = 'Reel Like';
+      if (count == 1) {
+        message = '$fromUsername liked your reel';
+      } else {
+        message =
+            '$fromUsername and ${count - 1} other${count > 2 ? 's' : ''} liked your reel';
+      }
+    } else if (type == 'reelComment') {
+      icon = Icons.comment;
+      title = 'Reel Comment';
+      if (count == 1) {
+        message = '$fromUsername commented on your reel';
+      } else {
+        message =
+            '$fromUsername and ${count - 1} other${count > 2 ? 's' : ''} commented on your reel';
+      }
+    } else {
+      // Fallback for unknown reel notification types
+      icon = Icons.notifications;
+      title = 'Reel Notification';
+      message = '$fromUsername interacted with your reel';
+    }
+
+    _showIslandPopup(
+      icon: icon,
+      title: title,
+      message: message,
+      onTap: () {
+        if (reelId.isNotEmpty) {
+          _navigationService.navigateToReel(reelId);
+        }
+      },
+    );
+
+    if (kDebugMode) {
+      debugPrint(
+          '[FCM Foreground Handler] Island popup shown for reel notification from $fromUsername');
     }
   }
 

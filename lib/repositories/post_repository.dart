@@ -12,6 +12,19 @@ import 'package:freegram/services/mention_service.dart';
 import 'package:freegram/models/media_item_model.dart';
 import 'package:freegram/locator.dart';
 
+/// Cache entry for feed results
+class _CachedFeedResult {
+  final List<PostModel> posts;
+  final DocumentSnapshot? lastDocument;
+  final DateTime timestamp;
+
+  _CachedFeedResult({
+    required this.posts,
+    required this.lastDocument,
+    required this.timestamp,
+  });
+}
+
 class PostRepository {
   final FirebaseFirestore _db;
   final HashtagService _hashtagService;
@@ -23,6 +36,10 @@ class PostRepository {
 
   // Page cache: In-memory cache for paginated results
   final Map<String, List<PostModel>> _pageCache = {};
+
+  // Short-term cache: Cache feed results for 5 minutes to reduce Firestore reads
+  final Map<String, _CachedFeedResult> _feedCache = {};
+  static const Duration _feedCacheTTL = Duration(minutes: 5);
 
   PostRepository({
     FirebaseFirestore? firestore,
@@ -48,7 +65,8 @@ class PostRepository {
   /// Clear the page cache (called on "Pull to Refresh")
   void clearPageCache() {
     _pageCache.clear();
-    debugPrint('PostRepository: Page cache cleared');
+    _feedCache.clear(); // Also clear feed cache on refresh
+    debugPrint('PostRepository: Page cache and feed cache cleared');
   }
 
   /// Get feed for current user (friends + public posts + followed pages)
@@ -61,12 +79,27 @@ class PostRepository {
   ///
   /// Since Firestore doesn't support logical OR on different fields,
   /// we execute two separate queries and merge the results.
+  ///
+  /// OPTIMIZATION: Uses short-term caching (5 minutes) to reduce Firestore reads.
+  /// Cache is bypassed on pull-to-refresh or if lastDocument is provided (pagination).
   Future<(List<PostModel>, DocumentSnapshot?)> getFeedForUserWithPagination({
     required String userId,
     DocumentSnapshot? lastDocument,
     int limit = 10,
+    bool forceRefresh = false,
   }) async {
     try {
+      // Check cache first (only for first page, not pagination)
+      if (!forceRefresh && lastDocument == null) {
+        final cacheKey = 'feed_$userId';
+        final cached = _feedCache[cacheKey];
+        if (cached != null &&
+            DateTime.now().difference(cached.timestamp) < _feedCacheTTL) {
+          debugPrint('PostRepository: Returning cached feed for $userId');
+          return (cached.posts, cached.lastDocument);
+        }
+      }
+
       // Get user's friends list AND followed pages
       final userDoc = await _db.collection('users').doc(userId).get();
       if (!userDoc.exists) {
@@ -74,7 +107,7 @@ class PostRepository {
         return (<PostModel>[], null);
       }
 
-      final userData = userDoc.data()!;
+      final userData = userDoc.data() ?? {};
       final friends = List<String>.from(userData['friends'] ?? []);
       final followedPages = List<String>.from(userData['followedPages'] ?? []);
 
@@ -103,8 +136,12 @@ class PostRepository {
 
       // Execute query1
       final snapshot1 = await query1.get();
-      final friendPosts =
-          snapshot1.docs.map((doc) => PostModel.fromDoc(doc)).toList();
+      // CRITICAL: Filter out current user's posts to prevent duplicates with getUserPosts
+      final friendPosts = snapshot1.docs
+          .map((doc) => PostModel.fromDoc(doc))
+          .where(
+              (post) => post.authorId != userId) // Exclude current user's posts
+          .toList();
 
       // Query 2: Posts from followed pages (if any)
       List<PostModel> pagePosts = [];
@@ -158,9 +195,23 @@ class PostRepository {
       // Apply pagination limit
       final limitedPosts = allPosts.take(limit).toList();
 
-      // Return lastDoc from query1 for pagination (simplified approach)
-      // In production, you might want more sophisticated pagination handling
-      final lastDoc = snapshot1.docs.isNotEmpty ? snapshot1.docs.last : null;
+      // Get last document for pagination
+      DocumentSnapshot? lastDoc;
+      if (limitedPosts.isNotEmpty && snapshot1.docs.isNotEmpty) {
+        // Use the last document from query1 for pagination
+        lastDoc = snapshot1.docs.last;
+      }
+
+      // Cache the result (only for first page)
+      if (lastDocument == null) {
+        final cacheKey = 'feed_$userId';
+        _feedCache[cacheKey] = _CachedFeedResult(
+          posts: limitedPosts,
+          lastDocument: lastDoc,
+          timestamp: DateTime.now(),
+        );
+        debugPrint('PostRepository: Cached feed for $userId');
+      }
 
       debugPrint(
         'PostRepository: Feed fetched ${limitedPosts.length} posts '
@@ -238,6 +289,44 @@ class PostRepository {
     } catch (e) {
       debugPrint('PostRepository: Error getting trending posts: $e');
       rethrow;
+    }
+  }
+
+  /// Get global trending posts (for new users)
+  /// Fetches high-engagement posts from the last 24 hours
+  Future<List<PostModel>> getGlobalTrendingPosts({int limit = 20}) async {
+    try {
+      final now = DateTime.now();
+      final yesterday = now.subtract(const Duration(hours: 24));
+
+      // Query posts from last 24h, ordered by reaction count
+      // Note: Requires composite index on [deleted, visibility, timestamp, reactionCount]
+      final query = _db
+          .collection('posts')
+          .where('deleted', isEqualTo: false)
+          .where('visibility', isEqualTo: 'public')
+          .where('timestamp', isGreaterThan: Timestamp.fromDate(yesterday))
+          .orderBy('timestamp', descending: true)
+          .orderBy('reactionCount', descending: true)
+          .limit(limit);
+
+      final snapshot = await query.get();
+
+      // If not enough recent posts, fall back to all-time trending
+      if (snapshot.docs.length < 5) {
+        return getTrendingPosts(timeFilter: TimeFilter.thisWeek, limit: limit);
+      }
+
+      return snapshot.docs.map((doc) => PostModel.fromDoc(doc)).toList();
+    } catch (e) {
+      debugPrint('PostRepository: Error getting global trending posts: $e');
+      // Fallback to simple trending query on error (likely index missing)
+      try {
+        return getTrendingPosts(timeFilter: TimeFilter.allTime, limit: limit);
+      } catch (fallbackError) {
+        debugPrint('PostRepository: Fallback failed: $fallbackError');
+        return [];
+      }
     }
   }
 
@@ -343,7 +432,7 @@ class PostRepository {
         throw Exception('User not found: $userId');
       }
 
-      final userData = userDoc.data()!;
+      final userData = userDoc.data() ?? {};
       String authorUsername = userData['username'] ?? 'Anonymous';
       String authorPhotoUrl = userData['photoUrl'] ?? '';
 
@@ -358,7 +447,7 @@ class PostRepository {
           throw Exception('Page not found: $pageId');
         }
 
-        final pageData = pageDoc.data()!;
+        final pageData = pageDoc.data() ?? {};
         final page = PageModel.fromDoc(pageDoc);
 
         // Verify user has permission to post as this page
@@ -506,7 +595,7 @@ class PostRepository {
         throw Exception('Post not found: $postId');
       }
 
-      final postData = postDoc.data()!;
+      final postData = postDoc.data() ?? {};
       if (postData['authorId'] != userId) {
         throw Exception('User is not the author of this post');
       }
@@ -572,7 +661,7 @@ class PostRepository {
         throw Exception('Post not found: $postId');
       }
 
-      final postData = postDoc.data()!;
+      final postData = postDoc.data() ?? {};
       if (postData['authorId'] != userId) {
         throw Exception('User is not the author of this post');
       }
@@ -614,7 +703,7 @@ class PostRepository {
         throw Exception('Post not found: $postId');
       }
 
-      final postData = postDoc.data()!;
+      final postData = postDoc.data() ?? {};
       if (postData['authorId'] != userId) {
         throw Exception('User is not the author of this post');
       }
@@ -638,7 +727,7 @@ class PostRepository {
         throw Exception('Post not found: $postId');
       }
 
-      final postData = postDoc.data()!;
+      final postData = postDoc.data() ?? {};
       if (postData['authorId'] != userId) {
         throw Exception('User is not the author of this post');
       }
@@ -682,7 +771,7 @@ class PostRepository {
         throw Exception('Post not found: $postId');
       }
 
-      final postData = postDoc.data()!;
+      final postData = postDoc.data() ?? {};
       if (postData['authorId'] != userId) {
         throw Exception('User is not the author of this post');
       }
@@ -705,7 +794,7 @@ class PostRepository {
           .collection('posts')
           .where('deleted', isEqualTo: false)
           .orderBy('timestamp', descending: true)
-          .limit(50) // Increased limit to account for filtering
+          .limit(30) // OPTIMIZED: Reduced from 50 to 30 to reduce reads
           .snapshots()
           .asyncMap((snapshot) async {
         // Get user's friends list AND followed pages
@@ -714,7 +803,7 @@ class PostRepository {
           return <PostModel>[];
         }
 
-        final userData = userDoc.data()!;
+        final userData = userDoc.data() ?? {};
         final friends = List<String>.from(userData['friends'] ?? []);
         final followedPages =
             List<String>.from(userData['followedPages'] ?? []);
@@ -888,7 +977,7 @@ class PostRepository {
         throw Exception('User not found: $userId');
       }
 
-      final userData = userDoc.data()!;
+      final userData = userDoc.data() ?? {};
       final username = userData['username'] ?? 'Anonymous';
       final photoUrl = userData['photoUrl'] ?? '';
 
@@ -1074,7 +1163,7 @@ class PostRepository {
           .collection('comments')
           .where('deleted', isEqualTo: false)
           .orderBy('timestamp', descending: false)
-          .limit(50)
+          .limit(30) // OPTIMIZED: Reduced from 50 to 30 to reduce reads
           .snapshots()
           .map((snapshot) =>
               snapshot.docs.map((doc) => CommentModel.fromDoc(doc)).toList());
@@ -1108,8 +1197,8 @@ class PostRepository {
           throw Exception('Post not found: $postId');
         }
 
-        final userData = userDoc.data()!;
-        final postData = postDoc.data()!;
+        final userData = userDoc.data() ?? {};
+        final postData = postDoc.data() ?? {};
 
         // 2. Verify ownership
         if (postData['authorId'] != userId) {
@@ -1568,14 +1657,14 @@ class PostRepository {
         return [];
       }
 
-      final userData = userDoc.data()!;
+      final userData = userDoc.data() ?? {};
       final friends = List<String>.from(userData['friends'] ?? []);
       final followedPages = List<String>.from(userData['followedPages'] ?? []);
 
       // Step 2: Create list of futures for parallel queries
       final queries = <Future<QuerySnapshot>>[];
 
-      // Query 1: Posts from friends (limit 100 per batch)
+      // Query 1: Posts from friends (limit 50 per batch to reduce reads)
       // Firestore 'whereIn' limit is 10, so batch if needed
       if (friends.isNotEmpty) {
         for (int i = 0; i < friends.length; i += 10) {
@@ -1589,13 +1678,13 @@ class PostRepository {
                 .where('deleted', isEqualTo: false)
                 .where('authorId', whereIn: batch)
                 .orderBy('timestamp', descending: true)
-                .limit(100)
+                .limit(50) // OPTIMIZED: Reduced from 100 to 50
                 .get(),
           );
         }
       }
 
-      // Query 2: Posts from followed pages (limit 100 per batch)
+      // Query 2: Posts from followed pages (limit 50 per batch to reduce reads)
       if (followedPages.isNotEmpty) {
         for (int i = 0; i < followedPages.length; i += 10) {
           final batch = followedPages.sublist(
@@ -1608,20 +1697,20 @@ class PostRepository {
                 .where('deleted', isEqualTo: false)
                 .where('pageId', whereIn: batch)
                 .orderBy('timestamp', descending: true)
-                .limit(100)
+                .limit(50) // OPTIMIZED: Reduced from 100 to 50
                 .get(),
           );
         }
       }
 
-      // Query 3: Trending posts (limit 50)
+      // Query 3: Trending posts (limit 30 to reduce reads)
       queries.add(
         _db
             .collection('posts')
             .where('deleted', isEqualTo: false)
             .where('visibility', isEqualTo: 'public')
             .orderBy('trendingScore', descending: true)
-            .limit(50)
+            .limit(30) // OPTIMIZED: Reduced from 50 to 30
             .get(),
       );
 

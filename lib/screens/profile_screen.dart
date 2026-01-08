@@ -8,6 +8,7 @@ import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/chat_repository.dart';
 import 'package:freegram/repositories/user_repository.dart';
+import 'package:freegram/repositories/friend_repository.dart';
 import 'package:freegram/screens/improved_chat_screen.dart';
 import 'package:freegram/screens/edit_profile_screen.dart';
 import 'package:freegram/theme/app_theme.dart';
@@ -20,6 +21,8 @@ import 'package:freegram/widgets/feed_widgets/post_card.dart';
 import 'package:freegram/models/feed_item_model.dart';
 import 'package:freegram/widgets/reels/user_reels_tab.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/widgets/profile/gift_showcase.dart';
+import 'package:freegram/screens/analytics_dashboard_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String userId;
@@ -32,6 +35,7 @@ class ProfileScreen extends StatelessWidget {
     return BlocProvider(
       create: (context) => FriendsBloc(
         userRepository: locator<UserRepository>(),
+        friendRepository: locator<FriendRepository>(),
       )..add(LoadFriends()),
       child: _ProfileScreenView(userId: userId),
     );
@@ -540,16 +544,17 @@ class _ModernProfileHeader extends StatelessWidget {
           const SizedBox(height: DesignTokens.spaceMD),
         ],
 
-        // Info Card
-        _buildInfoCard(context),
-
-        const SizedBox(height: DesignTokens.spaceMD),
-
         // Interests Card (if available)
         if (user.interests.isNotEmpty) ...[
           _buildInterestsCard(context),
           const SizedBox(height: DesignTokens.spaceMD),
         ],
+
+        // Gift Showcase
+        GiftShowcase(
+          userId: user.id,
+          isOwnProfile: isCurrentUserProfile,
+        ),
 
         const SizedBox(height: DesignTokens.spaceXL),
       ],
@@ -588,7 +593,7 @@ class _ModernProfileHeader extends StatelessWidget {
                             ? user.username[0].toUpperCase()
                             : '?',
                         style: const TextStyle(
-                          fontSize: 48,
+                          fontSize: DesignTokens.fontSizeHero,
                           fontWeight: FontWeight.bold,
                         ),
                       )
@@ -640,25 +645,54 @@ class _ModernProfileHeader extends StatelessWidget {
 
   /// Action buttons for current user (Edit Profile)
   Widget _buildCurrentUserActions(BuildContext context) {
-    return ElevatedButton.icon(
-      onPressed: () {
-        HapticFeedback.lightImpact();
-        locator<NavigationService>().navigateTo(
-          EditProfileScreen(currentUserData: user.toMap()),
-          transition: PageTransition.slide,
-        );
-      },
-      icon: const Icon(Icons.edit_outlined, size: 20),
-      label: const Text('Edit Profile'),
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(
-          horizontal: DesignTokens.spaceLG,
-          vertical: DesignTokens.spaceMD,
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              locator<NavigationService>().navigateTo(
+                EditProfileScreen(currentUserData: user.toMap()),
+                transition: PageTransition.slide,
+              );
+            },
+            icon: const Icon(Icons.edit_outlined, size: 20),
+            label: const Text('Edit Profile'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(
+                horizontal: DesignTokens.spaceMD,
+                vertical: DesignTokens.spaceMD,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+              ),
+            ),
+          ),
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+        const SizedBox(width: DesignTokens.spaceSM),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              locator<NavigationService>().navigateTo(
+                const AnalyticsDashboardScreen(),
+                transition: PageTransition.slide,
+              );
+            },
+            icon: const Icon(Icons.analytics_outlined, size: 20),
+            label: const Text('Analytics'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(
+                horizontal: DesignTokens.spaceMD,
+                vertical: DesignTokens.spaceMD,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+              ),
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -804,6 +838,33 @@ class _ModernProfileHeader extends StatelessWidget {
                   icon: const Icon(Icons.chat_bubble_outline, size: 20),
                   label: const Text('Message'),
                   style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: DesignTokens.spaceMD,
+                      vertical: DesignTokens.spaceMD,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusMD),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spaceMD),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.pushNamed(
+                      context,
+                      '/giftSendSelection',
+                      arguments: {'recipient': user},
+                    );
+                  },
+                  icon: const Icon(Icons.card_giftcard, size: 20),
+                  label: const Text('Send Gift'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: DesignTokens.spaceMD,
                       vertical: DesignTokens.spaceMD,
@@ -1005,117 +1066,6 @@ class _ModernProfileHeader extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  /// Info card with personal details
-  Widget _buildInfoCard(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
-      padding: const EdgeInsets.all(DesignTokens.spaceLG),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).colorScheme.scrim.withOpacity(0.05),
-            blurRadius: DesignTokens.elevation2,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.badge_outlined,
-                size: 20,
-                color: SonarPulseTheme.primaryAccent,
-              ),
-              const SizedBox(width: DesignTokens.spaceSM),
-              Text(
-                'Information',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-            ],
-          ),
-          const SizedBox(height: DesignTokens.spaceMD),
-          _buildInfoRow(
-            context,
-            icon: Icons.person_outline,
-            label: 'Username',
-            value: user.username,
-          ),
-          if (user.age > 0) ...[
-            const SizedBox(height: DesignTokens.spaceSM),
-            _buildInfoRow(
-              context,
-              icon: Icons.cake_outlined,
-              label: 'Age',
-              value: user.age.toString(),
-            ),
-          ],
-          if (user.gender.isNotEmpty) ...[
-            const SizedBox(height: DesignTokens.spaceSM),
-            _buildInfoRow(
-              context,
-              icon: user.gender.toLowerCase() == 'male'
-                  ? Icons.man_outlined
-                  : user.gender.toLowerCase() == 'female'
-                      ? Icons.woman_outlined
-                      : Icons.person_outline,
-              label: 'Gender',
-              value: user.gender,
-            ),
-          ],
-          if (user.country.isNotEmpty) ...[
-            const SizedBox(height: DesignTokens.spaceSM),
-            _buildInfoRow(
-              context,
-              icon: Icons.location_on_outlined,
-              label: 'Country',
-              value: user.country,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 18,
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-        ),
-        const SizedBox(width: DesignTokens.spaceSM),
-        Text(
-          '$label:',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-              ),
-        ),
-        const SizedBox(width: DesignTokens.spaceXS),
-        Expanded(
-          child: Text(
-            value,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-          ),
-        ),
-      ],
     );
   }
 

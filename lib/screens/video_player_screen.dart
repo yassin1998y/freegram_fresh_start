@@ -233,8 +233,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.error_outline, color: Colors.white, size: 48),
-                    SizedBox(height: 16),
+                    Icon(Icons.error_outline,
+                        color: Colors.white, size: DesignTokens.iconXXL),
+                    SizedBox(height: DesignTokens.spaceMD),
                     Text(
                       'Failed to load video',
                       style: TextStyle(color: Colors.white),
@@ -294,7 +295,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Top spacing
-          const SizedBox(height: 60),
+          const SizedBox(height: DesignTokens.spaceXXXL),
 
           // Center play/pause button
           Center(
@@ -302,7 +303,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               icon: Icon(
                 _isPlaying ? Icons.pause : Icons.play_arrow,
                 color: Colors.white,
-                size: 64,
+                size: DesignTokens.iconXXL * 2,
               ),
               onPressed: _handlePlayPause,
             ),
@@ -345,7 +346,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       '${_formatDuration(position)} / ${_formatDuration(duration)}',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 14,
+                        fontSize: DesignTokens.fontSizeSM,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -355,7 +356,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       icon: Icon(
                         _isMuted ? Icons.volume_off : Icons.volume_up,
                         color: Colors.white,
-                        size: 28,
+                        size: DesignTokens.iconLG,
                       ),
                       onPressed: _toggleMute,
                     ),

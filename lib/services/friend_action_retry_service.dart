@@ -5,10 +5,10 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:freegram/repositories/action_queue_repository.dart';
-import 'package:freegram/repositories/user_repository.dart';
+import 'package:freegram/repositories/friend_repository.dart';
 
 class FriendActionRetryService {
-  final UserRepository _userRepository;
+  final FriendRepository _friendRepository;
   final ActionQueueRepository _actionQueue;
   final Connectivity _connectivity;
 
@@ -16,10 +16,10 @@ class FriendActionRetryService {
   StreamSubscription<ConnectivityResult>? _connectivitySubscription;
 
   FriendActionRetryService({
-    required UserRepository userRepository,
+    required FriendRepository friendRepository,
     required ActionQueueRepository actionQueue,
     Connectivity? connectivity,
-  })  : _userRepository = userRepository,
+  })  : _friendRepository = friendRepository,
         _actionQueue = actionQueue,
         _connectivity = connectivity ?? Connectivity();
 
@@ -81,7 +81,7 @@ class FriendActionRetryService {
 
         switch (type) {
           case 'sendFriendRequest':
-            await _userRepository.sendFriendRequest(
+            await _friendRepository.sendFriendRequest(
               payload['currentUserId'] as String,
               payload['targetUserId'] as String,
               message: payload['message'] as String?,
@@ -89,42 +89,42 @@ class FriendActionRetryService {
             break;
 
           case 'acceptFriendRequest':
-            await _userRepository.acceptFriendRequest(
+            await _friendRepository.acceptFriendRequest(
               payload['currentUserId'] as String,
               payload['requestingUserId'] as String,
             );
             break;
 
           case 'declineFriendRequest':
-            await _userRepository.declineFriendRequest(
+            await _friendRepository.declineFriendRequest(
               payload['currentUserId'] as String,
               payload['requestingUserId'] as String,
             );
             break;
 
           case 'cancelFriendRequest':
-            await _userRepository.cancelFriendRequest(
+            await _friendRepository.cancelFriendRequest(
               payload['currentUserId'] as String,
               payload['targetUserId'] as String,
             );
             break;
 
           case 'removeFriend':
-            await _userRepository.removeFriend(
+            await _friendRepository.removeFriend(
               payload['currentUserId'] as String,
               payload['friendId'] as String,
             );
             break;
 
           case 'blockUser':
-            await _userRepository.blockUser(
+            await _friendRepository.blockUser(
               payload['currentUserId'] as String,
               payload['userToBlockId'] as String,
             );
             break;
 
           case 'unblockUser':
-            await _userRepository.unblockUser(
+            await _friendRepository.unblockUser(
               payload['currentUserId'] as String,
               payload['userToUnblockId'] as String,
             );

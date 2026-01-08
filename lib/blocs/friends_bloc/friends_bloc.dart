@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/action_queue_repository.dart';
+import 'package:freegram/repositories/friend_repository.dart';
 import 'package:freegram/repositories/user_repository.dart';
 import 'package:freegram/services/friend_cache_service.dart';
 import 'package:freegram/services/friend_request_rate_limiter.dart';
@@ -16,6 +17,7 @@ part 'friends_state.dart';
 
 class FriendsBloc extends Bloc<FriendsEvent, FriendsState> {
   final UserRepository _userRepository;
+  final FriendRepository _friendRepository;
   final FirebaseAuth _firebaseAuth;
   final ActionQueueRepository _actionQueue;
   final Connectivity _connectivity;
@@ -24,10 +26,12 @@ class FriendsBloc extends Bloc<FriendsEvent, FriendsState> {
 
   FriendsBloc({
     required UserRepository userRepository,
+    required FriendRepository friendRepository,
     FirebaseAuth? firebaseAuth,
     ActionQueueRepository? actionQueue,
     Connectivity? connectivity,
   })  : _userRepository = userRepository,
+        _friendRepository = friendRepository,
         _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
         _actionQueue = actionQueue ?? locator<ActionQueueRepository>(),
         _connectivity = connectivity ?? Connectivity(),
@@ -176,12 +180,22 @@ class FriendsBloc extends Bloc<FriendsEvent, FriendsState> {
         nearbyStatusEmoji: currentState.user.nearbyStatusEmoji,
         nearbyStatusMessage: currentState.user.nearbyStatusMessage,
         sharedMusicTrack: currentState.user.sharedMusicTrack,
+        // Gamification fields
+        lifetimeCoinsSpent: currentState.user.lifetimeCoinsSpent,
+        userLevel: currentState.user.userLevel,
+        equippedBorderId: currentState.user.equippedBorderId,
+        equippedBadgeId: currentState.user.equippedBadgeId,
+        totalGiftsReceived: currentState.user.totalGiftsReceived,
+        totalGiftsSent: currentState.user.totalGiftsSent,
+        uniqueGiftsCollected: currentState.user.uniqueGiftsCollected,
+        lastDailyRewardClaim: currentState.user.lastDailyRewardClaim,
+        dailyLoginStreak: currentState.user.dailyLoginStreak,
       );
 
       emit(FriendsRequestSent(user: optimisticUser));
 
       // Send request with optional message (handles offline queuing)
-      await _userRepository.sendFriendRequest(
+      await _friendRepository.sendFriendRequest(
         user.uid,
         event.toUserId,
         message: event.message,
@@ -254,12 +268,22 @@ class FriendsBloc extends Bloc<FriendsEvent, FriendsState> {
         nearbyStatusEmoji: currentState.user.nearbyStatusEmoji,
         nearbyStatusMessage: currentState.user.nearbyStatusMessage,
         sharedMusicTrack: currentState.user.sharedMusicTrack,
+        // Gamification fields
+        lifetimeCoinsSpent: currentState.user.lifetimeCoinsSpent,
+        userLevel: currentState.user.userLevel,
+        equippedBorderId: currentState.user.equippedBorderId,
+        equippedBadgeId: currentState.user.equippedBadgeId,
+        totalGiftsReceived: currentState.user.totalGiftsReceived,
+        totalGiftsSent: currentState.user.totalGiftsSent,
+        uniqueGiftsCollected: currentState.user.uniqueGiftsCollected,
+        lastDailyRewardClaim: currentState.user.lastDailyRewardClaim,
+        dailyLoginStreak: currentState.user.dailyLoginStreak,
       );
 
       emit(FriendsLoaded(user: optimisticUser));
 
       // Cancel request in repository
-      await _userRepository.cancelFriendRequest(user.uid, event.toUserId);
+      await _friendRepository.cancelFriendRequest(user.uid, event.toUserId);
 
       emit(const FriendsActionSuccess('Friend request canceled.'));
       if (kDebugMode) {
@@ -288,7 +312,7 @@ class FriendsBloc extends Bloc<FriendsEvent, FriendsState> {
         debugPrint(
             '[FriendsBloc] Accepting friend request from ${event.fromUserId}');
       }
-      await _userRepository.acceptFriendRequest(user.uid, event.fromUserId);
+      await _friendRepository.acceptFriendRequest(user.uid, event.fromUserId);
 
       // Invalidate cache for both users
       try {
@@ -329,7 +353,7 @@ class FriendsBloc extends Bloc<FriendsEvent, FriendsState> {
         debugPrint(
             '[FriendsBloc] Declining friend request from ${event.fromUserId}');
       }
-      await _userRepository.declineFriendRequest(user.uid, event.fromUserId);
+      await _friendRepository.declineFriendRequest(user.uid, event.fromUserId);
       emit(const FriendsActionSuccess('Friend request declined.'));
       if (kDebugMode) {
         debugPrint('[FriendsBloc] Friend request declined successfully');
@@ -354,7 +378,7 @@ class FriendsBloc extends Bloc<FriendsEvent, FriendsState> {
       if (kDebugMode) {
         debugPrint('[FriendsBloc] Removing friend ${event.friendId}');
       }
-      await _userRepository.removeFriend(user.uid, event.friendId);
+      await _friendRepository.removeFriend(user.uid, event.friendId);
       emit(const FriendsActionSuccess('Friend removed successfully.'));
       if (kDebugMode) {
         debugPrint('[FriendsBloc] Friend removed successfully');
@@ -378,7 +402,7 @@ class FriendsBloc extends Bloc<FriendsEvent, FriendsState> {
       if (kDebugMode) {
         debugPrint('[FriendsBloc] Blocking user ${event.userIdToBlock}');
       }
-      await _userRepository.blockUser(user.uid, event.userIdToBlock);
+      await _friendRepository.blockUser(user.uid, event.userIdToBlock);
 
       try {
         final cacheService = locator<FriendCacheService>();
@@ -415,7 +439,7 @@ class FriendsBloc extends Bloc<FriendsEvent, FriendsState> {
       if (kDebugMode) {
         debugPrint('[FriendsBloc] Unblocking user ${event.userIdToUnblock}');
       }
-      await _userRepository.unblockUser(user.uid, event.userIdToUnblock);
+      await _friendRepository.unblockUser(user.uid, event.userIdToUnblock);
       emit(const FriendsActionSuccess('User unblocked successfully.'));
       if (kDebugMode) {
         debugPrint('[FriendsBloc] User unblocked successfully');

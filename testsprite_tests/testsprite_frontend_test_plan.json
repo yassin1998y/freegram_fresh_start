@@ -1,0 +1,558 @@
+[
+  {
+    "id": "TC001",
+    "title": "User Authentication - Successful Login",
+    "description": "Verify that user can login successfully with valid credentials using all supported authentication methods.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to login screen."
+      },
+      {
+        "type": "action",
+        "description": "Select an authentication method (email/password, social login etc.)."
+      },
+      {
+        "type": "action",
+        "description": "Enter valid credentials or complete social login flow."
+      },
+      {
+        "type": "action",
+        "description": "Submit login request."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify user is authenticated and navigated to the main screen."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify secure session is established."
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "User Authentication - Failed Login",
+    "description": "Verify login fails when invalid credentials are provided and appropriate error messages are shown.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to login screen."
+      },
+      {
+        "type": "action",
+        "description": "Enter invalid username/email and/or password."
+      },
+      {
+        "type": "action",
+        "description": "Submit login request."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify login is denied with an error message indicating invalid credentials."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no session is established."
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Reels Feed Loading and Pagination",
+    "description": "Verify the reels feed loads reels correctly with infinite scroll pagination and smooth playback.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to Reels feed screen."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify initial reels load without delay."
+      },
+      {
+        "type": "action",
+        "description": "Scroll through Reels feed to trigger pagination."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify new reels load dynamically without UI freezes."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify each reel auto-plays on screen with no playback lag."
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Reels Feed Interaction - Like, Share and Comment",
+    "description": "Verify user can like, share, and comment on reels, with real-time updates reflected.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to Reels feed screen."
+      },
+      {
+        "type": "action",
+        "description": "Select a reel to interact."
+      },
+      {
+        "type": "action",
+        "description": "Like the reel."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the like count increments immediately."
+      },
+      {
+        "type": "action",
+        "description": "Share the reel using the share options."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify share dialog appears and sharing completes without error."
+      },
+      {
+        "type": "action",
+        "description": "Add a comment on the reel."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify comment is visible immediately in the comments section."
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Virtual Gifting System - Gift Sending Flow",
+    "description": "Validate full gift sending process including gift selection, message composition, sending, and notification display.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open a chat or user profile."
+      },
+      {
+        "type": "action",
+        "description": "Select a gift from various rarity tiers."
+      },
+      {
+        "type": "action",
+        "description": "Compose an optional gift message."
+      },
+      {
+        "type": "action",
+        "description": "Send the gift to the recipient."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the gift is deducted from sender's coin balance."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the recipient receives a notification."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify animated gift display appears in chat and gift showcase."
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Chat Functionality - Real-time Messaging and Media Sharing",
+    "description": "Verify chat messages, including text, media, and gifts, send and receive in real-time with correct display.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open a real-time chat session."
+      },
+      {
+        "type": "action",
+        "description": "Send a text message."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the recipient receives the text message instantly."
+      },
+      {
+        "type": "action",
+        "description": "Send a media file (image/video)."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify media file is received and correctly rendered."
+      },
+      {
+        "type": "action",
+        "description": "Send a gift within the chat."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the gift animation and info appear in chat."
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Ephemeral Stories - Posting, Viewing, and Expiration",
+    "description": "Verify stories can be posted with various media types and expire correctly after 24 hours with privacy controls enforced.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Post a story with photo, video, and text overlay capabilities."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the story appears in the user's story feed."
+      },
+      {
+        "type": "action",
+        "description": "Set various privacy options for the story."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify stories are visible only to allowed users based on privacy."
+      },
+      {
+        "type": "action",
+        "description": "Wait 24 hours (or simulate expiration)."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the story is automatically removed and no longer visible."
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Friend System - Friend Requests and Privacy",
+    "description": "Ensure friend request sending, acceptance, rejection, and privacy settings behave correctly with caching optimizations.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Send a friend request to another user."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the recipient receives and can view the friend request."
+      },
+      {
+        "type": "action",
+        "description": "Accept the friend request."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify both users show as friends and permissions apply accordingly."
+      },
+      {
+        "type": "action",
+        "description": "Set friend privacy options (e.g. who can see posts)."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify posts visibility respects the privacy settings."
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Nearby Discovery - Location and Bluetooth Permissions and UI",
+    "description": "Validate that enabling location and Bluetooth permissions triggers accurate nearby user discovery with sonar radar and wave animations.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Enable location and Bluetooth permissions when prompted."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the Nearby Discovery screen shows sonar radar visualization."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify nearby users are detected and displayed accurately on the radar."
+      },
+      {
+        "type": "action",
+        "description": "Send a wave to a detected user."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify wave animation plays and if matched, match animation triggers."
+      },
+      {
+        "type": "action",
+        "description": "Initiate chat after a successful match."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify chat opens and messages can be sent."
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Marketplace Transactions - Purchase, Trading and History",
+    "description": "Ensure marketplace and virtual store purchases, gift trading, and transaction histories are processed correctly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Browse gift catalog and select a limited edition gift."
+      },
+      {
+        "type": "action",
+        "description": "Purchase a coin package."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify coin balance is updated after purchase."
+      },
+      {
+        "type": "action",
+        "description": "Trade a gift to another user via marketplace."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify gift transfers properly and trade records updated."
+      },
+      {
+        "type": "action",
+        "description": "View transaction history."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify all purchase and trade transactions are listed and accurate."
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Notification System - Delivery and Grouping",
+    "description": "Verify notifications are delivered timely, grouped sensibly, contain rich content, and support user actions.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Trigger various notification types (messages, gifts, reels, social interactions)."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify notifications appear promptly on device."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify multiple notifications are grouped when appropriate."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify notifications contain actionable buttons or links."
+      },
+      {
+        "type": "action",
+        "description": "Interact with notification action buttons."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify correct in-app navigation or action performed."
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Gamification Features - Achievements, Daily Rewards, and Referrals",
+    "description": "Validate gamification mechanics including triggering achievements, daily login bonuses, referral rewards, and leaderboard updates.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Perform actions to trigger achievements."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify achievements unlock and display properly."
+      },
+      {
+        "type": "action",
+        "description": "Log in daily to claim daily reward."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify daily reward is credited once per day."
+      },
+      {
+        "type": "action",
+        "description": "Send a referral link to a new user."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify referral reward is awarded after new user registration."
+      },
+      {
+        "type": "action",
+        "description": "Check leaderboard rankings."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify leaderboard updates reflect user achievements and activity."
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Business and Creator Pages - Analytics and Customization",
+    "description": "Test Pages feature for business and creators including follower insights, analytics dashboards, and page customization options.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Create or access a business/creator page."
+      },
+      {
+        "type": "action",
+        "description": "Customize page elements such as profile, banner, and description."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify customization changes are saved and displayed correctly."
+      },
+      {
+        "type": "action",
+        "description": "Access analytics dashboard."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify follower insights and engagement metrics display accurately and update with activity."
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Account and App Settings Persistence and Security",
+    "description": "Ensure that account, app, moderation, and security settings persist correctly and changes are secure.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in and navigate to settings."
+      },
+      {
+        "type": "action",
+        "description": "Change account settings such as password, email, and privacy preferences."
+      },
+      {
+        "type": "action",
+        "description": "Modify app settings including notifications and appearance."
+      },
+      {
+        "type": "action",
+        "description": "Adjust moderation preferences and security options."
+      },
+      {
+        "type": "action",
+        "description": "Save all changes and log out."
+      },
+      {
+        "type": "action",
+        "description": "Log back in and revisit settings."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify all settings changes persist correctly."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify security changes (like password updates) are enforced."
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Performance Optimization - Smooth Scrolling and Media Uploads",
+    "description": "Confirm app performs smoothly with effective scrolling, caching strategies, and background media uploads.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate and scroll through various feeds (Reels, Stories, Unified Feed)."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify scrolling occurs with no noticeable lag or stutter."
+      },
+      {
+        "type": "action",
+        "description": "Upload a reel or story with video content."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify background upload happens without blocking UI."
+      },
+      {
+        "type": "action",
+        "description": "Check media caching by revisiting recently viewed reels or stories."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify media plays instantly from cache when reopened."
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Moderation Features - Reporting, Blocking, and Admin Actions",
+    "description": "Verify moderation tools allow users to report content, block others, and that admins can take necessary actions correctly.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Report inappropriate content or user."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify report is logged and user receives feedback."
+      },
+      {
+        "type": "action",
+        "description": "Block a user from interacting."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify blocked user cannot send messages or friend requests."
+      },
+      {
+        "type": "action",
+        "description": "As admin, review and resolve reported items."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify admin actions update user/content status and trigger notifications/penalties."
+      }
+    ]
+  }
+]

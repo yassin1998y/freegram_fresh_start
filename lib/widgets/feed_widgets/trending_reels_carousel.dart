@@ -9,6 +9,9 @@ import 'package:freegram/theme/app_theme.dart';
 import 'package:freegram/widgets/feed_widgets/create_reel_card.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:freegram/screens/reels_feed_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:freegram/services/user_stream_provider.dart';
+import 'package:freegram/models/user_model.dart';
 
 class TrendingReelsCarouselWidget extends StatelessWidget {
   final List<ReelModel> reels;
@@ -75,7 +78,18 @@ class TrendingReelsCarouselWidget extends StatelessWidget {
               itemBuilder: (context, index) {
                 // First item is Create Reel card
                 if (index == 0) {
-                  return const CreateReelCard();
+                  final userId = FirebaseAuth.instance.currentUser?.uid;
+                  if (userId == null) {
+                    return const CreateReelCard();
+                  }
+
+                  return StreamBuilder<UserModel>(
+                    stream: UserStreamProvider().getUserStream(userId),
+                    builder: (context, userSnapshot) {
+                      final userPhotoUrl = userSnapshot.data?.photoUrl;
+                      return CreateReelCard(photoUrl: userPhotoUrl);
+                    },
+                  );
                 }
 
                 // Regular reel cards

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:freegram/models/message.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/widgets/island_popup.dart';
+import 'package:freegram/utils/image_save_util.dart';
 
 /// Professional bottom sheet modal for message actions
 /// Improvements: #1, #2, #3, #5, #6, #7, #8, #11, #12
@@ -375,14 +376,44 @@ class _ProfessionalMessageActionsModalState
       actions.add(_ActionTile(
         icon: Icons.download,
         label: 'Save Image',
-        onTap: () {
+        onTap: () async {
           HapticFeedback.lightImpact();
           Navigator.of(context).pop();
-          showIslandPopup(
-            context: context,
-            message: 'Save feature coming soon',
-            icon: Icons.info_outline,
-          );
+          final saved =
+              await ImageSaveUtil.saveImageToDevice(widget.message.imageUrl!);
+          if (context.mounted) {
+            if (saved != null) {
+              showIslandPopup(
+                context: context,
+                message: 'Image saved successfully!',
+                icon: Icons.check_circle,
+              );
+            } else {
+              showIslandPopup(
+                context: context,
+                message: 'Failed to save image. Please check permissions.',
+                icon: Icons.error_outline,
+              );
+            }
+          }
+        },
+      ));
+      // Share image option
+      actions.add(_ActionTile(
+        icon: Icons.share,
+        label: 'Share Image',
+        onTap: () async {
+          HapticFeedback.lightImpact();
+          Navigator.of(context).pop();
+          final shared =
+              await ImageSaveUtil.shareImage(widget.message.imageUrl!);
+          if (context.mounted && !shared) {
+            showIslandPopup(
+              context: context,
+              message: 'Failed to share image',
+              icon: Icons.error_outline,
+            );
+          }
         },
       ));
     }

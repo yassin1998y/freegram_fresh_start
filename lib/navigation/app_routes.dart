@@ -38,8 +38,15 @@ class AppRoutes {
 
   // Other Routes
   static const String store = '/store';
+  static const String inventory = '/inventory';
+  static const String referral = '/referral';
   static const String matchAnimation = '/matchAnimation';
-  
+
+  // Gift Routes
+  static const String giftSendSelection = '/giftSendSelection';
+  static const String giftSendComposer = '/gift-send-composer';
+  static const String giftSendFriendPicker = '/gift-send-friend-picker';
+
   // Reels Routes
   static const String reels = '/reels';
   static const String createReel = '/createReel';

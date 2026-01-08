@@ -1,4 +1,5 @@
 // lib/locator.dart
+import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:freegram/blocs/connectivity_bloc.dart'; // Keep
 import 'package:freegram/repositories/action_queue_repository.dart'; // Keep
 import 'package:freegram/repositories/auth_repository.dart'; // Keep
@@ -16,6 +17,16 @@ import 'package:freegram/repositories/store_repository.dart'; // Keep
 import 'package:freegram/repositories/story_repository.dart'; // Stories Feature
 // import 'package:freegram/repositories/task_repository.dart'; // Remove
 import 'package:freegram/repositories/user_repository.dart'; // Keep
+import 'package:freegram/repositories/friend_repository.dart';
+import 'package:freegram/repositories/gift_repository.dart'; // Gamification
+import 'package:freegram/repositories/profile_repository.dart'; // Gamification
+import 'package:freegram/repositories/marketplace_repository.dart';
+import 'package:freegram/services/daily_reward_service.dart'; // Gamification
+import 'package:freegram/repositories/achievement_repository.dart'; // Gamification
+import 'package:freegram/repositories/analytics_repository.dart'; // Gamification
+import 'package:freegram/services/referral_service.dart'; // Gamification
+
+import 'package:freegram/repositories/user_discovery_repository.dart';
 import 'package:freegram/services/sonar/local_cache_service.dart'; // Keep
 import 'package:freegram/services/sonar/notification_service.dart'; // Keep
 import 'package:freegram/services/sonar/bluetooth_discovery_service.dart'; // Keep
@@ -43,13 +54,25 @@ import 'package:freegram/repositories/search_repository.dart'; // Search & Disco
 import 'package:freegram/repositories/reel_repository.dart'; // Reels Feature
 import 'package:freegram/services/ad_service.dart'; // Ad Service
 import 'package:freegram/services/gallery_service.dart'; // Gallery Service for Stories
+import 'package:freegram/services/reel_upload_manager.dart'; // Reel Upload Manager
+import 'package:freegram/services/draft_persistence_service.dart'; // Draft Persistence
+import 'package:freegram/services/gift_notification_service.dart'; // Gift Notifications
 import 'package:get_it/get_it.dart';
 
 final GetIt locator = GetIt.instance;
 
 void setupLocator({required ConnectivityBloc connectivityBloc}) {
+  // Guard: If already registered, skip re-registration (e.g., during hot reload)
+  if (locator.isRegistered<ConnectivityBloc>()) {
+    return;
+  }
+
   // --- Register ConnectivityBloc first ---
   locator.registerLazySingleton<ConnectivityBloc>(() => connectivityBloc);
+
+  // Debug logging
+  debugPrint("setupLocator: Registering PresenceManager...");
+  locator.registerLazySingleton(() => PresenceManager());
 
   // --- Register Core Repositories ---
   locator.registerLazySingleton(() => AuthRepository());
@@ -72,6 +95,21 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
   locator.registerLazySingleton(() => SearchRepository()); // Search & Discovery
   locator.registerLazySingleton(() => StoryRepository()); // Stories Feature
   locator.registerLazySingleton(() => ReelRepository()); // Reels Feature
+  locator.registerLazySingleton(() => GiftRepository()); // Gamification - Gifts
+  locator.registerLazySingleton(
+      () => ProfileRepository()); // Gamification - Profile
+  locator.registerLazySingleton(
+      () => MarketplaceRepository()); // Gamification - Marketplace
+  locator.registerLazySingleton(
+      () => DailyRewardService()); // Gamification - Daily Rewards
+  locator.registerLazySingleton(
+      () => AchievementRepository()); // Gamification - Achievements
+  locator.registerLazySingleton(
+      () => ReferralService()); // Gamification - Referrals
+  locator.registerLazySingleton(
+      () => AnalyticsRepository()); // Gamification - Analytics
+  locator.registerLazySingleton(
+      () => GiftNotificationService()); // Gift Notifications
 
   // --- Register Repositories with Dependencies ---
   // UserRepository: Remove GamificationRepository dependency, keep NotificationRepository
@@ -79,6 +117,15 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
         notificationRepository: locator<NotificationRepository>(),
         // gamificationRepository: locator<GamificationRepository>(), // Removed
       ));
+
+  // FriendRepository
+  locator.registerLazySingleton(() => FriendRepository(
+        notificationRepository: locator<NotificationRepository>(),
+        userRepository: locator<UserRepository>(),
+      ));
+
+  locator.registerLazySingleton<UserDiscoveryRepository>(
+      () => UserDiscoveryRepository());
   // ChatRepository: Remove GamificationRepository and TaskRepository dependencies
   locator.registerLazySingleton(() => ChatRepository(
       // gamificationRepository: locator<GamificationRepository>(), // Removed
@@ -87,17 +134,21 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
 
   // --- Register Core Services ---
   locator.registerLazySingleton(() => CacheManagerService());
-  
+
   // Network Quality Service - Register as singleton (it uses factory pattern internally)
-  locator.registerLazySingleton<NetworkQualityService>(() => NetworkQualityService());
-  
+  locator.registerLazySingleton<NetworkQualityService>(
+      () => NetworkQualityService());
+
   // Media Prefetch Service - Prefetches videos/images for better performance
   locator.registerLazySingleton(() => MediaPrefetchService(
-        networkService: locator<NetworkQualityService>(), // Use GetIt instead of direct instantiation
+        networkService: locator<
+            NetworkQualityService>(), // Use GetIt instead of direct instantiation
         cacheService: locator<CacheManagerService>(),
       ));
-  locator.registerLazySingleton(
-      () => SyncManager(connectivityBloc: connectivityBloc));
+  if (!kIsWeb) {
+    locator.registerLazySingleton(
+        () => SyncManager(connectivityBloc: connectivityBloc));
+  }
 
   // Navigation and Loading Services
   locator.registerLazySingleton(() => NavigationService());
@@ -105,7 +156,7 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
 
   // Friend Cache Service
   locator.registerLazySingleton(() => FriendCacheService());
-  
+
   // Feed Cache Service
   locator.registerLazySingleton(() => FeedCacheService());
 
@@ -114,15 +165,12 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
 
   // ⭐ PHASE 5: RETRY SERVICE - Auto-retry failed friend actions
   locator.registerLazySingleton(() => FriendActionRetryService(
-        userRepository: locator<UserRepository>(),
+        friendRepository: locator<FriendRepository>(),
         actionQueue: locator<ActionQueueRepository>(),
       ));
 
   // FCM Token Service - Push Notifications
   locator.registerLazySingleton(() => FcmTokenService());
-
-  // Presence Manager - Online status and last seen
-  locator.registerLazySingleton(() => PresenceManager());
 
   // Page Analytics Service
   locator.registerLazySingleton(() => PageAnalyticsService());
@@ -136,41 +184,48 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
   // Gallery Service
   locator.registerLazySingleton(() => GalleryService());
 
+  // Reel Upload Services
+  locator.registerLazySingleton(() => ReelUploadManager());
+  locator.registerLazySingleton(() => DraftPersistenceService());
+
   // Phase 1.3: Intelligent Prefetch Service
   // Note: This service is initialized manually in MainScreenWrapper
   // after SharedPreferences is ready, so we don't register it here
 
   // Initialize Services
-  locator<NetworkQualityService>().init(); // Use GetIt instead of direct instantiation
+  locator<NetworkQualityService>()
+      .init(); // Use GetIt instead of direct instantiation
   locator<FriendCacheService>().init();
   locator<FriendRequestRateLimiter>().init();
   locator<FriendActionRetryService>().initialize();
   // Note: PresenceManager.initialize() called in main.dart after auth
 
-  // --- Register SONAR Services (Corrected Order/Dependencies) ---
-  locator.registerLazySingleton(() => LocalCacheService());
-  locator.registerLazySingleton(() => NotificationService());
+  // --- Register SONAR Services (Condition for Non-Web) ---
+  if (!kIsWeb) {
+    locator.registerLazySingleton(() => LocalCacheService());
+    locator.registerLazySingleton(() => NotificationService());
 
-  // BluetoothDiscoveryService
-  locator.registerLazySingleton(() => BluetoothDiscoveryService(
-        cacheService: locator(),
-        // BleAdvertiser and BleScanner are instantiated internally
-      ));
-  // WaveService
-  locator.registerLazySingleton(() => WaveService(
-        discoveryService: locator(),
-        cacheService: locator(),
-        notificationService: locator(),
-      ));
-  // SonarController registration (Keep UserRepository dependency)
-  locator.registerLazySingleton(() => SonarController(
-        discoveryService: locator(),
-        cacheService: locator(),
-        waveService: locator(),
-        syncManager: locator(),
-        connectivityBloc: connectivityBloc,
-        userRepository: locator(), // Keep this dependency
-      ));
+    // BluetoothDiscoveryService
+    locator.registerLazySingleton(() => BluetoothDiscoveryService(
+          cacheService: locator(),
+          // BleAdvertiser and BleScanner are instantiated internally
+        ));
+    // WaveService
+    locator.registerLazySingleton(() => WaveService(
+          discoveryService: locator(),
+          cacheService: locator(),
+          notificationService: locator(),
+        ));
+    // SonarController registration (Keep UserRepository dependency)
+    locator.registerLazySingleton(() => SonarController(
+          discoveryService: locator(),
+          cacheService: locator(),
+          waveService: locator(),
+          syncManager: locator(),
+          connectivityBloc: connectivityBloc,
+          userRepository: locator(), // Keep this dependency
+        ));
+  }
 
   // --- Remove registrations for deleted repositories ---
   // locator.registerLazySingleton(() => GamificationRepository());

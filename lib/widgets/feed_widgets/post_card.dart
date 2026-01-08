@@ -31,6 +31,7 @@ import 'package:freegram/services/boost_analytics_service.dart';
 import 'package:freegram/services/mention_service.dart';
 import 'package:freegram/screens/hashtag_explore_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:freegram/screens/gift_send_selection_screen.dart'; // Import GiftSendSelectionScreen
 
 class PostCard extends StatefulWidget {
   final FeedItem item;
@@ -118,40 +119,42 @@ class _PostCardState extends State<PostCard> {
     PostModel post,
     PostDisplayType displayType,
   ) {
-    return Card(
-      margin: EdgeInsets.symmetric(
-        horizontal: DesignTokens.spaceSM,
-        vertical: DesignTokens.spaceXS,
-      ),
+    final theme = Theme.of(context);
+
+    return Container(
+      color: theme.cardColor,
+      margin: EdgeInsets.zero, // Full-width posts, no horizontal margins
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // HEADER
-          PostHeader(
-            post: post,
-            displayType: displayType,
-            isNew: widget.isNew,
-            onProfileTap: () => _navigateToProfile(context, post),
-            onMenuSelected: (value) => _handleMenuAction(context, post, value),
-            onBoostTap: null, // Moved to footer
-            onInsightsTap: null, // Moved to footer
+          // HEADER - Using refined padding
+          Padding(
+            padding: EdgeInsets.all(DesignTokens.postHeaderPadding),
+            child: PostHeader(
+              post: post,
+              displayType: displayType,
+              isNew: widget.isNew,
+              onProfileTap: () => _navigateToProfile(context, post),
+              onMenuSelected: (value) =>
+                  _handleMenuAction(context, post, value),
+              onBoostTap: null, // Moved to footer
+              onInsightsTap: null, // Moved to footer
+            ),
           ),
 
           // CAPTION (moved to top, before media)
           if (post.content.isNotEmpty)
             Padding(
-              padding: EdgeInsets.only(
-                left: DesignTokens.spaceMD,
-                right: DesignTokens.spaceMD,
-                top: DesignTokens.spaceSM,
-                bottom: DesignTokens
-                    .spaceXS, // Reduced bottom padding for closer spacing to media
+              padding: EdgeInsets.symmetric(
+                horizontal: DesignTokens.postCaptionPadding,
+                vertical: DesignTokens.spaceSM,
               ),
               child: _buildCaption(context),
             ),
 
           // MEDIA (wrapped in RepaintBoundary to isolate repaints)
+          // Full-width, no padding
           if (post.mediaItems.isNotEmpty || post.mediaUrls.isNotEmpty)
             RepaintBoundary(
               child: PostMedia(
@@ -160,19 +163,35 @@ class _PostCardState extends State<PostCard> {
               ),
             ),
 
-          // ACTIONS
-          PostActions(
-            post: post,
-            onReactionCountChanged: _onReactionCountChanged,
+          // ACTIONS - Using refined padding
+          Padding(
+            padding: EdgeInsets.all(DesignTokens.postActionsPadding),
+            child: PostActions(
+              post: post,
+              onReactionCountChanged: _onReactionCountChanged,
+              onGiftTap: () => _navigateToGiftSelection(context, post),
+            ),
           ),
 
           // FOOTER (engagement stats only, caption moved to top)
-          PostFooter(
-            post: post,
-            reactionCount: _localReactionCount,
-            showCaption: false, // Caption is now at top
-            onBoostTap: () => _navigateToBoostPost(context, post),
-            onInsightsTap: () => _navigateToBoostInsights(context, post),
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: DesignTokens.postCaptionPadding,
+            ),
+            child: PostFooter(
+              post: post,
+              reactionCount: _localReactionCount,
+              showCaption: false, // Caption is now at top
+              onBoostTap: () => _navigateToBoostPost(context, post),
+              onInsightsTap: () => _navigateToBoostInsights(context, post),
+            ),
+          ),
+
+          // Hairline divider instead of card gap
+          Divider(
+            height: 1,
+            thickness: DesignTokens.borderWidthHairline,
+            color: theme.dividerColor,
           ),
         ],
       ),
@@ -339,6 +358,20 @@ class _PostCardState extends State<PostCard> {
         builder: (context) => BoostAnalyticsScreen(post: post),
       ),
     );
+  }
+
+  void _navigateToGiftSelection(BuildContext context, PostModel post) async {
+    final currentUserRef = locator<UserRepository>();
+    final author = await currentUserRef.getUser(post.authorId);
+
+    if (context.mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => GiftSendSelectionScreen(recipient: author),
+        ),
+      );
+    }
   }
 
   Widget _buildCaption(BuildContext context) {

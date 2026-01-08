@@ -25,6 +25,8 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- Only needed for older Android versions, but good practice to include. -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- Permission for saving images to gallery (older Android versions) -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     
     <!-- Permissions for Voice Messages -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -40,14 +42,12 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Schedule exact alarms (for reliable FCM on MIUI) -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <!-- Xiaomi-specific autostart permission -->
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
 
     <application
-        android:label="freegram_fresh_start"
+        android:label="Freegram"
         android:name=".MainApplication"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@mipmap/launcher_icon"
         android:enableOnBackInvokedCallback="true"
         android:allowBackup="true"
         android:requestLegacyExternalStorage="true"
@@ -72,7 +72,7 @@
         <!-- Firebase Configuration -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/ic_notification" />
+            android:resource="@drawable/ic_stat_freegram" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/notification_color" />
@@ -132,7 +132,7 @@
         <!-- MIUI/Redmi Critical Fix: Foreground Service for Background Bluetooth -->
         <!-- This prevents MIUI from killing Bluetooth scanning -->
         <service
-            android:name="com.example.freegram_fresh_start.BluetoothForegroundService"
+            android:name="com.freegram.app.BluetoothForegroundService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="connectedDevice"

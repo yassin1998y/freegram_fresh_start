@@ -100,17 +100,12 @@
 # --- END ADDED RULES ---
 
 
-# --- WARNING: The following rule disables most shrinking and obfuscation ---
-# Keep all classes and their members (added as per user request)
-# Consider removing this for smaller release builds if possible after testing
--keep class ** { *; }
-# --- END WARNING ---
-
 # Keep MainActivity, AdvertiserManager, and MainApplication to prevent crashes
--keep class com.example.freegram_fresh_start.MainActivity { *; }
--keep class com.example.freegram_fresh_start.AdvertiserManager { *; }
--keep class com.example.freegram_fresh_start.MainApplication { *; }
--keep class com.example.freegram_fresh_start.** { *; }
+# Only keep necessary classes - code shrinking and obfuscation enabled for security
+-keep class com.freegram.app.MainActivity { *; }
+-keep class com.freegram.app.AdvertiserManager { *; }
+-keep class com.freegram.app.MainApplication { *; }
+-keep class com.freegram.app.BluetoothForegroundService { *; }
 
 # Google Play Services specific rules
 -keep class com.google.android.gms.** { *; }

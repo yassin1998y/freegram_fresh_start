@@ -15,6 +15,7 @@ import 'package:freegram/blocs/friends_bloc/friends_bloc.dart';
 // Locator, Repositories, Services
 import 'package:freegram/locator.dart';
 import 'package:freegram/repositories/user_repository.dart';
+import 'package:freegram/repositories/friend_repository.dart';
 import 'package:freegram/services/sonar/local_cache_service.dart';
 import 'package:freegram/services/sonar/sonar_controller.dart';
 import 'package:freegram/services/sonar/bluetooth_service.dart';
@@ -53,9 +54,10 @@ class NearbyScreen extends StatelessWidget {
         BlocProvider(create: (context) => NearbyBloc()),
         // FriendsBloc needed for actions within NearbyUserCard's modal
         BlocProvider(
-          create: (context) =>
-              FriendsBloc(userRepository: locator<UserRepository>())
-                ..add(LoadFriends()),
+          create: (context) => FriendsBloc(
+              userRepository: locator<UserRepository>(),
+              friendRepository: locator<FriendRepository>())
+            ..add(LoadFriends()),
         ),
       ],
       child: const _NearbyScreenView(), // The main stateful widget
@@ -75,11 +77,11 @@ class _NearbyScreenView extends StatefulWidget {
 class _NearbyScreenViewState extends State<_NearbyScreenView>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   // Get service instances via locator
-  final SonarController _sonarController = locator<SonarController>();
-  final LocalCacheService _localCacheService = locator<LocalCacheService>();
+  // Get service instances via locator
+  late final SonarController _sonarController;
+  late final LocalCacheService _localCacheService;
   final UserRepository _userRepository = locator<UserRepository>();
-  final SyncManager _syncManager =
-      locator<SyncManager>(); // Get SyncManager instance
+  late final SyncManager _syncManager;
   final Box _settingsBox = Hive.box('settings');
 
   // UI State Variables
@@ -110,6 +112,9 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
     super.initState();
     debugPrint('📱 SCREEN: nearby_screen.dart');
     if (!_isWeb) {
+      _sonarController = locator<SonarController>();
+      _localCacheService = locator<LocalCacheService>();
+      _syncManager = locator<SyncManager>();
       WidgetsBinding.instance.addObserver(this); // Observe app lifecycle
 
       // Initialize animation controllers
@@ -948,15 +953,15 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('For better discovery:'),
-                    SizedBox(height: 8),
+                    const SizedBox(height: DesignTokens.spaceSM),
                     Text('1. Keep devices within 1-2 meters'),
                     Text('2. Wait 10-15 seconds for discovery'),
                     Text('3. Try moving devices closer together'),
                     Text('4. Ensure both devices are scanning'),
-                    SizedBox(height: 8),
+                    const SizedBox(height: DesignTokens.spaceSM),
                     Text(
                         'Note: Some devices may have limited discoverability due to manufacturer restrictions.'),
-                    SizedBox(height: 8),
+                    const SizedBox(height: DesignTokens.spaceSM),
                     Text(
                         '💡 Tip: You can start a new scan anytime by tapping the button again!'),
                   ],
@@ -1265,11 +1270,12 @@ class _ProfessionalFoundUsersModalState
                   right: 0,
                   child: Center(
                     child: Container(
-                      width: 50,
-                      height: 5,
+                      width: DesignTokens.bottomSheetHandleWidth,
+                      height: DesignTokens.bottomSheetHandleHeight,
                       decoration: BoxDecoration(
                         color: Theme.of(context).dividerColor,
-                        borderRadius: BorderRadius.circular(2.5),
+                        borderRadius: BorderRadius.circular(
+                            DesignTokens.bottomSheetHandleHeight / 2),
                       ),
                     ),
                   ),
@@ -1364,7 +1370,7 @@ class _ProfessionalFoundUsersModalState
                               BorderRadius.circular(DesignTokens.radiusSM),
                           border: Border.all(
                             color: Theme.of(context).dividerColor,
-                            width: 0.5,
+                            width: DesignTokens.borderWidthHairline,
                           ),
                           boxShadow: DesignTokens.shadowLight,
                         ),
@@ -1399,7 +1405,7 @@ class _ProfessionalFoundUsersModalState
             borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
             border: Border.all(
               color: Theme.of(context).dividerColor,
-              width: 0.5,
+              width: DesignTokens.borderWidthHairline,
             ),
             boxShadow: DesignTokens.shadowLight,
           ),
@@ -1455,7 +1461,7 @@ class _ProfessionalFoundUsersModalState
                   border: Border.all(
                     color:
                         Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                    width: 0.5,
+                    width: DesignTokens.borderWidthHairline,
                   ),
                 ),
                 child: Text(
@@ -1482,7 +1488,7 @@ class _ProfessionalFoundUsersModalState
         borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
         border: Border.all(
           color: Theme.of(context).dividerColor,
-          width: 0.5,
+          width: DesignTokens.borderWidthHairline,
         ),
         boxShadow: DesignTokens.shadowLight,
       ),
@@ -1707,6 +1713,7 @@ class _ProfessionalFoundUsersModalState
             createdAt: DateTime.now(),
             lastFreeSuperLike: DateTime.now(),
             lastNearbyDiscoveryDate: DateTime.now(),
+            lastDailyRewardClaim: DateTime(1970),
           );
 
           // Calculate estimated RSSI based on last seen time

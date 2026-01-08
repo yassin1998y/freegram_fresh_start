@@ -7,18 +7,37 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:freegram/blocs/reels_feed/reels_feed_event.dart';
 import 'package:freegram/blocs/reels_feed/reels_feed_state.dart';
+import 'package:freegram/models/reel_interaction_model.dart';
 import 'package:freegram/models/reel_model.dart';
 import 'package:freegram/repositories/reel_repository.dart';
+import 'package:freegram/repositories/user_repository.dart';
+import 'package:freegram/services/reels_scoring_service.dart';
+import 'package:freegram/utils/reels_feed_diversifier.dart';
 
 class ReelsFeedBloc extends Bloc<ReelsFeedEvent, ReelsFeedState> {
   final ReelRepository _reelRepository;
+  final UserRepository? _userRepository;
+  final ReelsScoringService? _scoringService;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   DocumentSnapshot? _lastDocument;
   static const int _pageSize = 20;
+  static const int _scoringBatchSize = 50; // Fetch more for scoring
+
+  // Feature flag for personalized feed
+  final bool usePersonalizedFeed;
+
+  // Cache for scoring
+  final Map<String, double> _creatorAffinityCache = {};
+  final Map<String, int> _creatorFrequency = {};
 
   ReelsFeedBloc({
     required ReelRepository reelRepository,
+    UserRepository? userRepository,
+    ReelsScoringService? scoringService,
+    this.usePersonalizedFeed = true, // Enable by default
   })  : _reelRepository = reelRepository,
+        _userRepository = userRepository,
+        _scoringService = scoringService,
         super(const ReelsFeedInitial()) {
     on<LoadReelsFeed>(_onLoadReelsFeed);
     on<LoadMoreReels>(_onLoadMoreReels);
@@ -30,6 +49,10 @@ class ReelsFeedBloc extends Bloc<ReelsFeedEvent, ReelsFeedState> {
     on<ViewReel>(_onViewReel);
     on<RefreshReelsFeed>(_onRefreshReelsFeed);
     on<LoadMyReels>(_onLoadMyReels);
+    on<RecordWatchTime>(_onRecordWatchTime);
+    on<MarkReelCompleted>(_onMarkReelCompleted);
+    on<MarkReelSkipped>(_onMarkReelSkipped);
+    on<MarkNotInterested>(_onMarkNotInterested);
   }
 
   Future<void> _onLoadReelsFeed(
@@ -40,7 +63,20 @@ class ReelsFeedBloc extends Bloc<ReelsFeedEvent, ReelsFeedState> {
 
     try {
       _lastDocument = null;
-      final reels = await _reelRepository.getReelsFeed(limit: _pageSize);
+      _creatorAffinityCache.clear();
+      _creatorFrequency.clear();
+
+      List<ReelModel> reels;
+
+      // Use personalized feed if enabled and dependencies available
+      if (usePersonalizedFeed &&
+          _userRepository != null &&
+          _scoringService != null) {
+        reels = await _loadPersonalizedFeed();
+      } else {
+        // Fallback to chronological feed
+        reels = await _reelRepository.getReelsFeed(limit: _pageSize);
+      }
 
       if (reels.isEmpty) {
         emit(const ReelsFeedLoaded(
@@ -334,5 +370,198 @@ class ReelsFeedBloc extends Bloc<ReelsFeedEvent, ReelsFeedState> {
       return null;
     }
   }
-}
 
+  /// Load personalized feed using scoring service
+  Future<List<ReelModel>> _loadPersonalizedFeed() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null ||
+        _userRepository == null ||
+        _scoringService == null) {
+      // Fallback to chronological
+      return await _reelRepository.getReelsFeed(limit: _pageSize);
+    }
+
+    try {
+      // Get user profile
+      final user = await _userRepository.getUser(currentUser.uid);
+
+      // Fetch larger batch for scoring
+      final allReels = await _reelRepository.getPersonalizedReelsFeed(
+        userId: currentUser.uid,
+        limit: _scoringBatchSize,
+      );
+
+      if (allReels.isEmpty) return [];
+
+      // Get not interested creators
+      final notInterestedCreators =
+          await _reelRepository.getNotInterestedCreators(currentUser.uid);
+
+      // Filter out not interested content
+      var filteredReels = ReelsFeedDiversifier.filterNotInterestedCreators(
+        reels: allReels,
+        notInterestedCreators: notInterestedCreators,
+      );
+
+      // Score all reels
+      final scores = <String, ReelScore>{};
+      for (final reel in filteredReels) {
+        final score = await _scoringService.calculateScore(
+          reel: reel,
+          userId: currentUser.uid,
+          user: user,
+          creatorFrequency: _creatorFrequency,
+          creatorAffinityCache: _creatorAffinityCache,
+        );
+        scores[reel.reelId] = score;
+        _creatorFrequency[reel.uploaderId] =
+            (_creatorFrequency[reel.uploaderId] ?? 0) + 1;
+      }
+
+      // Apply diversity rules and get top results
+      final diversifiedReels = ReelsFeedDiversifier.diversifyFeed(
+        reels: filteredReels,
+        scores: scores,
+        maxResults: _pageSize,
+      );
+
+      debugPrint(
+          'ReelsFeedBloc: Loaded ${diversifiedReels.length} personalized reels');
+      return diversifiedReels;
+    } catch (e) {
+      debugPrint('ReelsFeedBloc: Error loading personalized feed: $e');
+      // Fallback to chronological
+      return await _reelRepository.getReelsFeed(limit: _pageSize);
+    }
+  }
+
+  /// Record watch time for a reel
+  Future<void> _onRecordWatchTime(
+    RecordWatchTime event,
+    Emitter<ReelsFeedState> emit,
+  ) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    final currentState = state;
+    if (currentState is! ReelsFeedLoaded) return;
+
+    try {
+      // Find the reel to get creator ID
+      final reel = currentState.reels.firstWhere(
+        (r) => r.reelId == event.reelId,
+        orElse: () => currentState.reels.first,
+      );
+
+      final interaction = ReelInteractionModel(
+        userId: currentUser.uid,
+        reelId: event.reelId,
+        creatorId: reel.uploaderId,
+        watchTime: event.watchTime,
+        watchPercentage: event.watchPercentage,
+        interactedAt: DateTime.now(),
+      );
+
+      await _reelRepository.recordReelInteraction(interaction);
+    } catch (e) {
+      debugPrint('ReelsFeedBloc: Error recording watch time: $e');
+    }
+  }
+
+  /// Mark reel as completed
+  Future<void> _onMarkReelCompleted(
+    MarkReelCompleted event,
+    Emitter<ReelsFeedState> emit,
+  ) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    final currentState = state;
+    if (currentState is! ReelsFeedLoaded) return;
+
+    try {
+      final reel = currentState.reels.firstWhere(
+        (r) => r.reelId == event.reelId,
+        orElse: () => currentState.reels.first,
+      );
+
+      final interaction = ReelInteractionModel(
+        userId: currentUser.uid,
+        reelId: event.reelId,
+        creatorId: reel.uploaderId,
+        completed: true,
+        watchPercentage: 100.0,
+        watchTime: reel.duration,
+        interactedAt: DateTime.now(),
+      );
+
+      await _reelRepository.recordReelInteraction(interaction);
+    } catch (e) {
+      debugPrint('ReelsFeedBloc: Error marking reel completed: $e');
+    }
+  }
+
+  /// Mark reel as skipped
+  Future<void> _onMarkReelSkipped(
+    MarkReelSkipped event,
+    Emitter<ReelsFeedState> emit,
+  ) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    final currentState = state;
+    if (currentState is! ReelsFeedLoaded) return;
+
+    try {
+      final reel = currentState.reels.firstWhere(
+        (r) => r.reelId == event.reelId,
+        orElse: () => currentState.reels.first,
+      );
+
+      final interaction = ReelInteractionModel(
+        userId: currentUser.uid,
+        reelId: event.reelId,
+        creatorId: reel.uploaderId,
+        skipped: true,
+        interactedAt: DateTime.now(),
+      );
+
+      await _reelRepository.recordReelInteraction(interaction);
+    } catch (e) {
+      debugPrint('ReelsFeedBloc: Error marking reel skipped: $e');
+    }
+  }
+
+  /// Mark content as not interested
+  Future<void> _onMarkNotInterested(
+    MarkNotInterested event,
+    Emitter<ReelsFeedState> emit,
+  ) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    final currentState = state;
+    if (currentState is! ReelsFeedLoaded) return;
+
+    try {
+      final interaction = ReelInteractionModel(
+        userId: currentUser.uid,
+        reelId: event.reelId,
+        creatorId: event.creatorId,
+        notInterested: true,
+        interactedAt: DateTime.now(),
+      );
+
+      await _reelRepository.recordReelInteraction(interaction);
+
+      // Remove reels from this creator from current feed
+      final filteredReels = currentState.reels
+          .where((reel) => reel.uploaderId != event.creatorId)
+          .toList();
+
+      emit(currentState.copyWith(reels: filteredReels));
+    } catch (e) {
+      debugPrint('ReelsFeedBloc: Error marking not interested: $e');
+    }
+  }
+}

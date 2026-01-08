@@ -11,11 +11,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class FeedCacheService {
   static const String _boxName = 'feedCache';
   static const String _cacheTimestampKey = 'lastCacheTime';
-  static const int _maxCachedPosts = 50;
+  static const String _accessOrderKey = 'accessOrder';
+  static const int _maxCachedPosts = 50; // LRU cache size limit
   static const Duration _cacheExpiry = Duration(days: 7);
 
   Box<Map<dynamic, dynamic>>? _cacheBox;
   bool _isInitialized = false;
+
+  // In-memory LRU tracking for faster access
+  final List<String> _accessOrder = [];
 
   /// Initialize the cache service
   Future<void> init() async {
@@ -25,7 +29,7 @@ class FeedCacheService {
       _cacheBox = await Hive.openBox<Map<dynamic, dynamic>>(_boxName);
       _isInitialized = true;
       debugPrint('[FeedCacheService] Cache initialized successfully');
-      
+
       // Clean up expired cache
       _cleanupExpiredCache();
     } catch (e) {
@@ -34,35 +38,90 @@ class FeedCacheService {
     }
   }
 
-  /// Cache feed items
+  /// Cache feed items with LRU eviction
   Future<void> cacheFeedItems(List<FeedItem> items) async {
     await init();
     if (_cacheBox == null) return;
 
     try {
       // Filter only post items (ads and suggestions don't need offline caching)
-      final postItems = items.whereType<PostFeedItem>().take(_maxCachedPosts).toList();
-      
-      // Clear old cache
-      await _cacheBox!.clear();
-      
-      // Store each post
+      final postItems =
+          items.whereType<PostFeedItem>().take(_maxCachedPosts).toList();
+
+      // LRU: Evict oldest items if cache is full
+      final currentCount = _accessOrder.length;
+      if (currentCount + postItems.length > _maxCachedPosts) {
+        final toEvict = (currentCount + postItems.length) - _maxCachedPosts;
+        await _evictLRUItems(toEvict);
+      }
+
+      // Store each post with LRU tracking
+      _accessOrder.clear();
       for (int i = 0; i < postItems.length; i++) {
         final postItem = postItems[i];
+        final postId = postItem.post.id; // PostModel uses 'id' property
         final postMap = postItem.post.toMap();
-        
+
         // Convert Timestamp objects to cacheable format
         final cacheableMap = _convertForCache(postMap);
-        await _cacheBox!.put('post_$i', cacheableMap);
+        await _cacheBox!.put('post_$postId', cacheableMap);
+
+        // Track access order for LRU
+        _accessOrder.add(postId);
       }
-      
+
       // Store metadata as maps for Hive compatibility
       await _cacheBox!.put('postCount', {'value': postItems.length});
-      await _cacheBox!.put(_cacheTimestampKey, {'value': DateTime.now().toIso8601String()});
-      
-      debugPrint('[FeedCacheService] Cached ${postItems.length} posts');
+      await _cacheBox!.put(_accessOrderKey, {'value': _accessOrder});
+      await _cacheBox!
+          .put(_cacheTimestampKey, {'value': DateTime.now().toIso8601String()});
+
+      debugPrint(
+          '[FeedCacheService] Cached ${postItems.length} posts (LRU cache)');
     } catch (e) {
       debugPrint('[FeedCacheService] Error caching feed: $e');
+    }
+  }
+
+  /// Evict least recently used items
+  Future<void> _evictLRUItems(int count) async {
+    if (_cacheBox == null || _accessOrder.isEmpty) return;
+
+    try {
+      // Load access order from cache if not in memory
+      if (_accessOrder.isEmpty) {
+        final orderData = _cacheBox!.get(_accessOrderKey);
+        if (orderData is Map && orderData['value'] is List) {
+          _accessOrder.addAll((orderData['value'] as List).cast<String>());
+        }
+      }
+
+      // Evict oldest items (first in list)
+      final toEvict = _accessOrder.take(count).toList();
+      for (final postId in toEvict) {
+        await _cacheBox!.delete('post_$postId');
+        _accessOrder.remove(postId);
+      }
+
+      debugPrint('[FeedCacheService] Evicted $count LRU items');
+    } catch (e) {
+      debugPrint('[FeedCacheService] Error evicting LRU items: $e');
+    }
+  }
+
+  /// Handle memory pressure by clearing cache
+  Future<void> handleMemoryPressure() async {
+    await init();
+    if (_cacheBox == null) return;
+
+    try {
+      // Clear half of the cache when under memory pressure
+      final toEvict = (_accessOrder.length / 2).ceil();
+      await _evictLRUItems(toEvict);
+      debugPrint(
+          '[FeedCacheService] Handled memory pressure: evicted $toEvict items');
+    } catch (e) {
+      debugPrint('[FeedCacheService] Error handling memory pressure: $e');
     }
   }
 
@@ -73,19 +132,21 @@ class FeedCacheService {
 
     try {
       final postCountData = _cacheBox!.get('postCount');
-      final postCount = postCountData is Map ? (postCountData['value'] as int? ?? 0) : 0;
+      final postCount =
+          postCountData is Map ? (postCountData['value'] as int? ?? 0) : 0;
       if (postCount == 0) return [];
 
       final cachedPosts = <PostFeedItem>[];
-      
+
       for (int i = 0; i < postCount; i++) {
         final postData = _cacheBox!.get('post_$i');
         if (postData is Map) {
           try {
             // Convert Map<dynamic, dynamic> to Map<String, dynamic> and restore Timestamps
-            final postMap = postData.map((key, value) => MapEntry(key.toString(), value));
+            final postMap =
+                postData.map((key, value) => MapEntry(key.toString(), value));
             final restoredMap = _restoreFromCache(postMap);
-            
+
             // Use postId from the map or generate from index
             final postId = restoredMap['postId'] as String? ?? 'cached_post_$i';
             final post = PostModel.fromMap(postId, restoredMap);
@@ -96,7 +157,8 @@ class FeedCacheService {
         }
       }
 
-      debugPrint('[FeedCacheService] Retrieved ${cachedPosts.length} cached posts');
+      debugPrint(
+          '[FeedCacheService] Retrieved ${cachedPosts.length} cached posts');
       return cachedPosts;
     } catch (e) {
       debugPrint('[FeedCacheService] Error getting cached feed: $e');
@@ -110,7 +172,8 @@ class FeedCacheService {
 
     try {
       final timestampData = _cacheBox!.get(_cacheTimestampKey);
-      final timestampStr = timestampData is Map ? timestampData['value'] as String? : null;
+      final timestampStr =
+          timestampData is Map ? timestampData['value'] as String? : null;
       if (timestampStr != null) {
         return DateTime.parse(timestampStr);
       }
@@ -168,7 +231,8 @@ class FeedCacheService {
           'nanoseconds': timestamp.nanoseconds,
         };
       } else if (entry.value is Map) {
-        converted[entry.key] = _convertForCache(Map<String, dynamic>.from(entry.value));
+        converted[entry.key] =
+            _convertForCache(Map<String, dynamic>.from(entry.value));
       } else if (entry.value is List) {
         converted[entry.key] = (entry.value as List).map((item) {
           if (item is Map) {
@@ -201,7 +265,8 @@ class FeedCacheService {
             valueMap['nanoseconds'] as int,
           );
         } else {
-          restored[entry.key] = _restoreFromCache(Map<String, dynamic>.from(entry.value));
+          restored[entry.key] =
+              _restoreFromCache(Map<String, dynamic>.from(entry.value));
         }
       } else if (entry.value is List) {
         restored[entry.key] = (entry.value as List).map((item) {
@@ -234,4 +299,3 @@ class FeedCacheService {
     }
   }
 }
-

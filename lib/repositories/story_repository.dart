@@ -255,11 +255,14 @@ class StoryRepository {
   /// Returns StoryTrayData with myStory, unreadStories, and seenStories
   Stream<StoryTrayData> getStoryTrayDataStream(String userId) {
     try {
+      debugPrint(
+          'StoryRepository: Starting story tray data stream for user: $userId');
       return _db
           .collection('users')
           .doc(userId)
           .snapshots()
           .asyncExpand((userDoc) {
+        debugPrint('StoryRepository: User doc exists: ${userDoc.exists}');
         if (!userDoc.exists) {
           return Stream.value(const StoryTrayData(
             unreadStories: [],
@@ -269,7 +272,7 @@ class StoryRepository {
           ));
         }
 
-        final userData = userDoc.data()!;
+        final userData = userDoc.data() ?? {};
         final friends = List<String>.from(userData['friends'] ?? []);
         final allUserIds = <String>[userId, ...friends];
 
@@ -282,182 +285,211 @@ class StoryRepository {
           ));
         }
 
-        return _db
-            .collection('story_media')
-            .where('isActive', isEqualTo: true)
-            .orderBy('createdAt', descending: true)
-            .limit(50)
-            .snapshots()
-            .asyncMap((snapshot) async {
-          final now = Timestamp.now();
-          final storiesByAuthor = <String, List<StoryMedia>>{};
+        // Try query with orderBy first, fallback to simpler query if it fails
+        Stream<QuerySnapshot> storyStream;
+        try {
+          storyStream = _db
+              .collection('story_media')
+              .where('isActive', isEqualTo: true)
+              .orderBy('createdAt', descending: true)
+              .limit(50)
+              .snapshots();
+          debugPrint('StoryRepository: Using orderBy query for story tray');
+        } catch (e) {
+          debugPrint(
+              'StoryRepository: OrderBy query failed, trying without orderBy: $e');
+          // Fallback: query without orderBy and sort in memory
+          storyStream = _db
+              .collection('story_media')
+              .where('isActive', isEqualTo: true)
+              .limit(50)
+              .snapshots();
+        }
 
-          // Parse all stories
-          for (var doc in snapshot.docs) {
-            try {
-              final story = StoryMedia.fromDoc(doc);
-              if (allUserIds.contains(story.authorId) &&
-                  story.expiresAt.isAfter(now.toDate())) {
-                storiesByAuthor
-                    .putIfAbsent(story.authorId, () => [])
-                    .add(story);
+        return storyStream.asyncMap((snapshot) async {
+          try {
+            final now = Timestamp.now();
+            final storiesByAuthor = <String, List<StoryMedia>>{};
+
+            // Parse all stories
+            for (var doc in snapshot.docs) {
+              try {
+                final story = StoryMedia.fromDoc(doc);
+                if (allUserIds.contains(story.authorId) &&
+                    story.expiresAt.isAfter(now.toDate())) {
+                  storiesByAuthor
+                      .putIfAbsent(story.authorId, () => [])
+                      .add(story);
+                }
+              } catch (e) {
+                debugPrint(
+                    'StoryRepository: Error parsing story ${doc.id}: $e');
               }
-            } catch (e) {
-              debugPrint('StoryRepository: Error parsing story ${doc.id}: $e');
             }
-          }
 
-          // Batch fetch user info
-          final authorIds = storiesByAuthor.keys.toList();
-          final userDocs = <String, Map<String, dynamic>>{};
+            // Batch fetch user info
+            final authorIds = storiesByAuthor.keys.toList();
+            final userDocs = <String, Map<String, dynamic>>{};
 
-          if (authorIds.isNotEmpty) {
-            try {
-              final batches = <List<String>>[];
-              for (var i = 0; i < authorIds.length; i += 10) {
-                batches.add(authorIds.sublist(
-                  i,
-                  i + 10 > authorIds.length ? authorIds.length : i + 10,
-                ));
-              }
+            if (authorIds.isNotEmpty) {
+              try {
+                final batches = <List<String>>[];
+                for (var i = 0; i < authorIds.length; i += 10) {
+                  batches.add(authorIds.sublist(
+                    i,
+                    i + 10 > authorIds.length ? authorIds.length : i + 10,
+                  ));
+                }
 
-              for (final batch in batches) {
-                final futures = batch.map((authorId) => _db
-                    .collection('users')
-                    .doc(authorId)
-                    .get()
-                    .then((doc) =>
-                        MapEntry(authorId, doc.exists ? doc.data() : null)));
-                final results = await Future.wait(futures);
-                for (final entry in results) {
-                  if (entry.value != null) {
-                    userDocs[entry.key] = entry.value!;
+                for (final batch in batches) {
+                  final futures = batch.map((authorId) => _db
+                      .collection('users')
+                      .doc(authorId)
+                      .get()
+                      .then((doc) =>
+                          MapEntry(authorId, doc.exists ? doc.data() : null)));
+                  final results = await Future.wait(futures);
+                  for (final entry in results) {
+                    if (entry.value != null) {
+                      userDocs[entry.key] = entry.value!;
+                    }
                   }
                 }
+              } catch (e) {
+                debugPrint(
+                    'StoryRepository: Error batch fetching user info: $e');
               }
-            } catch (e) {
-              debugPrint('StoryRepository: Error batch fetching user info: $e');
             }
-          }
 
-          // Build user metadata maps
-          final userAvatars = <String, String>{};
-          final usernames = <String, String>{};
+            // Build user metadata maps
+            final userAvatars = <String, String>{};
+            final usernames = <String, String>{};
 
-          for (final authorId in authorIds) {
-            final authorData = userDocs[authorId];
-            if (authorData != null) {
-              final photoUrl = authorData['photoUrl'];
-              final validatedUrl = (photoUrl != null &&
-                      photoUrl is String &&
-                      photoUrl.isNotEmpty &&
-                      photoUrl.trim().isNotEmpty &&
-                      (photoUrl.startsWith('http://') ||
-                          photoUrl.startsWith('https://')))
-                  ? photoUrl.trim()
-                  : '';
-              userAvatars[authorId] = validatedUrl;
-              usernames[authorId] = authorData['username'] ?? 'Unknown';
-            }
-          }
-
-          // Get user's own story (most recent)
-          StoryMedia? myStory;
-          final myStories = storiesByAuthor[userId] ?? [];
-          if (myStories.isNotEmpty) {
-            // Sort by createdAt descending and take the most recent
-            myStories.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-            myStory = myStories.first;
-          }
-
-          // Check viewer status for all stories
-          final storyIds = <String>[];
-          for (final stories in storiesByAuthor.values) {
-            for (final story in stories) {
-              storyIds.add(story.storyId);
-            }
-          }
-
-          final viewedStoryIds = <String>{};
-          if (storyIds.isNotEmpty) {
-            try {
-              final batches = <List<String>>[];
-              for (var i = 0; i < storyIds.length; i += 10) {
-                batches.add(storyIds.sublist(
-                  i,
-                  i + 10 > storyIds.length ? storyIds.length : i + 10,
-                ));
+            for (final authorId in authorIds) {
+              final authorData = userDocs[authorId];
+              if (authorData != null) {
+                final photoUrl = authorData['photoUrl'];
+                final validatedUrl = (photoUrl != null &&
+                        photoUrl is String &&
+                        photoUrl.isNotEmpty &&
+                        photoUrl.trim().isNotEmpty &&
+                        (photoUrl.startsWith('http://') ||
+                            photoUrl.startsWith('https://')))
+                    ? photoUrl.trim()
+                    : '';
+                userAvatars[authorId] = validatedUrl;
+                usernames[authorId] = authorData['username'] ?? 'Unknown';
               }
+            }
 
-              for (final batch in batches) {
-                final futures = batch.map((storyId) => _db
-                    .collection('story_media')
-                    .doc(storyId)
-                    .collection('viewers')
-                    .doc(userId)
-                    .get()
-                    .then((doc) => MapEntry(storyId, doc.exists)));
-                final results = await Future.wait(futures);
-                for (final entry in results) {
-                  if (entry.value) {
-                    viewedStoryIds.add(entry.key);
+            // Get user's own story (most recent)
+            StoryMedia? myStory;
+            final myStories = storiesByAuthor[userId] ?? [];
+            if (myStories.isNotEmpty) {
+              // Sort by createdAt descending and take the most recent
+              myStories.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+              myStory = myStories.first;
+            }
+
+            // Check viewer status for all stories
+            final storyIds = <String>[];
+            for (final stories in storiesByAuthor.values) {
+              for (final story in stories) {
+                storyIds.add(story.storyId);
+              }
+            }
+
+            final viewedStoryIds = <String>{};
+            if (storyIds.isNotEmpty) {
+              try {
+                final batches = <List<String>>[];
+                for (var i = 0; i < storyIds.length; i += 10) {
+                  batches.add(storyIds.sublist(
+                    i,
+                    i + 10 > storyIds.length ? storyIds.length : i + 10,
+                  ));
+                }
+
+                for (final batch in batches) {
+                  final futures = batch.map((storyId) => _db
+                      .collection('story_media')
+                      .doc(storyId)
+                      .collection('viewers')
+                      .doc(userId)
+                      .get()
+                      .then((doc) => MapEntry(storyId, doc.exists)));
+                  final results = await Future.wait(futures);
+                  for (final entry in results) {
+                    if (entry.value) {
+                      viewedStoryIds.add(entry.key);
+                    }
                   }
                 }
+              } catch (e) {
+                debugPrint(
+                    'StoryRepository: Error batch checking viewer status: $e');
               }
-            } catch (e) {
-              debugPrint(
-                  'StoryRepository: Error batch checking viewer status: $e');
             }
-          }
 
-          // Separate unread and seen stories (excluding user's own)
-          // CRITICAL FIX: Only show ONE story per user (most recent) to prevent duplicates
-          final unreadStories = <StoryMedia>[];
-          final seenStories = <StoryMedia>[];
-          final processedAuthors =
-              <String>{}; // Track processed authors to prevent duplicates
+            // Separate unread and seen stories (excluding user's own)
+            // CRITICAL FIX: Only show ONE story per user (most recent) to prevent duplicates
+            final unreadStories = <StoryMedia>[];
+            final seenStories = <StoryMedia>[];
+            final processedAuthors =
+                <String>{}; // Track processed authors to prevent duplicates
 
-          for (final authorId in allUserIds) {
-            if (authorId == userId) continue; // Skip own story
-            if (processedAuthors.contains(authorId))
-              continue; // Skip if already processed
+            for (final authorId in allUserIds) {
+              if (authorId == userId) continue; // Skip own story
+              if (processedAuthors.contains(authorId))
+                continue; // Skip if already processed
 
-            final stories = storiesByAuthor[authorId] ?? [];
-            if (stories.isEmpty) continue;
+              final stories = storiesByAuthor[authorId] ?? [];
+              if (stories.isEmpty) continue;
 
-            // Sort stories by createdAt descending and take only the most recent
-            stories.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-            final mostRecentStory =
-                stories.first; // Only take the most recent story
+              // Sort stories by createdAt descending and take only the most recent
+              stories.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+              final mostRecentStory =
+                  stories.first; // Only take the most recent story
 
-            // Mark author as processed
-            processedAuthors.add(authorId);
+              // Mark author as processed
+              processedAuthors.add(authorId);
 
-            // Add to appropriate list based on view status
-            final isUnread = !viewedStoryIds.contains(mostRecentStory.storyId);
-            if (isUnread) {
-              unreadStories.add(mostRecentStory);
-            } else {
-              seenStories.add(mostRecentStory);
+              // Add to appropriate list based on view status
+              final isUnread =
+                  !viewedStoryIds.contains(mostRecentStory.storyId);
+              if (isUnread) {
+                unreadStories.add(mostRecentStory);
+              } else {
+                seenStories.add(mostRecentStory);
+              }
             }
-          }
 
-          return StoryTrayData(
-            myStory: myStory,
-            unreadStories: unreadStories,
-            seenStories: seenStories,
-            userAvatars: userAvatars,
-            usernames: usernames,
-          );
+            return StoryTrayData(
+              myStory: myStory,
+              unreadStories: unreadStories,
+              seenStories: seenStories,
+              userAvatars: userAvatars,
+              usernames: usernames,
+            );
+          } catch (e) {
+            debugPrint('StoryRepository: Error processing story tray data: $e');
+            debugPrint('StoryRepository: Error type: ${e.runtimeType}');
+            if (e is Error) {
+              debugPrint('StoryRepository: Error stack: ${e.stackTrace}');
+            }
+            // Return empty data on error
+            return const StoryTrayData(
+              unreadStories: [],
+              seenStories: [],
+              userAvatars: {},
+              usernames: {},
+            );
+          }
+        }).handleError((error, stackTrace) {
+          debugPrint(
+              'StoryRepository: Error in story tray data stream: $error');
+          debugPrint('StoryRepository: Stack trace: $stackTrace');
         });
-      }).handleError((error) {
-        debugPrint('StoryRepository: Error in story tray data stream: $error');
-        return const StoryTrayData(
-          unreadStories: [],
-          seenStories: [],
-          userAvatars: {},
-          usernames: {},
-        );
       });
     } catch (e) {
       debugPrint('StoryRepository: Error getting story tray data stream: $e');

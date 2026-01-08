@@ -30,6 +30,8 @@ class UserReelsTab extends StatelessWidget {
     return BlocProvider(
       create: (context) => ReelsFeedBloc(
         reelRepository: locator<ReelRepository>(),
+        userRepository: locator(), // Support personalized feed
+        usePersonalizedFeed: false, // Disable for user-specific reels
       )..add(LoadMyReels(userId)),
       child: BlocBuilder<ReelsFeedBloc, ReelsFeedState>(
         builder: (context, state) {
@@ -129,7 +131,7 @@ class _ReelGridItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return GestureDetector(
       onTap: () {
         // Navigate to reel detail or play in full screen
@@ -198,4 +200,3 @@ class _ReelGridItem extends StatelessWidget {
     return count.toString();
   }
 }
-

@@ -3,6 +3,7 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
@@ -40,59 +41,93 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDM1ACsXdFRR5KtumXdsP3h4Kk8XDe1nHI',
-    appId: '1:60183775527:web:09a3e485884b081c674102',
-    messagingSenderId: '60183775527',
-    projectId: 'prototype-29c26',
-    authDomain: 'prototype-29c26.firebaseapp.com',
-    databaseURL: 'https://prototype-29c26-default-rtdb.europe-west1.firebasedatabase.app',
-    storageBucket: 'prototype-29c26.firebasestorage.app',
-    measurementId: 'G-NH61R1GQZT',
-  );
+  static FirebaseOptions get web => FirebaseOptions(
+        apiKey: dotenv.env['FIREBASE_WEB_API_KEY'] ??
+            'AIzaSyDM1ACsXdFRR5KtumXdsP3h4Kk8XDe1nHI',
+        appId: dotenv.env['FIREBASE_WEB_APP_ID'] ??
+            '1:60183775527:web:c69ff7a2c243fe95674102',
+        messagingSenderId:
+            dotenv.env['FIREBASE_WEB_MESSAGING_SENDER_ID'] ?? '60183775527',
+        projectId: dotenv.env['FIREBASE_WEB_PROJECT_ID'] ?? 'prototype-29c26',
+        authDomain: dotenv.env['FIREBASE_WEB_AUTH_DOMAIN'] ??
+            'prototype-29c26.firebaseapp.com',
+        databaseURL: dotenv.env['FIREBASE_WEB_DATABASE_URL'] ??
+            'https://prototype-29c26-default-rtdb.europe-west1.firebasedatabase.app',
+        storageBucket: dotenv.env['FIREBASE_WEB_STORAGE_BUCKET'] ??
+            'prototype-29c26.firebasestorage.app',
+        measurementId:
+            dotenv.env['FIREBASE_WEB_MEASUREMENT_ID'] ?? 'G-EBLPZVBM3Y',
+      );
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDnTEc3b6qOfjFUPuXK4RMf8O8dDNBjz1s',
-    appId: '1:60183775527:android:efd28f0a996a0085674102',
-    messagingSenderId: '60183775527',
-    projectId: 'prototype-29c26',
-    databaseURL: 'https://prototype-29c26-default-rtdb.europe-west1.firebasedatabase.app',
-    storageBucket: 'prototype-29c26.firebasestorage.app',
-  );
+  static FirebaseOptions get android => FirebaseOptions(
+        apiKey: dotenv.env['FIREBASE_ANDROID_API_KEY'] ??
+            'AIzaSyDnTEc3b6qOfjFUPuXK4RMf8O8dDNBjz1s',
+        appId: dotenv.env['FIREBASE_ANDROID_APP_ID'] ??
+            '1:60183775527:android:ee81b78fe213d33b674102',
+        messagingSenderId:
+            dotenv.env['FIREBASE_ANDROID_MESSAGING_SENDER_ID'] ?? '60183775527',
+        projectId:
+            dotenv.env['FIREBASE_ANDROID_PROJECT_ID'] ?? 'prototype-29c26',
+        databaseURL: dotenv.env['FIREBASE_ANDROID_DATABASE_URL'] ??
+            'https://prototype-29c26-default-rtdb.europe-west1.firebasedatabase.app',
+        storageBucket: dotenv.env['FIREBASE_ANDROID_STORAGE_BUCKET'] ??
+            'prototype-29c26.firebasestorage.app',
+      );
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAvV6s1VmRpvH8uI9UZAfZzTLk9pbINXiQ',
-    appId: '1:60183775527:ios:e4cd05cc89685cca674102',
-    messagingSenderId: '60183775527',
-    projectId: 'prototype-29c26',
-    databaseURL: 'https://prototype-29c26-default-rtdb.europe-west1.firebasedatabase.app',
-    storageBucket: 'prototype-29c26.firebasestorage.app',
-    androidClientId: '60183775527-4o1f51fkpqsk4jfu8ij9h9rleuk8qp74.apps.googleusercontent.com',
-    iosClientId: '60183775527-qdd6vg300iucjum8b2ulfr9jjucvpcfi.apps.googleusercontent.com',
-    iosBundleId: 'com.example.freegramFreshStart',
-  );
+  static FirebaseOptions get ios => FirebaseOptions(
+        apiKey: dotenv.env['FIREBASE_IOS_API_KEY'] ??
+            'AIzaSyAvV6s1VmRpvH8uI9UZAfZzTLk9pbINXiQ',
+        appId: dotenv.env['FIREBASE_IOS_APP_ID'] ??
+            '1:60183775527:ios:df7206a6a5f5278c674102',
+        messagingSenderId:
+            dotenv.env['FIREBASE_IOS_MESSAGING_SENDER_ID'] ?? '60183775527',
+        projectId: dotenv.env['FIREBASE_IOS_PROJECT_ID'] ?? 'prototype-29c26',
+        databaseURL: dotenv.env['FIREBASE_IOS_DATABASE_URL'] ??
+            'https://prototype-29c26-default-rtdb.europe-west1.firebasedatabase.app',
+        storageBucket: dotenv.env['FIREBASE_IOS_STORAGE_BUCKET'] ??
+            'prototype-29c26.firebasestorage.app',
+        androidClientId: dotenv.env['FIREBASE_IOS_ANDROID_CLIENT_ID'] ??
+            '60183775527-2t0jjrovodmnurvlj7g3afdkhiuf0921.apps.googleusercontent.com',
+        iosClientId: dotenv.env['FIREBASE_IOS_IOS_CLIENT_ID'] ??
+            '60183775527-t9uis8e2t1011048nnrsnl02emula68s.apps.googleusercontent.com',
+        iosBundleId: 'com.freegram.app',
+      );
 
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyAvV6s1VmRpvH8uI9UZAfZzTLk9pbINXiQ',
-    appId: '1:60183775527:ios:e4cd05cc89685cca674102',
-    messagingSenderId: '60183775527',
-    projectId: 'prototype-29c26',
-    databaseURL: 'https://prototype-29c26-default-rtdb.europe-west1.firebasedatabase.app',
-    storageBucket: 'prototype-29c26.firebasestorage.app',
-    androidClientId: '60183775527-4o1f51fkpqsk4jfu8ij9h9rleuk8qp74.apps.googleusercontent.com',
-    iosClientId: '60183775527-qdd6vg300iucjum8b2ulfr9jjucvpcfi.apps.googleusercontent.com',
-    iosBundleId: 'com.example.freegramFreshStart',
-  );
+  static FirebaseOptions get macos => FirebaseOptions(
+        apiKey: dotenv.env['FIREBASE_MACOS_API_KEY'] ??
+            'AIzaSyAvV6s1VmRpvH8uI9UZAfZzTLk9pbINXiQ',
+        appId: dotenv.env['FIREBASE_MACOS_APP_ID'] ??
+            '1:60183775527:ios:df7206a6a5f5278c674102',
+        messagingSenderId:
+            dotenv.env['FIREBASE_MACOS_MESSAGING_SENDER_ID'] ?? '60183775527',
+        projectId: dotenv.env['FIREBASE_MACOS_PROJECT_ID'] ?? 'prototype-29c26',
+        databaseURL: dotenv.env['FIREBASE_MACOS_DATABASE_URL'] ??
+            'https://prototype-29c26-default-rtdb.europe-west1.firebasedatabase.app',
+        storageBucket: dotenv.env['FIREBASE_MACOS_STORAGE_BUCKET'] ??
+            'prototype-29c26.firebasestorage.app',
+        androidClientId: dotenv.env['FIREBASE_MACOS_ANDROID_CLIENT_ID'] ??
+            '60183775527-2t0jjrovodmnurvlj7g3afdkhiuf0921.apps.googleusercontent.com',
+        iosClientId: dotenv.env['FIREBASE_MACOS_IOS_CLIENT_ID'] ??
+            '60183775527-t9uis8e2t1011048nnrsnl02emula68s.apps.googleusercontent.com',
+        iosBundleId: 'com.freegram.app',
+      );
 
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyDM1ACsXdFRR5KtumXdsP3h4Kk8XDe1nHI',
-    appId: '1:60183775527:web:2050b80db184fc5a674102',
-    messagingSenderId: '60183775527',
-    projectId: 'prototype-29c26',
-    authDomain: 'prototype-29c26.firebaseapp.com',
-    databaseURL: 'https://prototype-29c26-default-rtdb.europe-west1.firebasedatabase.app',
-    storageBucket: 'prototype-29c26.firebasestorage.app',
-    measurementId: 'G-WWYK9SJX3X',
-  );
-
+  static FirebaseOptions get windows => FirebaseOptions(
+        apiKey: dotenv.env['FIREBASE_WINDOWS_API_KEY'] ??
+            'AIzaSyDM1ACsXdFRR5KtumXdsP3h4Kk8XDe1nHI',
+        appId: dotenv.env['FIREBASE_WINDOWS_APP_ID'] ??
+            '1:60183775527:web:2050b80db184fc5a674102',
+        messagingSenderId:
+            dotenv.env['FIREBASE_WINDOWS_MESSAGING_SENDER_ID'] ?? '60183775527',
+        projectId:
+            dotenv.env['FIREBASE_WINDOWS_PROJECT_ID'] ?? 'prototype-29c26',
+        authDomain: dotenv.env['FIREBASE_WINDOWS_AUTH_DOMAIN'] ??
+            'prototype-29c26.firebaseapp.com',
+        databaseURL: dotenv.env['FIREBASE_WINDOWS_DATABASE_URL'] ??
+            'https://prototype-29c26-default-rtdb.europe-west1.firebasedatabase.app',
+        storageBucket: dotenv.env['FIREBASE_WINDOWS_STORAGE_BUCKET'] ??
+            'prototype-29c26.firebasestorage.app',
+        measurementId:
+            dotenv.env['FIREBASE_WINDOWS_MEASUREMENT_ID'] ?? 'G-WWYK9SJX3X',
+      );
 }

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:freegram/models/reel_model.dart';
 import 'package:freegram/models/comment_model.dart';
+import 'package:freegram/models/reel_interaction_model.dart';
 
 class ReelRepository {
   final FirebaseFirestore _db;
@@ -30,9 +31,7 @@ class ReelRepository {
 
       final snapshot = await query.get();
 
-      return snapshot.docs
-          .map((doc) => ReelModel.fromDoc(doc))
-          .toList();
+      return snapshot.docs.map((doc) => ReelModel.fromDoc(doc)).toList();
     } catch (e) {
       debugPrint('ReelRepository: Error getting reels feed: $e');
       return [];
@@ -69,11 +68,8 @@ class ReelRepository {
       }
 
       // Add like document
-      final likeRef = _db
-          .collection('reels')
-          .doc(reelId)
-          .collection('likes')
-          .doc(userId);
+      final likeRef =
+          _db.collection('reels').doc(reelId).collection('likes').doc(userId);
 
       batch.set(likeRef, {
         'userId': userId,
@@ -100,11 +96,8 @@ class ReelRepository {
       final batch = _db.batch();
 
       // Remove like document
-      final likeRef = _db
-          .collection('reels')
-          .doc(reelId)
-          .collection('likes')
-          .doc(userId);
+      final likeRef =
+          _db.collection('reels').doc(reelId).collection('likes').doc(userId);
 
       batch.delete(likeRef);
 
@@ -210,7 +203,7 @@ class ReelRepository {
     try {
       // Get recent reels (client-side filter for last 7 days to avoid index requirement)
       final weekAgo = DateTime.now().subtract(const Duration(days: 7));
-      
+
       final snapshot = await _db
           .collection('reels')
           .where('isActive', isEqualTo: true)
@@ -218,14 +211,12 @@ class ReelRepository {
           .limit(limit * 5) // Get more to filter and sort by engagement
           .get();
 
-      final allReels = snapshot.docs
-          .map((doc) => ReelModel.fromDoc(doc))
-          .toList();
+      final allReels =
+          snapshot.docs.map((doc) => ReelModel.fromDoc(doc)).toList();
 
       // Filter to last 7 days
-      final recentReels = allReels
-          .where((reel) => reel.createdAt.isAfter(weekAgo))
-          .toList();
+      final recentReels =
+          allReels.where((reel) => reel.createdAt.isAfter(weekAgo)).toList();
 
       // Calculate engagement score: views * 1 + likes * 5 + comments * 10
       recentReels.sort((a, b) {
@@ -253,6 +244,155 @@ class ReelRepository {
     }
   }
 
+  /// Get personalized reels feed for a user
+  /// Fetches a larger batch for client-side scoring and filtering
+  Future<List<ReelModel>> getPersonalizedReelsFeed({
+    required String userId,
+    int limit = 50,
+    DocumentSnapshot? lastDocument,
+  }) async {
+    try {
+      Query query = _db
+          .collection('reels')
+          .where('isActive', isEqualTo: true)
+          .orderBy('createdAt', descending: true)
+          .limit(limit);
+
+      if (lastDocument != null) {
+        query = query.startAfterDocument(lastDocument);
+      }
+
+      final snapshot = await query.get();
+      return snapshot.docs.map((doc) => ReelModel.fromDoc(doc)).toList();
+    } catch (e) {
+      debugPrint('ReelRepository: Error getting personalized feed: $e');
+      return [];
+    }
+  }
+
+  /// Get reels by hashtags (for interest matching)
+  Future<List<ReelModel>> getReelsByHashtags({
+    required List<String> hashtags,
+    int limit = 20,
+  }) async {
+    if (hashtags.isEmpty) return [];
+
+    try {
+      final snapshot = await _db
+          .collection('reels')
+          .where('isActive', isEqualTo: true)
+          .where('hashtags', arrayContainsAny: hashtags.take(10).toList())
+          .orderBy('createdAt', descending: true)
+          .limit(limit)
+          .get();
+
+      return snapshot.docs.map((doc) => ReelModel.fromDoc(doc)).toList();
+    } catch (e) {
+      debugPrint('ReelRepository: Error getting reels by hashtags: $e');
+      return [];
+    }
+  }
+
+  /// Get reels from users that the current user follows
+  Future<List<ReelModel>> getReelsFromFollowing({
+    required List<String> followingIds,
+    int limit = 20,
+  }) async {
+    if (followingIds.isEmpty) return [];
+
+    try {
+      // Firestore 'in' query limit is 10, so batch if needed
+      final batchSize = 10;
+      final batches = <Future<QuerySnapshot>>[];
+
+      for (int i = 0; i < followingIds.length; i += batchSize) {
+        final batch = followingIds.skip(i).take(batchSize).toList();
+        batches.add(
+          _db
+              .collection('reels')
+              .where('isActive', isEqualTo: true)
+              .where('uploaderId', whereIn: batch)
+              .orderBy('createdAt', descending: true)
+              .limit(limit)
+              .get(),
+        );
+      }
+
+      final results = await Future.wait(batches);
+      final allReels = <ReelModel>[];
+
+      for (final snapshot in results) {
+        allReels.addAll(
+          snapshot.docs.map((doc) => ReelModel.fromDoc(doc)),
+        );
+      }
+
+      // Sort by creation date and limit
+      allReels.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return allReels.take(limit).toList();
+    } catch (e) {
+      debugPrint('ReelRepository: Error getting reels from following: $e');
+      return [];
+    }
+  }
+
+  /// Record user interaction with a reel
+  Future<void> recordReelInteraction(ReelInteractionModel interaction) async {
+    try {
+      await _db
+          .collection('users')
+          .doc(interaction.userId)
+          .collection('reelInteractions')
+          .doc(interaction.reelId)
+          .set(
+            interaction.toMap(),
+            SetOptions(merge: true),
+          );
+    } catch (e) {
+      debugPrint('ReelRepository: Error recording interaction: $e');
+    }
+  }
+
+  /// Get user's interaction with a specific reel
+  Future<ReelInteractionModel?> getReelInteraction(
+    String userId,
+    String reelId,
+  ) async {
+    try {
+      final doc = await _db
+          .collection('users')
+          .doc(userId)
+          .collection('reelInteractions')
+          .doc(reelId)
+          .get();
+
+      if (!doc.exists) return null;
+      return ReelInteractionModel.fromMap(doc.data()!);
+    } catch (e) {
+      debugPrint('ReelRepository: Error getting interaction: $e');
+      return null;
+    }
+  }
+
+  /// Get user's not interested creators
+  Future<Set<String>> getNotInterestedCreators(String userId) async {
+    try {
+      final snapshot = await _db
+          .collection('users')
+          .doc(userId)
+          .collection('reelInteractions')
+          .where('notInterested', isEqualTo: true)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => doc.data()['creatorId'] as String)
+          .toSet();
+    } catch (e) {
+      debugPrint('ReelRepository: Error getting not interested creators: $e');
+      return {};
+    }
+  }
+
   /// Add a comment to a reel - Uses batch for atomic operations
   Future<String> addComment(
     String reelId,
@@ -268,7 +408,7 @@ class ReelRepository {
         throw Exception('User not found: $userId');
       }
 
-      final userData = userDoc.data()!;
+      final userData = userDoc.data() ?? {};
       final username = userData['username'] ?? 'Anonymous';
       final photoUrl = userData['photoUrl'] ?? '';
 
@@ -433,8 +573,8 @@ class ReelRepository {
 
       // Get current reactions map
       final commentDoc = await commentRef.get();
-      final reactions = Map<String, String>.from(
-          commentDoc.data()?['reactions'] ?? {});
+      final reactions =
+          Map<String, String>.from(commentDoc.data()?['reactions'] ?? {});
 
       // Add reaction
       reactions[userId] = 'like';
@@ -461,8 +601,8 @@ class ReelRepository {
 
       // Get current reactions map
       final commentDoc = await commentRef.get();
-      final reactions = Map<String, String>.from(
-          commentDoc.data()?['reactions'] ?? {});
+      final reactions =
+          Map<String, String>.from(commentDoc.data()?['reactions'] ?? {});
 
       // Remove reaction
       reactions.remove(userId);
@@ -474,4 +614,3 @@ class ReelRepository {
     }
   }
 }
-

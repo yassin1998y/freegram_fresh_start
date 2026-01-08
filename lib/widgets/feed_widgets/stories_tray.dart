@@ -12,6 +12,8 @@ import 'package:freegram/screens/story_viewer_screen.dart';
 import 'package:freegram/services/media_prefetch_service.dart';
 import 'package:freegram/services/upload_progress_service.dart';
 import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/services/user_stream_provider.dart';
+import 'package:freegram/models/user_model.dart';
 
 class StoriesTrayWidget extends StatelessWidget {
   const StoriesTrayWidget({Key? key}) : super(key: key);
@@ -26,7 +28,6 @@ class StoriesTrayWidget extends StatelessWidget {
     }
 
     final storyRepository = locator<StoryRepository>();
-    final currentUser = FirebaseAuth.instance.currentUser;
 
     return Container(
       height: 160,
@@ -44,89 +45,121 @@ class StoriesTrayWidget extends StatelessWidget {
             return StreamBuilder<StoryTrayData>(
               stream: storyRepository.getStoryTrayDataStream(userId),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                debugPrint(
+                    'StoriesTrayWidget: Connection state: ${snapshot.connectionState}');
+                debugPrint('StoriesTrayWidget: Has data: ${snapshot.hasData}');
+                debugPrint(
+                    'StoriesTrayWidget: Has error: ${snapshot.hasError}');
+
+                // Show error state if there's an error
+                if (snapshot.hasError) {
+                  debugPrint(
+                      'StoriesTrayWidget: Error loading stories: ${snapshot.error}');
+                  debugPrint(
+                      'StoriesTrayWidget: Error stack: ${snapshot.error is Error ? (snapshot.error as Error).stackTrace : "No stack trace"}');
+                  // Even on error, show at least Create Story card
+                  return _buildEmptyState(context, userId);
+                }
+
+                // Show loading skeleton only briefly while waiting for initial data
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData) {
+                  // After 2 seconds, show empty state instead of infinite loading
                   return _buildLoadingSkeleton(context);
                 }
 
-                if (snapshot.hasError) {
-              debugPrint(
-                  'StoriesTrayWidget: Error loading stories: ${snapshot.error}');
-              return _buildErrorState(context);
-            }
+                // If we have data, use it (even if connection is still active)
+                final storyData = snapshot.data;
+                if (storyData == null) {
+                  // If no data after waiting, show empty state (at least Create Story card)
+                  debugPrint(
+                      'StoriesTrayWidget: No story data available - showing empty state');
+                  return _buildEmptyState(context, userId);
+                }
 
-            final storyData = snapshot.data;
-            if (storyData == null) {
-              return _buildLoadingSkeleton(context);
-            }
+                debugPrint(
+                    'StoriesTrayWidget: Story data - My story: ${storyData.myStory != null}, Unread: ${storyData.unreadStories.length}, Seen: ${storyData.seenStories.length}');
 
-            // Build the list of widgets in the correct order
-            final List<Widget> storyWidgets = [];
+                // Build the list of widgets in the correct order
+                final List<Widget> storyWidgets = [];
 
-            // 1. Add Create Story Card (always first) - now includes upload progress border
-            storyWidgets.add(
-              CreateStoryCard(
-                user: currentUser,
-                onTap: () {
-                  StoryCreatorTypeScreen.show(context);
-                },
-              ),
-            );
+                // 1. Add Create Story Card (always first) - now includes upload progress border
+                storyWidgets.add(
+                  StreamBuilder<UserModel>(
+                    stream: UserStreamProvider().getUserStream(userId),
+                    builder: (context, userSnapshot) {
+                      final userPhotoUrl = userSnapshot.data?.photoUrl;
+                      return CreateStoryCard(
+                        photoUrl: userPhotoUrl,
+                        onTap: () {
+                          StoryCreatorTypeScreen.show(context);
+                        },
+                      );
+                    },
+                  ),
+                );
 
-            // 2. Add My Story (always second, if it exists)
-            if (storyData.myStory != null) {
-              final myStory = storyData.myStory!;
-              storyWidgets.add(
-                StoryFeedCard(
-                  story: myStory,
-                  username: storyData.usernames[myStory.authorId] ?? 'You',
-                  userAvatarUrl: storyData.userAvatars[myStory.authorId] ?? '',
-                  isUnread: false, // Own stories are never unread
-                  onTap: () => _openStory(context, myStory.authorId),
-                ),
-              );
-            }
+                // 2. Add My Story (always second, if it exists)
+                if (storyData.myStory != null) {
+                  final myStory = storyData.myStory!;
+                  storyWidgets.add(
+                    StoryFeedCard(
+                      story: myStory,
+                      username: storyData.usernames[myStory.authorId] ?? 'You',
+                      userAvatarUrl:
+                          storyData.userAvatars[myStory.authorId] ?? '',
+                      isUnread: false, // Own stories are never unread
+                      onTap: () => _openStory(context, myStory.authorId),
+                    ),
+                  );
+                }
 
-            // 3. Add Unread Friends' Stories
-            final unreadStoriesList = storyData.unreadStories;
-            for (final story in unreadStoriesList) {
-              storyWidgets.add(
-                StoryFeedCard(
-                  story: story,
-                  username: storyData.usernames[story.authorId] ?? 'Unknown',
-                  userAvatarUrl: storyData.userAvatars[story.authorId] ?? '',
-                  isUnread: true,
-                  onTap: () => _openStory(context, story.authorId),
-                ),
-              );
-            }
+                // 3. Add Unread Friends' Stories
+                final unreadStoriesList = storyData.unreadStories;
+                for (final story in unreadStoriesList) {
+                  storyWidgets.add(
+                    StoryFeedCard(
+                      story: story,
+                      username:
+                          storyData.usernames[story.authorId] ?? 'Unknown',
+                      userAvatarUrl:
+                          storyData.userAvatars[story.authorId] ?? '',
+                      isUnread: true,
+                      onTap: () => _openStory(context, story.authorId),
+                    ),
+                  );
+                }
 
-            // 4. Add Seen Friends' Stories
-            final seenStoriesList = storyData.seenStories;
-            for (final story in seenStoriesList) {
-              storyWidgets.add(
-                StoryFeedCard(
-                  story: story,
-                  username: storyData.usernames[story.authorId] ?? 'Unknown',
-                  userAvatarUrl: storyData.userAvatars[story.authorId] ?? '',
-                  isUnread: false,
-                  onTap: () => _openStory(context, story.authorId),
-                ),
-              );
-            }
+                // 4. Add Seen Friends' Stories
+                final seenStoriesList = storyData.seenStories;
+                for (final story in seenStoriesList) {
+                  storyWidgets.add(
+                    StoryFeedCard(
+                      story: story,
+                      username:
+                          storyData.usernames[story.authorId] ?? 'Unknown',
+                      userAvatarUrl:
+                          storyData.userAvatars[story.authorId] ?? '',
+                      isUnread: false,
+                      onTap: () => _openStory(context, story.authorId),
+                    ),
+                  );
+                }
 
-            // Prefetch story thumbnails for better performance
-            final allStories = [
-              if (storyData.myStory != null) storyData.myStory!,
-              ...unreadStoriesList,
-              ...seenStoriesList,
-            ];
+                // Prefetch story thumbnails for better performance
+                final allStories = [
+                  if (storyData.myStory != null) storyData.myStory!,
+                  ...unreadStoriesList,
+                  ...seenStoriesList,
+                ];
                 prefetchService.prefetchStoryThumbnails(allStories);
 
                 // Build the horizontal ListView
                 return ListView.builder(
                   scrollDirection: Axis.horizontal,
                   physics: const ClampingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: DesignTokens.spaceMD),
                   itemCount: storyWidgets.length,
                   itemBuilder: (context, index) {
                     return storyWidgets[index];
@@ -135,23 +168,6 @@ class StoriesTrayWidget extends StatelessWidget {
               },
             );
           },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildErrorState(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(DesignTokens.spaceMD),
-        child: Text(
-          'Unable to load stories',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurface
-                .withValues(alpha: DesignTokens.opacityMedium),
-          ),
         ),
       ),
     );
@@ -183,6 +199,30 @@ class StoriesTrayWidget extends StatelessWidget {
               ),
             ),
           ),
+        );
+      },
+    );
+  }
+
+  /// Build empty state (only Create Story card)
+  Widget _buildEmptyState(BuildContext context, String userId) {
+    return ListView.builder(
+      scrollDirection: Axis.horizontal,
+      physics: const ClampingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
+      itemCount: 1,
+      itemBuilder: (context, index) {
+        return StreamBuilder<UserModel>(
+          stream: UserStreamProvider().getUserStream(userId),
+          builder: (context, userSnapshot) {
+            final userPhotoUrl = userSnapshot.data?.photoUrl;
+            return CreateStoryCard(
+              photoUrl: userPhotoUrl,
+              onTap: () {
+                StoryCreatorTypeScreen.show(context);
+              },
+            );
+          },
         );
       },
     );

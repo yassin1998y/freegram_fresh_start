@@ -53,6 +53,27 @@ class _LoginScreenState extends State<LoginScreen> {
         );
   }
 
+  // PHASE 4: User-friendly error message mapping
+  String _getUserFriendlyErrorMessage(String errorMessage) {
+    final lowerError = errorMessage.toLowerCase();
+    if (lowerError.contains('user-not-found') ||
+        lowerError.contains('wrong-password') ||
+        lowerError.contains('invalid-credential')) {
+      return 'Invalid email or password. Please check and try again.';
+    } else if (lowerError.contains('network') ||
+        lowerError.contains('connection') ||
+        lowerError.contains('internet')) {
+      return 'Network error. Please check your connection and try again.';
+    } else if (lowerError.contains('too-many-requests')) {
+      return 'Too many attempts. Please wait a moment and try again.';
+    } else if (lowerError.contains('user-disabled')) {
+      return 'This account has been disabled. Please contact support.';
+    } else if (lowerError.contains('invalid-email')) {
+      return 'Invalid email address. Please check and try again.';
+    }
+    return errorMessage;
+  }
+
   void _handlePasswordReset() {
     if (_emailController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -103,14 +124,44 @@ class _LoginScreenState extends State<LoginScreen> {
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthError) {
+          // PHASE 4: Improved error handling with user-friendly messages and retry
+          final errorMessage = _getUserFriendlyErrorMessage(state.message);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message),
+              content: Row(
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    color: Theme.of(context).colorScheme.onError,
+                    size: DesignTokens.iconMD,
+                  ),
+                  const SizedBox(width: DesignTokens.spaceSM),
+                  Expanded(
+                    child: Text(
+                      errorMessage,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.onError,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
               backgroundColor: Theme.of(context).colorScheme.error,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
               ),
+              action: SnackBarAction(
+                label: 'Retry',
+                textColor: Theme.of(context).colorScheme.onError,
+                onPressed: () {
+                  // Retry login if form is still valid
+                  if (_formKey.currentState?.validate() ?? false) {
+                    _login();
+                  }
+                },
+              ),
+              duration: const Duration(seconds: 5),
             ),
           );
         }
@@ -150,14 +201,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
-                      Text(
-                        'Freegram',
-                        textAlign: TextAlign.center,
-                        style:
-                            Theme.of(context).textTheme.displayLarge?.copyWith(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  fontSize: DesignTokens.fontSizeDisplay,
-                                ),
+                      Image.asset(
+                        'assets/freegram_logo_no_bg.png',
+                        height: 120,
                       ),
                       const SizedBox(height: DesignTokens.spaceXXL),
                       TextFormField(
@@ -210,7 +256,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: isLoading ? null : _login,
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
-                            vertical: DesignTokens.spaceMD,
+                            vertical: DesignTokens.buttonPaddingVertical,
                           ),
                           backgroundColor:
                               Theme.of(context).colorScheme.primary,
@@ -307,7 +353,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                     .add(SignInWithFacebook());
                               },
                         backgroundColor: const Color(0xFF1877F2),
-                        textColor: Colors.white, // Facebook brand color
+                        textColor: Theme.of(context)
+                            .colorScheme
+                            .onPrimary, // Facebook brand color
                         disabled: isLoading,
                         isLoading: false,
                       ),
@@ -373,21 +421,24 @@ class _SocialLoginButton extends StatelessWidget {
               children: [
                 if (assetName != null)
                   Image.asset(assetName!,
-                      height: 24.0,
+                      height: DesignTokens.iconMD,
                       color: (disabled || isLoading)
-                          ? Colors.grey
+                          ? SemanticColors.textSecondary(context)
                           : null) // Dim icon
                 else if (icon != null)
                   Icon(icon,
-                      color: (disabled || isLoading) ? Colors.grey : textColor,
-                      size: 24.0), // Dim icon
-                const SizedBox(width: 12),
+                      color: (disabled || isLoading)
+                          ? SemanticColors.textSecondary(context)
+                          : textColor,
+                      size: DesignTokens.iconMD), // Dim icon
+                const SizedBox(width: DesignTokens.spaceSM),
                 Text(
                   text,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         // Dim text
-                        color:
-                            (disabled || isLoading) ? Colors.grey : textColor,
+                        color: (disabled || isLoading)
+                            ? SemanticColors.textSecondary(context)
+                            : textColor,
                         fontWeight: FontWeight.w600,
                       ),
                 ),
