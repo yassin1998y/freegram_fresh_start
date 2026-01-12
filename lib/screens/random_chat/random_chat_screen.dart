@@ -249,6 +249,16 @@ class _RandomChatScreenState extends State<RandomChatScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+
+    // 0. STOP LISTENING to prevents crashes during dispose
+    _repository.onStatusChanged = null;
+    _repository.onLocalStream = null;
+    _repository.onRemoteStream = null;
+    _repository.onConnected = null;
+    _repository.onDisconnected = null;
+    _repository.onError = null;
+    _repository.onGiftReceived = null;
+
     // Strict Cleanup Order:
     // 1. Detach streams from renderers (prevents "in use" errors)
     _localRenderer.srcObject = null;

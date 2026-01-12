@@ -79,6 +79,7 @@ class RandomChatRepository {
   }
 
   void _updateStatus(String status) {
+    if (_isDisposing) return;
     _lastStatus = status;
     onStatusChanged?.call(status);
     debugPrint("ℹ️ [RandomChat Status] $status");
