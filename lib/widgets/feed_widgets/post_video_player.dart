@@ -19,6 +19,7 @@ class PostVideoPlayer extends StatefulWidget {
   final bool loadMedia;
   final double? aspectRatio;
   final VoidCallback? onFullScreen;
+  final bool isVisible; // Controls playback based on feed visibility
 
   const PostVideoPlayer({
     Key? key,
@@ -26,6 +27,7 @@ class PostVideoPlayer extends StatefulWidget {
     this.loadMedia = true,
     this.aspectRatio,
     this.onFullScreen,
+    this.isVisible = true,
   }) : super(key: key);
 
   @override
@@ -45,6 +47,20 @@ class _PostVideoPlayerState extends State<PostVideoPlayer> {
   double? _videoAspectRatio; // Track actual video aspect ratio
   final CacheManagerService _cacheService = locator<CacheManagerService>();
   final NetworkQualityService _networkService = NetworkQualityService();
+
+  @override
+  void didUpdateWidget(PostVideoPlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.isVisible && oldWidget.isVisible) {
+      // Pause video when feed becomes invisible (tab switch)
+      if (_controller != null && _isPlaying) {
+        _controller!.pause();
+        setState(() {
+          _isPlaying = false;
+        });
+      }
+    }
+  }
 
   @override
   void initState() {

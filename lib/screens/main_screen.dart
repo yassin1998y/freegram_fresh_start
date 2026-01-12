@@ -30,6 +30,8 @@ import 'package:freegram/widgets/navigation/main_bottom_nav.dart';
 import 'package:freegram/widgets/core/hide_on_scroll_wrapper.dart';
 import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/services/gift_notification_service.dart';
+import 'package:freegram/services/daily_reward_service.dart';
+import 'package:freegram/widgets/gamification/daily_reward_dialog.dart';
 import 'package:hive/hive.dart';
 
 const bool _enableBlurEffects = true;
@@ -64,6 +66,10 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     _fetchUserPhotoUrl();
     _initializeGiftNotifications();
+    // Check for daily reward after a short delay to ensure UI is ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(seconds: 1), _checkDailyReward);
+    });
   }
 
   @override
@@ -110,6 +116,34 @@ class _MainScreenState extends State<MainScreen> {
       debugPrint('MainScreen: Gift notification service initialized');
     } catch (e) {
       debugPrint('MainScreen: Error initializing gift notifications: $e');
+    }
+  }
+
+  Future<void> _checkDailyReward() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final service = locator<DailyRewardService>();
+      final status = await service.checkRewardStatus(user.uid);
+
+      if (status == DailyRewardStatus.available) {
+        // Fetch full user model for streak info
+        final userModel = await locator<UserRepository>().getUser(user.uid);
+
+        if (mounted) {
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => DailyRewardDialog(
+              userId: user.uid,
+              currentStreak: userModel.dailyLoginStreak,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint("⚠️ Daily Reward Check Failed: $e");
     }
   }
 
@@ -334,6 +368,7 @@ class _MainScreenState extends State<MainScreen> {
                     _VisibilityWrapper(
                       isVisible: _selectedIndex == 1,
                       child: FeedScreen(
+                        isVisible: _selectedIndex == 1,
                         onScrollDirectionChanged: (isScrollingDown) {
                           _isScrollingDownNotifier.value = isScrollingDown;
                         },
@@ -341,7 +376,7 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                     _VisibilityWrapper(
                       isVisible: _selectedIndex == 2,
-                      child: const RandomChatScreen(),
+                      child: RandomChatScreen(isVisible: _selectedIndex == 2),
                     ),
                     _VisibilityWrapper(
                       isVisible: _selectedIndex == 3,

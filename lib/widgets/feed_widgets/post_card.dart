@@ -38,6 +38,7 @@ class PostCard extends StatefulWidget {
   final bool loadMedia;
   final GeoPoint? userLocation;
   final bool isNew; // Whether this post is new (since last viewed)
+  final bool isVisible;
 
   const PostCard({
     super.key,
@@ -45,6 +46,7 @@ class PostCard extends StatefulWidget {
     this.loadMedia = true,
     this.userLocation,
     this.isNew = false,
+    this.isVisible = true,
   });
 
   @override
@@ -160,6 +162,7 @@ class _PostCardState extends State<PostCard> {
               child: PostMedia(
                 post: post,
                 loadMedia: widget.loadMedia,
+                isVisible: widget.isVisible,
               ),
             ),
 

@@ -9,6 +9,7 @@ import 'package:freegram/navigation/app_routes.dart';
 import 'package:freegram/services/user_stream_provider.dart';
 import 'package:freegram/screens/moderation_dashboard_screen.dart';
 import 'package:freegram/screens/feature_discovery_screen.dart';
+import 'package:freegram/screens/referral_screen.dart';
 import 'package:freegram/screens/qr_display_screen.dart';
 import 'package:freegram/screens/create_page_screen.dart';
 import 'package:freegram/screens/page_profile_screen.dart';
@@ -186,6 +187,35 @@ class _MenuScreenState extends State<MenuScreen> {
                                 ),
                               );
                             }
+                          },
+                        ),
+                        _MenuTile(
+                          icon: Icons.person_add_alt_1_outlined,
+                          title: 'Invite Friends',
+                          subtitle: 'Earn coins by referring friends',
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                  color: Colors.amber.withOpacity(0.5)),
+                            ),
+                            child: const Text("New",
+                                style: TextStyle(
+                                    color: Colors.amber,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold)),
+                          ),
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ReferralScreen(),
+                              ),
+                            );
                           },
                         ),
                         _MenuTile(
@@ -754,6 +784,7 @@ class _MenuTile extends StatelessWidget {
   final String? subtitle;
   final VoidCallback onTap;
   final Color? color;
+  final Widget? trailing;
 
   const _MenuTile({
     required this.icon,
@@ -761,6 +792,7 @@ class _MenuTile extends StatelessWidget {
     this.subtitle,
     required this.onTap,
     this.color,
+    this.trailing,
   });
 
   @override
@@ -827,6 +859,10 @@ class _MenuTile extends StatelessWidget {
                   ],
                 ),
               ),
+              if (trailing != null) ...[
+                const SizedBox(width: DesignTokens.spaceSM),
+                trailing!,
+              ],
               // Chevron
               Icon(
                 Icons.chevron_right,

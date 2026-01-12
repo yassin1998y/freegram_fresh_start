@@ -488,13 +488,8 @@ class RandomChatRepository {
       debugPrint("🔌 [RandomChat] WebRTC State Check: $state");
       _rtcState = state.toString();
       if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
-        _updateStatus("Connected");
-        // Fallback: Trigger UI transition even if onTrack missed
-        if (!_connectedOnce) {
-          debugPrint("⚠️ [RandomChat] Connected via State (no tracks yet?)");
-          onConnected?.call();
-          _connectedOnce = true;
-        }
+        _updateStatus("Connected (Waiting for stream...)");
+        // REMOVED: Do NOT trigger onConnected here. Wait for onTrack.
       }
       if (state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected ||
           state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||

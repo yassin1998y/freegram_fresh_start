@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/user_repository.dart';
 import 'package:freegram/locator.dart';
+import 'package:freegram/repositories/achievement_repository.dart';
 
 class DailyRewardService {
   final FirebaseFirestore _db;
@@ -98,6 +99,20 @@ class DailyRewardService {
         'lastDailyRewardClaim': FieldValue.serverTimestamp(),
         'dailyLoginStreak': newStreak,
       });
+
+      // TRIGGER ACHIEVEMENT: Engagement Streaks
+      try {
+        if (newStreak >= 7) {
+          locator<AchievementRepository>()
+              .updateProgress(userId, 'engagement_7_day_streak', 1);
+        }
+        if (newStreak >= 30) {
+          locator<AchievementRepository>()
+              .updateProgress(userId, 'engagement_30_day_streak', 1);
+        }
+      } catch (e) {
+        // Ignore errors
+      }
 
       // Log transaction
       final transactionRef = _db.collection('coinTransactions').doc();

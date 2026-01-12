@@ -23,6 +23,7 @@ import 'package:freegram/widgets/reels/user_reels_tab.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:freegram/widgets/profile/gift_showcase.dart';
 import 'package:freegram/screens/analytics_dashboard_screen.dart';
+import 'package:freegram/screens/achievements_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String userId;
@@ -648,7 +649,7 @@ class _ModernProfileHeader extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: ElevatedButton.icon(
+          child: ElevatedButton(
             onPressed: () {
               HapticFeedback.lightImpact();
               locator<NavigationService>().navigateTo(
@@ -656,22 +657,20 @@ class _ModernProfileHeader extends StatelessWidget {
                 transition: PageTransition.slide,
               );
             },
-            icon: const Icon(Icons.edit_outlined, size: 20),
-            label: const Text('Edit Profile'),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(
-                horizontal: DesignTokens.spaceMD,
                 vertical: DesignTokens.spaceMD,
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
               ),
             ),
+            child: const Icon(Icons.edit_outlined, size: 20),
           ),
         ),
         const SizedBox(width: DesignTokens.spaceSM),
         Expanded(
-          child: OutlinedButton.icon(
+          child: OutlinedButton(
             onPressed: () {
               HapticFeedback.lightImpact();
               locator<NavigationService>().navigateTo(
@@ -679,17 +678,36 @@ class _ModernProfileHeader extends StatelessWidget {
                 transition: PageTransition.slide,
               );
             },
-            icon: const Icon(Icons.analytics_outlined, size: 20),
-            label: const Text('Analytics'),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(
-                horizontal: DesignTokens.spaceMD,
                 vertical: DesignTokens.spaceMD,
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
               ),
             ),
+            child: const Icon(Icons.analytics_outlined, size: 20),
+          ),
+        ),
+        const SizedBox(width: DesignTokens.spaceSM),
+        Expanded(
+          child: OutlinedButton(
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              locator<NavigationService>().navigateTo(
+                const AchievementsScreen(),
+                transition: PageTransition.slide,
+              );
+            },
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(
+                vertical: DesignTokens.spaceMD,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+              ),
+            ),
+            child: const Icon(Icons.emoji_events_outlined, size: 20),
           ),
         ),
       ],

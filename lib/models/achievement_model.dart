@@ -5,6 +5,7 @@ enum AchievementCategory {
   spending,
   collection,
   engagement,
+  content,
 }
 
 enum AchievementTier {

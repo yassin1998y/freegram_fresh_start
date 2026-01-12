@@ -11,7 +11,8 @@ import '../../repositories/random_chat_repository.dart';
 import 'widgets/pulse_avatar.dart';
 
 class RandomChatScreen extends StatefulWidget {
-  const RandomChatScreen({super.key});
+  final bool isVisible;
+  const RandomChatScreen({super.key, this.isVisible = true});
 
   @override
   State<RandomChatScreen> createState() => _RandomChatScreenState();
@@ -37,6 +38,15 @@ class _RandomChatScreenState extends State<RandomChatScreen>
   late AnimationController _giftAnimationController;
   late Animation<double> _giftScaleAnimation;
   GiftModel? _currentGift;
+
+  @override
+  void didUpdateWidget(RandomChatScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.isVisible && oldWidget.isVisible) {
+      debugPrint("🙈 [RandomChatScreen] Tab hidden, pausing connection...");
+      _stopSearch(); // Stop active searching/connection
+    }
+  }
 
   @override
   void initState() {
@@ -609,7 +619,7 @@ class _RandomChatScreenState extends State<RandomChatScreen>
           children: [
             // 1. Full Screen Layer
             Positioned.fill(
-              child: _isConnected
+              child: _isConnected && _remoteRenderer.srcObject != null
                   ? RTCVideoView(
                       _remoteRenderer,
                       objectFit:

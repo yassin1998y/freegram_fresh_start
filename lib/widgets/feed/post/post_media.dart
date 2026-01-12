@@ -20,11 +20,13 @@ import 'package:freegram/services/cloudinary_service.dart';
 class PostMedia extends StatefulWidget {
   final PostModel post;
   final bool loadMedia;
+  final bool isVisible;
 
   const PostMedia({
     super.key,
     required this.post,
     this.loadMedia = true,
+    this.isVisible = true,
   });
 
   @override
@@ -130,6 +132,7 @@ class _PostMediaState extends State<PostMedia>
         child: PostVideoPlayer(
           mediaItem: mediaItem,
           loadMedia: widget.loadMedia,
+          isVisible: widget.isVisible,
         ),
       );
     }

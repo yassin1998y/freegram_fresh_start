@@ -33,11 +33,13 @@ final GlobalKey<ForYouFeedTabState> kForYouFeedTabKey =
 class ForYouFeedTab extends StatefulWidget {
   final ValueChanged<bool>? onScrollDirectionChanged;
   final VoidCallback? onScrollToTop;
+  final bool isVisible;
 
   const ForYouFeedTab({
     super.key,
     this.onScrollDirectionChanged,
     this.onScrollToTop,
+    this.isVisible = true,
   });
 
   @override
@@ -486,19 +488,20 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
   }
 
   Widget _buildFeedItem(FeedItem item, {bool isNewPost = false}) {
-    Widget widget;
+    Widget contentWidget;
 
     if (item is PostFeedItem) {
-      widget = PostCard(
+      contentWidget = PostCard(
         item: item,
         loadMedia: true,
         userLocation: _cachedUserLocation,
         isNew: isNewPost, // Pass to PostCard, badge shown in header
+        isVisible: widget.isVisible, // Pass visibility state
       );
     } else if (item is AdFeedItem) {
-      widget = AdCard(adCacheKey: item.cacheKey);
+      contentWidget = AdCard(adCacheKey: item.cacheKey);
     } else if (item is SuggestionCarouselFeedItem) {
-      widget = SuggestionCarouselWidget(
+      contentWidget = SuggestionCarouselWidget(
         type: item.type,
         suggestions: item.suggestions,
         onDismiss: () {},
@@ -518,7 +521,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
       return const SizedBox.shrink();
     }
 
-    return widget;
+    return contentWidget;
   }
 
   bool _hasTrendingPosts(UnifiedFeedLoaded state) {

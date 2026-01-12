@@ -173,6 +173,8 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
         return "🎁 Collection";
       case AchievementCategory.engagement:
         return "🔥 Engagement";
+      case AchievementCategory.content:
+        return "📱 Content";
     }
   }
 

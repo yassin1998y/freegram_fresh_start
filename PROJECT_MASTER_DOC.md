@@ -41,16 +41,23 @@
 *   **Pages (Business/Creator):**
     *   Separate entity for businesses/creators.
     *   Verification system with Admin approval (see Operations section).
+*   **Gamification System (Expanded):**
+    *   **Enhanced Store Catalog:** Expansion of coin packages, 20+ new animated gifts, and profile customization items. (Live)
+    *   **Daily Rewards:** Login streak system with increasing rewards. (Implemented)
+    *   **Achievements & Quests:** System for tracking user milestones (e.g., "Big Spender", "Social Butterfly") with rewards. (Implemented)
+    *   **Referral System:** Unique codes, invite links, and dual-sided rewards. (Implemented)
+    *   **Transaction History:** Detailed logs of all economy actions. (Implemented)
 
 ### Planned / In-Progress Features
 *(Derived from `.plans/` directory)*
 
-#### A. Gamification System Expansion (High Priority)
-*   **Enhanced Store Catalog:** Expansion of coin packages, 20+ new animated gifts, and profile customization items (borders/badges). (*Status: Planned*)
-*   **Daily Rewards:** Login streak system with increasing rewards (Coins, Super Likes, Gifts). (*Status: Planned*)
-*   **Achievements & Quests:** System for tracking user milestones (e.g., "Big Spender", "Social Butterfly") with rewards. (*Status: Planned*)
-*   **Referral System:** Unique codes, invite links, and dual-sided rewards. (*Status: Planned*)
-*   **Transaction History:** Detailed logs of all economy actions. (*Status: Planned*)
+#### A. Phase 2: Unified Media Engine (Planned)
+*   **Description:** Consolidate video compression, editing, and thumbnail generation into a single robust pipeline using Google-standard and LGPL-compliant tools.
+*   **Target Stack:**
+    *   **Playback:** `video_player` (Keep).
+    *   **Engine:** `ffmpeg_kit_flutter_min` (LGPL version, replaces `video_compress`).
+    *   **Editing UI:** `video_editor`.
+*   **System Requirement:** Upgrade Android `minSdkVersion` to 24.
 
 #### B. Reel Creation Improvements (Phase 2)
 *   **Advanced Video Editing:** Precise timeline trimming, frame previews using `video_editor` package. (*Status: Planned*)
@@ -106,7 +113,11 @@ The project follows a modular **Clean Architecture** approach.
 ## 5. Diagnostic Summary (2026-01-12)
 
 *   **Health:** The codebase is well-structured and follows consistent patterns.
+*   **Recent Change Log / Stability Updates:**
+    *   **Fixed:** WebRTC Race Condition (Black Screen) in Random Chat.
+    *   **Fixed:** MainScreen "Ghost Task" freezing issue (Resource pausing implemented).
+    *   **Added:** Achievement Triggers (Post, Gift, Streak) & Profile Trophies UI.
+    *   **Added:** Referral System Entry in Menu.
 *   **Active Issues:**
-    *   **WebRTC/Random Chat:** Currently undergoing debugging for "Black Screen" connection issues. Recent fixes were applied to `RandomChatRepository` and `RandomChatScreen` lifecycle management.
-    *   **FFmpeg Compatibility:** Note that extensive video editing features are planned but rely on `ffmpeg_kit_flutter`, which can significantly increase app size and requires careful configuration.
+    *   **FFmpeg Compatibility:** Planned Unified Media Engine will require careful configuration of `ffmpeg_kit_flutter` (LGPL) and bumping `minSdkVersion` to 24.
 *   **Cleanup:** Redundant documentation files (`APP_OVERVIEW.md`, `.plans/*`) have been consolidated into this Master Document and removed.

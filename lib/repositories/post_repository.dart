@@ -11,6 +11,7 @@ import 'package:freegram/services/hashtag_service.dart';
 import 'package:freegram/services/mention_service.dart';
 import 'package:freegram/models/media_item_model.dart';
 import 'package:freegram/locator.dart';
+import 'package:freegram/repositories/achievement_repository.dart';
 
 /// Cache entry for feed results
 class _CachedFeedResult {
@@ -570,6 +571,14 @@ class PostRepository {
         'createdAt': now,
         'updatedAt': now,
       });
+
+      // TRIGGER ACHIEVEMENT: First Post
+      try {
+        locator<AchievementRepository>()
+            .updateProgress(userId, 'content_first_post', 1);
+      } catch (e) {
+        debugPrint('PostRepository: Error updating achievement: $e');
+      }
 
       return postRef.id;
     } catch (e) {

@@ -253,5 +253,18 @@ class AchievementRepository {
       rewardBadgeId: 'badge_loyal',
       createdAt: DateTime.now(),
     ),
+
+    // Content Achievements
+    AchievementModel(
+      id: 'content_first_post',
+      name: 'First Post',
+      description: 'Create your first post',
+      iconUrl: 'https://placeholder.com/achievement/first_post.png',
+      category: AchievementCategory.content,
+      tier: AchievementTier.bronze,
+      targetValue: 1,
+      rewardCoins: 50,
+      createdAt: DateTime.now(),
+    ),
   ];
 }

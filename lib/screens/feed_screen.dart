@@ -23,8 +23,13 @@ import 'package:freegram/screens/reels_feed_screen.dart';
 class FeedScreen extends StatefulWidget {
   final ValueChanged<bool>?
       onScrollDirectionChanged; // Forward scroll direction to MainScreen
+  final bool isVisible; // Controls video playback status
 
-  const FeedScreen({Key? key, this.onScrollDirectionChanged}) : super(key: key);
+  const FeedScreen({
+    Key? key,
+    this.onScrollDirectionChanged,
+    this.isVisible = true,
+  }) : super(key: key);
 
   @override
   State<FeedScreen> createState() => _FeedScreenState();
@@ -163,6 +168,7 @@ class _FeedScreenState extends State<FeedScreen>
                 value: _feedBloc,
                 child: ForYouFeedTab(
                   key: kForYouFeedTabKey,
+                  isVisible: widget.isVisible,
                   onScrollDirectionChanged: (isScrollingDown) {
                     if (mounted) {
                       setState(() {
