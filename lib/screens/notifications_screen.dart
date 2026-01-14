@@ -301,6 +301,11 @@ class NotificationTile extends StatelessWidget {
         leadingIconColor = Theme.of(context).colorScheme.secondary;
         notificationActionText = ' waved at you from nearby!';
         break;
+      case NotificationType.giftReceived:
+        leadingIcon = Icons.card_giftcard;
+        leadingIconColor = const Color(0xFF9C27B0); // Purple for gifts
+        notificationActionText = ' sent you a gift!';
+        break;
       case NotificationType.comment:
         leadingIcon = Icons.comment;
         leadingIconColor = SemanticColors.info;

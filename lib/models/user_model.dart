@@ -123,11 +123,19 @@ class UserModel extends Equatable {
   bool get isOnline => presence;
 
   // _toDateTime, _getList, _getIntList remain the same
-  static DateTime _toDateTime(dynamic timestamp) {
+  static DateTime _toDateTime(dynamic timestamp, [String? fieldName]) {
     // Handle null timestamps
     if (timestamp == null) {
-      debugPrint(
-          "UserModel: Null timestamp encountered, using epoch as fallback");
+      if (fieldName != null &&
+          (fieldName == 'lastDailyRewardClaim' ||
+              fieldName == 'lastNearbyDiscoveryDate' ||
+              fieldName == 'lastFreeSuperLike')) {
+        // These are expected to be null for new users, so be silent or less alarming
+        // debugPrint("UserModel: Optional field '$fieldName' is missing/null, defaulting to Epoch.");
+      } else {
+        debugPrint(
+            "UserModel: Null timestamp encountered ${fieldName != null ? "for field '$fieldName'" : ""}, using epoch as fallback");
+      }
       return DateTime.fromMillisecondsSinceEpoch(0);
     }
 
@@ -204,7 +212,7 @@ class UserModel extends Equatable {
       bio: data['bio'] ?? '',
       fcmToken: data['fcmToken'] ?? '',
       presence: data['presence'] ?? false,
-      lastSeen: _toDateTime(data['lastSeen']),
+      lastSeen: _toDateTime(data['lastSeen'], 'lastSeen'),
       country: data['country'] ?? '',
       location: data['location'] is GeoPoint
           ? data['location'] as GeoPoint
@@ -217,7 +225,7 @@ class UserModel extends Equatable {
       age: data['age'] ?? 0,
       gender: data['gender'] ?? '',
       interests: _getList(data, 'interests'),
-      createdAt: _toDateTime(data['createdAt']),
+      createdAt: _toDateTime(data['createdAt'], 'createdAt'),
       friends: _getList(data, 'friends'),
       friendRequestsSent: _getList(data, 'friendRequestsSent'),
       friendRequestsReceived: _getList(data, 'friendRequestsReceived'),
@@ -226,7 +234,8 @@ class UserModel extends Equatable {
       userAffinities: _getAffinityMap(data),
       coins: data['coins'] ?? 0,
       superLikes: data['superLikes'] ?? 1, // Keep
-      lastFreeSuperLike: _toDateTime(data['lastFreeSuperLike']),
+      lastFreeSuperLike:
+          _toDateTime(data['lastFreeSuperLike'], 'lastFreeSuperLike'),
 
       // Gamification
       lifetimeCoinsSpent: data['lifetimeCoinsSpent'] ?? 0,
@@ -236,7 +245,8 @@ class UserModel extends Equatable {
       totalGiftsReceived: data['totalGiftsReceived'] ?? 0,
       totalGiftsSent: data['totalGiftsSent'] ?? 0,
       uniqueGiftsCollected: data['uniqueGiftsCollected'] ?? 0,
-      lastDailyRewardClaim: _toDateTime(data['lastDailyRewardClaim']),
+      lastDailyRewardClaim:
+          _toDateTime(data['lastDailyRewardClaim'], 'lastDailyRewardClaim'),
       dailyLoginStreak: data['dailyLoginStreak'] ?? 0,
       // xp: data['xp'] ?? 0, // Removed
       // level: data['level'] ?? 1, // Removed
@@ -249,7 +259,8 @@ class UserModel extends Equatable {
       nearbyStatusMessage: data['nearbyStatusMessage'] ?? '',
       nearbyStatusEmoji: data['nearbyStatusEmoji'] ?? '',
       nearbyDiscoveryStreak: data['nearbyDiscoveryStreak'] ?? 0,
-      lastNearbyDiscoveryDate: _toDateTime(data['lastNearbyDiscoveryDate']),
+      lastNearbyDiscoveryDate: _toDateTime(
+          data['lastNearbyDiscoveryDate'], 'lastNearbyDiscoveryDate'),
       sharedMusicTrack: data['sharedMusicTrack'] != null
           ? Map<String, String>.from(data['sharedMusicTrack'])
           : null,

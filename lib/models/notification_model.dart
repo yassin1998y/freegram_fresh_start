@@ -5,6 +5,7 @@ enum NotificationType {
   requestAccepted,
   superLike,
   nearbyWave,
+  giftReceived, // Received a virtual gift
   comment, // Comment on post
   reaction, // Reaction to post
   mention, // Mentioned in post
@@ -80,6 +81,9 @@ class NotificationModel {
         return NotificationType.superLike;
       case 'nearbyWave':
         return NotificationType.nearbyWave;
+      case 'gift_received':
+      case 'giftReceived':
+        return NotificationType.giftReceived;
       case 'comment':
         return NotificationType.comment;
       case 'reaction':
