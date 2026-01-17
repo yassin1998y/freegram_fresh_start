@@ -436,474 +436,492 @@ class _SignUpScreenState extends State<SignUpScreen>
               child: Center(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(DesignTokens.spaceXL),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        // IMPROVEMENT #12: Success animation
-                        if (_successAnimationController.isAnimating)
-                          ScaleTransition(
-                            scale: _successScaleAnimation,
-                            child: Container(
-                              padding:
-                                  const EdgeInsets.all(DesignTokens.spaceLG),
-                              decoration: const BoxDecoration(
-                                color: SemanticColors.success,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.check,
-                                color: Theme.of(context).colorScheme.onPrimary,
-                                size: DesignTokens.iconXXL,
-                              ),
-                            ),
-                          )
-                        else
-                          // NEW: Profile Picture Picker
-                          Center(
-                            child: GestureDetector(
-                              onTap: isLoading ? null : _pickImage,
-                              child: Stack(
-                                children: [
-                                  Container(
-                                    width: 100,
-                                    height: 100,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .surfaceContainerHighest,
-                                      image: _imageFile != null
-                                          ? DecorationImage(
-                                              image: FileImage(_imageFile!),
-                                              fit: BoxFit.cover,
-                                            )
-                                          : null,
-                                    ),
-                                    child: _imageFile == null
-                                        ? Icon(
-                                            Icons.person_add_outlined,
-                                            size: 40,
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            // IMPROVEMENT #12: Success animation
+                            if (_successAnimationController.isAnimating)
+                              ScaleTransition(
+                                scale: _successScaleAnimation,
+                                child: Container(
+                                  padding: const EdgeInsets.all(
+                                      DesignTokens.spaceLG),
+                                  decoration: const BoxDecoration(
+                                    color: SemanticColors.success,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.check,
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                    size: DesignTokens.iconXXL,
+                                  ),
+                                ),
+                              )
+                            else
+                              // NEW: Profile Picture Picker
+                              Center(
+                                child: GestureDetector(
+                                  onTap: isLoading ? null : _pickImage,
+                                  child: Stack(
+                                    children: [
+                                      Container(
+                                        width: 100,
+                                        height: 100,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .surfaceContainerHighest,
+                                          image: _imageFile != null
+                                              ? DecorationImage(
+                                                  image: FileImage(_imageFile!),
+                                                  fit: BoxFit.cover,
+                                                )
+                                              : null,
+                                        ),
+                                        child: _imageFile == null
+                                            ? Icon(
+                                                Icons.person_add_outlined,
+                                                size: 40,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary,
+                                              )
+                                            : null,
+                                      ),
+                                      Positioned(
+                                        bottom: 0,
+                                        right: 0,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
                                             color: Theme.of(context)
                                                 .colorScheme
                                                 .primary,
-                                          )
-                                        : null,
-                                  ),
-                                  Positioned(
-                                    bottom: 0,
-                                    right: 0,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: Theme.of(context)
-                                              .scaffoldBackgroundColor,
-                                          width: 2,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: Theme.of(context)
+                                                  .scaffoldBackgroundColor,
+                                              width: 2,
+                                            ),
+                                          ),
+                                          child: Icon(
+                                            Icons.camera_alt,
+                                            size: 16,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onPrimary,
+                                          ),
                                         ),
                                       ),
-                                      child: Icon(
-                                        Icons.camera_alt,
-                                        size: 16,
-                                        color: Theme.of(context)
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: DesignTokens.spaceLG),
+                            Text(
+                              'Create Account',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .displayMedium
+                                  ?.copyWith(
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                            const SizedBox(height: DesignTokens.spaceSM),
+                            // IMPROVEMENT #16: Help text
+                            Text(
+                              'Join Freegram to discover nearby users and connect',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color:
+                                        SemanticColors.textSecondary(context),
+                                    fontSize: DesignTokens.fontSizeMD,
+                                  ),
+                            ),
+                            const SizedBox(height: DesignTokens.spaceXXL),
+
+                            // NEW: Username Field
+                            TextFormField(
+                              controller: _usernameController,
+                              focusNode: _usernameFocusNode,
+                              textInputAction: TextInputAction.next,
+                              autovalidateMode:
+                                  AutovalidateMode.onUserInteraction,
+                              decoration: InputDecoration(
+                                labelText: 'Username',
+                                hintText: 'Choose a unique username',
+                                prefixIcon: const Icon(Icons.person_outline),
+                                suffixIcon: _usernameValidated &&
+                                        _usernameController.text.isNotEmpty
+                                    ? const Icon(
+                                        Icons.check_circle,
+                                        color: SemanticColors.success,
+                                      )
+                                    : null,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(
+                                      DesignTokens.radiusMD),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(
+                                      DesignTokens.radiusMD),
+                                  borderSide: BorderSide(
+                                    color: _usernameValidated
+                                        ? SemanticColors.success
+                                        : Theme.of(context)
                                             .colorScheme
-                                            .onPrimary,
+                                            .outline
+                                            .withOpacity(
+                                                DesignTokens.opacityMedium),
+                                    width: _usernameValidated ? 2 : 1,
+                                  ),
+                                ),
+                              ),
+                              enabled: !isLoading,
+                              onFieldSubmitted: (_) =>
+                                  _emailFocusNode.requestFocus(),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Username is required';
+                                }
+                                if (value.length < 3) {
+                                  return 'Username must be at least 3 characters';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: DesignTokens.spaceMD),
+
+                            // IMPROVEMENT #2: Email field with validation feedback
+                            TextFormField(
+                              controller: _emailController,
+                              focusNode: _emailFocusNode,
+                              keyboardType: TextInputType.emailAddress,
+                              textInputAction: TextInputAction.next,
+                              autovalidateMode:
+                                  AutovalidateMode.onUserInteraction,
+                              // IMPROVEMENT #4: Input formatting
+                              inputFormatters: [
+                                FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                                LowerCaseTextFormatter(),
+                              ],
+                              // IMPROVEMENT #14: Accessibility
+                              decoration: InputDecoration(
+                                labelText: 'Email',
+                                hintText: 'you@example.com',
+                                prefixIcon: const Icon(Icons.email_outlined),
+                                suffixIcon: _emailValidated &&
+                                        _emailController.text.isNotEmpty
+                                    ? const Icon(
+                                        Icons.check_circle,
+                                        color: SemanticColors.success,
+                                      )
+                                    : null,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(
+                                      DesignTokens.radiusMD),
+                                ),
+                                // IMPROVEMENT #2: Visual feedback
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(
+                                      DesignTokens.radiusMD),
+                                  borderSide: BorderSide(
+                                    color: _emailValidated
+                                        ? SemanticColors.success
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .outline
+                                            .withOpacity(
+                                                DesignTokens.opacityMedium),
+                                    width: _emailValidated ? 2 : 1,
+                                  ),
+                                ),
+                                errorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(
+                                      DesignTokens.radiusMD),
+                                  borderSide: BorderSide(
+                                    color: Theme.of(context).colorScheme.error,
+                                    width: 2,
+                                  ),
+                                ),
+                                helperText: _emailController.text.isNotEmpty &&
+                                        !_emailValidated
+                                    ? 'Please enter a valid email address'
+                                    : null,
+                              ),
+                              enabled: !isLoading,
+                              // IMPROVEMENT #11: Validation on blur
+                              onFieldSubmitted: (_) =>
+                                  _passwordFocusNode.requestFocus(),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Email is required';
+                                }
+                                if (!_isValidEmail(value)) {
+                                  return 'Please enter a valid email';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: DesignTokens.spaceMD),
+
+                            // IMPROVEMENT #1: Enhanced password field
+                            TextFormField(
+                              controller: _passwordController,
+                              focusNode: _passwordFocusNode,
+                              obscureText: !_passwordVisible,
+                              textInputAction: TextInputAction.done,
+                              autovalidateMode:
+                                  AutovalidateMode.onUserInteraction,
+                              // IMPROVEMENT #13: Keyboard type optimization
+                              keyboardType: TextInputType.visiblePassword,
+                              decoration: InputDecoration(
+                                labelText: 'Password',
+                                hintText: 'Create a strong password',
+                                prefixIcon: const Icon(Icons.lock_outline),
+                                suffixIcon: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // IMPROVEMENT #10: Better password visibility toggle
+                                    if (_passwordController.text.isNotEmpty)
+                                      IconButton(
+                                        icon: Icon(
+                                          _passwordVisible
+                                              ? Icons.visibility_off_outlined
+                                              : Icons.visibility_outlined,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                        ),
+                                        onPressed: isLoading
+                                            ? null
+                                            : () => setState(() =>
+                                                _passwordVisible =
+                                                    !_passwordVisible),
+                                        tooltip: _passwordVisible
+                                            ? 'Hide password'
+                                            : 'Show password',
                                       ),
+                                  ],
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(
+                                      DesignTokens.radiusMD),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(
+                                      DesignTokens.radiusMD),
+                                  borderSide: BorderSide(
+                                    color: _passwordValidated &&
+                                            _passwordController.text.isNotEmpty
+                                        ? SemanticColors.success
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .outline
+                                            .withOpacity(
+                                                DesignTokens.opacityMedium),
+                                    width: _passwordValidated &&
+                                            _passwordController.text.isNotEmpty
+                                        ? 2
+                                        : 1,
+                                  ),
+                                ),
+                              ),
+                              enabled: !isLoading,
+                              onChanged: _onPasswordChanged,
+                              onFieldSubmitted: (_) {
+                                if (canSubmit) _signUp();
+                              },
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Password is required';
+                                }
+                                if (value.length < 6) {
+                                  return 'Password must be at least 6 characters';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: DesignTokens.spaceSM),
+
+                            // IMPROVEMENT #1: Enhanced password strength indicator
+                            if (_passwordController.text.isNotEmpty) ...[
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(
+                                          DesignTokens.radiusXS),
+                                      child: AppLinearProgressIndicator(
+                                        value: _passwordStrength,
+                                        minHeight: 8,
+                                        backgroundColor: Theme.of(context)
+                                            .colorScheme
+                                            .surfaceContainerHighest,
+                                        color: _passwordStrength < 0.4
+                                            ? SemanticColors.error
+                                            : (_passwordStrength < 0.7
+                                                ? SemanticColors.warning
+                                                : SemanticColors.success),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: DesignTokens.spaceSM),
+                                  Text(
+                                    _passwordStrengthLabel,
+                                    style: TextStyle(
+                                      fontSize: DesignTokens.fontSizeSM,
+                                      fontWeight: FontWeight.w600,
+                                      color: _passwordStrength < 0.4
+                                          ? SemanticColors.error
+                                          : (_passwordStrength < 0.7
+                                              ? SemanticColors.warning
+                                              : SemanticColors.success),
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ),
-                        const SizedBox(height: DesignTokens.spaceLG),
-                        Text(
-                          'Create Account',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context)
-                              .textTheme
-                              .displayMedium
-                              ?.copyWith(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        const SizedBox(height: DesignTokens.spaceSM),
-                        // IMPROVEMENT #16: Help text
-                        Text(
-                          'Join Freegram to discover nearby users and connect',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                color: SemanticColors.textSecondary(context),
-                                fontSize: DesignTokens.fontSizeMD,
-                              ),
-                        ),
-                        const SizedBox(height: DesignTokens.spaceXXL),
-
-                        // NEW: Username Field
-                        TextFormField(
-                          controller: _usernameController,
-                          focusNode: _usernameFocusNode,
-                          textInputAction: TextInputAction.next,
-                          autovalidateMode: AutovalidateMode.onUserInteraction,
-                          decoration: InputDecoration(
-                            labelText: 'Username',
-                            hintText: 'Choose a unique username',
-                            prefixIcon: const Icon(Icons.person_outline),
-                            suffixIcon: _usernameValidated &&
-                                    _usernameController.text.isNotEmpty
-                                ? const Icon(
-                                    Icons.check_circle,
-                                    color: SemanticColors.success,
-                                  )
-                                : null,
-                            border: OutlineInputBorder(
-                              borderRadius:
-                                  BorderRadius.circular(DesignTokens.radiusMD),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius:
-                                  BorderRadius.circular(DesignTokens.radiusMD),
-                              borderSide: BorderSide(
-                                color: _usernameValidated
-                                    ? SemanticColors.success
-                                    : Theme.of(context)
-                                        .colorScheme
-                                        .outline
-                                        .withOpacity(
-                                            DesignTokens.opacityMedium),
-                                width: _usernameValidated ? 2 : 1,
-                              ),
-                            ),
-                          ),
-                          enabled: !isLoading,
-                          onFieldSubmitted: (_) =>
-                              _emailFocusNode.requestFocus(),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Username is required';
-                            }
-                            if (value.length < 3) {
-                              return 'Username must be at least 3 characters';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: DesignTokens.spaceMD),
-
-                        // IMPROVEMENT #2: Email field with validation feedback
-                        TextFormField(
-                          controller: _emailController,
-                          focusNode: _emailFocusNode,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          autovalidateMode: AutovalidateMode.onUserInteraction,
-                          // IMPROVEMENT #4: Input formatting
-                          inputFormatters: [
-                            FilteringTextInputFormatter.deny(RegExp(r'\s')),
-                            LowerCaseTextFormatter(),
-                          ],
-                          // IMPROVEMENT #14: Accessibility
-                          decoration: InputDecoration(
-                            labelText: 'Email',
-                            hintText: 'you@example.com',
-                            prefixIcon: const Icon(Icons.email_outlined),
-                            suffixIcon: _emailValidated &&
-                                    _emailController.text.isNotEmpty
-                                ? const Icon(
-                                    Icons.check_circle,
-                                    color: SemanticColors.success,
-                                  )
-                                : null,
-                            border: OutlineInputBorder(
-                              borderRadius:
-                                  BorderRadius.circular(DesignTokens.radiusMD),
-                            ),
-                            // IMPROVEMENT #2: Visual feedback
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius:
-                                  BorderRadius.circular(DesignTokens.radiusMD),
-                              borderSide: BorderSide(
-                                color: _emailValidated
-                                    ? SemanticColors.success
-                                    : Theme.of(context)
-                                        .colorScheme
-                                        .outline
-                                        .withOpacity(
-                                            DesignTokens.opacityMedium),
-                                width: _emailValidated ? 2 : 1,
-                              ),
-                            ),
-                            errorBorder: OutlineInputBorder(
-                              borderRadius:
-                                  BorderRadius.circular(DesignTokens.radiusMD),
-                              borderSide: BorderSide(
-                                color: Theme.of(context).colorScheme.error,
-                                width: 2,
-                              ),
-                            ),
-                            helperText: _emailController.text.isNotEmpty &&
-                                    !_emailValidated
-                                ? 'Please enter a valid email address'
-                                : null,
-                          ),
-                          enabled: !isLoading,
-                          // IMPROVEMENT #11: Validation on blur
-                          onFieldSubmitted: (_) =>
-                              _passwordFocusNode.requestFocus(),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Email is required';
-                            }
-                            if (!_isValidEmail(value)) {
-                              return 'Please enter a valid email';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: DesignTokens.spaceMD),
-
-                        // IMPROVEMENT #1: Enhanced password field
-                        TextFormField(
-                          controller: _passwordController,
-                          focusNode: _passwordFocusNode,
-                          obscureText: !_passwordVisible,
-                          textInputAction: TextInputAction.done,
-                          autovalidateMode: AutovalidateMode.onUserInteraction,
-                          // IMPROVEMENT #13: Keyboard type optimization
-                          keyboardType: TextInputType.visiblePassword,
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            hintText: 'Create a strong password',
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            suffixIcon: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // IMPROVEMENT #10: Better password visibility toggle
-                                if (_passwordController.text.isNotEmpty)
-                                  IconButton(
-                                    icon: Icon(
-                                      _passwordVisible
-                                          ? Icons.visibility_off_outlined
-                                          : Icons.visibility_outlined,
-                                      color:
-                                          Theme.of(context).colorScheme.primary,
-                                    ),
-                                    onPressed: isLoading
-                                        ? null
-                                        : () => setState(() =>
-                                            _passwordVisible =
-                                                !_passwordVisible),
-                                    tooltip: _passwordVisible
-                                        ? 'Hide password'
-                                        : 'Show password',
+                              const SizedBox(height: DesignTokens.spaceSM),
+                              // IMPROVEMENT #3: Password requirements checklist
+                              ..._getPasswordRequirements(
+                                      _passwordController.text)
+                                  .map(
+                                (req) => Padding(
+                                  padding: const EdgeInsets.only(
+                                      bottom: DesignTokens.spaceXS),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        _passwordController.text.isNotEmpty &&
+                                                    (req.contains(
+                                                            '6 characters') &&
+                                                        _passwordController
+                                                                .text.length >=
+                                                            6) ||
+                                                (req.contains('uppercase') &&
+                                                    RegExp(r'[A-Z]').hasMatch(
+                                                        _passwordController
+                                                            .text)) ||
+                                                (req.contains('number') &&
+                                                    RegExp(r'[0-9]').hasMatch(
+                                                        _passwordController
+                                                            .text))
+                                            ? Icons.check_circle
+                                            : Icons.radio_button_unchecked,
+                                        size: DesignTokens.iconSM,
+                                        color: _passwordController.text.isNotEmpty &&
+                                                    (req.contains('6 characters') &&
+                                                        _passwordController
+                                                                .text.length >=
+                                                            6) ||
+                                                (req.contains('uppercase') &&
+                                                    RegExp(r'[A-Z]').hasMatch(
+                                                        _passwordController
+                                                            .text)) ||
+                                                (req.contains('number') &&
+                                                    RegExp(r'[0-9]').hasMatch(
+                                                        _passwordController
+                                                            .text))
+                                            ? SemanticColors.success
+                                            : SemanticColors.textSecondary(context)
+                                                .withOpacity(
+                                                    DesignTokens.opacityMedium),
+                                      ),
+                                      const SizedBox(
+                                          width: DesignTokens.spaceXS),
+                                      Text(
+                                        req,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              fontSize: DesignTokens.fontSizeSM,
+                                              color:
+                                                  SemanticColors.textSecondary(
+                                                      context),
+                                            ),
+                                      ),
+                                    ],
                                   ),
-                              ],
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius:
-                                  BorderRadius.circular(DesignTokens.radiusMD),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius:
-                                  BorderRadius.circular(DesignTokens.radiusMD),
-                              borderSide: BorderSide(
-                                color: _passwordValidated &&
-                                        _passwordController.text.isNotEmpty
-                                    ? SemanticColors.success
-                                    : Theme.of(context)
-                                        .colorScheme
-                                        .outline
-                                        .withOpacity(
-                                            DesignTokens.opacityMedium),
-                                width: _passwordValidated &&
-                                        _passwordController.text.isNotEmpty
-                                    ? 2
-                                    : 1,
-                              ),
-                            ),
-                          ),
-                          enabled: !isLoading,
-                          onChanged: _onPasswordChanged,
-                          onFieldSubmitted: (_) {
-                            if (canSubmit) _signUp();
-                          },
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Password is required';
-                            }
-                            if (value.length < 6) {
-                              return 'Password must be at least 6 characters';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: DesignTokens.spaceSM),
-
-                        // IMPROVEMENT #1: Enhanced password strength indicator
-                        if (_passwordController.text.isNotEmpty) ...[
-                          Row(
-                            children: [
-                              Expanded(
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(
-                                      DesignTokens.radiusXS),
-                                  child: AppLinearProgressIndicator(
-                                    value: _passwordStrength,
-                                    minHeight: 8,
-                                    backgroundColor: Theme.of(context)
-                                        .colorScheme
-                                        .surfaceContainerHighest,
-                                    color: _passwordStrength < 0.4
-                                        ? SemanticColors.error
-                                        : (_passwordStrength < 0.7
-                                            ? SemanticColors.warning
-                                            : SemanticColors.success),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: DesignTokens.spaceSM),
-                              Text(
-                                _passwordStrengthLabel,
-                                style: TextStyle(
-                                  fontSize: DesignTokens.fontSizeSM,
-                                  fontWeight: FontWeight.w600,
-                                  color: _passwordStrength < 0.4
-                                      ? SemanticColors.error
-                                      : (_passwordStrength < 0.7
-                                          ? SemanticColors.warning
-                                          : SemanticColors.success),
                                 ),
                               ),
                             ],
-                          ),
-                          const SizedBox(height: DesignTokens.spaceSM),
-                          // IMPROVEMENT #3: Password requirements checklist
-                          ..._getPasswordRequirements(_passwordController.text)
-                              .map(
-                            (req) => Padding(
-                              padding: const EdgeInsets.only(
-                                  bottom: DesignTokens.spaceXS),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    _passwordController.text.isNotEmpty &&
-                                                (req.contains('6 characters') &&
-                                                    _passwordController
-                                                            .text.length >=
-                                                        6) ||
-                                            (req.contains('uppercase') &&
-                                                RegExp(r'[A-Z]').hasMatch(
-                                                    _passwordController
-                                                        .text)) ||
-                                            (req.contains('number') &&
-                                                RegExp(r'[0-9]').hasMatch(
-                                                    _passwordController.text))
-                                        ? Icons.check_circle
-                                        : Icons.radio_button_unchecked,
-                                    size: DesignTokens.iconSM,
-                                    color: _passwordController
-                                                    .text.isNotEmpty &&
-                                                (req.contains('6 characters') &&
-                                                    _passwordController
-                                                            .text.length >=
-                                                        6) ||
-                                            (req.contains('uppercase') &&
-                                                RegExp(r'[A-Z]').hasMatch(
-                                                    _passwordController
-                                                        .text)) ||
-                                            (req.contains('number') &&
-                                                RegExp(r'[0-9]').hasMatch(
-                                                    _passwordController.text))
-                                        ? SemanticColors.success
-                                        : SemanticColors.textSecondary(context)
-                                            .withOpacity(
-                                                DesignTokens.opacityMedium),
-                                  ),
-                                  const SizedBox(width: DesignTokens.spaceXS),
-                                  Text(
-                                    req,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(
-                                          fontSize: DesignTokens.fontSizeSM,
-                                          color: SemanticColors.textSecondary(
-                                              context),
-                                        ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
 
-                        const SizedBox(height: DesignTokens.spaceLG),
+                            const SizedBox(height: DesignTokens.spaceLG),
 
-                        // IMPROVEMENT #6: Enhanced button with loading state
-                        SizedBox(
-                          height: DesignTokens.buttonHeight,
-                          child: ElevatedButton(
-                            onPressed: canSubmit ? _signUp : null,
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: DesignTokens.spaceMD),
-                              backgroundColor: canSubmit
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Theme.of(context)
+                            // IMPROVEMENT #6: Enhanced button with loading state
+                            SizedBox(
+                              height: DesignTokens.buttonHeight,
+                              child: ElevatedButton(
+                                onPressed: canSubmit ? _signUp : null,
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: DesignTokens.spaceMD),
+                                  backgroundColor: canSubmit
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHighest,
+                                  foregroundColor: canSubmit
+                                      ? Theme.of(context).colorScheme.onPrimary
+                                      : SemanticColors.textSecondary(context),
+                                  disabledBackgroundColor: Theme.of(context)
                                       .colorScheme
                                       .surfaceContainerHighest,
-                              foregroundColor: canSubmit
-                                  ? Theme.of(context).colorScheme.onPrimary
-                                  : SemanticColors.textSecondary(context),
-                              disabledBackgroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest,
-                              disabledForegroundColor:
-                                  SemanticColors.textSecondary(context)
-                                      .withOpacity(
-                                          DesignTokens.opacityDisabled),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                    DesignTokens.radiusMD),
-                              ),
-                              elevation:
-                                  canSubmit ? DesignTokens.elevation2 : 0,
-                            ),
-                            child: isLoading
-                                ? Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      AppProgressIndicator(
-                                        size: DesignTokens.iconMD,
-                                        strokeWidth: 2.5,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onPrimary,
-                                      ),
-                                      const SizedBox(
-                                          width: DesignTokens.spaceSM),
-                                      const Text('Creating account...'),
-                                    ],
-                                  )
-                                : const Text(
-                                    'Sign Up',
-                                    style: TextStyle(
-                                      fontSize: DesignTokens.fontSizeLG,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                  disabledForegroundColor:
+                                      SemanticColors.textSecondary(context)
+                                          .withOpacity(
+                                              DesignTokens.opacityDisabled),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(
+                                        DesignTokens.radiusMD),
                                   ),
-                          ),
+                                  elevation:
+                                      canSubmit ? DesignTokens.elevation2 : 0,
+                                ),
+                                child: isLoading
+                                    ? Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          AppProgressIndicator(
+                                            size: DesignTokens.iconMD,
+                                            strokeWidth: 2.5,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onPrimary,
+                                          ),
+                                          const SizedBox(
+                                              width: DesignTokens.spaceSM),
+                                          const Text('Creating account...'),
+                                        ],
+                                      )
+                                    : const Text(
+                                        'Sign Up',
+                                        style: TextStyle(
+                                          fontSize: DesignTokens.fontSizeLG,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),

@@ -175,7 +175,7 @@ class UploadBorderPainter extends CustomPainter {
 
       // Draw progress arc
       // Start from top (-π/2), sweep clockwise
-      final startAngle = -math.pi / 2;
+      const startAngle = -math.pi / 2;
       final sweepAngle = 2 * math.pi * progress;
 
       canvas.drawArc(

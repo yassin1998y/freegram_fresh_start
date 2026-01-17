@@ -7,7 +7,6 @@ import 'package:freegram/utils/rarity_helper.dart';
 import 'package:freegram/screens/gift_detail_screen.dart';
 import 'package:freegram/utils/haptic_helper.dart';
 import 'package:intl/intl.dart';
-import 'dart:math';
 import 'package:freegram/widgets/gifting/gift_visual.dart';
 
 /// A banner displayed in the chat for gift messages

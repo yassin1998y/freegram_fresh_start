@@ -121,18 +121,15 @@ class _PostCardState extends State<PostCard> {
     PostModel post,
     PostDisplayType displayType,
   ) {
-    final theme = Theme.of(context);
-
-    return Container(
-      color: theme.cardColor,
-      margin: EdgeInsets.zero, // Full-width posts, no horizontal margins
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // HEADER - Using refined padding
           Padding(
-            padding: EdgeInsets.all(DesignTokens.postHeaderPadding),
+            padding: const EdgeInsets.all(DesignTokens.postHeaderPadding),
             child: PostHeader(
               post: post,
               displayType: displayType,
@@ -148,7 +145,7 @@ class _PostCardState extends State<PostCard> {
           // CAPTION (moved to top, before media)
           if (post.content.isNotEmpty)
             Padding(
-              padding: EdgeInsets.symmetric(
+              padding: const EdgeInsets.symmetric(
                 horizontal: DesignTokens.postCaptionPadding,
                 vertical: DesignTokens.spaceSM,
               ),
@@ -168,7 +165,7 @@ class _PostCardState extends State<PostCard> {
 
           // ACTIONS - Using refined padding
           Padding(
-            padding: EdgeInsets.all(DesignTokens.postActionsPadding),
+            padding: const EdgeInsets.all(DesignTokens.postActionsPadding),
             child: PostActions(
               post: post,
               onReactionCountChanged: _onReactionCountChanged,
@@ -178,7 +175,7 @@ class _PostCardState extends State<PostCard> {
 
           // FOOTER (engagement stats only, caption moved to top)
           Padding(
-            padding: EdgeInsets.symmetric(
+            padding: const EdgeInsets.symmetric(
               horizontal: DesignTokens.postCaptionPadding,
             ),
             child: PostFooter(
@@ -188,13 +185,6 @@ class _PostCardState extends State<PostCard> {
               onBoostTap: () => _navigateToBoostPost(context, post),
               onInsightsTap: () => _navigateToBoostInsights(context, post),
             ),
-          ),
-
-          // Hairline divider instead of card gap
-          Divider(
-            height: 1,
-            thickness: DesignTokens.borderWidthHairline,
-            color: theme.dividerColor,
           ),
         ],
       ),
@@ -455,7 +445,7 @@ class _PostCardState extends State<PostCard> {
               setState(() => _isCaptionExpanded = !_isCaptionExpanded);
             },
             child: Padding(
-              padding: EdgeInsets.only(top: DesignTokens.spaceXS),
+              padding: const EdgeInsets.only(top: DesignTokens.spaceXS),
               child: Text(
                 _isCaptionExpanded ? 'Show less' : 'Show more',
                 style: theme.textTheme.bodySmall?.copyWith(

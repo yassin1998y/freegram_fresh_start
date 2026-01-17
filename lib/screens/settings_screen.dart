@@ -42,8 +42,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (currentUser != null) {
         await currentUser.updatePassword(_newPasswordController.text);
         messenger.showSnackBar(
-          SnackBar(
-            content: const Text('Password updated successfully!'),
+          const SnackBar(
+            content: Text('Password updated successfully!'),
             backgroundColor: SemanticColors.success,
           ),
         );

@@ -302,7 +302,7 @@ class ReelRepository {
 
     try {
       // Firestore 'in' query limit is 10, so batch if needed
-      final batchSize = 10;
+      const batchSize = 10;
       final batches = <Future<QuerySnapshot>>[];
 
       for (int i = 0; i < followingIds.length; i += batchSize) {

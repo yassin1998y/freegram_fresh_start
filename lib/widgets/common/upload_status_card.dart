@@ -108,7 +108,7 @@ class UploadStatusCard extends StatelessWidget {
               LinearProgressIndicator(
                 value: progress.progress,
                 backgroundColor: Colors.grey[300],
-                valueColor: AlwaysStoppedAnimation<Color>(
+                valueColor: const AlwaysStoppedAnimation<Color>(
                   SonarPulseTheme.primaryAccent,
                 ),
               ),

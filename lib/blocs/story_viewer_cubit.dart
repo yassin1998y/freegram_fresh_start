@@ -603,11 +603,9 @@ class StoryViewerCubit extends Cubit<StoryViewerState> {
     }
 
     // Ensure duration is set
-    if (_storyDuration == null) {
-      _storyDuration = story.mediaType == 'video' && story.duration != null
+    _storyDuration ??= story.mediaType == 'video' && story.duration != null
           ? Duration(seconds: story.duration!.toInt().clamp(1, 15))
           : const Duration(seconds: 5);
-    }
 
     // Set start time when media is actually ready
     _storyStartTime = DateTime.now();

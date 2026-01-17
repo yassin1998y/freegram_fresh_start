@@ -435,18 +435,18 @@ class _GiftSendSelectionScreenState extends State<GiftSendSelectionScreen>
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: Row(
+            child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   'Continue to Message',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 8),
-                const Icon(Icons.arrow_forward),
+                SizedBox(width: 8),
+                Icon(Icons.arrow_forward),
               ],
             ),
           ),

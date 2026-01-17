@@ -786,7 +786,7 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
 
         // Trigger feed refresh via BLoC
         final bloc = context.read<ReelsFeedBloc>();
-        bloc.add(RefreshReelsFeed());
+        bloc.add(const RefreshReelsFeed());
 
         // Navigate back if in a modal or detail view
         if (Navigator.canPop(context)) {

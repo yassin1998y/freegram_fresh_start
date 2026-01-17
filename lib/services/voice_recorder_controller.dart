@@ -169,7 +169,7 @@ class VoiceRecorderController {
               if (stableCount >= stableChecksRequired) {
                 // File size is stable, it's fully written
                 debugPrint(
-                    'Audio file is ready: $finalPath (size: ${stat.size} bytes, stable for ${stableChecksRequired} checks)');
+                    'Audio file is ready: $finalPath (size: ${stat.size} bytes, stable for $stableChecksRequired checks)');
                 await _cleanupAfterRecording();
                 return finalPath;
               }

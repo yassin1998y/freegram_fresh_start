@@ -83,7 +83,7 @@ class StoryCameraWidget extends StatelessWidget {
                 onTap: onTakePicture,
                 size: DesignTokens.spaceXXXL - DesignTokens.spaceXS * 2,
               ),
-              SizedBox(width: DesignTokens.spaceXL),
+              const SizedBox(width: DesignTokens.spaceXL),
               // Video record button (long press)
               _VideoRecordButton(
                 isRecording: isRecordingVideo,

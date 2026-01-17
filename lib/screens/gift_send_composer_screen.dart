@@ -132,9 +132,7 @@ class _GiftSendComposerScreenState extends State<GiftSendComposerScreen> {
                 backgroundImage: (widget.recipient.photoUrl.isNotEmpty)
                     ? NetworkImage(widget.recipient.photoUrl)
                     : null,
-                child: widget.recipient.photoUrl == null
-                    ? Text(widget.recipient.username[0].toUpperCase())
-                    : null,
+                child: null,
               ),
               const SizedBox(width: 12),
               Expanded(

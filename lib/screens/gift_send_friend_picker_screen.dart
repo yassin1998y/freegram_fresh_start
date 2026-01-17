@@ -6,7 +6,6 @@ import 'package:freegram/repositories/friend_repository.dart';
 import 'package:freegram/repositories/gift_repository.dart';
 import 'package:freegram/utils/haptic_helper.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
-import 'package:freegram/widgets/gifting/recent_recipients_widget.dart';
 import 'package:freegram/navigation/app_routes.dart';
 
 import 'package:freegram/models/gift_model.dart';
@@ -306,7 +305,7 @@ class _GiftSendFriendPickerScreenState
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           ),
         ),
-        subtitle: friend.bio != null ? Text(friend.bio!) : null,
+        subtitle: Text(friend.bio),
         trailing: isSelected
             ? Icon(Icons.check_circle, color: Colors.purple.shade700)
             : const Icon(Icons.chevron_right),

@@ -71,7 +71,7 @@ class _PostFooterState extends State<PostFooter> {
           ),
           style: TextButton.styleFrom(
             foregroundColor: theme.colorScheme.primary,
-            padding: EdgeInsets.symmetric(
+            padding: const EdgeInsets.symmetric(
               horizontal: DesignTokens.spaceSM,
               vertical: DesignTokens.spaceXS,
             ),
@@ -95,7 +95,7 @@ class _PostFooterState extends State<PostFooter> {
           ),
           style: TextButton.styleFrom(
             foregroundColor: theme.colorScheme.primary,
-            padding: EdgeInsets.symmetric(
+            padding: const EdgeInsets.symmetric(
               horizontal: DesignTokens.spaceSM,
               vertical: DesignTokens.spaceXS,
             ),
@@ -112,7 +112,7 @@ class _PostFooterState extends State<PostFooter> {
         // Engagement section (Likes count, comments) with Boost button on right
         if (hasEngagement || boostButton != null)
           Padding(
-            padding: EdgeInsets.symmetric(
+            padding: const EdgeInsets.symmetric(
               horizontal: DesignTokens.spaceMD,
               vertical: DesignTokens.spaceXS,
             ),
@@ -146,7 +146,7 @@ class _PostFooterState extends State<PostFooter> {
                       if (widget.reactionCount > 0 &&
                           widget.post.commentCount > 0)
                         Padding(
-                          padding: EdgeInsets.symmetric(
+                          padding: const EdgeInsets.symmetric(
                               horizontal: DesignTokens.spaceSM),
                           child: Text(
                             '•',
@@ -177,14 +177,14 @@ class _PostFooterState extends State<PostFooter> {
         // Caption section (only if showCaption is true)
         if (widget.showCaption && widget.post.content.isNotEmpty)
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
+            padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
             child: _buildCaption(context),
           ),
 
         // Hashtags section
         if (widget.post.hashtags.isNotEmpty)
           Padding(
-            padding: EdgeInsets.symmetric(
+            padding: const EdgeInsets.symmetric(
               horizontal: DesignTokens.spaceMD,
               vertical: DesignTokens.spaceSM,
             ),
@@ -296,7 +296,7 @@ class _PostFooterState extends State<PostFooter> {
               setState(() => _isCaptionExpanded = true);
             },
             child: Padding(
-              padding: EdgeInsets.only(top: DesignTokens.spaceXS),
+              padding: const EdgeInsets.only(top: DesignTokens.spaceXS),
               child: Text(
                 'more',
                 style: theme.textTheme.bodySmall?.copyWith(

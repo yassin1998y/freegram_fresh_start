@@ -300,7 +300,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                     leading: const CircleAvatar(
                       child: Icon(Icons.person),
                     ),
-                    title: Text("User joined"),
+                    title: const Text("User joined"),
                     subtitle: Text(_formatDate(record.timestamp)),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -364,7 +364,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
       _codeController.clear();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text(
                 "Success! You received ${ReferralService.refereeReward} coins!"),
             backgroundColor: Colors.green,

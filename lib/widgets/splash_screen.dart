@@ -299,7 +299,7 @@ class _SplashScreenState extends State<SplashScreen>
               const SizedBox(height: DesignTokens.spaceXXL),
 
               // Spinner
-              SizedBox(
+              const SizedBox(
                 width: 40,
                 height: 40,
                 child: CircularProgressIndicator(

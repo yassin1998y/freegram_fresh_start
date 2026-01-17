@@ -271,7 +271,7 @@ class _PostVideoPlayerState extends State<PostVideoPlayer> {
   String _formatDuration(Duration duration) {
     final minutes = duration.inMinutes;
     final seconds = duration.inSeconds % 60;
-    return '${minutes}:${seconds.toString().padLeft(2, '0')}';
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -363,7 +363,7 @@ class _PostVideoPlayerState extends State<PostVideoPlayer> {
                     onTap: _handlePlayPause,
                     child: Container(
                       padding: const EdgeInsets.all(DesignTokens.spaceMD),
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: Colors.black54,
                         shape: BoxShape.circle,
                       ),

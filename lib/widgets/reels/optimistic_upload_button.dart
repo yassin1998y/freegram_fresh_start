@@ -119,7 +119,7 @@ class OptimisticUploadButton extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: progress,
                   backgroundColor: Colors.transparent,
-                  valueColor: AlwaysStoppedAnimation<Color>(
+                  valueColor: const AlwaysStoppedAnimation<Color>(
                     SonarPulseTheme.primaryAccent,
                   ),
                   minHeight: height ?? DesignTokens.buttonHeight,
@@ -134,7 +134,7 @@ class OptimisticUploadButton extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         width: DesignTokens.iconSM,
                         height: DesignTokens.iconSM,
                         child: CircularProgressIndicator(

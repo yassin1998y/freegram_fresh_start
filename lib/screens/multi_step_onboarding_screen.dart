@@ -46,9 +46,7 @@ class _AnimatedInputFieldState extends State<AnimatedInputField>
   late AnimationController _animationController;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
-  late Animation<double> _blurAnimation;
-  OverlayEntry? _blurOverlay;
-  bool _isFocused = false;
+
   final GlobalKey _fieldKey = GlobalKey();
 
   @override
@@ -77,105 +75,18 @@ class _AnimatedInputFieldState extends State<AnimatedInputField>
       curve: Curves.easeOutCubic,
       reverseCurve: Curves.easeInBack,
     ));
-
-    _blurAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
-  }
-
-  void _showBlur() {
-    if (_blurOverlay != null) return;
-
-    final overlay = Overlay.of(context);
-
-    _blurOverlay = OverlayEntry(
-      maintainState: false,
-      builder: (context) {
-        return Stack(
-          children: [
-            // Full screen blur
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () => FocusScope.of(context).unfocus(),
-                child: AnimatedBuilder(
-                  animation: _blurAnimation,
-                  builder: (context, _) {
-                    return Opacity(
-                      opacity: _blurAnimation.value * 0.4,
-                      child: ClipRect(
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(
-                            sigmaX: 10 * _blurAnimation.value,
-                            sigmaY: 10 * _blurAnimation.value,
-                          ),
-                          child: Container(
-                            color: Theme.of(context)
-                                .scaffoldBackgroundColor
-                                .withOpacity(0.2 * _blurAnimation.value),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    overlay.insert(_blurOverlay!);
-
-    // Force overlay to update when field position changes
-    _blurOverlay!.markNeedsBuild();
-  }
-
-  void _hideBlur() {
-    _blurOverlay?.remove();
-    _blurOverlay = null;
   }
 
   void _handleFocusChange(bool hasFocus) {
-    setState(() {
-      _isFocused = hasFocus;
-    });
-
     if (hasFocus) {
-      // Start animation first
       _animationController.forward();
-      // Then show blur after field starts moving
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _isFocused) {
-          _showBlur();
-          // Update blur position continuously while focused
-          _animationController.addListener(_updateBlurPosition);
-        }
-      });
     } else {
-      _animationController.removeListener(_updateBlurPosition);
-      _animationController.reverse().then((_) {
-        if (mounted) {
-          _hideBlur();
-        }
-      });
-    }
-  }
-
-  void _updateBlurPosition() {
-    // Update blur overlay to follow field position
-    if (_blurOverlay != null && _isFocused) {
-      _blurOverlay!.markNeedsBuild();
+      _animationController.reverse();
     }
   }
 
   @override
   void dispose() {
-    _hideBlur();
     _animationController.dispose();
     super.dispose();
   }
@@ -193,14 +104,7 @@ class _AnimatedInputFieldState extends State<AnimatedInputField>
               scale: _scaleAnimation.value,
               child: SlideTransition(
                 position: _slideAnimation,
-                child: Material(
-                  type: MaterialType.transparency,
-                  elevation: _isFocused ? 24 : 0,
-                  shadowColor: _isFocused
-                      ? Theme.of(context).colorScheme.primary.withOpacity(0.4)
-                      : Colors.transparent,
-                  child: widget.child,
-                ),
+                child: widget.child,
               ),
             );
           },
@@ -1557,8 +1461,11 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
           }
         },
         child: Builder(
-          builder: (blocContext) => WillPopScope(
-            onWillPop: () async {
+          builder: (blocContext) => PopScope(
+            canPop: false,
+            onPopInvokedWithResult: (didPop, result) async {
+              if (didPop) return;
+
               // Show confirmation dialog when user tries to go back
               final shouldExit = await showDialog<bool>(
                 context: context,
@@ -1585,10 +1492,12 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
 
               if (shouldExit == true) {
                 // User confirmed - sign out
+                // Note: SignOut usually triggers navigation change via AuthBloc listener
                 context.read<AuthBloc>().add(SignOut());
-                return true;
+                // If we need to forcefully pop referencing the previous behavior of 'return true',
+                // we would call Navigator.pop(context), but since SignOut likely redirects,
+                // we let the BLoC listener handle the routing.
               }
-              return false; // Prevent back navigation
             },
             child: _showSuccessScreen
                 ? _buildSuccessScreen()
@@ -1809,7 +1718,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                                                             _totalSteps - 1
                                                         ? 'Complete'
                                                         : 'Next'),
-                                                style: TextStyle(
+                                                style: const TextStyle(
                                                   fontWeight: FontWeight.w600,
                                                   fontSize:
                                                       DesignTokens.fontSizeLG,
@@ -1879,20 +1788,14 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                       border: Border.all(
                         color: _uploadedImageUrl != null || _imageFile != null
                             ? SemanticColors.success
-                            : Colors.grey[300]!,
+                            : Theme.of(context).dividerColor,
                         width: 3,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          spreadRadius: 2,
-                        ),
-                      ],
                     ),
                     child: CircleAvatar(
                       radius: 70,
-                      backgroundColor: Colors.grey[200],
+                      backgroundColor:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
                       backgroundImage: _uploadedImageUrl != null
                           ? NetworkImage(_uploadedImageUrl!)
                           : (_imageFile != null
@@ -1910,7 +1813,10 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                               (widget.currentUserData?.photoUrl == null ||
                                   widget.currentUserData!.photoUrl.isEmpty)
                           ? Icon(Icons.camera_alt,
-                              size: 70, color: Colors.grey[400])
+                              size: 70,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant)
                           : null,
                     ),
                   ),
@@ -1922,7 +1828,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.primary,
                         shape: BoxShape.circle,
-                        boxShadow: DesignTokens.shadowMedium,
+                        // Removed DesignTokens.shadowMedium
                       ),
                       child: const Icon(
                         Icons.camera_alt,
@@ -1972,7 +1878,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                     borderSide: BorderSide(
                       color: _nameValidated
                           ? SemanticColors.success
-                          : Colors.grey[300]!,
+                          : Theme.of(context).dividerColor,
                       width: _nameValidated
                           ? DesignTokens.borderWidthThick
                           : DesignTokens.borderWidthThin,
@@ -2345,7 +2251,7 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                   'Optional',
                   style: TextStyle(
                     fontSize: DesignTokens.fontSizeXS,
-                    color: Colors.grey[600],
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -2443,21 +2349,11 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                     height: 100,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          SemanticColors.success,
-                          SemanticColors.success.withOpacity(0.8),
-                        ],
+                      color: SemanticColors.success.withOpacity(0.1),
+                      border: Border.all(
+                        color: SemanticColors.success.withOpacity(0.3),
+                        width: 4,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: SemanticColors.success.withOpacity(0.25),
-                          blurRadius: 24,
-                          spreadRadius: 4,
-                        ),
-                      ],
                     ),
                     child: const Icon(
                       Icons.check_rounded,

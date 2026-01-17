@@ -3,7 +3,6 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/repositories/story_repository.dart';
 import 'package:freegram/models/upload_progress_model.dart';
 import 'package:freegram/models/text_overlay_model.dart';

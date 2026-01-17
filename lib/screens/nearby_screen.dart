@@ -512,11 +512,9 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
 
         // Professional Sonar Area with Glassmorphism
         Expanded(
-          child: ProfessionalGlassmorphicContainer(
-            padding: EdgeInsets.zero,
+          child: Container(
             margin: const EdgeInsets.all(DesignTokens.spaceLG),
-            borderRadius: DesignTokens.radiusLG,
-            blurIntensity: DesignTokens.blurMedium,
+            decoration: Containers.glassCard(context),
             child: GestureDetector(
               onTap: () => _handleSonarToggle(isScanningActive),
               child: SonarView(
@@ -577,17 +575,23 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
         boxShadow: isScanningActive
             ? [
                 BoxShadow(
-                  color: SonarPulseTheme.primaryAccent.withOpacity(0.6),
+                  color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.6),
                   blurRadius: DesignTokens.elevation4,
                   spreadRadius: 4,
                 ),
                 BoxShadow(
-                  color: SonarPulseTheme.primaryAccent.withOpacity(0.3),
+                  color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.3),
                   blurRadius: DesignTokens.elevation4 * 2,
                   spreadRadius: 6,
                 ),
               ]
-            : DesignTokens.shadowMedium,
+            : [
+                BoxShadow(
+                  color: Theme.of(context).shadowColor.withValues(alpha: 0.1),
+                  blurRadius: DesignTokens.elevation2,
+                  offset: const Offset(0, 2),
+                )
+              ], // Standard subtle shadow
       ),
       child: Stack(
         alignment: Alignment.center,
@@ -953,15 +957,15 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('For better discovery:'),
-                    const SizedBox(height: DesignTokens.spaceSM),
+                    SizedBox(height: DesignTokens.spaceSM),
                     Text('1. Keep devices within 1-2 meters'),
                     Text('2. Wait 10-15 seconds for discovery'),
                     Text('3. Try moving devices closer together'),
                     Text('4. Ensure both devices are scanning'),
-                    const SizedBox(height: DesignTokens.spaceSM),
+                    SizedBox(height: DesignTokens.spaceSM),
                     Text(
                         'Note: Some devices may have limited discoverability due to manufacturer restrictions.'),
-                    const SizedBox(height: DesignTokens.spaceSM),
+                    SizedBox(height: DesignTokens.spaceSM),
                     Text(
                         '💡 Tip: You can start a new scan anytime by tapping the button again!'),
                   ],
@@ -1241,25 +1245,11 @@ class _ProfessionalFoundUsersModalState
         builder: (_, scrollController) {
           return Container(
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Theme.of(context).scaffoldBackgroundColor,
-                  Theme.of(context).scaffoldBackgroundColor.withOpacity(0.98),
-                ],
-              ),
+              color: Theme.of(context).scaffoldBackgroundColor,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(DesignTokens.radiusXXL),
                 topRight: Radius.circular(DesignTokens.radiusXXL),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
-                  blurRadius: 25,
-                  offset: const Offset(0, -8),
-                ),
-              ],
             ),
             child: Stack(
               children: [

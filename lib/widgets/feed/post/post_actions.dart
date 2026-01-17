@@ -222,7 +222,7 @@ class _PostActionsState extends State<PostActions>
                   minHeight: 44.0, // Accessibility minimum
                   minWidth: 44.0,
                 ),
-                padding: EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: DesignTokens.spaceMD,
                   vertical: DesignTokens.spaceSM,
                 ),
@@ -241,7 +241,7 @@ class _PostActionsState extends State<PostActions>
                       ),
                     ),
                     if (_localReactionCount > 0) ...[
-                      SizedBox(width: DesignTokens.spaceXS),
+                      const SizedBox(width: DesignTokens.spaceXS),
                       Text(
                         _localReactionCount.toString(),
                         style: theme.textTheme.labelLarge,
@@ -274,7 +274,7 @@ class _PostActionsState extends State<PostActions>
                   minHeight: 44.0, // Accessibility minimum
                   minWidth: 44.0,
                 ),
-                padding: EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: DesignTokens.spaceMD,
                   vertical: DesignTokens.spaceSM,
                 ),
@@ -288,7 +288,7 @@ class _PostActionsState extends State<PostActions>
                       color: theme.iconTheme.color,
                     ),
                     if (widget.post.commentCount > 0) ...[
-                      SizedBox(width: DesignTokens.spaceXS),
+                      const SizedBox(width: DesignTokens.spaceXS),
                       Text(
                         widget.post.commentCount.toString(),
                         style: theme.textTheme.labelLarge,
@@ -314,7 +314,7 @@ class _PostActionsState extends State<PostActions>
                     minHeight: 44.0,
                     minWidth: 44.0,
                   ),
-                  padding: EdgeInsets.symmetric(
+                  padding: const EdgeInsets.symmetric(
                     horizontal: DesignTokens.spaceMD,
                     vertical: DesignTokens.spaceSM,
                   ),

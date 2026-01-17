@@ -195,173 +195,182 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(DesignTokens.spaceXL),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      Image.asset(
-                        'assets/freegram_logo_no_bg.png',
-                        height: 120,
-                      ),
-                      const SizedBox(height: DesignTokens.spaceXXL),
-                      TextFormField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
-                          labelText: 'Email',
+                child: Card(
+                    child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        Image.asset(
+                          'assets/freegram_logo_no_bg.png',
+                          height: 120,
                         ),
-                        enabled: !isLoading,
-                        validator: (value) =>
-                            (value == null || !value.contains('@'))
-                                ? 'Please enter a valid email'
-                                : null,
-                      ),
-                      const SizedBox(height: DesignTokens.spaceMD),
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: !_passwordVisible,
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          suffixIcon: IconButton(
-                            icon: Icon(_passwordVisible
-                                ? Icons.visibility_off
-                                : Icons.visibility),
-                            onPressed: isLoading
-                                ? null
-                                : () => setState(
-                                    () => _passwordVisible = !_passwordVisible),
+                        const SizedBox(height: DesignTokens.spaceXXL),
+                        TextFormField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: const InputDecoration(
+                            labelText: 'Email',
                           ),
+                          enabled: !isLoading,
+                          validator: (value) =>
+                              (value == null || !value.contains('@'))
+                                  ? 'Please enter a valid email'
+                                  : null,
                         ),
-                        enabled: !isLoading,
-                        validator: (value) =>
-                            (value == null || value.length < 6)
-                                ? 'Password must be at least 6 characters'
-                                : null,
-                      ),
-                      const SizedBox(height: DesignTokens.spaceSM),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: isLoading ? null : _handlePasswordReset,
-                          child: Text(
-                            'Forgot Password?',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: DesignTokens.spaceMD),
-                      ElevatedButton(
-                        onPressed: isLoading ? null : _login,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: DesignTokens.buttonPaddingVertical,
-                          ),
-                          backgroundColor:
-                              Theme.of(context).colorScheme.primary,
-                          foregroundColor:
-                              Theme.of(context).colorScheme.onPrimary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(DesignTokens.radiusMD),
-                          ),
-                        ),
-                        child: isLoading
-                            ? AppProgressIndicator(
-                                size: DesignTokens.iconMD,
-                                strokeWidth: 2.5,
-                                color: Theme.of(context).colorScheme.onPrimary,
-                              )
-                            : Text(
-                                'Log In',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelLarge
-                                    ?.copyWith(
-                                      fontSize: DesignTokens.fontSizeLG,
-                                    ),
-                              ),
-                      ),
-                      const SizedBox(height: DesignTokens.spaceMD),
-                      TextButton(
-                        onPressed: isLoading
-                            ? null
-                            : () => locator<NavigationService>().navigateNamed(
-                                  AppRoutes.signup,
-                                ),
-                        child: Text(
-                          "Don't have an account? Sign Up",
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: isLoading
-                                        ? SemanticColors.textSecondary(context)
-                                        : Theme.of(context).colorScheme.primary,
-                                  ),
-                        ),
-                      ),
-                      const SizedBox(height: DesignTokens.spaceLG),
-                      Row(
-                        // OR Separator
-                        children: [
-                          Expanded(
-                            child: Divider(
-                              color: Theme.of(context).dividerColor,
+                        const SizedBox(height: DesignTokens.spaceMD),
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: !_passwordVisible,
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            suffixIcon: IconButton(
+                              icon: Icon(_passwordVisible
+                                  ? Icons.visibility_off
+                                  : Icons.visibility),
+                              onPressed: isLoading
+                                  ? null
+                                  : () => setState(() =>
+                                      _passwordVisible = !_passwordVisible),
                             ),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: DesignTokens.spaceSM,
-                            ),
+                          enabled: !isLoading,
+                          validator: (value) =>
+                              (value == null || value.length < 6)
+                                  ? 'Password must be at least 6 characters'
+                                  : null,
+                        ),
+                        const SizedBox(height: DesignTokens.spaceSM),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: isLoading ? null : _handlePasswordReset,
                             child: Text(
-                              'OR',
+                              'Forgot Password?',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ),
-                          Expanded(
-                            child: Divider(
-                              color: Theme.of(context).dividerColor,
+                        ),
+                        const SizedBox(height: DesignTokens.spaceMD),
+                        ElevatedButton(
+                          onPressed: isLoading ? null : _login,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: DesignTokens.buttonPaddingVertical,
+                            ),
+                            backgroundColor:
+                                Theme.of(context).colorScheme.primary,
+                            foregroundColor:
+                                Theme.of(context).colorScheme.onPrimary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(DesignTokens.radiusMD),
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: DesignTokens.spaceLG),
-                      _SocialLoginButton(
-                        text: 'Sign in with Google',
-                        assetName: 'assets/google_logo.png',
-                        onPressed: isLoading
-                            ? () {}
-                            : () {
-                                context
-                                    .read<AuthBloc>()
-                                    .add(SignInWithGoogle());
-                              },
-                        backgroundColor: Theme.of(context).colorScheme.surface,
-                        textColor: Theme.of(context).colorScheme.onSurface,
-                        disabled: isLoading,
-                        isLoading: false,
-                      ),
-                      const SizedBox(height: DesignTokens.spaceSM),
-                      _SocialLoginButton(
-                        text: 'Sign in with Facebook',
-                        icon: Icons.facebook,
-                        onPressed: isLoading
-                            ? () {}
-                            : () {
-                                context
-                                    .read<AuthBloc>()
-                                    .add(SignInWithFacebook());
-                              },
-                        backgroundColor: const Color(0xFF1877F2),
-                        textColor: Theme.of(context)
-                            .colorScheme
-                            .onPrimary, // Facebook brand color
-                        disabled: isLoading,
-                        isLoading: false,
-                      ),
-                    ],
+                          child: isLoading
+                              ? AppProgressIndicator(
+                                  size: DesignTokens.iconMD,
+                                  strokeWidth: 2.5,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                )
+                              : Text(
+                                  'Log In',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelLarge
+                                      ?.copyWith(
+                                        fontSize: DesignTokens.fontSizeLG,
+                                      ),
+                                ),
+                        ),
+                        const SizedBox(height: DesignTokens.spaceMD),
+                        TextButton(
+                          onPressed: isLoading
+                              ? null
+                              : () =>
+                                  locator<NavigationService>().navigateNamed(
+                                    AppRoutes.signup,
+                                  ),
+                          child: Text(
+                            "Don't have an account? Sign Up",
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: isLoading
+                                      ? SemanticColors.textSecondary(context)
+                                      : Theme.of(context).colorScheme.primary,
+                                ),
+                          ),
+                        ),
+                        const SizedBox(height: DesignTokens.spaceLG),
+                        Row(
+                          // OR Separator
+                          children: [
+                            Expanded(
+                              child: Divider(
+                                color: Theme.of(context).dividerColor,
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: DesignTokens.spaceSM,
+                              ),
+                              child: Text(
+                                'OR',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                            Expanded(
+                              child: Divider(
+                                color: Theme.of(context).dividerColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: DesignTokens.spaceLG),
+                        _SocialLoginButton(
+                          text: 'Sign in with Google',
+                          assetName: 'assets/google_logo.png',
+                          onPressed: isLoading
+                              ? () {}
+                              : () {
+                                  context
+                                      .read<AuthBloc>()
+                                      .add(SignInWithGoogle());
+                                },
+                          backgroundColor:
+                              Theme.of(context).colorScheme.surface,
+                          textColor: Theme.of(context).colorScheme.onSurface,
+                          disabled: isLoading,
+                          isLoading: false,
+                        ),
+                        const SizedBox(height: DesignTokens.spaceSM),
+                        _SocialLoginButton(
+                          text: 'Sign in with Facebook',
+                          icon: Icons.facebook,
+                          onPressed: isLoading
+                              ? () {}
+                              : () {
+                                  context
+                                      .read<AuthBloc>()
+                                      .add(SignInWithFacebook());
+                                },
+                          backgroundColor: const Color(0xFF1877F2),
+                          textColor: Theme.of(context)
+                              .colorScheme
+                              .onPrimary, // Facebook brand color
+                          disabled: isLoading,
+                          isLoading: false,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                )),
               ),
             ),
           ),

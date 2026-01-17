@@ -50,7 +50,7 @@ class StoryViewersCountWidget extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (reactionCount > 0) ...[
-                  Icon(
+                  const Icon(
                     Icons.favorite,
                     color: SonarPulseTheme.primaryAccent,
                     size: DesignTokens.iconSM,

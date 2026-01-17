@@ -386,7 +386,7 @@ class _VideoTrimmerScreenState extends State<VideoTrimmerScreen> {
                             ),
                             Text(
                               'Selected: ${_formatTime(maxDuration)}',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: SonarPulseTheme.primaryAccent,
                                 fontSize: DesignTokens.fontSizeXS,
                                 fontWeight: FontWeight.bold,
@@ -554,7 +554,7 @@ class _TimelinePainter extends CustomPainter {
       ..strokeWidth = 2;
 
     // Draw timeline marks every 5 seconds
-    final markInterval = 5.0;
+    const markInterval = 5.0;
     final markCount = (totalDuration / markInterval).ceil();
     final markSpacing = size.width / markCount;
 

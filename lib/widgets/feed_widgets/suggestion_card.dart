@@ -10,7 +10,6 @@ import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/theme/app_theme.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:freegram/repositories/page_repository.dart';
-import 'package:freegram/repositories/user_repository.dart';
 import 'package:freegram/repositories/friend_repository.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/services/navigation_service.dart';
@@ -255,12 +254,12 @@ class _SuggestionCardWidgetState extends State<SuggestionCardWidget> {
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
         child: _isLoading
-            ? SizedBox(
+            ? const SizedBox(
                 width: 14,
                 height: 14,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
             : Row(

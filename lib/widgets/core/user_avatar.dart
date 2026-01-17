@@ -106,11 +106,11 @@ class UserAvatar extends StatelessWidget {
                   ),
                 ),
                 errorWidget: (context, url, error) => Container(
-                  color: effectiveBackgroundColor,
+                  color: Colors.grey.shade200,
                   child: Icon(
                     Icons.person,
                     size: size.size * 0.5, // Icon is 50% of avatar size
-                    color: effectiveIconColor,
+                    color: Colors.grey.shade400,
                   ),
                 ),
               )

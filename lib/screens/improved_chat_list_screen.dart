@@ -10,7 +10,6 @@ import 'package:freegram/locator.dart';
 import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/chat_repository.dart';
-import 'package:freegram/repositories/user_repository.dart';
 import 'package:freegram/repositories/user_discovery_repository.dart';
 import 'package:freegram/screens/improved_chat_screen.dart';
 import 'package:freegram/theme/design_tokens.dart';

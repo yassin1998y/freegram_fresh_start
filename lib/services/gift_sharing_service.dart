@@ -393,9 +393,9 @@ class GiftPreviewCard extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Freegram branding
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
+            children: [
               Icon(Icons.card_giftcard, color: Colors.white, size: 16),
               SizedBox(width: 4),
               Text(

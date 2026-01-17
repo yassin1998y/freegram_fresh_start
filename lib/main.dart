@@ -3,11 +3,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter/scheduler.dart';
 
 import 'package:freegram/blocs/auth_bloc.dart';
 import 'package:freegram/blocs/connectivity_bloc.dart';
@@ -242,6 +241,15 @@ class MyApp extends StatelessWidget {
         themeMode: ThemeMode.system, // Use system theme setting
         navigatorKey: locator<NavigationService>()
             .navigatorKey, // Professional navigation
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'), // English
+          Locale('ar'), // Arabic
+        ],
         builder: (context, child) {
           // Set navigator key for gift notification service
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -250,13 +258,43 @@ class MyApp extends StatelessWidget {
           });
 
           // Ensure proper media query handling for keyboard and system UI
-          return MediaQuery(
+          final mediaQueryWrapped = MediaQuery(
             data: MediaQuery.of(context).copyWith(
               // Ensure text doesn't scale too much
-              textScaler: TextScaler.linear(
-                  MediaQuery.of(context).textScaleFactor.clamp(0.8, 1.2)),
+              textScaler: MediaQuery.textScalerOf(context)
+                  .clamp(minScaleFactor: 0.8, maxScaleFactor: 1.2),
             ),
             child: child!,
+          );
+
+          return Stack(
+            children: [
+              mediaQueryWrapped,
+              BlocBuilder<ConnectivityBloc, ConnectivityState>(
+                builder: (context, state) {
+                  if (state is Offline) {
+                    return Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Material(
+                        color: Colors.red,
+                        child: Padding(
+                          padding: const EdgeInsets.all(4.0),
+                          child: Text(
+                            "Offline Mode - Sonar & Cache Active",
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 12),
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ],
           );
         },
         home:
@@ -282,7 +320,7 @@ class MyApp extends StatelessWidget {
                         locator<UserRepository>().getUser(parsed.otherUserId),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return Scaffold(
+                        return const Scaffold(
                           body: Center(child: AppProgressIndicator()),
                         );
                       }

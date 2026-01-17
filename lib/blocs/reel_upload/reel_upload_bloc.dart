@@ -54,7 +54,7 @@ class ReelUploadBloc extends Bloc<ReelUploadEvent, ReelUploadState> {
       _currentUploadId = DateTime.now().millisecondsSinceEpoch.toString();
 
       // Start upload via manager
-      final uploadStream = await _uploadManager.startUpload(
+      final uploadStream = _uploadManager.startUpload(
         uploadId: _currentUploadId!,
         videoPath: event.videoPath,
         caption: event.caption,

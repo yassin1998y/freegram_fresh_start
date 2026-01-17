@@ -12,7 +12,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: SonarPulseTheme.light,
-          home: Scaffold(
+          home: const Scaffold(
             body: AppProgressIndicator(),
           ),
         ),
@@ -25,7 +25,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: SonarPulseTheme.light,
-          home: Scaffold(
+          home: const Scaffold(
             body: AppProgressIndicator(size: 50),
           ),
         ),
@@ -41,7 +41,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: SonarPulseTheme.light,
-          home: Scaffold(
+          home: const Scaffold(
             body: AppProgressIndicator(value: 0.5),
           ),
         ),
@@ -57,7 +57,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: SonarPulseTheme.light,
-          home: Scaffold(
+          home: const Scaffold(
             body: AppLinearProgressIndicator(),
           ),
         ),
@@ -70,7 +70,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: SonarPulseTheme.light,
-          home: Scaffold(
+          home: const Scaffold(
             body: AppLinearProgressIndicator(value: 0.75),
           ),
         ),
@@ -328,7 +328,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: SonarPulseTheme.light,
-          home: Scaffold(
+          home: const Scaffold(
             body: Center(
               child: AppProgressIndicator(value: 0.5),
             ),
@@ -350,9 +350,9 @@ void main() {
                 MediaHeader(
                   username: 'testuser',
                   timestamp: DateTime.now(),
-                  menuItems: [
-                    const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                    const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  menuItems: const [
+                    PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete')),
                   ],
                   onMenuSelected: (value) {},
                 ),

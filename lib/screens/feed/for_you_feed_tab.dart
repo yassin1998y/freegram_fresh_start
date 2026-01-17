@@ -234,7 +234,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
                   if (!showButton) return const SizedBox.shrink();
 
                   // In full screen mode, use fixed bottom nav height
-                  final bottomNavBarHeight = 65.0 + DesignTokens.spaceSM;
+                  const bottomNavBarHeight = 65.0 + DesignTokens.spaceSM;
 
                   return Positioned(
                     bottom: bottomNavBarHeight + DesignTokens.spaceMD,
@@ -242,8 +242,8 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
                     child: FloatingActionButton(
                       onPressed: scrollToTopAndRefresh,
                       backgroundColor: Theme.of(context).colorScheme.primary,
-                      child: const Icon(Icons.arrow_upward),
                       tooltip: 'Scroll to top',
+                      child: const Icon(Icons.arrow_upward),
                     ),
                   );
                 },
@@ -412,11 +412,11 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
     // Loading indicator
     if (feedItemIndex == state.items.length && state.isLoading) {
       return Padding(
-        padding: EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
+        padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
         child: Column(
           children: [
             const AppProgressIndicator(),
-            SizedBox(height: DesignTokens.spaceSM),
+            const SizedBox(height: DesignTokens.spaceSM),
             Text(
               'Loading more posts...',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -437,18 +437,11 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
   Widget _buildWelcomeHeader(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      margin: EdgeInsets.symmetric(
+      margin: const EdgeInsets.symmetric(
           horizontal: DesignTokens.spaceMD, vertical: DesignTokens.spaceSM),
-      padding: EdgeInsets.all(DesignTokens.spaceMD),
+      padding: const EdgeInsets.all(DesignTokens.spaceMD),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primaryContainer,
-            theme.colorScheme.primaryContainer.withOpacity(0.7),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: theme.colorScheme.primaryContainer.withOpacity(0.5),
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
         border: Border.all(
           color: theme.colorScheme.primary.withOpacity(0.2),
@@ -465,7 +458,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
                 color: theme.colorScheme.primary,
                 size: 24,
               ),
-              SizedBox(width: DesignTokens.spaceSM),
+              const SizedBox(width: DesignTokens.spaceSM),
               Text(
                 'Welcome to Freegram!',
                 style: theme.textTheme.titleMedium?.copyWith(
@@ -475,7 +468,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
               ),
             ],
           ),
-          SizedBox(height: DesignTokens.spaceXS),
+          const SizedBox(height: DesignTokens.spaceXS),
           Text(
             'Here are some trending posts and people you might like to get you started.',
             style: theme.textTheme.bodyMedium?.copyWith(
@@ -565,7 +558,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: EdgeInsets.only(
+              padding: const EdgeInsets.only(
                 left: DesignTokens.spaceMD,
                 right: DesignTokens.spaceMD,
                 top: DesignTokens.spaceSM,
@@ -582,7 +575,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
                         size: DesignTokens.iconMD,
                         color: Theme.of(context).colorScheme.error,
                       ),
-                      SizedBox(width: DesignTokens.spaceSM),
+                      const SizedBox(width: DesignTokens.spaceSM),
                       Text(
                         'Trending Posts',
                         style: Theme.of(context)
@@ -598,7 +591,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
             SizedBox(
               height: 160,
               child: ListView.separated(
-                padding: EdgeInsets.only(
+                padding: const EdgeInsets.only(
                   left: DesignTokens.spaceMD,
                   right: DesignTokens.spaceMD,
                 ), // Removed vertical padding
@@ -608,11 +601,12 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
                   return TrendingPostCard(item: trendingPosts[i]);
                 },
                 separatorBuilder: (_, __) =>
-                    SizedBox(width: DesignTokens.spaceMD),
+                    const SizedBox(width: DesignTokens.spaceMD),
                 itemCount: trendingPosts.length,
               ),
             ),
-            SizedBox(height: DesignTokens.spaceXS), // Minimal bottom spacing
+            const SizedBox(
+                height: DesignTokens.spaceXS), // Minimal bottom spacing
           ],
         );
       },
@@ -626,8 +620,8 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
     return SafeArea(
       bottom: false,
       child: Container(
-        margin: EdgeInsets.all(DesignTokens.spaceSM),
-        padding: EdgeInsets.symmetric(
+        margin: const EdgeInsets.all(DesignTokens.spaceSM),
+        padding: const EdgeInsets.symmetric(
           horizontal: DesignTokens.spaceMD,
           vertical: DesignTokens.spaceSM,
         ),
@@ -645,7 +639,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
         child: Row(
           children: [
             Container(
-              padding: EdgeInsets.all(DesignTokens.spaceXS),
+              padding: const EdgeInsets.all(DesignTokens.spaceXS),
               decoration: BoxDecoration(
                 color: theme.colorScheme.primary,
                 shape: BoxShape.circle,
@@ -656,7 +650,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
                 color: theme.colorScheme.onPrimary,
               ),
             ),
-            SizedBox(width: DesignTokens.spaceSM),
+            const SizedBox(width: DesignTokens.spaceSM),
             Expanded(
               child: Text(
                 '$newPostsCount ${newPostsCount == 1 ? 'new post' : 'new posts'}',
@@ -695,7 +689,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
       bottom: false,
       child: Container(
         width: double.infinity,
-        padding: EdgeInsets.symmetric(
+        padding: const EdgeInsets.symmetric(
           horizontal: DesignTokens.spaceMD,
           vertical: DesignTokens.spaceSM,
         ),
@@ -711,12 +705,12 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
         ),
         child: Row(
           children: [
-            Icon(
+            const Icon(
               Icons.wifi_off,
               color: Colors.white,
               size: DesignTokens.iconMD,
             ),
-            SizedBox(width: DesignTokens.spaceSM),
+            const SizedBox(width: DesignTokens.spaceSM),
             Expanded(
               child: Text(
                 'You\'re offline. Showing cached content.',
@@ -739,7 +733,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
 
     return Center(
       child: Padding(
-        padding: EdgeInsets.all(DesignTokens.spaceXL),
+        padding: const EdgeInsets.all(DesignTokens.spaceXL),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -748,7 +742,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
               size: 64,
               color: isNetworkError ? Colors.orange : Colors.red,
             ),
-            SizedBox(height: DesignTokens.spaceMD),
+            const SizedBox(height: DesignTokens.spaceMD),
             Text(
               isNetworkError ? 'Connection Problem' : 'Something Went Wrong',
               style: theme.textTheme.headlineSmall?.copyWith(
@@ -756,7 +750,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
               ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: DesignTokens.spaceSM),
+            const SizedBox(height: DesignTokens.spaceSM),
             Text(
               isNetworkError
                   ? 'Unable to connect to the server. Please check your internet connection.'
@@ -767,7 +761,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
               ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: DesignTokens.spaceXL),
+            const SizedBox(height: DesignTokens.spaceXL),
             ElevatedButton.icon(
               onPressed: () {
                 final userId = _auth.currentUser?.uid;
@@ -784,7 +778,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
               icon: const Icon(Icons.refresh, size: 18),
               label: const Text('Retry'),
               style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: DesignTokens.spaceLG,
                   vertical: DesignTokens.spaceSM,
                 ),
@@ -801,7 +795,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
 
     return Center(
       child: SingleChildScrollView(
-        padding: EdgeInsets.all(DesignTokens.spaceXL),
+        padding: const EdgeInsets.all(DesignTokens.spaceXL),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -818,7 +812,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
                 color: theme.colorScheme.primary,
               ),
             ),
-            SizedBox(height: DesignTokens.spaceXL),
+            const SizedBox(height: DesignTokens.spaceXL),
             Text(
               'Your Feed is Empty',
               style: theme.textTheme.headlineSmall?.copyWith(
@@ -826,7 +820,7 @@ class ForYouFeedTabState extends State<ForYouFeedTab>
               ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: DesignTokens.spaceSM),
+            const SizedBox(height: DesignTokens.spaceSM),
             Text(
               'Start following people and pages to see posts in your feed',
               style: theme.textTheme.bodyMedium?.copyWith(

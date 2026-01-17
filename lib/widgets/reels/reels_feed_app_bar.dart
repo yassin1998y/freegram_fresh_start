@@ -28,8 +28,8 @@ class ReelsFeedAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // For reels feed, use white text/icons on dark/transparent background
-    final iconColor = Colors.white;
-    final textColor = Colors.white;
+    const iconColor = Colors.white;
+    const textColor = Colors.white;
 
     return AppBar(
       backgroundColor: Colors.transparent,
@@ -38,7 +38,7 @@ class ReelsFeedAppBar extends StatelessWidget implements PreferredSizeWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            icon: Icon(
+            icon: const Icon(
               Icons.arrow_back,
               color: iconColor,
               size: DesignTokens.iconLG,
@@ -97,7 +97,7 @@ class ReelsFeedAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         // Create Reel button
         IconButton(
-          icon: Icon(
+          icon: const Icon(
             Icons.add_circle_outline,
             color: iconColor,
             size: DesignTokens.iconLG,

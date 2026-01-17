@@ -177,7 +177,7 @@ class _LikedByListState extends State<LikedByList> {
                   ? const Center(
                       child: Padding(
                         padding: EdgeInsets.all(32),
-                        child: const AppProgressIndicator(),
+                        child: AppProgressIndicator(),
                       ),
                     )
                   : _likedUserIds.isEmpty
@@ -217,7 +217,7 @@ class _LikedByListState extends State<LikedByList> {
                                 padding: const EdgeInsets.all(16),
                                 child: _isLoading
                                     ? const Center(
-                                        child: const AppProgressIndicator(),
+                                        child: AppProgressIndicator(),
                                       )
                                     : TextButton(
                                         onPressed: _loadLikedUsers,

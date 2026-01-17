@@ -245,7 +245,7 @@ class TrendingReelCard extends StatelessWidget {
                             ),
                             if (reel.likeCount > 0) ...[
                               const SizedBox(width: 8),
-                              Icon(
+                              const Icon(
                                 Icons.favorite,
                                 size: DesignTokens.iconXS,
                                 color: SonarPulseTheme.primaryAccent,

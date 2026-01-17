@@ -143,7 +143,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             borderSide: BorderSide.none,
           ),
           filled: true,
-          fillColor: Colors.grey.shade100,
+          fillColor: Theme.of(context)
+              .colorScheme
+              .surfaceContainerHighest
+              .withOpacity(0.5),
         ),
         onChanged: (value) {
           setState(() => _searchQuery = value);
@@ -156,77 +159,66 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   Widget _buildHeroBanner() {
-    return Container(
+    return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      height: 180,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.purple.shade400, Colors.pink.shade400],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+      child: Container(
+        height: 180,
+        decoration: BoxDecoration(
+          color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
         ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.purple.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -20,
-            bottom: -20,
-            child: Icon(
-              Icons.card_giftcard,
-              size: 150,
-              color: Colors.white.withOpacity(0.2),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -20,
+              bottom: -20,
+              child: Icon(
+                Icons.card_giftcard,
+                size: 150,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.05),
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'Send Perfect Gifts',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Send Perfect Gifts',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Browse our collection of amazing gifts',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 16,
+                  const SizedBox(height: 8),
+                  Text(
+                    'Browse our collection of amazing gifts',
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () {
-                    HapticHelper.medium();
-                    Navigator.pushNamed(context, '/gift-send-friend-picker');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.purple,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      HapticHelper.medium();
+                      Navigator.pushNamed(context, '/gift-send-friend-picker');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.purple,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
                     ),
+                    child: const Text('Send a Gift'),
                   ),
-                  child: const Text('Send a Gift'),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -457,7 +449,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         width: 150,
         margin: const EdgeInsets.only(right: 12),
         child: Card(
-          elevation: 2,
+          elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),

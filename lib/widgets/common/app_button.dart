@@ -130,115 +130,80 @@ class AppButton extends StatefulWidget {
   /// Icon-only button (replaces AppBarActionButton)
   const AppButton.icon({
     super.key,
-    required IconData icon,
-    required VoidCallback onPressed,
-    String? tooltip,
-    Color? color,
-    String? badge,
-    bool showBadgeDot = false,
-    bool isDisabled = false,
-    bool isLoading = false,
-    double? size,
-    double? iconSize,
-    AppButtonHapticType hapticType = AppButtonHapticType.light,
+    required this.icon,
+    required this.onPressed,
+    this.tooltip,
+    this.color,
+    this.badge,
+    this.showBadgeDot = false,
+    this.isDisabled = false,
+    this.isLoading = false,
+    this.size,
+    this.iconSize,
+    this.hapticType = AppButtonHapticType.light,
     this.animationDuration = const Duration(milliseconds: 150),
   })  : style = AppButtonStyle.icon,
-        this.icon = icon,
-        this.onPressed = onPressed,
-        this.tooltip = tooltip,
-        this.color = color,
-        this.badge = badge,
-        this.showBadgeDot = showBadgeDot,
-        this.isDisabled = isDisabled,
-        this.isLoading = isLoading,
-        this.isPrimary = false,
-        this.size = size,
-        this.iconSize = iconSize,
-        this.hapticType = hapticType,
-        this.showLabel = false,
-        this.label = null,
-        this.child = null,
-        this.backgroundColor = null,
-        this.borderRadius = null,
-        this.padding = null;
+        isPrimary = false,
+        showLabel = false,
+        label = null,
+        child = null,
+        backgroundColor = null,
+        borderRadius = null,
+        padding = null;
 
   /// Text button constructor (Primary/Secondary/Ghost styles)
   const AppButton.text({
     super.key,
     required String text,
-    required VoidCallback? onPressed,
-    String? tooltip,
+    required this.onPressed,
+    this.tooltip,
     AppButtonStyle style = AppButtonStyle.primary,
-    Color? color,
-    bool isDisabled = false,
-    bool isLoading = false,
-    Color? backgroundColor,
-    double? borderRadius,
-    EdgeInsets? padding,
-  })  : this.style = style == AppButtonStyle.primary
+    this.color,
+    this.isDisabled = false,
+    this.isLoading = false,
+    this.backgroundColor,
+    this.borderRadius,
+    this.padding,
+  })  : style = style == AppButtonStyle.primary
             ? AppButtonStyle.primary
             : style == AppButtonStyle.secondary
                 ? AppButtonStyle.secondary
                 : AppButtonStyle.ghost,
-        this.label = text,
-        this.onPressed = onPressed,
-        this.tooltip = tooltip,
-        this.color = color,
-        this.badge = null,
-        this.showBadgeDot = false,
-        this.isDisabled = isDisabled,
-        this.isLoading = isLoading,
-        this.isPrimary = style == AppButtonStyle.primary,
-        this.size = null,
-        this.iconSize = null,
-        this.hapticType = AppButtonHapticType.selection,
-        this.animationDuration = const Duration(milliseconds: 150),
-        this.showLabel = false,
-        this.child = null,
-        this.icon = null,
-        this.backgroundColor = backgroundColor,
-        this.borderRadius = borderRadius,
-        this.padding = padding;
+        label = text,
+        badge = null,
+        showBadgeDot = false,
+        isPrimary = style == AppButtonStyle.primary,
+        size = null,
+        iconSize = null,
+        hapticType = AppButtonHapticType.selection,
+        animationDuration = const Duration(milliseconds: 150),
+        showLabel = false,
+        child = null,
+        icon = null;
 
-  /// Icon + label button (replaces MatchActionButton and _buildActionButton)
+  /// Icon + label button (Match/Action style)
   const AppButton.action({
     super.key,
-    required IconData icon,
-    required String label,
-    required VoidCallback? onPressed,
-    String? tooltip,
-    Color? color,
-    String? badge,
-    bool isDisabled = false,
-    bool isLoading = false,
-    bool isPrimary = false,
-    double? size,
-    double? iconSize,
-    AppButtonHapticType hapticType = AppButtonHapticType.selection,
-    Duration animationDuration = const Duration(milliseconds: 150),
-    bool showLabel = true,
-    Color? backgroundColor,
-    double? borderRadius,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.tooltip,
+    this.color,
+    this.badge,
+    this.isDisabled = false,
+    this.isLoading = false,
+    this.isPrimary = false,
+    this.size,
+    this.iconSize,
+    this.hapticType = AppButtonHapticType.selection,
+    this.animationDuration = const Duration(milliseconds: 150),
+    this.showLabel = true,
+    this.backgroundColor,
+    this.borderRadius,
   })  : style = AppButtonStyle.action,
-        this.icon = icon,
-        this.label = label,
-        this.onPressed = onPressed,
-        this.tooltip = tooltip,
-        this.color = color,
-        this.badge = badge,
-        this.showBadgeDot = false,
-        this.isDisabled = isDisabled,
-        this.isLoading = isLoading,
-        this.isPrimary = isPrimary,
-        this.size = size,
-        this.iconSize = iconSize,
-        this.hapticType = hapticType,
-        this.animationDuration = animationDuration,
-        this.showLabel = showLabel,
-        this.child = null,
-        this.backgroundColor = backgroundColor,
-        this.borderRadius = borderRadius,
-        this.padding = null;
+        showBadgeDot = false,
+        child = null,
+        padding = null;
 
   @override
   State<AppButton> createState() => _AppButtonState();
@@ -494,8 +459,8 @@ class _AppButtonState extends State<AppButton>
                               : null,
                           boxShadow: [
                             BoxShadow(
-                              color: iconColor.withOpacity(0.25),
-                              spreadRadius: 2.0,
+                              color: iconColor.withOpacity(0.1),
+                              spreadRadius: 0,
                               blurRadius: 8.0,
                               offset: const Offset(0, 4),
                             ),
@@ -635,7 +600,7 @@ class _AppButtonState extends State<AppButton>
               )
             : Text(
                 widget.label ?? '',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: DesignTokens.fontSizeMD,
                   fontWeight: FontWeight.w600,
                 ),
@@ -690,7 +655,7 @@ class _AppButtonState extends State<AppButton>
               )
             : Text(
                 widget.label ?? '',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: DesignTokens.fontSizeMD,
                   fontWeight: FontWeight.w600,
                 ),
@@ -745,7 +710,7 @@ class _AppButtonState extends State<AppButton>
               )
             : Text(
                 widget.label ?? '',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: DesignTokens.fontSizeMD,
                   fontWeight: FontWeight.w600,
                 ),

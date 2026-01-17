@@ -39,7 +39,6 @@ import 'profile_screen.dart';
 import 'package:hive/hive.dart';
 import 'package:freegram/widgets/chat_widgets/gift_message_banner.dart';
 import 'package:freegram/widgets/chat_widgets/celebration_match_badge.dart';
-import 'package:freegram/widgets/chat_widgets/message_reaction_display.dart';
 
 class ImprovedChatScreen extends StatelessWidget {
   final String chatId;
@@ -497,10 +496,9 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                     margin: const EdgeInsets.symmetric(
                         vertical: DesignTokens.spaceMD),
                     decoration: BoxDecoration(
-                      color:
-                          Theme.of(context).colorScheme.onSurface.withOpacity(
-                                DesignTokens.opacityMedium,
-                              ),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(
+                            alpha: DesignTokens.opacityMedium,
+                          ),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -526,6 +524,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
         final permissionStatus = await Permission.camera.status;
         if (!permissionStatus.isGranted) {
           final permission = await Permission.camera.request();
+          if (!mounted) return;
           if (!permission.isGranted) {
             if (mounted) {
               showIslandPopup(
@@ -548,6 +547,8 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
             const Duration(seconds: 30),
             onTimeout: () => null,
           );
+
+      if (!mounted) return;
 
       if (pickedFile == null) return;
 
@@ -865,9 +866,10 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
               ),
             );
             // Navigate back after blocking
+            final navigator = Navigator.of(context);
             Future.delayed(const Duration(milliseconds: 500), () {
               if (mounted) {
-                Navigator.of(context).pop();
+                navigator.pop();
               }
             });
           }
@@ -1066,7 +1068,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                                 as ImageProvider
                             : null,
                         backgroundColor:
-                            theme.colorScheme.primary.withOpacity(0.1),
+                            theme.colorScheme.primary.withValues(alpha: 0.1),
                         child: photoUrl.isEmpty
                             ? Text(
                                 widget.otherUsername.isNotEmpty
@@ -1130,14 +1132,14 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
           tooltip: 'More options',
           onPressed: () {
             HapticFeedback.lightImpact();
-            _showChatOptions(context, userId);
+            _showChatOptions(userId);
           },
         ),
       ],
     );
   }
 
-  void _showChatOptions(BuildContext context, String userId) {
+  void _showChatOptions(String userId) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1146,7 +1148,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
         return Container(
           decoration: BoxDecoration(
             color: theme.scaffoldBackgroundColor,
-            borderRadius: BorderRadius.vertical(
+            borderRadius: const BorderRadius.vertical(
               top: Radius.circular(DesignTokens.radiusXL),
             ),
           ),
@@ -1159,8 +1161,8 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.onSurface.withOpacity(
-                      DesignTokens.opacityMedium,
+                    color: theme.colorScheme.onSurface.withValues(
+                      alpha: DesignTokens.opacityMedium,
                     ),
                     borderRadius: BorderRadius.circular(2),
                   ),
@@ -1198,7 +1200,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                   color: theme.colorScheme.error,
                   onTap: () {
                     Navigator.pop(context);
-                    _confirmBlockUser(context, userId);
+                    _confirmBlockUser(userId);
                   },
                 ),
                 const SizedBox(height: DesignTokens.spaceMD),
@@ -1210,7 +1212,9 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
     );
   }
 
-  Future<void> _confirmBlockUser(BuildContext context, String userId) async {
+  Future<void> _confirmBlockUser(String userId) async {
+    final friendsBloc = context.read<FriendsBloc>();
+
     final bool? shouldBlock = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) {
@@ -1236,16 +1240,16 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
       },
     );
 
-    if (shouldBlock == true && mounted) {
-      HapticFeedback.mediumImpact();
+    if (shouldBlock != true) return;
+    if (!mounted) return;
+    HapticFeedback.mediumImpact();
 
-      // Block user
-      context.read<FriendsBloc>().add(BlockUser(userId));
+    // Block user
+    friendsBloc.add(BlockUser(userId));
 
-      // OPTIMIZATION: Use BlocConsumer pattern instead of manual stream subscription
-      // The BlocConsumer in the widget tree will handle state changes automatically
-      // Just show immediate feedback and let the bloc handle the rest
-    }
+    // OPTIMIZATION: Use BlocConsumer pattern instead of manual stream subscription
+    // The BlocConsumer in the widget tree will handle state changes automatically
+    // Just show immediate feedback and let the bloc handle the rest
   }
 
   Widget _buildOptionTile(
@@ -1263,7 +1267,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: tileColor.withOpacity(0.1),
+          color: tileColor.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
         ),
         child: Icon(
@@ -1434,8 +1438,8 @@ class _SenderInfoBanner extends StatelessWidget {
 
     // System theme colors
     final backgroundColor = isDark
-        ? theme.colorScheme.primaryContainer.withOpacity(0.3)
-        : theme.colorScheme.primaryContainer.withOpacity(0.5);
+        ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+        : theme.colorScheme.primaryContainer.withValues(alpha: 0.5);
     final textColor = isDark
         ? theme.colorScheme.onPrimaryContainer
         : theme.colorScheme.onPrimaryContainer;
@@ -1452,7 +1456,7 @@ class _SenderInfoBanner extends StatelessWidget {
         color: backgroundColor,
         border: Border(
           top: BorderSide(
-            color: theme.dividerColor.withOpacity(0.2),
+            color: theme.dividerColor.withValues(alpha: 0.2),
             width: 1,
           ),
         ),
@@ -1462,7 +1466,7 @@ class _SenderInfoBanner extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(DesignTokens.spaceSM),
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
+              color: iconColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
             ),
             child: Icon(

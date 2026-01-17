@@ -317,7 +317,7 @@ class _GiftHistoryScreenState extends State<GiftHistoryScreen>
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
+            colorScheme: const ColorScheme.light(
               primary: Colors.purple,
               onPrimary: Colors.white,
               surface: Colors.white,
@@ -358,7 +358,7 @@ class _GiftHistoryCard extends StatelessWidget {
             color: Colors.purple.shade100,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(
+          child: const Icon(
             Icons.card_giftcard,
             color: Colors.purple,
             size: 24,

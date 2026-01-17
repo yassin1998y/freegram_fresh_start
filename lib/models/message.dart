@@ -89,8 +89,8 @@ class Message {
     final waveformData = data['waveform'];
     final List<double>? waveform = waveformData is List
         ? waveformData
-            .where((value) => value is num)
-            .map((value) => (value as num).toDouble())
+            .whereType<num>()
+            .map((value) => (value).toDouble())
             .toList()
         : null;
 

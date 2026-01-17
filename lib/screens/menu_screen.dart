@@ -58,11 +58,12 @@ class _MenuScreenState extends State<MenuScreen> {
     setState(() => _loadingPages = true);
     try {
       final pages = await _pageRepository.getUserPages(currentUser.uid);
-      if (mounted)
+      if (mounted) {
         setState(() {
           _myPages = pages;
           _loadingPages = false;
         });
+      }
     } catch (e) {
       debugPrint('MenuScreen: Error loading pages: $e');
       if (mounted) setState(() => _loadingPages = false);
@@ -236,8 +237,8 @@ class _MenuScreenState extends State<MenuScreen> {
                       title: 'Pages',
                       children: [
                         if (_loadingPages)
-                          Padding(
-                            padding: const EdgeInsets.all(DesignTokens.spaceMD),
+                          const Padding(
+                            padding: EdgeInsets.all(DesignTokens.spaceMD),
                             child: Center(
                               child: AppProgressIndicator(
                                 size: DesignTokens.iconMD,
@@ -603,8 +604,8 @@ class _MenuScreenState extends State<MenuScreen> {
               false, // CRITICAL FIX: Use inner navigator to access AuthBloc provider
           barrierDismissible: false,
           barrierColor: Theme.of(context).colorScheme.scrim.withOpacity(0.5),
-          builder: (context) => WillPopScope(
-            onWillPop: () async => false,
+          builder: (context) => PopScope(
+            canPop: false,
             child: BlocListener<AuthBloc, AuthState>(
               listener: (context, state) {
                 if (state is Unauthenticated) {
@@ -644,7 +645,7 @@ class _MenuScreenState extends State<MenuScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(DesignTokens.radiusXL),
         ),

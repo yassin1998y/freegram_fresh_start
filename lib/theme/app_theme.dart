@@ -37,24 +37,35 @@ class SonarPulseTheme {
 
   // --- TYPOGRAPHY ---
   static final TextTheme _textTheme = TextTheme(
-    displayLarge: GoogleFonts.openSans(fontSize: 34, fontWeight: FontWeight.bold),
-    displayMedium: GoogleFonts.openSans(fontSize: 28, fontWeight: FontWeight.bold),
-    headlineSmall: GoogleFonts.openSans(fontSize: 24, fontWeight: FontWeight.w600),
+    displayLarge:
+        GoogleFonts.openSans(fontSize: 34, fontWeight: FontWeight.bold),
+    displayMedium:
+        GoogleFonts.openSans(fontSize: 28, fontWeight: FontWeight.bold),
+    headlineSmall:
+        GoogleFonts.openSans(fontSize: 24, fontWeight: FontWeight.w600),
     titleLarge: GoogleFonts.openSans(fontSize: 20, fontWeight: FontWeight.bold),
-    titleMedium: GoogleFonts.openSans(fontSize: 17, fontWeight: FontWeight.w600),
+    titleMedium:
+        GoogleFonts.openSans(fontSize: 17, fontWeight: FontWeight.w600),
     titleSmall: GoogleFonts.openSans(fontSize: 15, fontWeight: FontWeight.w500),
-    bodyLarge: GoogleFonts.openSans(fontSize: 17, fontWeight: FontWeight.normal),
-    bodyMedium: GoogleFonts.openSans(fontSize: 15, fontWeight: FontWeight.normal),
-    bodySmall: GoogleFonts.openSans(fontSize: 13, fontWeight: FontWeight.normal),
+    bodyLarge:
+        GoogleFonts.openSans(fontSize: 17, fontWeight: FontWeight.normal),
+    bodyMedium:
+        GoogleFonts.openSans(fontSize: 15, fontWeight: FontWeight.normal),
+    bodySmall:
+        GoogleFonts.openSans(fontSize: 13, fontWeight: FontWeight.normal),
     labelLarge: GoogleFonts.openSans(fontSize: 15, fontWeight: FontWeight.bold),
   );
 
   // --- SHARED COMPONENT STYLES ---
   // *** FIX APPLIED: Changed to CardThemeData ***
+  // *** FIX APPLIED: Changed to CardThemeData ***
   static final _cardTheme = CardThemeData(
     elevation: 0,
-    margin: EdgeInsets.zero,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+      side: BorderSide(color: Colors.grey.withValues(alpha: 0.2), width: 1),
+    ),
   );
 
   static final _elevatedButtonTheme = ElevatedButtonThemeData(
@@ -90,9 +101,10 @@ class SonarPulseTheme {
         foregroundColor: lightTextPrimary,
         elevation: 0,
         scrolledUnderElevation: 1,
-        shadowColor: Colors.black.withOpacity(0.1),
+        shadowColor: Colors.black.withValues(alpha: 0.1),
         iconTheme: const IconThemeData(color: lightTextPrimary),
-        titleTextStyle: _textTheme.titleLarge?.copyWith(color: lightTextPrimary),
+        titleTextStyle:
+            _textTheme.titleLarge?.copyWith(color: lightTextPrimary),
       ),
       // *** FIX APPLIED: Changed to BottomAppBarThemeData ***
       bottomAppBarTheme: const BottomAppBarThemeData(
@@ -103,12 +115,22 @@ class SonarPulseTheme {
         backgroundColor: primaryAccent,
         foregroundColor: Colors.white,
       ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.grey.shade200,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
-          borderSide: BorderSide.none,
+        fillColor: Colors.white,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide:
+              const BorderSide(color: SonarPulseTheme.primaryAccent, width: 2),
         ),
         labelStyle: const TextStyle(color: lightTextSecondary),
       ),
@@ -149,7 +171,7 @@ class SonarPulseTheme {
         foregroundColor: darkTextPrimary,
         elevation: 0,
         scrolledUnderElevation: 1,
-        shadowColor: Colors.black.withOpacity(0.3),
+        shadowColor: Colors.black.withValues(alpha: 0.3),
         iconTheme: const IconThemeData(color: darkTextPrimary),
         titleTextStyle: _textTheme.titleLarge?.copyWith(color: darkTextPrimary),
       ),
@@ -162,12 +184,22 @@ class SonarPulseTheme {
         backgroundColor: primaryAccent,
         foregroundColor: Colors.black,
       ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Color(0xFF1E1E1E),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.grey.shade800,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
-          borderSide: BorderSide.none,
+        fillColor: const Color(0xFF1E1E1E), // Dark surface color, not grey[900]
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide:
+              const BorderSide(color: SonarPulseTheme.primaryAccent, width: 2),
         ),
         labelStyle: const TextStyle(color: darkTextSecondary),
       ),

@@ -320,20 +320,10 @@ class GiftRepository {
     });
 
     // TRIGGER ACHIEVEMENTS: Social & Spending
+    // Note: This logic should ideally be triggered by a cloud function or event listener
+    // to ensure consistency, but keeping streamlined for now.
+    // TRIGGER ACHIEVEMENTS: Social & Spending
     try {
-      // We need to fetch gift price again effectively or pass it out.
-      // But we can just use the gift object if we had it.
-      // Actually, we don't have the gift object here outside the transaction easily unless we fetched it before.
-      // Wait, buyAndSendGift fetches it INSIDE the transaction.
-      // To properly track this WITHOUT re-fetching, we should probably refactor to fetch before transaction.
-      // OR, safe bet: Fire and forget updateProgress with "1" for counts.
-      // For spending, we need the price.
-      // Correct approach: Let's do a quick fetch of the gift price or just update count achievements here to be safe and simple
-      // checking the user instruction: "Inject the following triggers inside the successful transaction block"
-      // Ah, the user insisted on "inside the successful transaction block".
-      // But we decided to do it *after* to avoid nested transactions.
-      // To get the price, we can fetch the gift briefly or rely on the fact that if the transaction succeeded, the gift exists.
-      // Let's fetch the gift to get the price for the achievement update.
       final giftDoc = await _db.collection('gifts').doc(giftId).get();
       final gift = GiftModel.fromDoc(giftDoc);
       final giftPrice = gift.priceInCoins;

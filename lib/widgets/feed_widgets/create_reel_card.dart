@@ -107,7 +107,7 @@ class CreateReelCard extends StatelessWidget {
     VoidCallback onTap,
   ) {
     final theme = Theme.of(context);
-    final buttonRadius = DesignTokens.iconLG;
+    const buttonRadius = DesignTokens.iconLG;
 
     if (state is ReelUploadInProgress) {
       // Uploading: Show percentage in center with progress ring
@@ -131,7 +131,7 @@ class CreateReelCard extends StatelessWidget {
                     value: progress,
                     strokeWidth: 3,
                     backgroundColor: Colors.white.withOpacity(0.3),
-                    valueColor: AlwaysStoppedAnimation<Color>(
+                    valueColor: const AlwaysStoppedAnimation<Color>(
                       SonarPulseTheme.primaryAccent,
                     ),
                   ),
@@ -140,7 +140,7 @@ class CreateReelCard extends StatelessWidget {
                 Container(
                   width: buttonRadius * 2,
                   height: buttonRadius * 2,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     shape: BoxShape.circle,
                     color: SonarPulseTheme.primaryAccent,
                   ),
@@ -173,11 +173,11 @@ class CreateReelCard extends StatelessWidget {
               child: Container(
                 width: buttonRadius * 2,
                 height: buttonRadius * 2,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   color: SemanticColors.success,
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.check,
                   color: Colors.white,
                   size: DesignTokens.iconMD,
@@ -199,11 +199,11 @@ class CreateReelCard extends StatelessWidget {
           child: Container(
             width: buttonRadius * 2,
             height: buttonRadius * 2,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               shape: BoxShape.circle,
               color: SemanticColors.warning,
             ),
-            child: Icon(
+            child: const Icon(
               Icons.refresh,
               color: Colors.white,
               size: DesignTokens.iconMD,

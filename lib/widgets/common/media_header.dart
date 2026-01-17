@@ -139,7 +139,7 @@ class MediaHeader extends StatelessWidget {
                   : null,
             ),
           ),
-          SizedBox(width: DesignTokens.spaceMD),
+          const SizedBox(width: DesignTokens.spaceMD),
 
           // Author info + badges
           Expanded(

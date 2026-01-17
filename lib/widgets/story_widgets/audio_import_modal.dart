@@ -90,7 +90,7 @@ class AudioImportModal extends StatelessWidget {
             Divider(height: 1, color: theme.dividerColor),
             // Options
             ListTile(
-              leading: Icon(
+              leading: const Icon(
                 Icons.music_note,
                 color: SonarPulseTheme.primaryAccent,
               ),

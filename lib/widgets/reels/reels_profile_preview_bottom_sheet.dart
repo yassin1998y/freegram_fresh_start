@@ -32,7 +32,7 @@ class ReelsProfilePreviewBottomSheet extends StatelessWidget {
       stream: userRepository.getUserStream(userId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return AppBottomSheet(
+          return const AppBottomSheet(
             isDraggable: true,
             initialChildSize: 0.6,
             minChildSize: 0.4,
@@ -40,7 +40,7 @@ class ReelsProfilePreviewBottomSheet extends StatelessWidget {
             showDragHandle: true,
             isComplexLayout: false,
             padding: EdgeInsets.zero,
-            child: const Center(
+            child: Center(
               child: AppProgressIndicator(
                 color: SonarPulseTheme.primaryAccent,
               ),

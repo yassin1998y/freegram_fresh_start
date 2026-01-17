@@ -88,9 +88,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
             // Determine stat value dynamically based on key
             // This is a bit hacky, ideally we'd pass a selector function
             int statValue = 0;
-            if (statKey == 'totalGiftsSent')
+            if (statKey == 'totalGiftsSent') {
               statValue = user.totalGiftsSent;
-            else if (statKey == 'totalGiftsReceived')
+            } else if (statKey == 'totalGiftsReceived')
               statValue = user.totalGiftsReceived;
             else if (statKey == 'uniqueGiftsCollected')
               statValue = user.uniqueGiftsCollected;

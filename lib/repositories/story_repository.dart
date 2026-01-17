@@ -440,8 +440,9 @@ class StoryRepository {
 
             for (final authorId in allUserIds) {
               if (authorId == userId) continue; // Skip own story
-              if (processedAuthors.contains(authorId))
+              if (processedAuthors.contains(authorId)) {
                 continue; // Skip if already processed
+              }
 
               final stories = storiesByAuthor[authorId] ?? [];
               if (stories.isEmpty) continue;

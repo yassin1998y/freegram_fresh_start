@@ -55,7 +55,7 @@ class PostHeader extends StatelessWidget {
                 size: DesignTokens.iconMD,
                 color: theme.iconTheme.color,
               ),
-              SizedBox(width: DesignTokens.spaceSM),
+              const SizedBox(width: DesignTokens.spaceSM),
               Text('Edit', style: theme.textTheme.bodyMedium),
             ],
           ),
@@ -70,7 +70,7 @@ class PostHeader extends StatelessWidget {
                 size: DesignTokens.iconMD,
                 color: theme.iconTheme.color,
               ),
-              SizedBox(width: DesignTokens.spaceSM),
+              const SizedBox(width: DesignTokens.spaceSM),
               Text(
                 post.isPinned ? 'Unpin' : 'Pin',
                 style: theme.textTheme.bodyMedium,
@@ -87,7 +87,7 @@ class PostHeader extends StatelessWidget {
               size: DesignTokens.iconMD,
               color: theme.iconTheme.color,
             ),
-            SizedBox(width: DesignTokens.spaceSM),
+            const SizedBox(width: DesignTokens.spaceSM),
             Text('Share', style: theme.textTheme.bodyMedium),
           ],
         ),
@@ -97,12 +97,12 @@ class PostHeader extends StatelessWidget {
           value: 'delete',
           child: Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.delete,
                 size: DesignTokens.iconMD,
                 color: Colors.red,
               ),
-              SizedBox(width: DesignTokens.spaceSM),
+              const SizedBox(width: DesignTokens.spaceSM),
               Text(
                 'Delete',
                 style: theme.textTheme.bodyMedium?.copyWith(
@@ -122,7 +122,7 @@ class PostHeader extends StatelessWidget {
                 size: DesignTokens.iconMD,
                 color: theme.iconTheme.color,
               ),
-              SizedBox(width: DesignTokens.spaceSM),
+              const SizedBox(width: DesignTokens.spaceSM),
               Text('Report', style: theme.textTheme.bodyMedium),
             ],
           ),
@@ -135,7 +135,7 @@ class PostHeader extends StatelessWidget {
     // New badge takes priority
     if (isNew) {
       displayTypeBadge = Container(
-        padding: EdgeInsets.symmetric(
+        padding: const EdgeInsets.symmetric(
           horizontal: DesignTokens.spaceXS,
           vertical: DesignTokens.spaceXS / 2,
         ),
@@ -153,7 +153,7 @@ class PostHeader extends StatelessWidget {
       );
     } else if (displayType == PostDisplayType.trending) {
       displayTypeBadge = Container(
-        padding: EdgeInsets.symmetric(
+        padding: const EdgeInsets.symmetric(
           horizontal: DesignTokens.spaceXS,
           vertical: DesignTokens.spaceXS / 2,
         ),
@@ -171,7 +171,7 @@ class PostHeader extends StatelessWidget {
       );
     } else if (displayType == PostDisplayType.nearby) {
       displayTypeBadge = Container(
-        padding: EdgeInsets.symmetric(
+        padding: const EdgeInsets.symmetric(
           horizontal: DesignTokens.spaceXS,
           vertical: DesignTokens.spaceXS / 2,
         ),
@@ -189,7 +189,7 @@ class PostHeader extends StatelessWidget {
       );
     } else if (displayType == PostDisplayType.boosted) {
       displayTypeBadge = Container(
-        padding: EdgeInsets.symmetric(
+        padding: const EdgeInsets.symmetric(
           horizontal: DesignTokens.spaceXS,
           vertical: DesignTokens.spaceXS / 2,
         ),

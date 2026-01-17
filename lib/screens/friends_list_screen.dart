@@ -237,7 +237,7 @@ class _FriendsListScreenState extends State<FriendsListScreen>
                 ),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                        icon: Icon(
+                        icon: const Icon(
                           Icons.clear,
                           size: DesignTokens.iconMD,
                         ),
@@ -739,7 +739,7 @@ class EnhancedFriendCard extends StatelessWidget {
                 width: 6,
                 height: 6,
                 margin: const EdgeInsets.only(right: DesignTokens.spaceXS),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: SemanticColors.success,
                   shape: BoxShape.circle,
                 ),
@@ -809,7 +809,7 @@ class EnhancedFriendCard extends StatelessWidget {
                   color: SemanticColors.success.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.check,
                   color: SemanticColors.success,
                   size: DesignTokens.iconMD,

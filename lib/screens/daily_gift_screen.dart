@@ -341,9 +341,9 @@ class _DailyGiftScreenState extends State<DailyGiftScreen>
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
-            : Row(
+            : const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   Icon(Icons.card_giftcard, size: 24),
                   SizedBox(width: 8),
                   Text(

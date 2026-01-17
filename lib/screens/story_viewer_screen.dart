@@ -470,8 +470,9 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
 
   /// CRITICAL FIX: Sync video playback state without triggering rebuilds
   void _syncVideoPlaybackState(bool shouldBePaused) {
-    if (_videoController == null || !_videoController!.value.isInitialized)
+    if (_videoController == null || !_videoController!.value.isInitialized) {
       return;
+    }
     if (!mounted) return;
 
     try {

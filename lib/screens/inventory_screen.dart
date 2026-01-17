@@ -102,6 +102,8 @@ class _InventoryScreenState extends State<InventoryScreen>
                     await seeder.seedPartyPopper();
                   }
 
+                  if (!mounted) return;
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('$value seeded successfully! ✅'),
@@ -244,46 +246,40 @@ class _InventoryScreenState extends State<InventoryScreen>
       (sum, gift) => sum + gift.currentMarketValue,
     );
 
-    return Container(
+    return Card(
       margin: const EdgeInsets.all(12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.purple.shade400, Colors.blue.shade400],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _StatItem(
+              icon: Icons.inventory_2,
+              label: "Items",
+              value: gifts.length.toString(),
+            ),
+            Container(
+              width: 1,
+              height: 40,
+              color: Theme.of(context).dividerColor,
+            ),
+            _StatItem(
+              icon: Icons.monetization_on,
+              label: "Value",
+              value: totalValue.toString(),
+            ),
+            Container(
+              width: 1,
+              height: 40,
+              color: Theme.of(context).dividerColor,
+            ),
+            _StatItem(
+              icon: Icons.star,
+              label: "Displayed",
+              value: gifts.where((g) => g.isDisplayed).length.toString(),
+            ),
+          ],
         ),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _StatItem(
-            icon: Icons.inventory_2,
-            label: "Items",
-            value: gifts.length.toString(),
-          ),
-          Container(
-            width: 1,
-            height: 40,
-            color: Colors.white.withOpacity(0.3),
-          ),
-          _StatItem(
-            icon: Icons.monetization_on,
-            label: "Value",
-            value: totalValue.toString(),
-          ),
-          Container(
-            width: 1,
-            height: 40,
-            color: Colors.white.withOpacity(0.3),
-          ),
-          _StatItem(
-            icon: Icons.star,
-            label: "Displayed",
-            value: gifts.where((g) => g.isDisplayed).length.toString(),
-          ),
-        ],
       ),
     );
   }
@@ -419,12 +415,12 @@ class _StatItem extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: Colors.white, size: 24),
+        Icon(icon, color: Theme.of(context).colorScheme.primary, size: 24),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
@@ -432,7 +428,8 @@ class _StatItem extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.9),
+            color:
+                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
             fontSize: 11,
           ),
         ),
@@ -465,12 +462,12 @@ class _GiftInventoryCard extends StatelessWidget {
             onTap();
           },
           child: Card(
-            elevation: rarity == GiftRarity.legendary ? 4 : 2,
+            elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
               side: BorderSide(
-                color: RarityHelper.getColor(rarity),
-                width: rarity == GiftRarity.legendary ? 2 : 1,
+                color: RarityHelper.getColor(rarity).withValues(alpha: 0.3),
+                width: 1,
               ),
             ),
             child: Stack(
@@ -636,13 +633,16 @@ class _GiftDetailSheetState extends State<_GiftDetailSheet> {
         HapticHelper.success();
 
         // Check if reward was earned (only when enabling display)
+        // Check if reward was earned (only when enabling display)
         if (!widget.ownedGift.isDisplayed) {
           // Give a moment for the reward check to complete
           await Future.delayed(const Duration(milliseconds: 500));
+          if (!mounted) return;
 
           // Check if reward was just earned
           final rewardResult =
               await giftRepo.checkAndAwardDisplayReward(currentUser.uid);
+          if (!mounted) return;
 
           if (rewardResult != null && rewardResult['awarded'] == true) {
             // Show reward notification
@@ -688,22 +688,22 @@ class _GiftDetailSheetState extends State<_GiftDetailSheet> {
           } else {
             // Regular success message
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Gift now displayed on profile'),
+              const SnackBar(
+                content: Text('Gift now displayed on profile'),
                 backgroundColor: Colors.green,
                 behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 2),
+                duration: Duration(seconds: 2),
               ),
             );
           }
         } else {
           // Hide message
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Gift hidden from profile'),
+            const SnackBar(
+              content: Text('Gift hidden from profile'),
               backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 2),
+              duration: Duration(seconds: 2),
             ),
           );
         }

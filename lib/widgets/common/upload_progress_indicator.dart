@@ -38,7 +38,7 @@ class UploadProgressIndicator extends StatelessWidget {
                 value: progress,
                 strokeWidth: strokeWidth,
                 backgroundColor: Colors.white.withOpacity(0.2),
-                valueColor: AlwaysStoppedAnimation<Color>(
+                valueColor: const AlwaysStoppedAnimation<Color>(
                   SonarPulseTheme.primaryAccent,
                 ),
               ),

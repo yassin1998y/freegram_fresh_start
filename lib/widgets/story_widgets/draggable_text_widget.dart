@@ -59,9 +59,9 @@ class _DraggableTextWidgetState extends State<DraggableTextWidget> {
 
   void _updateOverlay() {
     // Denormalize to actual font size with limits
-    final baseFontSize = DesignTokens.fontSizeXXXL;
-    final minFontSize = DesignTokens.fontSizeSM;
-    final maxFontSize = DesignTokens.fontSizeDisplay * 3; // 96.0
+    const baseFontSize = DesignTokens.fontSizeXXXL;
+    const minFontSize = DesignTokens.fontSizeSM;
+    const maxFontSize = DesignTokens.fontSizeDisplay * 3; // 96.0
     final fontSize = (_scale * baseFontSize).clamp(minFontSize, maxFontSize);
 
     widget.onOverlayChanged(

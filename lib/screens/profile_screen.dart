@@ -87,7 +87,7 @@ class _ProfileScreenViewState extends State<_ProfileScreenView>
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(DesignTokens.radiusXL),
         ),
@@ -97,7 +97,7 @@ class _ProfileScreenViewState extends State<_ProfileScreenView>
         return Container(
           decoration: BoxDecoration(
             color: theme.scaffoldBackgroundColor,
-            borderRadius: BorderRadius.vertical(
+            borderRadius: const BorderRadius.vertical(
               top: Radius.circular(DesignTokens.radiusXL),
             ),
           ),
@@ -386,9 +386,9 @@ class _UserPostsSectionState extends State<_UserPostsSection> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Padding(
-        padding: const EdgeInsets.all(DesignTokens.spaceMD),
-        child: const Center(child: AppProgressIndicator()),
+      return const Padding(
+        padding: EdgeInsets.all(DesignTokens.spaceMD),
+        child: Center(child: AppProgressIndicator()),
       );
     }
 
@@ -574,17 +574,22 @@ class _ModernProfileHeader extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.surface,
+                  width: 4,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: SonarPulseTheme.primaryAccent.withOpacity(0.3),
-                    blurRadius: 20,
-                    spreadRadius: 2,
+                    color: Theme.of(context).shadowColor.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
               child: CircleAvatar(
                 radius: 60,
-                backgroundColor: Colors.grey.shade300,
+                backgroundColor:
+                    Theme.of(context).colorScheme.surfaceContainerHighest,
                 backgroundImage: user.photoUrl.isNotEmpty
                     ? CachedNetworkImageProvider(user.photoUrl)
                     : null,
@@ -1103,14 +1108,7 @@ class _ModernProfileHeader extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
       padding: const EdgeInsets.all(DesignTokens.spaceLG),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            SonarPulseTheme.primaryAccent.withOpacity(0.1),
-            SonarPulseTheme.primaryAccent.withOpacity(0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: SonarPulseTheme.primaryAccent.withOpacity(0.05),
         borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
         border: Border.all(
           color: SonarPulseTheme.primaryAccent.withOpacity(0.2),

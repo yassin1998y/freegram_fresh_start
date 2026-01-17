@@ -20,14 +20,14 @@ class ReelsFeedErrorWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // For reels feed, use white text/icons on dark background
-    final iconColor = Colors.white;
-    final textColor = Colors.white;
+    const iconColor = Colors.white;
+    const textColor = Colors.white;
 
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          const Icon(
             Icons.error_outline,
             size: DesignTokens.iconXXL,
             color: iconColor,

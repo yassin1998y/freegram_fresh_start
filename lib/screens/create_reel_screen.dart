@@ -256,7 +256,7 @@ class _CreateReelScreenState extends State<CreateReelScreen> {
         await _pickVideo(source);
       }
     } else {
-      Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop();
     }
   }
 
@@ -338,7 +338,7 @@ class _CreateReelScreenState extends State<CreateReelScreen> {
         if (duration.inSeconds > ReelConstants.maxVideoDurationSeconds) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
+              const SnackBar(
                 content: Text(
                   'Video too long. Maximum ${ReelConstants.maxVideoDurationSeconds} seconds allowed.',
                 ),

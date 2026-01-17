@@ -384,13 +384,11 @@ class PageRepository {
           // Prioritize pages with categories matching user interests
           final aMatches = userInterests
               .where((interest) =>
-                  a.category?.toLowerCase().contains(interest.toLowerCase()) ??
-                  false)
+                  a.category.toLowerCase().contains(interest.toLowerCase()))
               .length;
           final bMatches = userInterests
               .where((interest) =>
-                  b.category?.toLowerCase().contains(interest.toLowerCase()) ??
-                  false)
+                  b.category.toLowerCase().contains(interest.toLowerCase()))
               .length;
 
           if (aMatches != bMatches) {
@@ -398,7 +396,7 @@ class PageRepository {
           }
 
           // Secondary sort by follower count
-          return (b.followerCount ?? 0).compareTo(a.followerCount ?? 0);
+          return (b.followerCount).compareTo(a.followerCount);
         });
       }
 

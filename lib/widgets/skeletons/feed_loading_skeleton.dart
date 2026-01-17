@@ -63,7 +63,7 @@ class FeedLoadingSkeleton extends StatelessWidget {
           itemCount: 6,
           itemBuilder: (context, index) {
             return Padding(
-              padding: EdgeInsets.only(
+              padding: const EdgeInsets.only(
                 right: DesignTokens.spaceSM,
               ),
               child: Column(
@@ -209,7 +209,7 @@ class FeedLoadingSkeleton extends StatelessWidget {
               itemCount: 4,
               itemBuilder: (context, index) {
                 return Padding(
-                  padding: EdgeInsets.only(
+                  padding: const EdgeInsets.only(
                     right: DesignTokens.spaceMD,
                   ),
                   child: Container(
@@ -279,7 +279,7 @@ class FeedLoadingSkeleton extends StatelessWidget {
               itemCount: 5,
               itemBuilder: (context, index) {
                 return Padding(
-                  padding: EdgeInsets.only(
+                  padding: const EdgeInsets.only(
                     right: DesignTokens.spaceMD,
                   ),
                   child: Column(
@@ -358,7 +358,7 @@ class FeedLoadingSkeleton extends StatelessWidget {
               itemCount: 5,
               itemBuilder: (context, index) {
                 return Padding(
-                  padding: EdgeInsets.only(
+                  padding: const EdgeInsets.only(
                     right: DesignTokens.spaceMD,
                   ),
                   child: Column(

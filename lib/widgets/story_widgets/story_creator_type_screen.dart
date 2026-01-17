@@ -151,8 +151,8 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
       // CRITICAL FIX: Show loading indicator
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Loading photo...'),
+          const SnackBar(
+            content: Text('Loading photo...'),
             duration: AnimationTokens.fast,
           ),
         );
@@ -226,8 +226,8 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
       // CRITICAL FIX: Show loading indicator
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Loading video...'),
+          const SnackBar(
+            content: Text('Loading video...'),
             duration: AnimationTokens.fast,
           ),
         );
@@ -366,7 +366,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                 .pickVideo(
               source: ImageSource.gallery,
               maxDuration:
-                  Duration(seconds: StoryConstants.maxVideoDurationSeconds),
+                  const Duration(seconds: StoryConstants.maxVideoDurationSeconds),
             )
                 .timeout(
               const Duration(seconds: 30), // Standard timeout
@@ -771,7 +771,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                       ),
                       const SizedBox(height: DesignTokens.spaceSM),
                       if (_isLoadingPhotos)
-                        SizedBox(
+                        const SizedBox(
                           height:
                               DesignTokens.spaceXXXL + DesignTokens.spaceXXL,
                           child: Center(
@@ -893,7 +893,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                       ),
                       const SizedBox(height: DesignTokens.spaceSM),
                       if (_isLoadingVideos)
-                        SizedBox(
+                        const SizedBox(
                           height:
                               DesignTokens.spaceXXXL + DesignTokens.spaceXXL,
                           child: Center(

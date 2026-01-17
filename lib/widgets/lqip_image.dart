@@ -88,18 +88,14 @@ class _LQIPImageState extends State<LQIPImage> {
             // Check if this is a version (starts with 'v') or transformations
             if (betweenUploadAndSlash.startsWith('v')) {
               // No transformations, insert blur before version
-              lqipUrlWithBlur = lqipUrl.substring(0, afterUploadIndex) + 
-                                'e_blur:300/' + 
-                                lqipUrl.substring(afterUploadIndex);
+              lqipUrlWithBlur = '${lqipUrl.substring(0, afterUploadIndex)}e_blur:300/${lqipUrl.substring(afterUploadIndex)}';
             } else {
               // Has transformations (f_auto,q_60,w_20), append blur
-              lqipUrlWithBlur = lqipUrl.substring(0, nextSlashIndex) + 
-                                ',e_blur:300' + 
-                                lqipUrl.substring(nextSlashIndex);
+              lqipUrlWithBlur = '${lqipUrl.substring(0, nextSlashIndex)},e_blur:300${lqipUrl.substring(nextSlashIndex)}';
             }
           } else {
             // No slash after /upload/, unlikely but handle it
-            lqipUrlWithBlur = lqipUrl + ',e_blur:300';
+            lqipUrlWithBlur = '$lqipUrl,e_blur:300';
           }
         }
       } catch (e) {

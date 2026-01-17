@@ -151,7 +151,7 @@ class ProfileRepository {
 
   static final List<ProfileItemModel> initialProfileItems = [
     // Borders - Basic
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'border_basic_blue',
       type: ProfileItemType.border,
       name: 'Basic Blue',
@@ -161,7 +161,7 @@ class ProfileRepository {
       rarity: ItemRarity.common,
       config: {'color': 0xFF2196F3},
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'border_basic_red',
       type: ProfileItemType.border,
       name: 'Basic Red',
@@ -171,7 +171,7 @@ class ProfileRepository {
       rarity: ItemRarity.common,
       config: {'color': 0xFFF44336},
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'border_basic_green',
       type: ProfileItemType.border,
       name: 'Basic Green',
@@ -183,7 +183,7 @@ class ProfileRepository {
     ),
 
     // Borders - Neon
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'border_neon_blue',
       type: ProfileItemType.border,
       name: 'Neon Blue',
@@ -193,7 +193,7 @@ class ProfileRepository {
       rarity: ItemRarity.rare,
       config: {'color': 0xFF00BFFF, 'glow': true},
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'border_neon_pink',
       type: ProfileItemType.border,
       name: 'Neon Pink',
@@ -203,7 +203,7 @@ class ProfileRepository {
       rarity: ItemRarity.rare,
       config: {'color': 0xFFFF1493, 'glow': true},
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'border_neon_green',
       type: ProfileItemType.border,
       name: 'Neon Green',
@@ -215,7 +215,7 @@ class ProfileRepository {
     ),
 
     // Borders - Special
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'border_gold',
       type: ProfileItemType.border,
       name: 'Gold Frame',
@@ -227,7 +227,7 @@ class ProfileRepository {
         'gradient': [0xFFFFD700, 0xFFFFA500]
       },
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'border_silver',
       type: ProfileItemType.border,
       name: 'Silver Frame',
@@ -239,7 +239,7 @@ class ProfileRepository {
         'gradient': [0xFFC0C0C0, 0xFFE0E0E0]
       },
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'border_bronze',
       type: ProfileItemType.border,
       name: 'Bronze Frame',
@@ -251,7 +251,7 @@ class ProfileRepository {
         'gradient': [0xFFCD7F32, 0xFFA0522D]
       },
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'border_rainbow',
       type: ProfileItemType.border,
       name: 'Rainbow',
@@ -261,7 +261,7 @@ class ProfileRepository {
       rarity: ItemRarity.epic,
       config: {'rainbow': true},
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'border_fire',
       type: ProfileItemType.border,
       name: 'Fire',
@@ -271,7 +271,7 @@ class ProfileRepository {
       rarity: ItemRarity.epic,
       config: {'animation': 'fire'},
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'border_ice',
       type: ProfileItemType.border,
       name: 'Ice',
@@ -281,7 +281,7 @@ class ProfileRepository {
       rarity: ItemRarity.epic,
       config: {'animation': 'ice'},
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'border_galaxy',
       type: ProfileItemType.border,
       name: 'Galaxy',
@@ -291,7 +291,7 @@ class ProfileRepository {
       rarity: ItemRarity.legendary,
       config: {'animation': 'galaxy'},
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'border_nature',
       type: ProfileItemType.border,
       name: 'Nature',
@@ -301,7 +301,7 @@ class ProfileRepository {
       rarity: ItemRarity.rare,
       config: {'animation': 'leaves'},
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'border_cyber',
       type: ProfileItemType.border,
       name: 'Cyberpunk',
@@ -313,7 +313,7 @@ class ProfileRepository {
     ),
 
     // Badges - Spending
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'badge_spender',
       type: ProfileItemType.badge,
       name: 'Big Spender',
@@ -322,7 +322,7 @@ class ProfileRepository {
       priceInCoins: 1000,
       rarity: ItemRarity.rare,
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'badge_whale',
       type: ProfileItemType.badge,
       name: 'Whale',
@@ -331,7 +331,7 @@ class ProfileRepository {
       priceInCoins: 5000,
       rarity: ItemRarity.legendary,
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'badge_investor',
       type: ProfileItemType.badge,
       name: 'Investor',
@@ -342,7 +342,7 @@ class ProfileRepository {
     ),
 
     // Badges - Social
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'badge_friendly',
       type: ProfileItemType.badge,
       name: 'Friendly',
@@ -351,7 +351,7 @@ class ProfileRepository {
       priceInCoins: 100,
       rarity: ItemRarity.common,
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'badge_popular',
       type: ProfileItemType.badge,
       name: 'Popular',
@@ -360,7 +360,7 @@ class ProfileRepository {
       priceInCoins: 500,
       rarity: ItemRarity.rare,
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'badge_influencer',
       type: ProfileItemType.badge,
       name: 'Influencer',
@@ -369,7 +369,7 @@ class ProfileRepository {
       priceInCoins: 1000,
       rarity: ItemRarity.epic,
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'badge_gifter',
       type: ProfileItemType.badge,
       name: 'Gift Giver',
@@ -380,7 +380,7 @@ class ProfileRepository {
     ),
 
     // Badges - Engagement
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'badge_nightowl',
       type: ProfileItemType.badge,
       name: 'Night Owl',
@@ -389,7 +389,7 @@ class ProfileRepository {
       priceInCoins: 100,
       rarity: ItemRarity.common,
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'badge_streak',
       type: ProfileItemType.badge,
       name: 'Daily Streaker',
@@ -398,7 +398,7 @@ class ProfileRepository {
       priceInCoins: 200,
       rarity: ItemRarity.rare,
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'badge_veteran',
       type: ProfileItemType.badge,
       name: 'Veteran',
@@ -409,7 +409,7 @@ class ProfileRepository {
     ),
 
     // Badges - Fun
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'badge_gamer',
       type: ProfileItemType.badge,
       name: 'Gamer',
@@ -418,7 +418,7 @@ class ProfileRepository {
       priceInCoins: 150,
       rarity: ItemRarity.common,
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'badge_artist',
       type: ProfileItemType.badge,
       name: 'Artist',
@@ -427,7 +427,7 @@ class ProfileRepository {
       priceInCoins: 150,
       rarity: ItemRarity.common,
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'badge_musician',
       type: ProfileItemType.badge,
       name: 'Musician',
@@ -436,7 +436,7 @@ class ProfileRepository {
       priceInCoins: 150,
       rarity: ItemRarity.common,
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'badge_traveler',
       type: ProfileItemType.badge,
       name: 'Traveler',
@@ -445,7 +445,7 @@ class ProfileRepository {
       priceInCoins: 150,
       rarity: ItemRarity.common,
     ),
-    ProfileItemModel(
+    const ProfileItemModel(
       id: 'badge_foodie',
       type: ProfileItemType.badge,
       name: 'Foodie',

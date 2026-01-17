@@ -203,6 +203,7 @@ class _ReelsFeedScreenState extends State<ReelsFeedScreen> {
                   return PageView.custom(
                     controller: _pageController,
                     scrollDirection: Axis.vertical,
+                    allowImplicitScrolling: true,
                     // CRITICAL FIX: Add physics to prevent overscroll which can cause memory issues
                     physics: const ClampingScrollPhysics(),
                     childrenDelegate: SliverChildBuilderDelegate(

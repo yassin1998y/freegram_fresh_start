@@ -167,7 +167,7 @@ class _DraggableStickerWidgetState extends State<DraggableStickerWidget> {
                     padding: const EdgeInsets.all(DesignTokens.spaceXS),
                     child: Text(
                       widget.stickerId,
-                      style: TextStyle(fontSize: DesignTokens.fontSizeDisplay),
+                      style: const TextStyle(fontSize: DesignTokens.fontSizeDisplay),
                     ),
                   ),
                   // Delete button

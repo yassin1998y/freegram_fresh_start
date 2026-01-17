@@ -70,7 +70,7 @@ class TrendingPostsSkeleton extends StatelessWidget {
               itemCount: 5,
               itemBuilder: (context, index) {
                 return Padding(
-                  padding: EdgeInsets.only(
+                  padding: const EdgeInsets.only(
                     right: DesignTokens.spaceMD,
                   ),
                   child: Container(

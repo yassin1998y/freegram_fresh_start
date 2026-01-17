@@ -147,15 +147,6 @@ class _NotificationsView extends StatelessWidget {
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(DesignTokens.radiusXL),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(
-                            DesignTokens.opacityMedium,
-                          ),
-                          blurRadius: DesignTokens.elevation2,
-                          offset: const Offset(0, -2),
-                        ),
-                      ],
                     ),
                     child: Column(
                       children: [
@@ -404,15 +395,6 @@ class NotificationTile extends StatelessWidget {
                       color: Theme.of(context).colorScheme.surface,
                       width: 2,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(
-                          DesignTokens.opacityMedium,
-                        ),
-                        blurRadius: DesignTokens.elevation1,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
                   ),
                   child: Icon(
                     leadingIcon,

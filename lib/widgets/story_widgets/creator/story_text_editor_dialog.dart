@@ -153,7 +153,7 @@ class _StoryTextEditorDialogState extends State<StoryTextEditorDialog> {
               Navigator.of(context).pop();
             }
           },
-          child: Text(
+          child: const Text(
             'Done',
             style: TextStyle(
               color: SonarPulseTheme.primaryAccent,

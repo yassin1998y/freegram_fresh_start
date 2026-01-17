@@ -168,7 +168,7 @@ class _BoostItemCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
               child: isLoading
-                  ? AppProgressIndicator(
+                  ? const AppProgressIndicator(
                       size: 20,
                       strokeWidth: 2,
                       color: Colors.white,

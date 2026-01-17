@@ -349,7 +349,7 @@ class _MainScreenState extends State<MainScreen> {
                       );
                     },
                   ),
-                  SizedBox(width: DesignTokens.spaceSM),
+                  const SizedBox(width: DesignTokens.spaceSM),
                 ],
               ),
               backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -376,7 +376,7 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                     _VisibilityWrapper(
                       isVisible: _selectedIndex == 2,
-                      child: RandomChatScreen(isVisible: _selectedIndex == 2),
+                      child: const RandomChatScreen(),
                     ),
                     _VisibilityWrapper(
                       isVisible: _selectedIndex == 3,
@@ -469,13 +469,13 @@ class _MainScreenState extends State<MainScreen> {
             sigmaX: DesignTokens.blurMedium, sigmaY: DesignTokens.blurMedium),
         child: Container(
           decoration: BoxDecoration(
-            color: appBarColor.withOpacity(0.85),
+            color: appBarColor.withValues(alpha: 0.85),
             gradient: LinearGradient(
               begin: Alignment.bottomCenter,
               end: Alignment.topCenter,
               colors: [
-                appBarColor.withOpacity(0.85),
-                appBarColor.withOpacity(0.95),
+                appBarColor.withValues(alpha: 0.85),
+                appBarColor.withValues(alpha: 0.95),
               ],
               stops: const [0.0, 1.0],
             ),
@@ -536,7 +536,8 @@ class _AppBarActionState extends State<_AppBarAction> {
 
     if (widget.stream != null) {
       return Padding(
-        padding: EdgeInsets.all(DesignTokens.spaceSM - DesignTokens.spaceXS),
+        padding:
+            const EdgeInsets.all(DesignTokens.spaceSM - DesignTokens.spaceXS),
         child: GestureDetector(
           onTap: () {
             HapticFeedback.lightImpact();
@@ -553,7 +554,8 @@ class _AppBarActionState extends State<_AppBarAction> {
     }
 
     return Padding(
-      padding: EdgeInsets.all(DesignTokens.spaceSM - DesignTokens.spaceXS),
+      padding:
+          const EdgeInsets.all(DesignTokens.spaceSM - DesignTokens.spaceXS),
       child: iconButton,
     );
   }

@@ -61,10 +61,12 @@ class MarketplaceRepository {
       if (!listingDoc.exists) throw Exception('Listing not found');
 
       final listing = MarketplaceListingModel.fromDoc(listingDoc);
-      if (listing.status != ListingStatus.active)
+      if (listing.status != ListingStatus.active) {
         throw Exception('Listing not active');
-      if (listing.sellerId == buyerId)
+      }
+      if (listing.sellerId == buyerId) {
         throw Exception('Cannot buy own listing');
+      }
 
       // 2. Get buyer
       final buyerRef = _db.collection('users').doc(buyerId);
@@ -90,8 +92,9 @@ class MarketplaceRepository {
           .doc(listing.ownedGiftId);
 
       final ownedGiftDoc = await transaction.get(ownedGiftRef);
-      if (!ownedGiftDoc.exists)
+      if (!ownedGiftDoc.exists) {
         throw Exception('Item not found in seller inventory');
+      }
       final ownedGift = OwnedGift.fromDoc(ownedGiftDoc);
 
       // 6. Transfer item (delete from seller, add to buyer)
@@ -172,8 +175,9 @@ class MarketplaceRepository {
 
       final listing = MarketplaceListingModel.fromDoc(listingDoc);
       if (listing.sellerId != userId) throw Exception('Not owner');
-      if (listing.status != ListingStatus.active)
+      if (listing.status != ListingStatus.active) {
         throw Exception('Listing not active');
+      }
 
       // Unlock item
       final ownedGiftRef = _db

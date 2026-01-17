@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:freegram/widgets/freegram_app_bar.dart';
+import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/screens/store_tabs/coins_tab.dart';
 import 'package:freegram/screens/store_tabs/boosts_tab.dart';
 import 'package:freegram/screens/store_tabs/gifts_tab.dart';
@@ -112,11 +113,7 @@ class _StoreScreenState extends State<StoreScreen> {
                 margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.amber, width: 2),
-                ),
+                decoration: Containers.iconBox(Colors.amber),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -135,10 +132,10 @@ class _StoreScreenState extends State<StoreScreen> {
                           )
                         : Text(
                             coins.toString(),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
-                              color: Colors.black87,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                   ],
@@ -157,70 +154,58 @@ class _StoreScreenState extends State<StoreScreen> {
       body: Column(
         children: [
           // Balance & Stats Card
-          Container(
+          Card(
             margin: const EdgeInsets.all(12),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.amber.shade400, Colors.orange.shade400],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.amber.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: StreamBuilder<UserModel>(
-              stream: locator<UserRepository>().getUserStream(currentUser.uid),
-              builder: (context, snapshot) {
-                final coins = snapshot.data?.coins ?? 0;
-                final level = snapshot.data?.userLevel ?? 1;
-                final streak = snapshot.data?.dailyLoginStreak ?? 0;
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: StreamBuilder<UserModel>(
+                stream:
+                    locator<UserRepository>().getUserStream(currentUser.uid),
+                builder: (context, snapshot) {
+                  final coins = snapshot.data?.coins ?? 0;
+                  final level = snapshot.data?.userLevel ?? 1;
+                  final streak = snapshot.data?.dailyLoginStreak ?? 0;
 
-                return Row(
-                  children: [
-                    // Coin Balance
-                    Expanded(
-                      child: _BalanceItem(
-                        icon: Icons.monetization_on,
-                        label: "Coins",
-                        value: coins.toString(),
+                  return Row(
+                    children: [
+                      // Coin Balance
+                      Expanded(
+                        child: _BalanceItem(
+                          icon: Icons.monetization_on,
+                          label: "Coins",
+                          value: coins.toString(),
+                        ),
                       ),
-                    ),
-                    Container(
-                      width: 1,
-                      height: 40,
-                      color: Colors.white.withOpacity(0.3),
-                    ),
-                    // Level
-                    Expanded(
-                      child: _BalanceItem(
-                        icon: Icons.star,
-                        label: "Level",
-                        value: level.toString(),
+                      Container(
+                        width: 1,
+                        height: 40,
+                        color: Theme.of(context).dividerColor,
                       ),
-                    ),
-                    Container(
-                      width: 1,
-                      height: 40,
-                      color: Colors.white.withOpacity(0.3),
-                    ),
-                    // Streak
-                    Expanded(
-                      child: _BalanceItem(
-                        icon: Icons.local_fire_department,
-                        label: "Streak",
-                        value: "${streak}d",
+                      // Level
+                      Expanded(
+                        child: _BalanceItem(
+                          icon: Icons.star,
+                          label: "Level",
+                          value: level.toString(),
+                        ),
                       ),
-                    ),
-                  ],
-                );
-              },
+                      Container(
+                        width: 1,
+                        height: 40,
+                        color: Theme.of(context).dividerColor,
+                      ),
+                      // Streak
+                      Expanded(
+                        child: _BalanceItem(
+                          icon: Icons.local_fire_department,
+                          label: "Streak",
+                          value: "${streak}d",
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
 
@@ -338,12 +323,12 @@ class _BalanceItem extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: Colors.white, size: 24),
+        Icon(icon, color: Theme.of(context).colorScheme.primary, size: 24),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
@@ -351,7 +336,8 @@ class _BalanceItem extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.9),
+            color:
+                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
             fontSize: 11,
           ),
         ),
@@ -379,7 +365,7 @@ class _CompactStoreCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
+      elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: onTap,

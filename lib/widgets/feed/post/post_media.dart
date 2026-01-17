@@ -98,14 +98,14 @@ class _PostMediaState extends State<PostMedia>
           // Page indicator dots
           if (widget.post.mediaItems.length > 1)
             Padding(
-              padding: EdgeInsets.symmetric(vertical: DesignTokens.spaceSM),
+              padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSM),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
                   widget.post.mediaItems.length,
                   (index) => Container(
                     margin:
-                        EdgeInsets.symmetric(horizontal: DesignTokens.spaceXS),
+                        const EdgeInsets.symmetric(horizontal: DesignTokens.spaceXS),
                     width: DesignTokens.spaceSM,
                     height: DesignTokens.spaceSM,
                     decoration: BoxDecoration(
@@ -249,7 +249,7 @@ class _PostMediaState extends State<PostMedia>
     final needsExpansion = textPainter.didExceedMaxLines;
 
     return Container(
-      padding: EdgeInsets.all(DesignTokens.spaceMD),
+      padding: const EdgeInsets.all(DesignTokens.spaceMD),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.bottomCenter,
@@ -282,9 +282,9 @@ class _PostMediaState extends State<PostMedia>
                   _expandedCaptions[mediaIndex] = true;
                 });
               },
-              child: Padding(
+              child: const Padding(
                 padding: EdgeInsets.only(top: DesignTokens.spaceXS),
-                child: const Text(
+                child: Text(
                   'show more',
                   style: TextStyle(
                     color: Colors.white,
@@ -302,9 +302,9 @@ class _PostMediaState extends State<PostMedia>
                   _expandedCaptions[mediaIndex] = false;
                 });
               },
-              child: Padding(
+              child: const Padding(
                 padding: EdgeInsets.only(top: DesignTokens.spaceXS),
-                child: const Text(
+                child: Text(
                   'show less',
                   style: TextStyle(
                     color: Colors.white,
@@ -325,7 +325,7 @@ class _PostMediaState extends State<PostMedia>
 
     if (widget.post.mediaUrls.length == 1) {
       return Padding(
-        padding: EdgeInsets.all(DesignTokens.spaceSM),
+        padding: const EdgeInsets.all(DesignTokens.spaceSM),
         child: GestureDetector(
           onTap: () {
             Navigator.push(
@@ -365,7 +365,7 @@ class _PostMediaState extends State<PostMedia>
 
     // Multiple images in grid
     return Padding(
-      padding: EdgeInsets.all(DesignTokens.spaceSM),
+      padding: const EdgeInsets.all(DesignTokens.spaceSM),
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),

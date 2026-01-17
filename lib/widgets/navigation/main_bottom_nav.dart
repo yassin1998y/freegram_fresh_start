@@ -159,7 +159,7 @@ class _BottomNavIcon extends StatelessWidget {
             onTap();
           },
           child: Padding(
-            padding: EdgeInsets.symmetric(vertical: DesignTokens.spaceSM),
+            padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSM),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -167,7 +167,7 @@ class _BottomNavIcon extends StatelessWidget {
                 AnimatedContainer(
                   duration: AnimationTokens.normal,
                   curve: AnimationTokens.easeInOut,
-                  padding: EdgeInsets.symmetric(
+                  padding: const EdgeInsets.symmetric(
                     horizontal: DesignTokens.spaceSM + DesignTokens.spaceXS,
                     vertical: DesignTokens.spaceSM - DesignTokens.spaceXS,
                   ),
@@ -188,7 +188,7 @@ class _BottomNavIcon extends StatelessWidget {
                           color: iconColor,
                         ),
                 ),
-                SizedBox(height: DesignTokens.spaceXS),
+                const SizedBox(height: DesignTokens.spaceXS),
                 AnimatedDefaultTextStyle(
                   duration: AnimationTokens.normal,
                   style: TextStyle(
@@ -243,7 +243,7 @@ class _GlassmorphicCenterButton extends StatelessWidget {
           },
           customBorder: const CircleBorder(),
           child: Padding(
-            padding: EdgeInsets.symmetric(
+            padding: const EdgeInsets.symmetric(
                 vertical: DesignTokens.spaceSM - DesignTokens.spaceXS),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -299,7 +299,7 @@ class _GlassmorphicCenterButton extends StatelessWidget {
                     ),
                   ),
                 ),
-                SizedBox(height: DesignTokens.spaceXS),
+                const SizedBox(height: DesignTokens.spaceXS),
                 AnimatedDefaultTextStyle(
                   duration: AnimationTokens.normal,
                   style: TextStyle(

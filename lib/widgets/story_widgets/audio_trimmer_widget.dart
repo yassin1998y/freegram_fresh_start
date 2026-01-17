@@ -343,7 +343,7 @@ class _AudioTrimmerWidgetState extends State<AudioTrimmerWidget> {
                       label: Text(_isPlaying ? 'Pause' : 'Preview'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: SonarPulseTheme.primaryAccent,
-                        side: BorderSide(color: SonarPulseTheme.primaryAccent),
+                        side: const BorderSide(color: SonarPulseTheme.primaryAccent),
                       ),
                     ),
                   ),

@@ -149,6 +149,7 @@ class DesignTokens {
   static const double blurHeavy = 20.0;
 
   // ===== SHADOW DEFINITIONS =====
+  @Deprecated('Use Borders.subtle instead')
   static List<BoxShadow> get shadowLight => [
         BoxShadow(
           color: Colors.black.withOpacity(0.05),
@@ -157,6 +158,7 @@ class DesignTokens {
         ),
       ];
 
+  @Deprecated('Use Borders.subtle instead')
   static List<BoxShadow> get shadowMedium => [
         BoxShadow(
           color: Colors.black.withOpacity(0.1),
@@ -165,6 +167,7 @@ class DesignTokens {
         ),
       ];
 
+  @Deprecated('Use Borders.subtle instead')
   static List<BoxShadow> get shadowHeavy => [
         BoxShadow(
           color: Colors.black.withOpacity(0.15),
@@ -173,6 +176,7 @@ class DesignTokens {
         ),
       ];
 
+  @Deprecated('Use Borders.subtle instead')
   static List<BoxShadow> get shadowFloating => [
         BoxShadow(
           color: Colors.black.withOpacity(0.2),
@@ -210,7 +214,39 @@ class DesignTokens {
       );
 }
 
+// ===== BORDERS =====
+class Borders {
+  static BorderSide get subtle => BorderSide(
+        color: Colors.grey.withValues(alpha: 0.2),
+        width: 1,
+      );
+
+  static BorderSide get focused => const BorderSide(
+        color: SonarPulseTheme.primaryAccent,
+        width: 2,
+      );
+}
+
+// ===== CONTAINERS =====
+class Containers {
+  static BoxDecoration iconBox(Color color) => BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      );
+
+  static BoxDecoration glassCard(BuildContext context) => BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey[900]
+            : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.grey.withValues(alpha: 0.1),
+        ),
+      );
+}
+
 /// Animation Tokens
+
 /// Standardized animation durations and curves for consistent motion
 class AnimationTokens {
   // ===== DURATIONS =====

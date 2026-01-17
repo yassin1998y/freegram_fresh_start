@@ -288,7 +288,7 @@ class CloudinaryService {
           final elapsed = DateTime.now().difference(uploadStartTime);
           // Estimate progress: assume average upload speed of 1MB/s
           // This is just an estimate - actual progress may vary
-          final estimatedBytesPerSecond = 1024 * 1024; // 1MB/s
+          const estimatedBytesPerSecond = 1024 * 1024; // 1MB/s
           final estimatedProgress = (elapsed.inMilliseconds /
                   1000.0 *
                   estimatedBytesPerSecond /

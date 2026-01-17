@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/models/gift_model.dart';
 import 'package:freegram/repositories/gift_repository.dart';
-import 'package:freegram/repositories/auth_repository.dart';
 import 'package:freegram/screens/gift_detail_screen.dart';
 import 'package:freegram/utils/haptic_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';

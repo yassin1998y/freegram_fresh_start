@@ -326,7 +326,7 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
 
       // Auto-stop after max duration (StoryConstants.maxVideoDurationSeconds)
       Future.delayed(
-        Duration(seconds: StoryConstants.maxVideoDurationSeconds),
+        const Duration(seconds: StoryConstants.maxVideoDurationSeconds),
         () {
           if (_isRecordingVideo && mounted) {
             _stopVideoRecording();
@@ -358,7 +358,7 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
       if (duration.inSeconds > StoryConstants.maxVideoDurationSeconds) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text(
                 'Video too long. Maximum ${StoryConstants.maxVideoDurationSeconds} seconds allowed.',
               ),
@@ -917,7 +917,7 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: Text(
+                child: const Text(
                   'Post Another',
                   style: TextStyle(
                     color: SonarPulseTheme.primaryAccent,
@@ -1107,7 +1107,7 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
 
   void _addTextOverlay() async {
     // Add a new text overlay at center
-    final initialOverlay = TextOverlay(
+    const initialOverlay = TextOverlay(
       text: 'Tap to edit',
       x: 0.5,
       y: 0.5,

@@ -1,7 +1,6 @@
 // lib/repositories/user_repository.dart
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/models/user_model.dart';

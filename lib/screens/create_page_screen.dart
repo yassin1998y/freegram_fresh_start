@@ -91,6 +91,7 @@ class _CreatePageScreenState extends State<CreatePageScreen> {
 
     try {
       final existingPage = await _pageRepository.getPageByHandle(handle);
+      if (!mounted) return;
       setState(() {
         _isCheckingHandle = false;
         _handleError =
@@ -107,6 +108,7 @@ class _CreatePageScreenState extends State<CreatePageScreen> {
   Future<void> _pickProfileImage() async {
     try {
       final image = await _imagePicker.pickImage(source: ImageSource.gallery);
+      if (!mounted) return;
       if (image != null) {
         setState(() => _profileImage = image);
       }
@@ -120,6 +122,7 @@ class _CreatePageScreenState extends State<CreatePageScreen> {
   Future<void> _pickCoverImage() async {
     try {
       final image = await _imagePicker.pickImage(source: ImageSource.gallery);
+      if (!mounted) return;
       if (image != null) {
         setState(() => _coverImage = image);
       }
