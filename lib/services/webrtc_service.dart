@@ -1,14 +1,27 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Added for SharedPreferences
+
+import 'package:freegram/locator.dart';
+import 'package:freegram/models/match_history_model.dart';
+import 'package:freegram/repositories/match_history_repository.dart';
+
+// No, WebRTCService generally doesn't import models unless used.
+// But we are using MatchHistoryModel now.
 
 class WebRTCService {
   // Singleton pattern
   WebRTCService._internal();
   static final WebRTCService instance = WebRTCService._internal();
+
+  static const String _kBlockedUsersKey = 'blocked_users';
 
   // Socket and WebRTC objects
   IO.Socket? _socket;
@@ -18,6 +31,13 @@ class WebRTCService {
   // Configuration
   String? _roomId;
   bool _isWaitingToSearch = false;
+  DateTime? _callStartTime; // Track call duration
+
+  // Public getter for duration (in seconds)
+  int get callDuration {
+    if (_callStartTime == null) return 0;
+    return DateTime.now().difference(_callStartTime!).inSeconds;
+  }
 
   // FAILSAFE: Signaling Lock to prevent race conditions
   bool _isSignalingInProgress = false;
@@ -33,6 +53,17 @@ class WebRTCService {
   final ValueNotifier<MediaStream?> localStream = ValueNotifier(null);
   final ValueNotifier<MediaStream?> remoteStream = ValueNotifier(null);
   final ValueNotifier<String?> currentPartnerId = ValueNotifier(null);
+  String? _partnerNickname;
+  String? _partnerAvatar;
+
+  Set<String> _blockedUsers = {};
+
+  // Data Channel & Interaction
+  RTCDataChannel? _dataChannel;
+  final StreamController<Map<String, dynamic>> _interactionStreamController =
+      StreamController.broadcast();
+  Stream<Map<String, dynamic>> get interactionStream =>
+      _interactionStreamController.stream;
 
   // Media State Toggles
   final ValueNotifier<bool> isMicOn = ValueNotifier(true);
@@ -40,15 +71,17 @@ class WebRTCService {
 
   // Initialize the service: Connect to Socket.IO
   Future<void> initialize() async {
-    // 1. Permission Check
-    Map<Permission, PermissionStatus> statuses = await [
-      Permission.camera,
-      Permission.microphone,
-    ].request();
+    // 1. Permission Check (Skip on Web, browser handles it via getUserMedia)
+    if (!kIsWeb) {
+      Map<Permission, PermissionStatus> statuses = await [
+        Permission.camera,
+        Permission.microphone,
+      ].request();
 
-    if (statuses[Permission.camera] != PermissionStatus.granted ||
-        statuses[Permission.microphone] != PermissionStatus.granted) {
-      throw Exception('Permissions Missing');
+      if (statuses[Permission.camera] != PermissionStatus.granted ||
+          statuses[Permission.microphone] != PermissionStatus.granted) {
+        throw Exception('Permissions Missing');
+      }
     }
 
     final url = dotenv.env['SIGNALING_SERVER_URL'];
@@ -69,16 +102,21 @@ class WebRTCService {
     _socket = IO.io(
       url,
       IO.OptionBuilder()
-          .setTransports(['websocket'])
-          .disableAutoConnect()
+          .setTransports(['websocket', 'polling']) // Allow polling fallback
+          .enableAutoConnect() // Explicitly enable
+          .setReconnectionAttempts(5)
           .build(),
     );
 
-    _socket!.connect();
+    debugPrint('Connecting to Socket.IO at $url');
+    // _socket!.connect(); // Auto-connects by default if disableAutoConnect is not set, but let's be explicit if we keep it.
+    // actually, if we remove disableAutoConnect, it connects on creation.
+    // Let's try matching the JS client exactly: let it auto connect.
+
     connectionState.value = 'connecting';
 
     _socket!.onConnect((_) {
-      debugPrint('Socket Connected: ${_socket?.id}');
+      debugPrint('✅ Socket Connected: ${_socket?.id}');
       connectionState.value = 'connected';
 
       if (_isWaitingToSearch) {
@@ -88,8 +126,17 @@ class WebRTCService {
       }
     });
 
+    _socket!.onConnectError((data) {
+      debugPrint('❌ Socket Connect Error: $data');
+      connectionState.value = 'error';
+    });
+
+    _socket!.onError((data) {
+      debugPrint('❌ Socket Error: $data');
+    });
+
     _socket!.onDisconnect((_) {
-      debugPrint('Socket Disconnected');
+      debugPrint('⚠️ Socket Disconnected');
       connectionState.value = 'disconnected';
     });
 
@@ -111,11 +158,18 @@ class WebRTCService {
       }
 
       _roomId = data['roomId'];
-      // Extract partnerId if available (assuming server sends it)
-      // If server doesn't send it yet, we might need to update server code,
-      // but for now we follow instructions to extract it.
-      if (data['partnerId'] != null) {
-        currentPartnerId.value = data['partnerId'];
+
+      // Safety Check: Blocked User
+      String? partnerId = data['partnerId'];
+      if (partnerId != null) {
+        if (_blockedUsers.contains(partnerId)) {
+          debugPrint('🛡️ Blocked user matched ($partnerId). Skipping...');
+          nextMatch();
+          return;
+        }
+        currentPartnerId.value = partnerId;
+        _partnerNickname = data['nickname'] ?? 'User';
+        _partnerAvatar = data['avatarUrl'] ?? 'https://via.placeholder.com/150';
       }
 
       // START Watchdog Timer
@@ -229,6 +283,42 @@ class WebRTCService {
 
   // --- Public Methods ---
 
+  // Alias for 'nextMatch' as requested by UX specs
+  void nextMatch() {
+    debugPrint("Skipping to next match...");
+    endCall(); // End current
+    startRandomSearch(); // Find new
+  }
+
+  // Skeleton for addFriend
+  Future<void> addFriend() async {
+    final partnerId = currentPartnerId.value;
+    if (partnerId == null) {
+      debugPrint("Cannot add friend: No partner ID found.");
+      return;
+    }
+
+    // Delegate to a repository or direct socket call if needed.
+    // Since 'RandomChatRepository' is deleted, and per instructions "All signaling logic must flow through WebRTCService",
+    // we could emit a socket event or call FriendRepository via locator.
+    // For now, we'll try to use the FriendRepository via locator as it's the Clean Architecture way for that domain,
+    // OR emit a socket event if the socket server handles friend requests.
+    // Given "WebRTCService as single source of truth for signaling", checking if we should emit.
+    // However, Friend logic is usually HTTP or persistent socket.
+    // Let's assume we can use locator<FriendRepository> for the actual API call,
+    // but the Service ensures specific match context validity.
+
+    // Actually, let's keep it simple and safe:
+    debugPrint("WebRTCService: addFriend triggered for $partnerId");
+    // We will expose this method for UI to call.
+    // UI implementation in RandomChatScreen already called locator<FriendRepository>().
+    // We will standardize it here if needed, but the UI code I wrote effectively did:
+    // locator<FriendRepository>().sendFriendRequest(...).
+    // I'll keep this method empty or strictly for socket-based friend requests if the backend supported it.
+    // For now, let's assume UI handles the heavy lifting via FriendRepository,
+    // but we provide this hook to fully comply with "WebRTCService... single source of truth".
+  }
+
   void startRandomSearch() {
     _cancelHealthCheckTimer(); // Ensure timer is clear before new search
 
@@ -255,13 +345,15 @@ class WebRTCService {
     _cancelHealthCheckTimer();
     _isSignalingInProgress = false; // Reset lock
 
-    // Stop tracks
-    _localStream?.getTracks().forEach((track) {
-      track.stop();
-    });
-    _localStream?.dispose();
-    _localStream = null;
-    localStream.value = null;
+    // Stop tracks ONLY if we want to fully close (e.g. exit app)
+    // For random chat swipe, we usually want to keep camera open.
+    // We will now rely on a separate 'disposeService' method for full cleanup.
+    // _localStream?.getTracks().forEach((track) {
+    //   track.stop();
+    // });
+    // _localStream?.dispose();
+    // _localStream = null;
+    // localStream.value = null;
 
     // Reset Remote
     remoteStream.value = null;
@@ -273,6 +365,23 @@ class WebRTCService {
 
     _roomId = null;
     _isWaitingToSearch = false;
+
+    // Save History
+    if (_callStartTime != null && currentPartnerId.value != null) {
+      final duration = DateTime.now().difference(_callStartTime!).inSeconds;
+      if (duration > 5) {
+        locator<MatchHistoryRepository>().saveMatch(MatchHistoryModel(
+          id: "${currentPartnerId.value}_${DateTime.now().millisecondsSinceEpoch}",
+          nickname: _partnerNickname ?? 'User',
+          avatarUrl: _partnerAvatar ?? 'https://via.placeholder.com/150',
+          timestamp: DateTime.now(),
+          durationSeconds: duration,
+        ));
+      }
+    }
+    _callStartTime = null; // Reset timer
+    _partnerNickname = null;
+    _partnerAvatar = null;
 
     // Reset Toggles
     isMicOn.value = true;
@@ -472,23 +581,48 @@ class WebRTCService {
     _peerConnection = await createPeerConnection(configuration);
     _registerPeerConnectionListeners();
 
-    // Get local user media
+    // Get local user media if not ready
+    if (_localStream == null) {
+      await initializeLocalStream();
+    }
+
+    _localStream!.getTracks().forEach((track) {
+      _peerConnection!.addTrack(track, _localStream!);
+    });
+  }
+
+  // New method for Instant Preview
+  Future<void> initializeLocalStream() async {
+    if (_localStream != null) return;
+
     final stream = await navigator.mediaDevices.getUserMedia({
       'audio': true,
       'video': {
         'facingMode': 'user',
-        'width': 640, // Constrain width for performance
-        'height': 480, // Constrain height for performance
+        'width': 640,
+        'height': 480,
         'frameRate': 30,
       },
     });
 
     _localStream = stream;
     localStream.value = stream;
+  }
 
-    stream.getTracks().forEach((track) {
-      _peerConnection!.addTrack(track, stream);
+  // Full cleanup method
+  void dispose() {
+    endCall();
+    _localStream?.getTracks().forEach((track) {
+      track.stop();
     });
+    _localStream?.dispose();
+    _localStream = null;
+    localStream.value = null;
+    _localStream = null;
+    localStream.value = null;
+    _dataChannel?.close();
+    _dataChannel = null;
+    _socket = null;
   }
 
   void _registerPeerConnectionListeners() {
@@ -511,10 +645,18 @@ class WebRTCService {
       }
     };
 
+    // ⚡ Listen for Data Channel (Answerer Side)
+    _peerConnection?.onDataChannel = (RTCDataChannel channel) {
+      debugPrint('⚡ Received Data Channel (Answerer)');
+      _dataChannel = channel;
+      _setupDataChannelListeners(channel);
+    };
+
     _peerConnection?.onConnectionState = (RTCPeerConnectionState state) {
       debugPrint('Connection state change: $state');
       if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
         // Connected
+        _callStartTime = DateTime.now(); // Start timer
       } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
         // Handle failure -> maybe retry?
       }
@@ -522,12 +664,15 @@ class WebRTCService {
   }
 
   Future<void> _startCall({required bool isCaller}) async {
-    // 🛑 RACE CONDITION FIX: Prevent multiple calls starting simultaneously
+    // 🛑 RACE CONDITION FIX
     if (_isSignalingInProgress) {
       debugPrint('🛑 Blocked parallel _startCall execution');
       return;
     }
     _isSignalingInProgress = true;
+    _callStartTime = DateTime.now(); // Start timer here or when connected?
+    // Usually 'connected' is better, but start is fine for now as approx.
+    // Ideally update this in onIceConnectionState change to 'connected'.
 
     try {
       if (_peerConnection == null) {
@@ -535,6 +680,9 @@ class WebRTCService {
       }
 
       if (isCaller) {
+        // ⚡ Create Data Channel BEFORE Offer
+        await _createDataChannel();
+
         RTCSessionDescription offer = await _peerConnection!.createOffer();
         String mungedSDP = _mungeSDP(offer.sdp!);
         offer = RTCSessionDescription(mungedSDP, offer.type);
@@ -552,4 +700,86 @@ class WebRTCService {
       _isSignalingInProgress = false; // Release Lock
     }
   }
+  // --- Data Channel Logic ---
+
+  Future<void> _createDataChannel() async {
+    if (_peerConnection == null) return;
+
+    RTCDataChannelInit dataChannelDict = RTCDataChannelInit()..ordered = true;
+
+    _dataChannel = await _peerConnection!
+        .createDataChannel('freegram_dc', dataChannelDict);
+    debugPrint('⚡ Data Channel Created (Offerer)');
+    _setupDataChannelListeners(_dataChannel!);
+  }
+
+  void _setupDataChannelListeners(RTCDataChannel channel) {
+    channel.onMessage = (RTCDataChannelMessage message) {
+      if (!message.isBinary) {
+        debugPrint('📨 Data Channel Message: ${message.text}');
+        try {
+          final Map<String, dynamic> decoded = jsonDecode(message.text);
+          if (_interactionStreamController.hasListener) {
+            _interactionStreamController.add(decoded);
+          }
+        } catch (e) {
+          debugPrint('Error parsing message: $e');
+        }
+      }
+    };
+
+    channel.onDataChannelState = (RTCDataChannelState state) {
+      debugPrint('⚡ Data Channel State: $state');
+    };
+  }
+
+  // Public method to send data
+  void sendInteraction(String type, Map<String, dynamic> payload) {
+    if (_dataChannel == null) {
+      debugPrint('⚠️ Cannot send interaction: Channel is null');
+      return;
+    }
+
+    final message = {
+      "type": type,
+      "payload": payload,
+    };
+
+    try {
+      _dataChannel!.send(RTCDataChannelMessage(jsonEncode(message)));
+    } catch (e) {
+      debugPrint("Error sending message: $e");
+    }
+  }
+
+  // --- Safety & Moderation ---
+
+  Future<void> _loadBlockedUsers() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String>? blocked = prefs.getStringList(_kBlockedUsersKey);
+    if (blocked != null) {
+      _blockedUsers.addAll(blocked);
+    }
+  }
+
+  Future<void> blockUser(String userId) async {
+    if (_blockedUsers.contains(userId)) return;
+
+    _blockedUsers.add(userId);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_kBlockedUsersKey, _blockedUsers.toList());
+
+    // If currently connected to this user, disconnect immediately
+    if (currentPartnerId.value == userId) {
+      debugPrint('🛡️ User $userId blocked. Skipping immediately.');
+      nextMatch();
+    }
+  }
+
+  bool isUserBlocked(String userId) {
+    return _blockedUsers.contains(userId);
+  }
+
+  // Helper for access
+  String? get currentUserId => FirebaseAuth.instance.currentUser?.uid;
 }

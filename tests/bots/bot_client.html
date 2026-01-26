@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Freegram Bot Client</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: monospace;
+            background: #222;
+            color: #0f0;
+        }
+
+        #log {
+            white-space: pre-wrap;
+        }
+
+        video {
+            width: 300px;
+            height: 200px;
+            background: #000;
+            border: 1px solid #444;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Freegram Bot (<span id="botId">Unknown</span>)</h1>
+    <div>
+        <video id="localVideo" autoplay muted playsinline></video>
+        <video id="remoteVideo" autoplay playsinline></video>
+    </div>
+    <div id="log"></div>
+
+    <script>
+        const SIGNALING_URL = 'https://freegram-signaling-60183775527.us-central1.run.app'; // Production
+        const botId = 'bot_' + Math.floor(Math.random() * 10000);
+        document.getElementById('botId').innerText = botId;
+
+        let socket;
+        let peerConnection;
+        let localStream;
+        let roomId;
+        let currentPartnerId;
+
+        const config = {
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        };
+
+        function log(msg) {
+            const el = document.getElementById('log');
+            el.innerText = `[${new Date().toLocaleTimeString()}] ${msg}\n` + el.innerText.substring(0, 1000);
+            console.log(msg);
+        }
+
+        async function start() {
+            log('Starting Bot Client...');
+
+            // Get Fake Media
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                document.getElementById('localVideo').srcObject = localStream;
+                log('Got local stream (fake)');
+            } catch (e) {
+                log('Error getting media: ' + e);
+                return;
+            }
+
+            connectSocket();
+        }
+
+        function connectSocket() {
+            socket = io(SIGNALING_URL, {
+                transports: ['websocket'],
+                reconnection: true
+            });
+
+            socket.on('connect', () => {
+                log('Socket Connected: ' + socket.id);
+                findMatch();
+            });
+
+            socket.on('disconnect', () => {
+                log('Socket Disconnected');
+                // Auto-reconnect handled by socket.io, but we might need to restart match search
+            });
+
+            socket.on('waiting_for_match', () => {
+                log('Waiting for match...');
+            });
+
+            socket.on('match_found', async (data) => {
+                log(`Match Found! Room: ${data.roomId}, Role: ${data.role}, Partner: ${data.partnerId}`);
+                roomId = data.roomId;
+                currentPartnerId = data.partnerId;
+
+                createPeerConnection();
+
+                if (data.role === 'offer') {
+                    // Create Offer
+                    const offer = await peerConnection.createOffer();
+                    await peerConnection.setLocalDescription(offer);
+                    socket.emit('offer', {
+                        roomId: roomId,
+                        offer: { sdp: offer.sdp, type: offer.type }
+                    });
+                    log('Sent Offer');
+                }
+            });
+
+            socket.on('offer', async (data) => {
+                log('Received Offer');
+                if (!peerConnection) createPeerConnection(); // Should not happen if correctly ordered, but safe
+
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+
+                socket.emit('answer', {
+                    roomId: roomId,
+                    answer: { sdp: answer.sdp, type: answer.type }
+                });
+                log('Sent Answer');
+            });
+
+            socket.on('answer', async (data) => {
+                log('Received Answer');
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+            });
+
+            socket.on('candidate', async (data) => {
+                log('Received Candidate');
+                if (peerConnection) {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                }
+            });
+
+            socket.on('peer_disconnected', () => {
+                log('Peer Disconnected. Restarting...');
+                closeCall();
+                setTimeout(findMatch, 1000);
+            });
+        }
+
+        function findMatch() {
+            log('Emitting find_random_match...');
+            socket.emit('find_random_match');
+        }
+
+        function createPeerConnection() {
+            if (peerConnection) peerConnection.close();
+
+            peerConnection = new RTCPeerConnection(config);
+
+            // Add Tracks
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+
+            peerConnection.ontrack = (event) => {
+                log('Received Remote Track');
+                document.getElementById('remoteVideo').srcObject = event.streams[0];
+            };
+
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit('candidate', {
+                        roomId: roomId,
+                        candidate: {
+                            candidate: event.candidate.candidate,
+                            sdpMid: event.candidate.sdpMid,
+                            sdpMLineIndex: event.candidate.sdpMLineIndex
+                        }
+                    });
+                }
+            };
+
+            peerConnection.onconnectionstatechange = () => {
+                log('Connection State: ' + peerConnection.connectionState);
+            };
+        }
+
+        function closeCall() {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            roomId = null;
+            currentPartnerId = null;
+        }
+
+        // Start
+        start();
+    </script>
+</body>
+
+</html>

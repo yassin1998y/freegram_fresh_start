@@ -1,0 +1,13 @@
+{
+    "name": "freegram-bot-swarm",
+    "version": "1.0.0",
+    "description": "Stress test bots for Freegram Random Chat",
+    "main": "bot_swarm.js",
+    "scripts": {
+        "test": "node bot_swarm.js"
+    },
+    "dependencies": {
+        "puppeteer": "^21.0.0",
+        "socket.io-client": "^4.7.0"
+    }
+}
