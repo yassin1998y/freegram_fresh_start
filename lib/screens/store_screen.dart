@@ -337,7 +337,7 @@ class _BalanceItem extends StatelessWidget {
           label,
           style: TextStyle(
             color:
-                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                Theme.of(context).colorScheme.onSurface.withOpacity( 0.7),
             fontSize: 11,
           ),
         ),

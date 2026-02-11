@@ -239,6 +239,40 @@ try {
     println("  You may need to manually add 'namespace \"com.arthenica.ffmpegkit\"' to the plugin's build.gradle file")
 }
 
+// Fix for flutter_windowmanager namespace issue
+try {
+    val pubCacheWindowMgrDir = file("$pubCacheBase/hosted/pub.dev")
+    val windowMgrPluginDirs = pubCacheWindowMgrDir.listFiles()?.filter { 
+        it.isDirectory && it.name.startsWith("flutter_windowmanager-")
+    }?.sortedByDescending { it.name }
+
+    if (windowMgrPluginDirs != null && windowMgrPluginDirs.isNotEmpty()) {
+        val windowMgrPath = "${windowMgrPluginDirs.first().absolutePath}/android"
+        val buildGradleFile = file("$windowMgrPath/build.gradle")
+        
+        if (buildGradleFile.exists()) {
+            var content = buildGradleFile.readText()
+            val hasNamespace = content.contains("namespace") && content.contains("io.adaptant.labs.flutter_windowmanager")
+            
+            if (!hasNamespace && content.contains("android {")) {
+                val namespaceLine = "    namespace \"io.adaptant.labs.flutter_windowmanager\""
+                val firstAndroidBlockIndex = content.indexOf("android {")
+                if (firstAndroidBlockIndex >= 0) {
+                    val beforeAndroid = content.substring(0, firstAndroidBlockIndex)
+                    val afterAndroid = content.substring(firstAndroidBlockIndex + "android {".length)
+                    content = "$beforeAndroid android {\n$namespaceLine$afterAndroid"
+                    
+                    buildGradleFile.setWritable(true)
+                    buildGradleFile.writeText(content)
+                    println("✓ Fixed flutter_windowmanager build file at: ${buildGradleFile.absolutePath}")
+                }
+            }
+        }
+    }
+} catch (e: Exception) {
+    println("⚠ Error fixing flutter_windowmanager namespace: ${e.message}")
+}
+
 dependencies {
     implementation(platform("org.jetbrains.kotlin:kotlin-bom:1.8.0"))
     

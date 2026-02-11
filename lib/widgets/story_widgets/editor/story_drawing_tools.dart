@@ -114,7 +114,7 @@ class StoryDrawingTools extends StatelessWidget {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.5),
+                    color: SonarPulseTheme.primaryAccent.withOpacity( 0.5),
                     blurRadius: 8,
                     spreadRadius: 2,
                   ),

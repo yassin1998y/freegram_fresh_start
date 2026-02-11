@@ -35,14 +35,25 @@
 
     <script>
         const SIGNALING_URL = 'https://freegram-signaling-60183775527.us-central1.run.app'; // Production
-        const botId = 'bot_' + Math.floor(Math.random() * 10000);
+
+        // Parse URL Params
+        const urlParams = new URLSearchParams(window.location.search);
+        const PERSONA = urlParams.get('persona') || 'NORMAL';
+        const ID_PARAM = urlParams.get('id') || Math.floor(Math.random() * 1000);
+
+        const botId = `bot_${ID_PARAM}_${PERSONA}`;
         document.getElementById('botId').innerText = botId;
 
         let socket;
         let peerConnection;
+        let dataChannel;
         let localStream;
         let roomId;
         let currentPartnerId;
+
+        // Stats
+        let messagesSent = 0;
+        let errors = 0;
 
         const config = {
             iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
@@ -50,12 +61,13 @@
 
         function log(msg) {
             const el = document.getElementById('log');
+            // send to console for puppeteer to pick up with tag
+            console.log(`[Bot] ${msg}`);
             el.innerText = `[${new Date().toLocaleTimeString()}] ${msg}\n` + el.innerText.substring(0, 1000);
-            console.log(msg);
         }
 
         async function start() {
-            log('Starting Bot Client...');
+            log(`Starting Client as ${PERSONA}...`);
 
             // Get Fake Media
             try {
@@ -72,7 +84,7 @@
 
         function connectSocket() {
             socket = io(SIGNALING_URL, {
-                transports: ['websocket'],
+                transports: ['websocket', 'polling'], // Match Flutter config
                 reconnection: true
             });
 
@@ -83,7 +95,6 @@
 
             socket.on('disconnect', () => {
                 log('Socket Disconnected');
-                // Auto-reconnect handled by socket.io, but we might need to restart match search
             });
 
             socket.on('waiting_for_match', () => {
@@ -91,13 +102,16 @@
             });
 
             socket.on('match_found', async (data) => {
-                log(`Match Found! Room: ${data.roomId}, Role: ${data.role}, Partner: ${data.partnerId}`);
+                log(`Match Found! Room: ${data.roomId}, Role: ${data.role}`);
                 roomId = data.roomId;
                 currentPartnerId = data.partnerId;
 
                 createPeerConnection();
 
                 if (data.role === 'offer') {
+                    // Create Data Channel (Caller moves first)
+                    createDataChannel();
+
                     // Create Offer
                     const offer = await peerConnection.createOffer();
                     await peerConnection.setLocalDescription(offer);
@@ -111,7 +125,7 @@
 
             socket.on('offer', async (data) => {
                 log('Received Offer');
-                if (!peerConnection) createPeerConnection(); // Should not happen if correctly ordered, but safe
+                if (!peerConnection) createPeerConnection();
 
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
                 const answer = await peerConnection.createAnswer();
@@ -130,7 +144,7 @@
             });
 
             socket.on('candidate', async (data) => {
-                log('Received Candidate');
+                // log('Received Candidate'); 
                 if (peerConnection) {
                     await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
                 }
@@ -139,7 +153,7 @@
             socket.on('peer_disconnected', () => {
                 log('Peer Disconnected. Restarting...');
                 closeCall();
-                setTimeout(findMatch, 1000);
+                setTimeout(findMatch, 2000); // Wait a bit
             });
         }
 
@@ -176,15 +190,124 @@
                 }
             };
 
+            peerConnection.ondatachannel = (event) => {
+                log('Received Data Channel (Callee)');
+                setupDataChannel(event.channel);
+            };
+
             peerConnection.onconnectionstatechange = () => {
                 log('Connection State: ' + peerConnection.connectionState);
+                if (peerConnection.connectionState === 'connected') {
+                    log('✅ WebRTC Connected!');
+                }
             };
         }
 
+        function createDataChannel() {
+            log('Creating Data Channel (Caller)...');
+            dataChannel = peerConnection.createDataChannel("freegram_dc");
+            setupDataChannel(dataChannel);
+        }
+
+        function setupDataChannel(channel) {
+            dataChannel = channel;
+            dataChannel.onopen = () => {
+                log('⚡ Data Channel OPEN!');
+                startPersonaBehavior();
+            };
+            dataChannel.onmessage = (event) => {
+                log(`📨 Received: ${event.data.substring(0, 50)}...`);
+            };
+        }
+
+        // --- PERSONA LOGIC ---
+        let behaviorInterval;
+
+        function startPersonaBehavior() {
+            if (behaviorInterval) clearInterval(behaviorInterval);
+            log(`🚀 Starting ${PERSONA} behavior loop...`);
+
+            switch (PERSONA) {
+                case 'SPAMMER':
+                    // Send message every 100ms
+                    behaviorInterval = setInterval(() => {
+                        sendMessage('SPAM_SPAM_SPAM_' + Date.now());
+                    }, 100);
+                    break;
+
+                case 'MALICIOUS':
+                    // Send SQLi / XSS payloads
+                    {
+                        const payloads = [
+                            "'; DROP TABLE users; --",
+                            "<script>alert(1)<\\/script>",
+                            "{{7*7}}", // SSTI
+                            "../etc/passwd"
+                        ];
+                        let i = 0;
+                        behaviorInterval = setInterval(() => {
+                            sendMessage(payloads[i % payloads.length]);
+                            i++;
+                        }, 2000);
+                    }
+                    break;
+
+                case 'FRAGMENTED':
+                    // Long string
+                    const longStr = "A".repeat(5000);
+                    behaviorInterval = setInterval(() => {
+                        sendMessage(longStr);
+                    }, 3000);
+                    break;
+
+                case 'MEDIA':
+                    // Fake GIF uploads (Just JSON signals as we don't have real file I/O easily in browser context for now)
+                    // Or actually sending binary junk if we wanted to test binary channel
+                    behaviorInterval = setInterval(() => {
+                        sendJson({ type: 'GIFT', payload: { giftId: 'test_gift', name: 'Bomb' } });
+                    }, 5000);
+                    break;
+
+                case 'GHOST':
+                    // Do nothing, just sit there
+                    log('👻 Ghosting...');
+                    break;
+
+                default:
+                    // Normal chat
+                    behaviorInterval = setInterval(() => {
+                        sendMessage('Hello from ' + botId);
+                    }, 5000);
+            }
+        }
+
+        function sendMessage(text) {
+            sendJson({ type: 'CHAT', payload: { text: text } });
+        }
+
+        function sendJson(obj) {
+            if (dataChannel && dataChannel.readyState === 'open') {
+                try {
+                    const str = JSON.stringify(obj);
+                    dataChannel.send(str);
+                    messagesSent++;
+                    // log(`Sent: ${str.substring(0, 30)}...`);
+                } catch (e) {
+                    log('Send Error: ' + e);
+                    errors++;
+                }
+            }
+        }
+
         function closeCall() {
+            if (behaviorInterval) clearInterval(behaviorInterval);
             if (peerConnection) {
                 peerConnection.close();
                 peerConnection = null;
+            }
+            if (dataChannel) {
+                dataChannel.close();
+                dataChannel = null;
             }
             roomId = null;
             currentPartnerId = null;

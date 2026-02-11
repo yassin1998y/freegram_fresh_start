@@ -195,7 +195,7 @@ class StoriesTrayWidget extends StatelessWidget {
               ),
               child: Container(
                 color: theme.colorScheme.surfaceContainerHighest
-                    .withValues(alpha: 0.5),
+                    .withOpacity( 0.5),
               ),
             ),
           ),

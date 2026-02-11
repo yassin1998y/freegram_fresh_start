@@ -172,7 +172,7 @@ class CreateStoryCard extends StatelessWidget {
           Icons.person,
           size: DesignTokens.iconXL,
           color: theme.colorScheme.onSurface
-              .withValues(alpha: DesignTokens.opacityMedium),
+              .withOpacity( DesignTokens.opacityMedium),
         ),
       ),
     );

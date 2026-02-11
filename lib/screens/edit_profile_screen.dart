@@ -327,9 +327,15 @@ class _EditProfileViewState extends State<_EditProfileView> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      // Prevent back navigation when completing required profile
-      onWillPop: () async => !widget.isCompletingProfile,
+    return PopScope(
+      canPop: !widget.isCompletingProfile,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        // Optional: User tried to pop but was blocked
+        if (widget.isCompletingProfile) {
+          // We could show a message here if needed, but the disabled back button handles the visual cue.
+        }
+      },
       child: Scaffold(
         appBar: FreegramAppBar(
           title:

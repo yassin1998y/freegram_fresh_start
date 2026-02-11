@@ -11,6 +11,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.ParcelUuid
 import android.util.Log
+import android.view.WindowManager
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import io.flutter.embedding.android.FlutterActivity
@@ -23,6 +24,7 @@ import java.util.*
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "freegram/gatt" // We keep the channel name for simplicity
     private val FOREGROUND_SERVICE_CHANNEL = "freegram/foreground_service"
+    private val WINDOW_CHANNEL = "freegram/window_manager"
     private var advertiserManager: AdvertiserManager? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -95,6 +97,36 @@ class MainActivity : FlutterActivity() {
                 Log.e("MainActivity", "Error in foreground service channel: ${e.message}", e)
                 result.error("ERROR", e.message, null)
             }
+
+        // Setup Window Manager channel (Replacement for flutter_windowmanager)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WINDOW_CHANNEL).setMethodCallHandler { call, result ->
+            try {
+                when (call.method) {
+                    "addFlags" -> {
+                        val flags = call.argument<Int>("flags")
+                        if (flags != null) {
+                            activity.window.addFlags(flags)
+                            result.success(true)
+                        } else {
+                            result.error("INVALID_ARGUMENT", "Flags argument is missing", null)
+                        }
+                    }
+                    "clearFlags" -> {
+                        val flags = call.argument<Int>("flags")
+                        if (flags != null) {
+                            activity.window.clearFlags(flags)
+                            result.success(true)
+                        } else {
+                            result.error("INVALID_ARGUMENT", "Flags argument is missing", null)
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error in window manager channel: ${e.message}", e)
+                result.error("ERROR", e.message, null)
+            }
+        }
         }
     }
 

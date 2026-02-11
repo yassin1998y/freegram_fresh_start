@@ -100,7 +100,7 @@ class StoryEditorToolbar extends StatelessWidget {
           height: DesignTokens.buttonHeight,
           decoration: BoxDecoration(
             color: isActive
-                ? SonarPulseTheme.primaryAccent.withValues(alpha: 0.2)
+                ? SonarPulseTheme.primaryAccent.withOpacity( 0.2)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
             border: isActive

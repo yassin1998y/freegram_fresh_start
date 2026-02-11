@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'; // For kIsWeb and defaultTargetPlatform
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/random_chat/random_chat_bloc.dart';
-import 'package:freegram/blocs/random_chat/random_chat_bloc.dart';
+
 // import 'package:freegram/blocs/random_chat/random_chat_event.dart'; // Unused
 import 'package:freegram/blocs/interaction/interaction_bloc.dart'; // Interaction
 import 'package:freegram/screens/random_chat/match_tab.dart';
 import 'package:freegram/screens/random_chat/lounge_tab.dart'; // Import LoungeTab
 import 'package:freegram/screens/random_chat/history_tab.dart'; // Import HistoryTab
-import 'package:flutter_windowmanager/flutter_windowmanager.dart';
+import 'package:flutter/services.dart';
 
 class RandomChatScreen extends StatefulWidget {
   const RandomChatScreen({super.key});
@@ -32,11 +32,14 @@ class _RandomChatScreenState extends State<RandomChatScreen> {
     super.dispose();
   }
 
+  static const _windowChannel = MethodChannel('freegram/window_manager');
+  static const int _flagSecure = 8192; // WindowManager.LayoutParams.FLAG_SECURE
+
   Future<void> _enableSecureMode() async {
     // Skip on Web and non-Android platforms
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
     try {
-      await FlutterWindowManager.addFlags(FlutterWindowManager.FLAG_SECURE);
+      await _windowChannel.invokeMethod('addFlags', {'flags': _flagSecure});
     } catch (e) {
       debugPrint("Error enabling secure mode: $e");
     }
@@ -45,7 +48,7 @@ class _RandomChatScreenState extends State<RandomChatScreen> {
   Future<void> _disableSecureMode() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
     try {
-      await FlutterWindowManager.clearFlags(FlutterWindowManager.FLAG_SECURE);
+      await _windowChannel.invokeMethod('clearFlags', {'flags': _flagSecure});
     } catch (e) {
       debugPrint("Error disabling secure mode: $e");
     }

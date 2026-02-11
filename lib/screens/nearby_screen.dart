@@ -575,19 +575,19 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
         boxShadow: isScanningActive
             ? [
                 BoxShadow(
-                  color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.6),
+                  color: SonarPulseTheme.primaryAccent.withOpacity( 0.6),
                   blurRadius: DesignTokens.elevation4,
                   spreadRadius: 4,
                 ),
                 BoxShadow(
-                  color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.3),
+                  color: SonarPulseTheme.primaryAccent.withOpacity( 0.3),
                   blurRadius: DesignTokens.elevation4 * 2,
                   spreadRadius: 6,
                 ),
               ]
             : [
                 BoxShadow(
-                  color: Theme.of(context).shadowColor.withValues(alpha: 0.1),
+                  color: Theme.of(context).shadowColor.withOpacity( 0.1),
                   blurRadius: DesignTokens.elevation2,
                   offset: const Offset(0, 2),
                 )

@@ -83,9 +83,23 @@ class ReelUploadBloc extends Bloc<ReelUploadEvent, ReelUploadState> {
           ));
         },
         onDone: () {
-          // Stream completed - upload manager handles completion
-          // The UploadCompleted event will be emitted by the manager
-          // For now, we rely on the stream completion
+          // Stream completed
+          // Ensure we check for completion if it hasn't been triggered by progress 1.0
+          if (_currentUploadId != null) {
+            final completedReel =
+                _uploadManager.getCompletedReel(_currentUploadId!);
+            if (completedReel != null) {
+              add(UploadCompleted(
+                uploadId: _currentUploadId!,
+                reelId: completedReel.reelId,
+              ));
+            } else {
+              // Fallback if reel not ready immediately
+              // We don't want to hang forever, but strictly speaking the stream closing *should* mean done or error.
+              // We'll give it a grace period check in `_onUpdateProgress` logic usually,
+              // but here we force a check.
+            }
+          }
         },
         cancelOnError: false,
       );
@@ -272,6 +286,9 @@ class ReelUploadBloc extends Bloc<ReelUploadEvent, ReelUploadState> {
   @override
   Future<void> close() {
     _progressSubscription?.cancel();
+    if (_currentUploadId != null) {
+      _uploadManager.cancelUpload(_currentUploadId!);
+    }
     return super.close();
   }
 }

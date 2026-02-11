@@ -106,8 +106,8 @@ class _StoryFeedCardState extends State<StoryFeedCard>
                       border: widget.isUnread
                           ? null // Gradient border handled separately
                           : Border.all(
-                              color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.3),
+                              color:
+                                  theme.colorScheme.onSurface.withOpacity(0.3),
                               width: 2.0,
                             ),
                       boxShadow: [
@@ -143,9 +143,8 @@ class _StoryFeedCardState extends State<StoryFeedCard>
                                       Icons.image,
                                       size: DesignTokens.iconXL,
                                       color: theme.colorScheme.onSurface
-                                          .withValues(
-                                              alpha:
-                                                  DesignTokens.opacityMedium),
+                                          .withOpacity(
+                                              DesignTokens.opacityMedium),
                                     ),
                                   ),
                                 ),
@@ -166,7 +165,7 @@ class _StoryFeedCardState extends State<StoryFeedCard>
                               gradient: LinearGradient(
                                 colors: [
                                   Colors.transparent,
-                                  Colors.black.withValues(alpha: 0.7),
+                                  Colors.black.withOpacity(0.7),
                                 ],
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
@@ -203,7 +202,7 @@ class _StoryFeedCardState extends State<StoryFeedCard>
                                 border: !widget.isUnread
                                     ? Border.all(
                                         color: theme.colorScheme.onSurface
-                                            .withValues(alpha: 0.3),
+                                            .withOpacity(0.3),
                                         width: 2.0,
                                       )
                                     : null,
@@ -222,9 +221,8 @@ class _StoryFeedCardState extends State<StoryFeedCard>
                                         Icons.person,
                                         size: DesignTokens.iconSM,
                                         color: theme.colorScheme.onSurface
-                                            .withValues(
-                                                alpha:
-                                                    DesignTokens.opacityMedium),
+                                            .withOpacity(
+                                                DesignTokens.opacityMedium),
                                       )
                                     : null,
                               ),

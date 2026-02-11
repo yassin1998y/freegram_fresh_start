@@ -429,7 +429,7 @@ class _StatItem extends StatelessWidget {
           label,
           style: TextStyle(
             color:
-                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                Theme.of(context).colorScheme.onSurface.withOpacity( 0.7),
             fontSize: 11,
           ),
         ),
@@ -466,7 +466,7 @@ class _GiftInventoryCard extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
               side: BorderSide(
-                color: RarityHelper.getColor(rarity).withValues(alpha: 0.3),
+                color: RarityHelper.getColor(rarity).withOpacity( 0.3),
                 width: 1,
               ),
             ),

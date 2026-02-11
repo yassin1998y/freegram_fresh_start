@@ -217,7 +217,7 @@ class DesignTokens {
 // ===== BORDERS =====
 class Borders {
   static BorderSide get subtle => BorderSide(
-        color: Colors.grey.withValues(alpha: 0.2),
+        color: Colors.grey.withOpacity( 0.2),
         width: 1,
       );
 
@@ -230,7 +230,7 @@ class Borders {
 // ===== CONTAINERS =====
 class Containers {
   static BoxDecoration iconBox(Color color) => BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity( 0.1),
         borderRadius: BorderRadius.circular(12),
       );
 
@@ -240,7 +240,7 @@ class Containers {
             : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.grey.withValues(alpha: 0.1),
+          color: Colors.grey.withOpacity( 0.1),
         ),
       );
 }

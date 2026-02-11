@@ -469,13 +469,13 @@ class _MainScreenState extends State<MainScreen> {
             sigmaX: DesignTokens.blurMedium, sigmaY: DesignTokens.blurMedium),
         child: Container(
           decoration: BoxDecoration(
-            color: appBarColor.withValues(alpha: 0.85),
+            color: appBarColor.withOpacity(0.85),
             gradient: LinearGradient(
               begin: Alignment.bottomCenter,
               end: Alignment.topCenter,
               colors: [
-                appBarColor.withValues(alpha: 0.85),
-                appBarColor.withValues(alpha: 0.95),
+                appBarColor.withOpacity(0.85),
+                appBarColor.withOpacity(0.95),
               ],
               stops: const [0.0, 1.0],
             ),

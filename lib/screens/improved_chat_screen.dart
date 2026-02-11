@@ -496,9 +496,10 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                     margin: const EdgeInsets.symmetric(
                         vertical: DesignTokens.spaceMD),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(
-                            alpha: DesignTokens.opacityMedium,
-                          ),
+                      color:
+                          Theme.of(context).colorScheme.onSurface.withOpacity(
+                                DesignTokens.opacityMedium,
+                              ),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -1068,7 +1069,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                                 as ImageProvider
                             : null,
                         backgroundColor:
-                            theme.colorScheme.primary.withValues(alpha: 0.1),
+                            theme.colorScheme.primary.withOpacity(0.1),
                         child: photoUrl.isEmpty
                             ? Text(
                                 widget.otherUsername.isNotEmpty
@@ -1161,8 +1162,8 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.onSurface.withValues(
-                      alpha: DesignTokens.opacityMedium,
+                    color: theme.colorScheme.onSurface.withOpacity(
+                      DesignTokens.opacityMedium,
                     ),
                     borderRadius: BorderRadius.circular(2),
                   ),
@@ -1267,7 +1268,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: tileColor.withValues(alpha: 0.1),
+          color: tileColor.withOpacity(0.1),
           borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
         ),
         child: Icon(
@@ -1438,8 +1439,8 @@ class _SenderInfoBanner extends StatelessWidget {
 
     // System theme colors
     final backgroundColor = isDark
-        ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
-        : theme.colorScheme.primaryContainer.withValues(alpha: 0.5);
+        ? theme.colorScheme.primaryContainer.withOpacity(0.3)
+        : theme.colorScheme.primaryContainer.withOpacity(0.5);
     final textColor = isDark
         ? theme.colorScheme.onPrimaryContainer
         : theme.colorScheme.onPrimaryContainer;
@@ -1456,7 +1457,7 @@ class _SenderInfoBanner extends StatelessWidget {
         color: backgroundColor,
         border: Border(
           top: BorderSide(
-            color: theme.dividerColor.withValues(alpha: 0.2),
+            color: theme.dividerColor.withOpacity(0.2),
             width: 1,
           ),
         ),
@@ -1466,7 +1467,7 @@ class _SenderInfoBanner extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(DesignTokens.spaceSM),
             decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.1),
+              color: iconColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
             ),
             child: Icon(

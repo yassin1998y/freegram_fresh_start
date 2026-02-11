@@ -64,7 +64,7 @@ class SonarPulseTheme {
     margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(16),
-      side: BorderSide(color: Colors.grey.withValues(alpha: 0.2), width: 1),
+      side: BorderSide(color: Colors.grey.withOpacity( 0.2), width: 1),
     ),
   );
 
@@ -101,7 +101,7 @@ class SonarPulseTheme {
         foregroundColor: lightTextPrimary,
         elevation: 0,
         scrolledUnderElevation: 1,
-        shadowColor: Colors.black.withValues(alpha: 0.1),
+        shadowColor: Colors.black.withOpacity( 0.1),
         iconTheme: const IconThemeData(color: lightTextPrimary),
         titleTextStyle:
             _textTheme.titleLarge?.copyWith(color: lightTextPrimary),
@@ -125,7 +125,7 @@ class SonarPulseTheme {
         fillColor: Colors.white,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+          borderSide: BorderSide(color: Colors.grey.withOpacity( 0.2)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -171,7 +171,7 @@ class SonarPulseTheme {
         foregroundColor: darkTextPrimary,
         elevation: 0,
         scrolledUnderElevation: 1,
-        shadowColor: Colors.black.withValues(alpha: 0.3),
+        shadowColor: Colors.black.withOpacity( 0.3),
         iconTheme: const IconThemeData(color: darkTextPrimary),
         titleTextStyle: _textTheme.titleLarge?.copyWith(color: darkTextPrimary),
       ),
@@ -194,7 +194,7 @@ class SonarPulseTheme {
         fillColor: const Color(0xFF1E1E1E), // Dark surface color, not grey[900]
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+          borderSide: BorderSide(color: Colors.grey.withOpacity( 0.2)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

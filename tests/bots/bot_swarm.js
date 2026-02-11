@@ -7,8 +7,18 @@ const BOT_COUNT = parseInt(args[0]) || 5;
 
 const BOT_CLIENT_PATH = `file://${path.join(__dirname, 'bot_client.html')}`;
 
+const PERSONAS = [
+    'SPAMMER',    // High freq
+    'MALICIOUS',  // SQLi/XSS
+    'FRAGMENTED', // Long strings
+    'MEDIA',      // Fake file uploads
+    'GHOST'       // Idle
+];
+
 async function launchBot(id) {
-    console.log(`[Launcher] Launching Bot ${id}...`);
+    // Round-robin assignment
+    const persona = PERSONAS[(id - 1) % PERSONAS.length];
+    console.log(`[Launcher] Launching Bot ${id} as ${persona}...`);
 
     // Launch Browser
     const browser = await puppeteer.launch({
@@ -29,13 +39,12 @@ async function launchBot(id) {
         // Filter for important logs or print all with prefix
         const text = msg.text();
         if (text.includes('[Bot]')) {
-            console.log(`[Bot ${id}] ${text}`); // If we prefixed in client
+            console.log(`[Bot ${id}-${persona}] ${text}`); // If we prefixed in client
         }
-        // Unprefixed logs just to debug
-        // console.log(`[Bot ${id} LOG] ${text}`); 
     });
 
-    await page.goto(BOT_CLIENT_PATH);
+    // Pass persona in URL
+    await page.goto(`${BOT_CLIENT_PATH}?persona=${persona}&id=${id}`);
 
     // Keep alive?
     // We intentionally don't close browser.
