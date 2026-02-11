@@ -6,21 +6,25 @@ import 'package:freegram/blocs/interaction/interaction_event.dart';
 class ReportBottomSheet extends StatefulWidget {
   final String userId;
   final String userName;
+  final VoidCallback? onReported;
 
   const ReportBottomSheet({
     super.key,
     required this.userId,
     required this.userName,
+    this.onReported,
   });
 
   static void show(BuildContext context,
-      {required String userId, String userName = 'User'}) {
+      {required String userId,
+      String userName = 'User',
+      VoidCallback? onReported}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) =>
-          ReportBottomSheet(userId: userId, userName: userName),
+      builder: (context) => ReportBottomSheet(
+          userId: userId, userName: userName, onReported: onReported),
     );
   }
 
@@ -56,6 +60,9 @@ class _ReportBottomSheetState extends State<ReportBottomSheet> {
             reason: _reasonController.text.trim(),
           ),
         );
+
+    // Call disconnect callback if provided
+    widget.onReported?.call();
 
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(

@@ -16,107 +16,112 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 8080;
 
-// Queue for random matching
-let waitingUser = null;
+// Queue for random matching (Array of sockets)
+let waitingQueue = [];
+
+// --- Heartbeat & Cleanup ---
+// Run every 2000ms to clean up disconnected sockets from the queue
+setInterval(() => {
+    const initialLength = waitingQueue.length;
+    waitingQueue = waitingQueue.filter(socket => {
+        // Keep only connected sockets
+        return socket.connected === true;
+    });
+
+    if (waitingQueue.length < initialLength) {
+        console.log(`[${new Date().toISOString()}] [QUEUE_CLEANUP] Removed ${initialLength - waitingQueue.length} disconnected sockets from queue.`);
+    }
+}, 2000);
 
 io.on('connection', (socket) => {
     console.log(`[${new Date().toISOString()}] User connected: ${socket.id}`);
 
-    // --- Private 1-on-1 Calls ---
-    socket.on('join_private_call', ({ roomId }) => {
-        socket.join(roomId);
-        console.log(`[${new Date().toISOString()}] User ${socket.id} joined room ${roomId}`);
-        // Notify others in the room
-        socket.to(roomId).emit('user_joined', { userId: socket.id });
-    });
-
     // --- Random Matching ---
     socket.on('find_random_match', () => {
-        console.log(`[${new Date().toISOString()}] User ${socket.id} looking for random match`);
+        // Atomic FIFO Matching
+        if (waitingQueue.length === 0) {
+            // Queue is empty, push current socket
+            waitingQueue.push(socket);
+            socket.emit('waiting_for_match');
+            console.log(`[${new Date().toISOString()}] [QUEUE_JOIN] User ${socket.id} joined waiting queue.`);
+        } else {
+            // Queue has users, match with the first one (FIFO)
 
-        if (waitingUser) {
-            // Match found!
-            const partnerSocket = waitingUser;
+            // Pop the first user
+            const partnerSocket = waitingQueue.shift();
 
-            // Check if the waiting user is effectively the same socket (edge case) or disconnected
+            // Sanity check: Ensure we don't match with ourselves (if user spammed button)
             if (partnerSocket.id === socket.id) {
+                waitingQueue.push(socket);
+                socket.emit('waiting_for_match');
                 return;
             }
 
-            const roomId = `match_${partnerSocket.id}_${socket.id}`;
+            // Create unique Room ID
+            const roomId = `match_${partnerSocket.id}_${socket.id}_${Date.now()}`;
 
-            // Join both to the new room
+            // Join both users to the room
             socket.join(roomId);
             partnerSocket.join(roomId);
 
-            // Notify both users
-            io.to(roomId).emit('match_found', { roomId, partnerId: partnerSocket.id === socket.id ? '?' : 'peer' }); // Simple notification
-            // Actually, better to send specific per-user match info if needed, but for now robust simple emit:
-            // We will emit 'match_found' with the roomId. The client can then initiate the offer.
-            // To be purely symmetric, we can pick one as initiator.
-            // Let's stick to the prompt: generate roomId, emit match_found to both.
+            // Strict Role Assignment
+            // Person who was waiting (partnerSocket) -> role: "answer"
+            // Person who requested (socket) -> role: "offer"
 
-            socket.emit('match_found', { roomId, role: 'offer' });
             partnerSocket.emit('match_found', { roomId, role: 'answer' });
+            socket.emit('match_found', { roomId, role: 'offer' });
 
-            console.log(`[${new Date().toISOString()}] Match created: ${roomId} between ${socket.id} and ${partnerSocket.id}`);
-
-            waitingUser = null;
-        } else {
-            // No one waiting, add to queue
-            waitingUser = socket;
-            socket.emit('waiting_for_match');
-            console.log(`[${new Date().toISOString()}] User ${socket.id} added to waiting queue`);
+            console.log(`[${new Date().toISOString()}] [MATCH_CREATED] Room: ${roomId} between ${socket.id} (offer) and ${partnerSocket.id} (answer)`);
         }
     });
 
     // --- WebRTC Signaling ---
+    // Strict forwarding to the specific roomId
     socket.on('offer', (payload) => {
-        // payload should contain { roomId, offer }
         const { roomId, offer } = payload;
-        console.log(`[${new Date().toISOString()}] Offer from ${socket.id} to room ${roomId}`);
-        socket.to(roomId).emit('offer', { offer, senderId: socket.id });
+        // console.log(`[${new Date().toISOString()}] Offer from ${socket.id} to room ${roomId}`);
+        if (roomId && offer) {
+            socket.to(roomId).emit('offer', { offer, senderId: socket.id });
+        }
     });
 
     socket.on('answer', (payload) => {
         const { roomId, answer } = payload;
-        console.log(`[${new Date().toISOString()}] Answer from ${socket.id} to room ${roomId}`);
-        socket.to(roomId).emit('answer', { answer, senderId: socket.id });
+        // console.log(`[${new Date().toISOString()}] Answer from ${socket.id} to room ${roomId}`);
+        if (roomId && answer) {
+            socket.to(roomId).emit('answer', { answer, senderId: socket.id });
+        }
     });
 
     socket.on('candidate', (payload) => {
         const { roomId, candidate } = payload;
-        console.log(`[${new Date().toISOString()}] Candidate from ${socket.id} to room ${roomId}`);
-        socket.to(roomId).emit('candidate', { candidate, senderId: socket.id });
-    });
-
-    // --- Disconnect ---
-    socket.on('disconnect', () => {
-        console.log(`[${new Date().toISOString()}] User disconnected: ${socket.id}`);
-
-        // Remove from random match queue if there
-        if (waitingUser && waitingUser.id === socket.id) {
-            waitingUser = null;
-            console.log(`[${new Date().toISOString()}] Removed ${socket.id} from waiting queue`);
+        // console.log(`[${new Date().toISOString()}] Candidate from ${socket.id} to room ${roomId}`);
+        if (roomId && candidate) {
+            socket.to(roomId).emit('candidate', { candidate, senderId: socket.id });
         }
-
-        // Notify rooms provided they are in any (Socket.IO auto leaves, but we might want to notify peers)
-        // socket.rooms is empty on disconnect event usually, so we rely on client side or tracking if needed.
-        // However, for a simple signaling server, we can't easily iterate all rooms efficiently on disconnect without tracking.
-        // BUT the prompt asks: "If user was in a call, emit peer_disconnected to the room."
-        // socket.io rooms are automatically left upon disconnection. 
-        // We can't know which room they were in unless we track it or if the 'disconnecting' event provides it.
     });
 
-    // Use 'disconnecting' to capture rooms before leaving
+    // --- Robust Disconnect Logic ---
     socket.on('disconnecting', () => {
-        const rooms = socket.rooms;
-        for (const room of rooms) {
+        // Iterate through socket's active rooms and emit peer_disconnected
+        // socket.rooms is a Set containing socket.id and rooms provided by join
+        for (const room of socket.rooms) {
             if (room !== socket.id) {
                 socket.to(room).emit('peer_disconnected', { userId: socket.id });
-                console.log(`[${new Date().toISOString()}] Emitted peer_disconnected to room ${room}`);
+                console.log(`[${new Date().toISOString()}] [PEER_DISCONNECT] User ${socket.id} disconnected from room ${room}`);
             }
         }
+    });
+
+    socket.on('disconnect', () => {
+        // Immediately remove from waitingQueue
+        const index = waitingQueue.findIndex(s => s.id === socket.id);
+        if (index !== -1) {
+            waitingQueue.splice(index, 1);
+            console.log(`[${new Date().toISOString()}] [QUEUE_CLEANUP] User ${socket.id} removed from queue on disconnect.`);
+        }
+
+        console.log(`[${new Date().toISOString()}] User disconnected: ${socket.id}`);
     });
 });
 

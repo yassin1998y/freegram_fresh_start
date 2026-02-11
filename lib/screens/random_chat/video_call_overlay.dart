@@ -9,8 +9,6 @@ import 'package:freegram/screens/random_chat/widgets/interaction_overlay.dart';
 import 'package:freegram/screens/random_chat/widgets/report_bottom_sheet.dart';
 import 'package:freegram/blocs/interaction/interaction_bloc.dart';
 import 'package:freegram/blocs/interaction/interaction_event.dart';
-import 'package:freegram/blocs/interaction/interaction_event.dart';
-// import 'package:freegram/services/webrtc_service.dart'; // Duplicate
 
 class VideoCallOverlay extends StatelessWidget {
   const VideoCallOverlay({super.key});
@@ -21,15 +19,13 @@ class VideoCallOverlay extends StatelessWidget {
       buildWhen: (previous, current) =>
           previous.status != current.status ||
           previous.partnerId != current.partnerId ||
-          previous.isBlurred != current.isBlurred,
+          previous.isBlurred != current.isBlurred ||
+          previous.isMicOn != current.isMicOn ||
+          previous.isCameraOn != current.isCameraOn,
       builder: (context, state) {
-        // if (state.status != RandomChatStatus.connected)
-        //   return const SizedBox.shrink();
-
         return Stack(
           children: [
             // Blur Overlay (Safety & Connection Status)
-            // Placed FIRST so it covers the video (behind this widget) but stays BEHIND controls
             if (state.isBlurred)
               Positioned.fill(
                 child: Container(
@@ -44,8 +40,7 @@ class VideoCallOverlay extends StatelessWidget {
                           "Establishing secure connection...",
                           style: TextStyle(
                             color: Colors.white70,
-                            decoration:
-                                TextDecoration.none, // Fix for text style
+                            decoration: TextDecoration.none,
                             fontSize: 14,
                             fontWeight: FontWeight.normal,
                           ),
@@ -78,23 +73,25 @@ class VideoCallOverlay extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Report Button
-            GestureDetector(
-              onTap: () {
-                // TODO: Show Report Dialog
-              },
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.8),
-                  shape: BoxShape.circle,
+            // Quick Report (Top Left)
+            if (state.status == RandomChatStatus.connected)
+              GestureDetector(
+                onTap: () => _handleReport(context),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.8),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.flag, color: Colors.white, size: 22),
                 ),
-                child: const Icon(Icons.flag, color: Colors.white, size: 22),
-              ),
-            ),
+              )
+            else
+              const SizedBox(width: 40),
 
             // Add Friend (Center)
-            if (state.partnerId != null)
+            if (state.partnerId != null &&
+                state.status == RandomChatStatus.connected)
               GestureDetector(
                 onTap: () {
                   context.read<InteractionBloc>().add(SendFriendRequestEvent());
@@ -119,6 +116,8 @@ class VideoCallOverlay extends StatelessWidget {
                   ),
                 ),
               ),
+
+            const SizedBox(width: 40),
           ],
         ),
       ),
@@ -143,28 +142,23 @@ class VideoCallOverlay extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Mic Toggle
-            ValueListenableBuilder<bool>(
-              valueListenable: WebRTCService.instance.isMicOn,
-              builder: (context, isMic, _) => IconButton(
-                icon: Icon(isMic ? Icons.mic : Icons.mic_off, size: 30),
-                color: Colors.white,
-                onPressed: WebRTCService.instance.toggleMic,
-              ),
+            IconButton(
+              icon: Icon(state.isMicOn ? Icons.mic : Icons.mic_off, size: 30),
+              color: Colors.white,
+              onPressed: () =>
+                  context.read<RandomChatBloc>().add(RandomChatToggleMic()),
             ),
 
             // Cam Toggle
-            ValueListenableBuilder<bool>(
-              valueListenable: WebRTCService.instance.isCameraOn,
-              builder: (context, isCam, _) => IconButton(
-                icon:
-                    Icon(isCam ? Icons.videocam : Icons.videocam_off, size: 30),
-                color: Colors.white,
-                onPressed: WebRTCService.instance.toggleCamera,
-              ),
+            IconButton(
+              icon: Icon(state.isCameraOn ? Icons.videocam : Icons.videocam_off,
+                  size: 30),
+              color: Colors.white,
+              onPressed: () =>
+                  context.read<RandomChatBloc>().add(RandomChatToggleCamera()),
             ),
 
-            // NEXT / SKIP Button (Primary Action)
-            // Even if connected, we show this to skip to next
+            // NEXT / SKIP Button
             SizedBox(
               width: 75,
               height: 75,
@@ -180,27 +174,16 @@ class VideoCallOverlay extends StatelessWidget {
               ),
             ),
 
-            // Report (Only when connected)
+            // Report Action
             if (state.status == RandomChatStatus.connected)
               _buildActionButton(
                 icon: Icons.shield_outlined,
                 label: "Report",
                 color: Colors.red,
-                onPressed: () {
-                  final partnerId =
-                      WebRTCService.instance.currentPartnerId.value;
-                  if (partnerId != null) {
-                    ReportBottomSheet.show(context, userId: partnerId);
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text("No active user to report.")),
-                    );
-                  }
-                },
+                onPressed: () => _handleReport(context),
               ),
 
-            // Gift Button (Only when connected)
+            // Gift Button
             if (state.status == RandomChatStatus.connected)
               IconButton(
                 icon: const Icon(Icons.card_giftcard, size: 30),
@@ -213,19 +196,24 @@ class VideoCallOverlay extends StatelessWidget {
                   );
                 },
               ),
-
-            // Effects / Filter Button
-            IconButton(
-              icon: const Icon(Icons.auto_fix_high, size: 30),
-              color: Colors.white,
-              onPressed: () {
-                // TODO: Effects Logic
-              },
-            ),
           ],
         ),
       ),
     );
+  }
+
+  void _handleReport(BuildContext context) {
+    final partnerId = WebRTCService.instance.currentPartnerId;
+    if (partnerId != null) {
+      ReportBottomSheet.show(context, userId: partnerId, onReported: () {
+        WebRTCService.instance.blockUser(partnerId);
+        context.read<RandomChatBloc>().add(RandomChatSwipeNext());
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No active user to report.")),
+      );
+    }
   }
 
   Widget _buildActionButton({

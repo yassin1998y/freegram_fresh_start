@@ -1,79 +1,124 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:freegram/blocs/random_chat/random_chat_event.dart';
 import 'package:freegram/blocs/random_chat/random_chat_state.dart';
 import 'package:freegram/services/webrtc_service.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/models/match_history_model.dart';
 import 'package:freegram/repositories/match_history_repository.dart';
+import 'package:freegram/repositories/store_repository.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
   late final WebRTCService _webRTCService;
-  StreamSubscription? _connectionStateSubscription;
-  StreamSubscription? _remoteStreamSubscription;
-  // We can also listen to localStream if needed, but it's usually set once.
+  final List<StreamSubscription> _subscriptions = [];
+
+  // Track start time for history
+  DateTime? _connectedTime;
 
   RandomChatBloc() : super(const RandomChatState()) {
     _webRTCService = locator<WebRTCService>();
 
-    // Commands
     on<RandomChatEnterMatchTab>(_onEnterMatchTab);
     on<RandomChatJoinQueue>(
-        (event, emit) => _onEnterMatchTab(RandomChatEnterMatchTab(), emit));
+        (event, emit) => add(RandomChatEnterMatchTab())); // Alias
 
     on<RandomChatSwipeNext>(_onSwipeNext);
-
     on<RandomChatLeaveMatchTab>(_onLeaveMatchTab);
     on<RandomChatToggleBlur>(_onToggleBlur);
+    on<RandomChatSetFilter>(_onSetFilter);
 
-    // Listeners
-    // MatchFound is effectively ConnectionState -> connected,
-    // but if we want explicit event we can listen for it.
-    // The service emits state changes, so we map those to BLoC state already.
-    // If the USER explicitly requests 'MatchFound' event to be handled,
-    // usually means we need to react to logic.
-    // We already do in _onConnectionStateChanged.
+    on<RandomChatToggleMic>(_onToggleMic);
+    on<RandomChatToggleCamera>(_onToggleCamera);
 
-    // Listeners
+    // Internal Events
     on<RandomChatConnectionStateChanged>(_onConnectionStateChanged);
     on<RandomChatRemoteStreamChanged>(_onRemoteStreamChanged);
+    on<RandomChatNewMessage>(_onNewMessage);
+    on<RandomChatMediaStateChanged>(_onMediaStateChanged);
 
     _subscribeToService();
   }
 
   void _subscribeToService() {
-    // Listen to connection state
-    _webRTCService.connectionState.addListener(() {
+    // 1. Connection State
+    _subscriptions.add(_webRTCService.connectionStateStream.listen((state) {
       if (!isClosed) {
-        add(RandomChatConnectionStateChanged(
-            _webRTCService.connectionState.value));
+        String statusStr;
+        switch (state) {
+          case RTCPeerConnectionState.RTCPeerConnectionStateConnected:
+            statusStr = 'connected';
+            break;
+          case RTCPeerConnectionState.RTCPeerConnectionStateDisconnected:
+          case RTCPeerConnectionState.RTCPeerConnectionStateFailed:
+          case RTCPeerConnectionState.RTCPeerConnectionStateClosed:
+            statusStr = 'disconnected';
+            break;
+          default:
+            statusStr = 'connecting';
+        }
+        add(RandomChatConnectionStateChanged(statusStr));
       }
-    });
+    }));
 
-    // Listen to remote stream
-    _webRTCService.remoteStream.addListener(() {
+    // 2. Remote Stream
+    _subscriptions.add(_webRTCService.remoteStreamStream.listen((stream) {
       if (!isClosed) {
-        add(RandomChatRemoteStreamChanged(_webRTCService.remoteStream.value));
+        add(RandomChatRemoteStreamChanged(stream));
       }
-    });
+    }));
 
-    // Listen to local stream (optional, usually set immediately)
-    _webRTCService.localStream.addListener(() {
-      // We might want to update state if local stream changes
-    });
+    // 3. UX Messages
+    _subscriptions.add(_webRTCService.messageStream.listen((message) {
+      if (!isClosed) {
+        add(RandomChatNewMessage(message));
+      }
+    }));
+
+    // 4. Media State (Mic/Cam) - Though we toggle via BLoC, keeping sync is good practice
+    // Actually, service emits when toggled inside service method.
+    // If we call service.toggleMic, service emits new state.
+    _subscriptions.add(_webRTCService.micStateStream.listen((isOn) {
+      add(RandomChatMediaStateChanged(
+          isMicOn: isOn, isCameraOn: state.isCameraOn));
+    }));
+
+    _subscriptions.add(_webRTCService.cameraStateStream.listen((isOn) {
+      add(RandomChatMediaStateChanged(
+          isMicOn: state.isMicOn, isCameraOn: isOn));
+    }));
+  }
+
+  void _onToggleMic(RandomChatToggleMic event, Emitter<RandomChatState> emit) {
+    _webRTCService
+        .toggleMic(); // Service emits stream update, which triggers _onMediaStateChanged
+  }
+
+  void _onToggleCamera(
+      RandomChatToggleCamera event, Emitter<RandomChatState> emit) {
+    _webRTCService.toggleCamera(); // Service emits stream update
+  }
+
+  void _onMediaStateChanged(
+      RandomChatMediaStateChanged event, Emitter<RandomChatState> emit) {
+    emit(state.copyWith(isMicOn: event.isMicOn, isCameraOn: event.isCameraOn));
   }
 
   Future<void> _onEnterMatchTab(
     RandomChatEnterMatchTab event,
     Emitter<RandomChatState> emit,
   ) async {
-    // 1. Initialize Camera immediately
+    // 1. Pre-warm Camera
+    emit(state.copyWith(status: RandomChatStatus.cameraInitializing));
     await _webRTCService.initializeLocalStream();
 
     emit(state.copyWith(
       status: RandomChatStatus.idle,
-      localStream: _webRTCService.localStream.value,
+      localStream: _webRTCService.localStream,
+      isBlurred: true,
+      errorMessage: null,
     ));
   }
 
@@ -81,29 +126,58 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
     RandomChatSwipeNext event,
     Emitter<RandomChatState> emit,
   ) async {
-    // Save previous if valid
-    await _checkAndSaveHistory(); // Wait for save or fire and forget? Better await briefly.
+    // 🛑 Monetization Check: Filter Paywall
+    if (state.genderFilter != null || state.regionFilter != null) {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId != null) {
+        final hasPremium =
+            await locator<StoreRepository>().hasFilterPassOrCoins(userId);
+        if (!hasPremium) {
+          emit(state.copyWith(
+            status: RandomChatStatus.searchError,
+            errorMessage: 'PREMIUM_FILTER_REQUIRED',
+          ));
+          return;
+        }
+      }
+    }
 
-    emit(state.copyWith(status: RandomChatStatus.searching, isBlurred: true));
+    await _checkAndSaveHistory();
 
-    // Trigger Service
+    emit(state.copyWith(
+      status: RandomChatStatus.searching,
+      isBlurred: true,
+      remoteStream: null,
+      partnerId: null, // Reset partner
+      errorMessage: null,
+    ));
+
     _webRTCService.startRandomSearch();
+  }
+
+  void _onSetFilter(
+    RandomChatSetFilter event,
+    Emitter<RandomChatState> emit,
+  ) {
+    emit(state.copyWith(
+      genderFilter: event.gender,
+      regionFilter: event.region,
+    ));
+  }
+
+  void _onNewMessage(
+    RandomChatNewMessage event,
+    Emitter<RandomChatState> emit,
+  ) {
+    emit(state.copyWith(infoMessage: event.message));
   }
 
   Future<void> _onLeaveMatchTab(
     RandomChatLeaveMatchTab event,
     Emitter<RandomChatState> emit,
   ) async {
-    // Depending on UX, we might want to kill the call but keep camera?
-    // Or kill everything. The requirement says "Module Navigation".
-    // If we go to History, we suspend call.
-    // Check duration before ending
-    _checkAndSaveHistory();
-
-    _webRTCService.endCall();
-    // We do NOT dispose local stream here to allow quick return,
-    // generally handled by the Service's dispose or lifecycle if needed.
-
+    await _checkAndSaveHistory();
+    _webRTCService.dispose();
     emit(state.copyWith(status: RandomChatStatus.idle));
   }
 
@@ -119,30 +193,32 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
     Emitter<RandomChatState> emit,
   ) {
     switch (event.status) {
-      case 'searching':
-        emit(state.copyWith(status: RandomChatStatus.searching));
-        break;
       case 'connected':
-        emit(state.copyWith(status: RandomChatStatus.connected));
-        // Auto-unblur after 2 seconds could be done here or in UI.
-        // Let's do it in UI or via a delayed event.
-        if (state.isBlurred) {
-          Future.delayed(const Duration(seconds: 2), () {
+        if (state.status != RandomChatStatus.connected) {
+          _connectedTime = DateTime.now(); // Track start time
+          emit(state.copyWith(status: RandomChatStatus.connected));
+
+          // Smart Unblur
+          Future.delayed(const Duration(milliseconds: 1500), () {
             if (!isClosed && state.status == RandomChatStatus.connected) {
               add(RandomChatToggleBlur());
             }
           });
         }
         break;
+
       case 'disconnected':
-        emit(state.copyWith(
-            status: RandomChatStatus.idle,
-            remoteStream: null,
-            partnerId: null));
+        if (state.status == RandomChatStatus.connected) {
+          emit(state.copyWith(status: RandomChatStatus.partnerLeft));
+          _checkAndSaveHistory();
+        }
         break;
-      default:
-        // 'connecting' -> searching
-        emit(state.copyWith(status: RandomChatStatus.searching));
+
+      case 'connecting':
+        if (state.status == RandomChatStatus.searching) {
+          emit(state.copyWith(status: RandomChatStatus.matching));
+        }
+        break;
     }
   }
 
@@ -154,35 +230,37 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
   }
 
   Future<void> _checkAndSaveHistory() async {
-    final duration = _webRTCService.callDuration;
-    // Save only if call was meaningful (> 10 seconds) AND we had a partner
-    if (duration > 10 && state.partnerId != null) {
-      final match = MatchHistoryModel(
-        id: state.partnerId!,
-        nickname: "User ${state.partnerId!.substring(0, 4)}", // Mock Name
-        avatarUrl:
-            "https://randomuser.me/api/portraits/men/${state.partnerId!.length % 99}.jpg", // Mock Avatar
-        timestamp: DateTime.now(),
-        durationSeconds: duration,
-      );
+    if (_connectedTime != null) {
+      final duration = DateTime.now().difference(_connectedTime!).inSeconds;
+      if (duration > 5) {
+        final partnerId = _webRTCService.currentPartnerId;
+        if (partnerId != null) {
+          final match = MatchHistoryModel(
+            id: partnerId,
+            nickname: "Random User",
+            avatarUrl: "https://via.placeholder.com/150",
+            timestamp: DateTime.now(),
+            durationSeconds: duration,
+          );
 
-      try {
-        await locator<MatchHistoryRepository>().saveMatch(match);
-      } catch (e) {
-        debugPrint("Error saving match history: $e");
+          try {
+            await locator<MatchHistoryRepository>().saveMatch(match);
+          } catch (e) {
+            debugPrint("History Error: $e");
+          }
+        }
       }
     }
+    _connectedTime = null;
   }
 
   @override
   Future<void> close() {
-    // Clean up listeners if we converted them to streams manually,
-    // but ValueNotifier listeners are tricky to remove anonymously.
-    // In a real app we'd wrap ValueNotifier in a Stream or keep ref to callback.
-    // For now, since WebRTCService is singleton, we should probably remove listener.
-    // BUT we didn't store the callback function refs.
-    // This is a minor leak potential if Bloc is recreated many times.
-    // TODO: Refactor Service to use Streams or keep callback refs.
+    debugPrint('[BLOC_DISPOSE] All subscriptions cancelled.');
+    for (var sub in _subscriptions) {
+      sub.cancel();
+    }
+    _webRTCService.dispose();
     return super.close();
   }
 }

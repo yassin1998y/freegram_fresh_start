@@ -45,4 +45,21 @@ class StoreRepository {
       });
     });
   }
+
+  /// Checks if the user has enough coins for a premium action (e.g., 50 coins).
+  /// In a real app, this would also check for an active "Filter Pass" subscription object.
+  Future<bool> hasFilterPassOrCoins(String userId) async {
+    try {
+      final doc = await _db.collection('users').doc(userId).get();
+      if (!doc.exists) return false;
+      final data = doc.data();
+      if (data == null) return false;
+
+      final int coins = data['coins'] ?? 0;
+      // TODO: Check for 'filter_pass_expiry' timestamp if implemented
+      return coins >= 50;
+    } catch (e) {
+      return false;
+    }
+  }
 }
