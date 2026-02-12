@@ -1,8 +1,9 @@
 import 'dart:ui';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:flutter_windowmanager/flutter_windowmanager.dart';
+import 'package:freegram/services/window_manager_service.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:freegram/blocs/random_chat/random_chat_bloc.dart';
 import 'package:freegram/blocs/random_chat/random_chat_event.dart';
@@ -72,6 +73,7 @@ class MatchTab extends StatefulWidget {
 class _MatchTabState extends State<MatchTab> {
   final _localRenderer = RTCVideoRenderer();
   final _remoteRenderer = RTCVideoRenderer();
+  bool _areRenderersInitialized = false;
 
   // Draggable PiP
   Offset _pipPosition = const Offset(20, 50);
@@ -82,21 +84,23 @@ class _MatchTabState extends State<MatchTab> {
   @override
   void initState() {
     super.initState();
-    _initRenderers();
+    // Defer renderer initialization until ungated
+    // _initRenderers();
     context.read<RandomChatBloc>().add(RandomChatJoinQueue());
   }
 
   Future<void> _initRenderers() async {
     await _localRenderer.initialize();
     await _remoteRenderer.initialize();
+    if (mounted) setState(() => _areRenderersInitialized = true);
   }
 
   Future<void> _enableSecureMode(bool enable) async {
     try {
       if (enable) {
-        await FlutterWindowManager.addFlags(FlutterWindowManager.FLAG_SECURE);
+        await WindowManagerService.addFlags(WindowManagerService.FLAG_SECURE);
       } else {
-        await FlutterWindowManager.clearFlags(FlutterWindowManager.FLAG_SECURE);
+        await WindowManagerService.clearFlags(WindowManagerService.FLAG_SECURE);
       }
       debugPrint("🛡️ [PRIVACY] Secure Mode: $enable");
     } catch (e) {
@@ -169,6 +173,11 @@ class _MatchTabState extends State<MatchTab> {
       backgroundColor: Colors.black,
       body: BlocConsumer<RandomChatBloc, RandomChatState>(
         listener: (context, state) {
+          // 0. Initialize Renderers when ungated
+          if (!state.isGated && !_areRenderersInitialized) {
+            _initRenderers();
+          }
+
           // Renderers
           if (state.localStream != null) {
             _localRenderer.srcObject = state.localStream;
@@ -233,6 +242,8 @@ class _MatchTabState extends State<MatchTab> {
         // Matching Overlay (Shimmer)
         if (state.status == RandomChatStatus.matching) _buildMatchingOverlay(),
 
+        // Ensure Shimmer Overlay is NOT shown if searching
+
         const VideoCallOverlay(),
 
         if (state.status == RandomChatStatus.connected) _buildPiPView(),
@@ -241,11 +252,16 @@ class _MatchTabState extends State<MatchTab> {
   }
 
   Widget _buildMainView(RandomChatState state) {
+    if (state.isGated || !_areRenderersInitialized) {
+      return const SizedBox.shrink();
+    }
+
     if (state.status == RandomChatStatus.connected &&
         state.remoteStream != null) {
       return SizedBox.expand(
         child: RTCVideoView(
           _remoteRenderer,
+          key: ValueKey(state.partnerId ?? DateTime.now().toString()),
           objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
         ),
       );
@@ -278,6 +294,7 @@ class _MatchTabState extends State<MatchTab> {
   }
 
   Widget _buildPiPContent({bool isDragging = false}) {
+    if (!_areRenderersInitialized) return const SizedBox();
     return Container(
       width: 100,
       height: 140,

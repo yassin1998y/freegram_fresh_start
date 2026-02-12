@@ -61,12 +61,19 @@ class WebRTCService {
   String? get currentPartnerId => _currentPartnerId;
 
   // Internal State Trackers (defaults)
+  bool _isCallActive = false;
   bool _isMicOn = true;
   bool _isCameraOn = true;
 
   // Safety
   final Set<String> _blockedUsers = {};
   static const String _kBlockedUsersKey = 'blocked_users';
+
+  // Queue for candidates arriving before remote description
+  final List<RTCIceCandidate> _queuedRemoteCandidates = [];
+
+  // Temporary storage for incomplete match data
+  Map<String, dynamic>? _pendingMatchData;
 
   // --- Initialization ---
 
@@ -93,7 +100,7 @@ class WebRTCService {
     _registerSocketListeners();
   }
 
-  Future<void> initializeLocalStream() async {
+  Future<void> initializeMedia() async {
     // Permission check
     if (!kIsWeb) {
       final status = await Permission.camera.request();
@@ -125,7 +132,9 @@ class WebRTCService {
       _updateTrackState();
     } catch (e) {
       debugPrint('❌ [WEBRTC_ERROR] Failed to get user media: $e');
-      _messageStreamController.add("Failed to access camera: $e");
+      if (!_messageStreamController.isClosed) {
+        _messageStreamController.add("Failed to access camera: $e");
+      }
     }
   }
 
@@ -213,30 +222,93 @@ class WebRTCService {
     _socket?.on('match_found', (data) {
       debugPrint('🤝 [WEBRTC_STATE_CHANGE] Match Found: $data');
 
-      _roomId = data['roomId'];
-      final role = data['role'];
+      // 1. Check if we already have an active call (PeerConnection Exists and is Connected/Connecting)
+      // OR if we are locked in an active call setup.
+      if (_isCallActive && _roomId == data['roomId']) {
+        debugPrint(
+            '🛡️ [SIGNALING] Shielded active session from duplicate match event.');
+        return;
+      }
+
+      final existingState = _peerConnection?.connectionState;
+      if (_peerConnection != null &&
+          (existingState ==
+                  RTCPeerConnectionState.RTCPeerConnectionStateConnected ||
+              existingState ==
+                  RTCPeerConnectionState.RTCPeerConnectionStateConnecting)) {
+        debugPrint(
+            '⚠️ [WEBRTC_WARN] Received match_found while already connected/connecting. Ignoring to preserve session.');
+        return;
+      }
+
+      // 2. Aggregate Data (Merge incoming data into pendingMatchData)
+      _pendingMatchData = {...?_pendingMatchData, ...data};
+
+      _roomId = _pendingMatchData!['roomId'];
+
+      // Look for role in 'role' or 'isOfferer' (from merged data)
+      String? role = _pendingMatchData!['role'];
+      if (role == null) {
+        if (_pendingMatchData!['isOfferer'] == true) role = 'offer';
+        if (_pendingMatchData!['isOfferer'] == false) role = 'answer';
+      }
 
       // If server provides partnerId in future:
       // _currentPartnerId = data['partnerId'];
 
-      if (role == 'offer') {
-        _startCall(isCaller: true);
-      } else if (role == 'answer') {
-        _startCall(isCaller: false);
+      if (_roomId != null && role != null) {
+        // We have complete data, proceed!
+        if (role == 'offer') {
+          _startCall(isCaller: true);
+        } else if (role == 'answer') {
+          _startCall(isCaller: false);
+        } else {
+          debugPrint('❌ [WEBRTC_ERROR] Invalid role received: $role');
+        }
+        _startWatchdog();
+        // Clear pending data as we have consumed it
+        _pendingMatchData = null;
       } else {
-        debugPrint('❌ [WEBRTC_ERROR] Invalid role received: $role');
+        debugPrint(
+            '⚠️ [WEBRTC_WARN] Incomplete match data. Merged: $_pendingMatchData');
       }
-
-      _startWatchdog();
     });
 
     _socket?.on('offer', (data) async {
-      if (_peerConnection == null) return;
+      debugPrint('📡 [SIGNALING] Received Remote Offer from: ${_roomId}');
+
+      // Signaling Guard: Unless waiting, don't just kill it.
+      if (_peerConnection != null &&
+          _peerConnection!.signalingState !=
+              RTCSignalingState.RTCSignalingStateStable) {
+        debugPrint(
+            '⚠️ [WEBRTC_WARN] Unstable signaling state ${_peerConnection!.signalingState} during offer. Retrying in 500ms...');
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (_peerConnection?.signalingState !=
+            RTCSignalingState.RTCSignalingStateStable) {
+          _cleanupSession(); // Give up and clean if still bad
+        }
+      }
+
+      // If peer connection was cleaned up or null, create it now (implicit in _startCall flow, but here we might need to handle it)
+      // Actually, for 'offer' event, we are the callee (answerer).
+      if (_peerConnection == null) {
+        await _createPeerConnection();
+      }
+
       try {
         final offerMap = data['offer'];
         await _peerConnection!.setRemoteDescription(
           RTCSessionDescription(offerMap['sdp'], offerMap['type']),
         );
+
+        // Apply Queued Candidates
+        debugPrint(
+            '📥 [WEBRTC_INFO] Applying ${_queuedRemoteCandidates.length} queued candidates.');
+        for (var candidate in _queuedRemoteCandidates) {
+          await _peerConnection!.addCandidate(candidate);
+        }
+        _queuedRemoteCandidates.clear();
 
         RTCSessionDescription answer = await _peerConnection!.createAnswer();
 
@@ -261,31 +333,79 @@ class WebRTCService {
         await _peerConnection!.setRemoteDescription(
           RTCSessionDescription(answerMap['sdp'], answerMap['type']),
         );
+
+        // Apply Queued Candidates
+        debugPrint(
+            '📥 [WEBRTC_INFO] Applying ${_queuedRemoteCandidates.length} queued candidates after answer.');
+        for (var candidate in _queuedRemoteCandidates) {
+          await _peerConnection!.addCandidate(candidate);
+        }
+        _queuedRemoteCandidates.clear();
       } catch (e) {
         debugPrint('❌ [WEBRTC_ERROR] Handle Answer Failed: $e');
       }
     });
 
     _socket?.on('candidate', (data) async {
-      if (_peerConnection == null) return;
-      try {
-        final candidateMap = data['candidate'];
-        await _peerConnection!.addCandidate(
-          RTCIceCandidate(
-            candidateMap['candidate'],
-            candidateMap['sdpMid'],
-            candidateMap['sdpMLineIndex'],
-          ),
-        );
-      } catch (e) {
-        debugPrint('❌ [WEBRTC_ERROR] Handle Candidate Failed: $e');
+      debugPrint('❄️ [ICE] Received Candidate from Peer: $data');
+
+      // Check if candidate belongs to current room
+      if (data['roomId'] != _roomId) {
+        debugPrint(
+            '⚠️ [WEBRTC_WARN] Ignoring candidate for wrong room: ${data['roomId']} (Current: $_roomId)');
+        return;
+      }
+
+      // Handle both 'candidate' and raw wrapper formats if necessary
+      // Assuming server sends { candidate: { candidate: ..., sdpMid: ..., ... }, roomId: ... }
+      // OR direct candidate object? Server code says: socket.to(roomId).emit('candidate', { candidate, senderId: socket.id });
+      // So data is the whole object, data['candidate'] is the RTCIceCandidateInit dict.
+
+      final candidateMap = data['candidate'];
+      if (candidateMap == null) {
+        debugPrint('⚠️ [WEBRTC_WARN] Candidate map is null');
+        return;
+      }
+
+      var candidateStr = candidateMap['candidate'];
+      var sdpMid = candidateMap['sdpMid'];
+      var sdpMLineIndex = candidateMap['sdpMLineIndex'];
+
+      // Fallback if fields are at top level or named differently (common in some libs)
+      if (candidateStr == null && data['candidate'] is String) {
+        candidateStr = data['candidate'];
+        sdpMid = data['sdpMid'];
+        sdpMLineIndex = data['sdpMLineIndex'];
+      }
+
+      final candidate = RTCIceCandidate(
+        candidateStr,
+        sdpMid,
+        sdpMLineIndex,
+      );
+
+      // If peer connection exists and is ready for candidates
+      if (_peerConnection != null &&
+          (await _peerConnection!.getRemoteDescription()) != null) {
+        try {
+          await _peerConnection!.addCandidate(candidate);
+        } catch (e) {
+          debugPrint('❌ [WEBRTC_ERROR] Handle Candidate Failed: $e');
+        }
+      } else {
+        // Queue it
+        debugPrint(
+            '⏳ [WEBRTC_INFO] Queuing remote candidate (RemoteDescription not set).');
+        _queuedRemoteCandidates.add(candidate);
       }
     });
 
     _socket?.on('peer_disconnected', (_) {
       debugPrint('🚫 [WEBRTC_STATE_CHANGE] Peer Disconnected');
-      _connectionStateController
-          .add(RTCPeerConnectionState.RTCPeerConnectionStateDisconnected);
+      if (!_connectionStateController.isClosed) {
+        _connectionStateController
+            .add(RTCPeerConnectionState.RTCPeerConnectionStateDisconnected);
+      }
       _cleanupSession();
     });
   }
@@ -293,11 +413,31 @@ class WebRTCService {
   // --- WebRTC Logic ---
 
   Future<void> _startCall({required bool isCaller}) async {
+    _isCallActive = true; // LOCK SESSION
     try {
       await _createPeerConnection();
 
+      // Signaling Guard
+      if (_peerConnection?.signalingState !=
+              RTCSignalingState.RTCSignalingStateStable &&
+          _peerConnection?.signalingState !=
+              RTCSignalingState.RTCSignalingStateHaveLocalOffer) {
+        // Technically, if we just created it, it should be stable.
+        // But if we are re-using or something went wrong.
+        debugPrint(
+            '⚠️ [WEBRTC_CHECK] Signaling State at startCall: ${_peerConnection?.signalingState}');
+      }
+
       if (isCaller) {
         debugPrint('🚀 [WEBRTC_STATE_CHANGE] Starting Call as OFFERER');
+
+        if (_peerConnection == null) {
+          debugPrint(
+              '❌ [WEBRTC_ERROR] PeerConnection is null despite await create.');
+          return;
+        }
+
+        debugPrint('🚦 Signaling State: ${_peerConnection!.signalingState}');
 
         _dataChannel = await _peerConnection!
             .createDataChannel('chat', RTCDataChannelInit()..ordered = true);
@@ -306,6 +446,7 @@ class WebRTCService {
         RTCSessionDescription offer = await _peerConnection!.createOffer();
 
         String mungedSdp = _ensureCodecPreference(offer.sdp!);
+        // Ensure strictly non-null before creating description
         offer = RTCSessionDescription(mungedSdp, offer.type);
         debugPrint('📝 [SDP_GENERATED] Created Offer with preferred codec');
 
@@ -320,7 +461,9 @@ class WebRTCService {
       }
     } catch (e) {
       debugPrint("Error starting call: $e");
-      _messageStreamController.add("Connection Error. Retrying...");
+      if (!_messageStreamController.isClosed) {
+        _messageStreamController.add("Connection Error. Retrying...");
+      }
       nextMatch();
     }
   }
@@ -349,9 +492,16 @@ class WebRTCService {
     final configuration = {
       'iceServers': iceServers,
       'sdpSemantics': 'unified-plan',
+      'iceTransportPolicy':
+          'relay', // Force TURN for stability on restricted networks
+      'bundlePolicy': 'max-compat',
     };
 
-    _peerConnection = await createPeerConnection(configuration);
+    _peerConnection = await createPeerConnection(
+        configuration); // Moved to top effectively by logic flow, but ensuring no gaps.
+
+    // Give native layer a moment to warm up
+    await Future.delayed(const Duration(milliseconds: 200));
 
     if (_localStream != null) {
       _localStream!.getTracks().forEach((track) {
@@ -376,7 +526,19 @@ class WebRTCService {
     _peerConnection!.onTrack = (event) {
       if (event.streams.isNotEmpty) {
         debugPrint('📹 [WEBRTC_STATE_CHANGE] Remote Stream Received');
-        _remoteStreamController.add(event.streams[0]);
+        final stream = event.streams[0];
+        if (stream.getAudioTracks().isNotEmpty) {
+          debugPrint(
+              '💎 [STREAM_DEBUG] Remote Audio Track ID: ${stream.getAudioTracks().first.id}');
+        }
+        if (stream.getVideoTracks().isNotEmpty) {
+          debugPrint(
+              '💎 [STREAM_DEBUG] Remote Video Track ID: ${stream.getVideoTracks().first.id}');
+        }
+
+        if (!_remoteStreamController.isClosed) {
+          _remoteStreamController.add(stream);
+        }
       }
     };
 
@@ -387,7 +549,9 @@ class WebRTCService {
 
     _peerConnection!.onConnectionState = (state) {
       debugPrint('📶 [WEBRTC_STATE_CHANGE] Connection State: $state');
-      _connectionStateController.add(state);
+      if (!_connectionStateController.isClosed) {
+        _connectionStateController.add(state);
+      }
 
       if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
         _watchdogTimer?.cancel();
@@ -402,7 +566,9 @@ class WebRTCService {
         try {
           final decoded = jsonDecode(data.text);
           if (decoded is Map<String, dynamic>) {
-            _interactionController.add(decoded);
+            if (!_interactionController.isClosed) {
+              _interactionController.add(decoded);
+            }
           }
         } catch (e) {
           debugPrint('Error parsing data channel message: $e');
@@ -416,13 +582,17 @@ class WebRTCService {
   void toggleMic() {
     _isMicOn = !_isMicOn;
     _updateTrackState();
-    _micStateController.add(_isMicOn);
+    if (!_micStateController.isClosed) {
+      _micStateController.add(_isMicOn);
+    }
   }
 
   void toggleCamera() {
     _isCameraOn = !_isCameraOn;
     _updateTrackState();
-    _cameraStateController.add(_isCameraOn);
+    if (!_cameraStateController.isClosed) {
+      _cameraStateController.add(_isCameraOn);
+    }
   }
 
   void _updateTrackState() {
@@ -442,26 +612,66 @@ class WebRTCService {
 
   String _ensureCodecPreference(String sdp) {
     try {
-      final regExp = RegExp(r'a=rtpmap:(\d+) VP8/90000');
-      final match = regExp.firstMatch(sdp);
+      final lines = sdp.split('\n');
+      String? vp8Payload;
 
-      if (match != null) {
-        final vp8Payload = match.group(1);
-        if (vp8Payload != null) {
-          final videoLineRegExp = RegExp(r'(m=video \d+ [A-Z/]+ )([0-9\s]+)');
-          return sdp.replaceAllMapped(videoLineRegExp, (m) {
-            final prefix = m.group(1)!;
-            final payloads = m.group(2)!.trim().split(' ');
-            payloads.remove(vp8Payload);
-            payloads.insert(0, vp8Payload);
-            return '$prefix${payloads.join(' ')}';
-          });
+      // 1. Find VP8 Payload ID
+      for (final line in lines) {
+        if (line.startsWith('a=rtpmap:') && line.contains('VP8/90000')) {
+          // Format: a=rtpmap:<payload> VP8/90000
+          final parts = line.split(':');
+          if (parts.length > 1) {
+            final afterColon = parts[1];
+            final spaceParts = afterColon.split(' ');
+            if (spaceParts.isNotEmpty) {
+              vp8Payload = spaceParts[0];
+              break;
+            }
+          }
         }
       }
+
+      if (vp8Payload == null) {
+        return sdp; // VP8 not found, return original
+      }
+
+      // 2. Modify m=video line
+      final newLines = <String>[];
+      bool modified = false;
+
+      for (var line in lines) {
+        // Sanitize line (remove \r if present from split)
+        var cleanLine = line.trimRight();
+
+        if (!modified && cleanLine.startsWith('m=video')) {
+          // Format: m=video <port> <proto> <payloads...>
+          final parts = cleanLine.split(' ');
+          if (parts.length > 3) {
+            // The payloads start from index 3
+            final prefix = parts.sublist(0, 3).join(' ');
+            final payloads = parts.sublist(3).toList();
+
+            if (payloads.contains(vp8Payload)) {
+              payloads.remove(vp8Payload);
+              payloads.insert(0, vp8Payload!);
+              newLines.add('$prefix ${payloads.join(' ')}');
+              modified = true;
+            } else {
+              newLines.add(cleanLine);
+            }
+          } else {
+            newLines.add(cleanLine);
+          }
+        } else {
+          newLines.add(cleanLine);
+        }
+      }
+
+      return newLines.join('\r\n'); // Re-join with proper CRLF
     } catch (e) {
       debugPrint('⚠️ [WEBRTC_WARN] SDP munging failed: $e');
+      return sdp; // Return original on error
     }
-    return sdp;
   }
 
   void _startWatchdog() {
@@ -473,8 +683,10 @@ class WebRTCService {
       if (currentState !=
           RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
         debugPrint('🐕 [WEBRTC_WATCHDOG] Connection not established. Retry.');
-        _messageStreamController
-            .add("Connection unstable. Finding a better match...");
+        if (!_messageStreamController.isClosed) {
+          _messageStreamController
+              .add("Connection unstable. Finding a better match...");
+        }
         Future.delayed(const Duration(seconds: 1), () {
           nextMatch();
         });
@@ -484,6 +696,7 @@ class WebRTCService {
 
   void _cleanupSession() {
     debugPrint('🧹 [SESSION_CLEANUP] Cleaning up WebRTC session');
+    _isCallActive = false; // RELEASE LOCK
 
     _watchdogTimer?.cancel();
     _watchdogTimer = null;
@@ -495,8 +708,12 @@ class WebRTCService {
     _peerConnection = null;
 
     _roomId = null;
-    _remoteStreamController.add(null);
+    if (!_remoteStreamController.isClosed) {
+      _remoteStreamController.add(null);
+    }
     _currentPartnerId = null;
+    _queuedRemoteCandidates.clear();
+    _pendingMatchData = null; // Clear any partial match data
   }
 
   void dispose() {

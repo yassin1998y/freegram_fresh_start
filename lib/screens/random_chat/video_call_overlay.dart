@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/random_chat/random_chat_bloc.dart';
@@ -25,27 +26,35 @@ class VideoCallOverlay extends StatelessWidget {
       builder: (context, state) {
         return Stack(
           children: [
-            // Blur Overlay (Safety & Connection Status)
-            if (state.isBlurred)
+            // Blur Overlay (Safety Shield & Privacy)
+            // ONLY show if we actually have a remote stream to blur.
+            if (state.isBlurred && state.remoteStream != null)
               Positioned.fill(
-                child: Container(
-                  color: Colors.black.withOpacity(0.95),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const CircularProgressIndicator(color: Colors.white),
-                        const SizedBox(height: 10),
-                        const Text(
-                          "Establishing secure connection...",
-                          style: TextStyle(
-                            color: Colors.white70,
-                            decoration: TextDecoration.none,
-                            fontSize: 14,
-                            fontWeight: FontWeight.normal,
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(
+                      sigmaX: 15, sigmaY: 15), // Glass Effect
+                  child: Container(
+                    color:
+                        Colors.black.withOpacity(0.4), // Semi-transparent tint
+                    child: const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.privacy_tip_outlined,
+                              color: Colors.white, size: 48),
+                          SizedBox(height: 16),
+                          Text(
+                            "Safety Shield Active",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
+                              decoration: TextDecoration.none,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

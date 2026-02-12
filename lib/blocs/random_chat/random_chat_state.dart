@@ -13,6 +13,7 @@ enum RandomChatStatus {
 
 class RandomChatState extends Equatable {
   final RandomChatStatus status;
+  final bool isGated;
   final bool isBlurred;
   final bool isMicOn;
   final bool isCameraOn;
@@ -26,6 +27,7 @@ class RandomChatState extends Equatable {
 
   const RandomChatState({
     this.status = RandomChatStatus.idle,
+    this.isGated = true,
     this.isBlurred = true,
     this.isMicOn = true,
     this.isCameraOn = true,
@@ -40,6 +42,7 @@ class RandomChatState extends Equatable {
 
   RandomChatState copyWith({
     RandomChatStatus? status,
+    bool? isGated,
     bool? isBlurred,
     bool? isMicOn,
     bool? isCameraOn,
@@ -53,6 +56,7 @@ class RandomChatState extends Equatable {
   }) {
     return RandomChatState(
       status: status ?? this.status,
+      isGated: isGated ?? this.isGated,
       isBlurred: isBlurred ?? this.isBlurred,
       isMicOn: isMicOn ?? this.isMicOn,
       isCameraOn: isCameraOn ?? this.isCameraOn,
@@ -69,6 +73,7 @@ class RandomChatState extends Equatable {
   @override
   List<Object?> get props => [
         status,
+        isGated,
         isBlurred,
         isMicOn, // New prop
         isCameraOn, // New prop

@@ -12,6 +12,8 @@ class RandomChatJoinQueue extends RandomChatEvent {}
 
 class RandomChatMatchFound extends RandomChatEvent {}
 
+class InitializeGatedScreen extends RandomChatEvent {}
+
 class RandomChatEnterMatchTab extends RandomChatEvent {}
 
 class RandomChatSwipeNext extends RandomChatEvent {}

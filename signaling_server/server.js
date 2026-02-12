@@ -57,19 +57,23 @@ io.on('connection', (socket) => {
                 return;
             }
 
-            // Create unique Room ID
+            // Assign role BEFORE joining to prevent race conditions in client logic if needed,
+            // but primarily we need to JOIN first.
             const roomId = `match_${partnerSocket.id}_${socket.id}_${Date.now()}`;
 
-            // Join both users to the room
+            // JOIN FIRST
             socket.join(roomId);
             partnerSocket.join(roomId);
 
-            // Strict Role Assignment
-            // Person who was waiting (partnerSocket) -> role: "answer"
-            // Person who requested (socket) -> role: "offer"
+            // Use io.to(roomId) to ensure we are emitting to the room we just joined?
+            // Actually, we need to send specific roles to specific sockets.
+            // But we must ensure the 'join' async operation (if any) completes. 
+            // In Socket.io v4, join is synchronous.
 
-            partnerSocket.emit('match_found', { roomId, role: 'answer' });
-            socket.emit('match_found', { roomId, role: 'offer' });
+            // Send match_found to each individually to assign roles
+            partnerSocket.emit('match_found', { roomId, role: 'answer', partnerId: socket.id });
+            socket.emit('match_found', { roomId, role: 'offer', partnerId: partnerSocket.id });
+
 
             console.log(`[${new Date().toISOString()}] [MATCH_CREATED] Room: ${roomId} between ${socket.id} (offer) and ${partnerSocket.id} (answer)`);
         }

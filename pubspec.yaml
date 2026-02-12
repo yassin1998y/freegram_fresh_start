@@ -129,7 +129,6 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   socket_io_client: ^2.0.3
-  flutter_windowmanager: ^0.2.0
 
 
 
@@ -137,9 +136,8 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
-  # Test dependencies for unit and integration tests
-  fake_cloud_firestore: ^3.0.2
-  mockito: ^5.4.0
+  # Test dependencies for unit and integration tests removed
+  # dart_code_metrics: ^5.0.0
   # NOTE: dart_code_metrics has dependency conflicts (uuid version)
   # Using built-in dart analyze and manual review instead
   # dart_code_metrics: ^5.0.0
@@ -162,9 +160,14 @@ flutter:
     - assets/seed_data/ # For seeding gift assets
     - .env
   fonts:
-    - family: OpenSans
+    - family: Roboto
       fonts:
-        - asset: assets/fonts/OpenSans-Regular.ttf
+        - asset: assets/fonts/Roboto-Light.ttf
+          weight: 300
+        - asset: assets/fonts/Roboto-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Roboto-SemiBold.ttf
+          weight: 600
 
 flutter_launcher_icons:
   android: "launcher_icon"

@@ -17,6 +17,7 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
 
   // Track start time for history
   DateTime? _connectedTime;
+  Timer? _searchTimeout;
 
   RandomChatBloc() : super(const RandomChatState()) {
     _webRTCService = locator<WebRTCService>();
@@ -26,6 +27,8 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
         (event, emit) => add(RandomChatEnterMatchTab())); // Alias
 
     on<RandomChatSwipeNext>(_onSwipeNext);
+    on<InitializeGatedScreen>(_onInitializeGatedScreen);
+
     on<RandomChatLeaveMatchTab>(_onLeaveMatchTab);
     on<RandomChatToggleBlur>(_onToggleBlur);
     on<RandomChatSetFilter>(_onSetFilter);
@@ -77,9 +80,7 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
       }
     }));
 
-    // 4. Media State (Mic/Cam) - Though we toggle via BLoC, keeping sync is good practice
-    // Actually, service emits when toggled inside service method.
-    // If we call service.toggleMic, service emits new state.
+    // 4. Media State (Mic/Cam)
     _subscriptions.add(_webRTCService.micStateStream.listen((isOn) {
       add(RandomChatMediaStateChanged(
           isMicOn: isOn, isCameraOn: state.isCameraOn));
@@ -91,28 +92,42 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
     }));
   }
 
-  void _onToggleMic(RandomChatToggleMic event, Emitter<RandomChatState> emit) {
-    _webRTCService
-        .toggleMic(); // Service emits stream update, which triggers _onMediaStateChanged
-  }
+  Future<void> _onInitializeGatedScreen(
+    InitializeGatedScreen event,
+    Emitter<RandomChatState> emit,
+  ) async {
+    // 1. Unlock Screen
+    emit(state.copyWith(isGated: false));
 
-  void _onToggleCamera(
-      RandomChatToggleCamera event, Emitter<RandomChatState> emit) {
-    _webRTCService.toggleCamera(); // Service emits stream update
-  }
-
-  void _onMediaStateChanged(
-      RandomChatMediaStateChanged event, Emitter<RandomChatState> emit) {
-    emit(state.copyWith(isMicOn: event.isMicOn, isCameraOn: event.isCameraOn));
+    // 2. Initialize Media
+    emit(state.copyWith(status: RandomChatStatus.cameraInitializing));
+    try {
+      await _webRTCService.initializeMedia();
+      emit(state.copyWith(
+        status: RandomChatStatus.idle,
+        localStream: _webRTCService.localStream,
+        errorMessage: null,
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        status: RandomChatStatus.searchError,
+        errorMessage: "Failed to initialize camera: $e",
+      ));
+    }
   }
 
   Future<void> _onEnterMatchTab(
     RandomChatEnterMatchTab event,
     Emitter<RandomChatState> emit,
   ) async {
-    // 1. Pre-warm Camera
+    // If gated, do NOTHING. Wait for admin unlock.
+    if (state.isGated) {
+      return;
+    }
+
+    // Otherwise, resume normal flow
     emit(state.copyWith(status: RandomChatStatus.cameraInitializing));
-    await _webRTCService.initializeLocalStream();
+    await _webRTCService.initializeMedia();
 
     emit(state.copyWith(
       status: RandomChatStatus.idle,
@@ -126,6 +141,8 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
     RandomChatSwipeNext event,
     Emitter<RandomChatState> emit,
   ) async {
+    if (state.isGated) return; // Prevent swipe if gated
+
     // 🛑 Monetization Check: Filter Paywall
     if (state.genderFilter != null || state.regionFilter != null) {
       final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -153,6 +170,30 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
     ));
 
     _webRTCService.startRandomSearch();
+
+    // Start 15s Global Search Timeout
+    _searchTimeout?.cancel();
+    _searchTimeout = Timer(const Duration(seconds: 15), () {
+      if (!isClosed && state.status != RandomChatStatus.connected) {
+        add(const RandomChatNewMessage(
+            "Connection timed out. Searching new partner..."));
+        add(RandomChatSwipeNext());
+      }
+    });
+  }
+
+  void _onToggleMic(RandomChatToggleMic event, Emitter<RandomChatState> emit) {
+    _webRTCService.toggleMic();
+  }
+
+  void _onToggleCamera(
+      RandomChatToggleCamera event, Emitter<RandomChatState> emit) {
+    _webRTCService.toggleCamera();
+  }
+
+  void _onMediaStateChanged(
+      RandomChatMediaStateChanged event, Emitter<RandomChatState> emit) {
+    emit(state.copyWith(isMicOn: event.isMicOn, isCameraOn: event.isCameraOn));
   }
 
   void _onSetFilter(
@@ -177,6 +218,7 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
     Emitter<RandomChatState> emit,
   ) async {
     await _checkAndSaveHistory();
+    _searchTimeout?.cancel();
     _webRTCService.dispose();
     emit(state.copyWith(status: RandomChatStatus.idle));
   }
@@ -196,14 +238,19 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
       case 'connected':
         if (state.status != RandomChatStatus.connected) {
           _connectedTime = DateTime.now(); // Track start time
+          _searchTimeout?.cancel();
           emit(state.copyWith(status: RandomChatStatus.connected));
 
           // Smart Unblur
-          Future.delayed(const Duration(milliseconds: 1500), () {
-            if (!isClosed && state.status == RandomChatStatus.connected) {
-              add(RandomChatToggleBlur());
-            }
-          });
+          if (state.isBlurred) {
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (!isClosed &&
+                  state.status == RandomChatStatus.connected &&
+                  state.isBlurred) {
+                add(RandomChatToggleBlur());
+              }
+            });
+          }
         }
         break;
 
@@ -227,6 +274,26 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
     Emitter<RandomChatState> emit,
   ) {
     emit(state.copyWith(remoteStream: event.stream));
+
+    // FORCE UI TRANSITION: If we have a stream, we are effectively connected
+    if (event.stream != null && state.status != RandomChatStatus.connected) {
+      debugPrint(
+          '🚀 [BLOC_ACTION] Force transitioning to connected (Stream Received)');
+      _connectedTime = DateTime.now(); // Track start time
+      _searchTimeout?.cancel();
+      emit(state.copyWith(status: RandomChatStatus.connected));
+
+      // Smart Unblur - Only unblur if not already unblurred
+      if (state.isBlurred) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (!isClosed &&
+              state.status == RandomChatStatus.connected &&
+              state.isBlurred) {
+            add(RandomChatToggleBlur());
+          }
+        });
+      }
+    }
   }
 
   Future<void> _checkAndSaveHistory() async {
@@ -255,12 +322,13 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
   }
 
   @override
-  Future<void> close() {
+  Future<void> close() async {
     debugPrint('[BLOC_DISPOSE] All subscriptions cancelled.');
     for (var sub in _subscriptions) {
-      sub.cancel();
+      await sub.cancel();
     }
-    _webRTCService.dispose();
-    return super.close();
+    _searchTimeout?.cancel();
+    // _webRTCService.dispose(); // Do not dispose service to keep call alive in PiP or background
+    await super.close();
   }
 }

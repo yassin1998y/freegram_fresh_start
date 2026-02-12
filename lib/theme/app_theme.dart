@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class SonarPulseTheme {
   // --- PRIMARY COLORS ---
@@ -37,34 +36,35 @@ class SonarPulseTheme {
 
   // --- TYPOGRAPHY ---
   static final TextTheme _textTheme = TextTheme(
-    displayLarge:
-        GoogleFonts.openSans(fontSize: 34, fontWeight: FontWeight.bold),
-    displayMedium:
-        GoogleFonts.openSans(fontSize: 28, fontWeight: FontWeight.bold),
-    headlineSmall:
-        GoogleFonts.openSans(fontSize: 24, fontWeight: FontWeight.w600),
-    titleLarge: GoogleFonts.openSans(fontSize: 20, fontWeight: FontWeight.bold),
-    titleMedium:
-        GoogleFonts.openSans(fontSize: 17, fontWeight: FontWeight.w600),
-    titleSmall: GoogleFonts.openSans(fontSize: 15, fontWeight: FontWeight.w500),
-    bodyLarge:
-        GoogleFonts.openSans(fontSize: 17, fontWeight: FontWeight.normal),
-    bodyMedium:
-        GoogleFonts.openSans(fontSize: 15, fontWeight: FontWeight.normal),
-    bodySmall:
-        GoogleFonts.openSans(fontSize: 13, fontWeight: FontWeight.normal),
-    labelLarge: GoogleFonts.openSans(fontSize: 15, fontWeight: FontWeight.bold),
+    displayLarge: const TextStyle(
+        fontFamily: 'Roboto', fontSize: 34, fontWeight: FontWeight.bold),
+    displayMedium: const TextStyle(
+        fontFamily: 'Roboto', fontSize: 28, fontWeight: FontWeight.bold),
+    headlineSmall: const TextStyle(
+        fontFamily: 'Roboto', fontSize: 24, fontWeight: FontWeight.w600),
+    titleLarge: const TextStyle(
+        fontFamily: 'Roboto', fontSize: 20, fontWeight: FontWeight.bold),
+    titleMedium: const TextStyle(
+        fontFamily: 'Roboto', fontSize: 17, fontWeight: FontWeight.w600),
+    titleSmall: const TextStyle(
+        fontFamily: 'Roboto', fontSize: 15, fontWeight: FontWeight.w500),
+    bodyLarge: const TextStyle(
+        fontFamily: 'Roboto', fontSize: 17, fontWeight: FontWeight.normal),
+    bodyMedium: const TextStyle(
+        fontFamily: 'Roboto', fontSize: 15, fontWeight: FontWeight.normal),
+    bodySmall: const TextStyle(
+        fontFamily: 'Roboto', fontSize: 13, fontWeight: FontWeight.normal),
+    labelLarge: const TextStyle(
+        fontFamily: 'Roboto', fontSize: 15, fontWeight: FontWeight.bold),
   );
 
   // --- SHARED COMPONENT STYLES ---
-  // *** FIX APPLIED: Changed to CardThemeData ***
-  // *** FIX APPLIED: Changed to CardThemeData ***
   static final _cardTheme = CardThemeData(
     elevation: 0,
     margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(16),
-      side: BorderSide(color: Colors.grey.withOpacity( 0.2), width: 1),
+      side: BorderSide(color: Colors.grey.withOpacity(0.2), width: 1),
     ),
   );
 
@@ -83,10 +83,11 @@ class SonarPulseTheme {
       brightness: Brightness.light,
       primaryColor: primaryAccent,
       scaffoldBackgroundColor: lightBackground,
-      fontFamily: _textTheme.bodyMedium?.fontFamily,
+      fontFamily: 'Roboto',
       textTheme: _textTheme.apply(
         bodyColor: lightTextPrimary,
         displayColor: lightTextPrimary,
+        fontFamily: 'Roboto',
       ),
       cardTheme: _cardTheme.copyWith(color: lightSurface),
       elevatedButtonTheme: _elevatedButtonTheme,
@@ -101,12 +102,11 @@ class SonarPulseTheme {
         foregroundColor: lightTextPrimary,
         elevation: 0,
         scrolledUnderElevation: 1,
-        shadowColor: Colors.black.withOpacity( 0.1),
+        shadowColor: Colors.black.withOpacity(0.1),
         iconTheme: const IconThemeData(color: lightTextPrimary),
         titleTextStyle:
             _textTheme.titleLarge?.copyWith(color: lightTextPrimary),
       ),
-      // *** FIX APPLIED: Changed to BottomAppBarThemeData ***
       bottomAppBarTheme: const BottomAppBarThemeData(
         color: lightSurface,
         elevation: 0,
@@ -115,9 +115,9 @@ class SonarPulseTheme {
         backgroundColor: primaryAccent,
         foregroundColor: Colors.white,
       ),
-      bottomSheetTheme: BottomSheetThemeData(
+      bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: Colors.white,
-        shape: const RoundedRectangleBorder(
+        shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -125,7 +125,7 @@ class SonarPulseTheme {
         fillColor: Colors.white,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.withOpacity( 0.2)),
+          borderSide: BorderSide(color: Colors.grey.withOpacity(0.2)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -153,10 +153,11 @@ class SonarPulseTheme {
       brightness: Brightness.dark,
       primaryColor: primaryAccent,
       scaffoldBackgroundColor: darkBackground,
-      fontFamily: _textTheme.bodyMedium?.fontFamily,
+      fontFamily: 'Roboto',
       textTheme: _textTheme.apply(
         bodyColor: darkTextPrimary,
         displayColor: darkTextPrimary,
+        fontFamily: 'Roboto',
       ),
       cardTheme: _cardTheme.copyWith(color: darkSurface),
       elevatedButtonTheme: _elevatedButtonTheme,
@@ -171,11 +172,10 @@ class SonarPulseTheme {
         foregroundColor: darkTextPrimary,
         elevation: 0,
         scrolledUnderElevation: 1,
-        shadowColor: Colors.black.withOpacity( 0.3),
+        shadowColor: Colors.black.withOpacity(0.3),
         iconTheme: const IconThemeData(color: darkTextPrimary),
         titleTextStyle: _textTheme.titleLarge?.copyWith(color: darkTextPrimary),
       ),
-      // *** FIX APPLIED: Changed to BottomAppBarThemeData ***
       bottomAppBarTheme: const BottomAppBarThemeData(
         color: darkSurface,
         elevation: 0,
@@ -194,7 +194,7 @@ class SonarPulseTheme {
         fillColor: const Color(0xFF1E1E1E), // Dark surface color, not grey[900]
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.withOpacity( 0.2)),
+          borderSide: BorderSide(color: Colors.grey.withOpacity(0.2)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

@@ -5,7 +5,8 @@
     "main": "server.js",
     "scripts": {
         "start": "node server.js",
-        "dev": "nodemon server.js"
+        "dev": "nodemon server.js",
+        "deploy": "gcloud run deploy freegram-signaling --source . --project prototype-29c26 --region us-central1 --allow-unauthenticated"
     },
     "dependencies": {
         "cors": "^2.8.5",
