@@ -271,7 +271,7 @@ class _GiftSendSelectionScreenState extends State<GiftSendSelectionScreen>
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Center(
@@ -406,7 +406,7 @@ class _GiftSendSelectionScreenState extends State<GiftSendSelectionScreen>
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),

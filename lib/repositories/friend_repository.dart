@@ -7,6 +7,7 @@ import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/notification_repository.dart';
 import 'package:freegram/repositories/action_queue_repository.dart';
 import 'package:freegram/repositories/user_repository.dart';
+import 'package:freegram/services/friend_cache_service.dart';
 import 'package:freegram/utils/firestore_error_handler.dart';
 
 class FriendRepository {
@@ -554,11 +555,7 @@ class FriendRepository {
         }
 
         final currentUserData = currentUserDoc.data() as Map<String, dynamic>;
-        final blockedUserData = blockedUserDoc.data() as Map<String, dynamic>;
-
-        List<String> currentFriends =
-            List<String>.from(currentUserData['friends'] ?? []);
-        List<String> currentBlocked =
+        final currentBlocked =
             List<String>.from(currentUserData['blockedUsers'] ?? []);
 
         // Check if already blocked (idempotency)
@@ -753,6 +750,21 @@ class FriendRepository {
     } catch (e) {
       debugPrint("FriendRepository Error: Failed to get friends: $e");
       return [];
+    }
+  }
+
+  /// Task 2: Global Offline Recovery - Friend List Refresh
+  /// Fetches the latest friend list from Firestore and updates local cache.
+  Future<void> refreshFriendList(String userId) async {
+    debugPrint('🔄 [SYNC] Refreshing friend list for user: $userId');
+    try {
+      final friends = await getFriends(userId);
+      // We update the local cache to ensure UI is consistent.
+      final cacheService = locator<FriendCacheService>();
+      await cacheService.invalidateUser(userId);
+      debugPrint('✅ [SYNC] Friend list refreshed: ${friends.length} friends');
+    } catch (e) {
+      debugPrint('❌ [SYNC] Failed to refresh friend list: $e');
     }
   }
 }

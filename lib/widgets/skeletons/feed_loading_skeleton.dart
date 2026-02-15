@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/theme/app_theme.dart';
 
 /// Enhanced feed loading skeleton that accurately reflects the feed structure:
 /// - Stories tray (horizontal)
@@ -30,27 +31,30 @@ class FeedLoadingSkeleton extends StatelessWidget {
       children: [
         // 1. Stories Tray Skeleton (horizontal, height 160)
         _buildStoriesTraySkeleton(context, baseColor, highlightColor),
-        
+
         // 2. Create Post Widget Skeleton
         _buildCreatePostSkeleton(context, baseColor, highlightColor),
-        
+
         // 3. Trending Posts Section Skeleton (horizontal)
         _buildTrendingPostsSkeleton(context, baseColor, highlightColor),
-        
+
         // 4. Trending Reels Section Skeleton (horizontal)
         _buildTrendingReelsSkeleton(context, baseColor, highlightColor),
-        
+
         // 5. Friend Suggestions Skeleton (horizontal)
-        _buildSuggestionsSkeleton(context, baseColor, highlightColor, 'People You May Know'),
-        
+        _buildSuggestionsSkeleton(
+            context, baseColor, highlightColor, 'People You May Know'),
+
         // 6. Regular Posts Skeleton (3-4 posts)
-        ...List.generate(4, (index) => _buildPostSkeleton(context, baseColor, highlightColor)),
+        ...List.generate(4,
+            (index) => _buildPostSkeleton(context, baseColor, highlightColor)),
       ],
     );
   }
 
   /// Stories tray skeleton - horizontal scrollable circles
-  Widget _buildStoriesTraySkeleton(BuildContext context, Color baseColor, Color highlightColor) {
+  Widget _buildStoriesTraySkeleton(
+      BuildContext context, Color baseColor, Color highlightColor) {
     return Container(
       height: 160,
       padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSM),
@@ -96,7 +100,8 @@ class FeedLoadingSkeleton extends StatelessWidget {
   }
 
   /// Create Post widget skeleton
-  Widget _buildCreatePostSkeleton(BuildContext context, Color baseColor, Color highlightColor) {
+  Widget _buildCreatePostSkeleton(
+      BuildContext context, Color baseColor, Color highlightColor) {
     final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.symmetric(
@@ -152,7 +157,8 @@ class FeedLoadingSkeleton extends StatelessWidget {
   }
 
   /// Trending Posts section skeleton - horizontal scrollable cards
-  Widget _buildTrendingPostsSkeleton(BuildContext context, Color baseColor, Color highlightColor) {
+  Widget _buildTrendingPostsSkeleton(
+      BuildContext context, Color baseColor, Color highlightColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -205,7 +211,8 @@ class FeedLoadingSkeleton extends StatelessWidget {
             period: const Duration(milliseconds: 1200),
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
               itemCount: 4,
               itemBuilder: (context, index) {
                 return Padding(
@@ -217,7 +224,8 @@ class FeedLoadingSkeleton extends StatelessWidget {
                     height: 160,
                     decoration: BoxDecoration(
                       color: baseColor,
-                      borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusMD),
                     ),
                   ),
                 );
@@ -231,7 +239,8 @@ class FeedLoadingSkeleton extends StatelessWidget {
   }
 
   /// Trending Reels section skeleton - horizontal scrollable cards
-  Widget _buildTrendingReelsSkeleton(BuildContext context, Color baseColor, Color highlightColor) {
+  Widget _buildTrendingReelsSkeleton(
+      BuildContext context, Color baseColor, Color highlightColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -275,7 +284,8 @@ class FeedLoadingSkeleton extends StatelessWidget {
             period: const Duration(milliseconds: 1200),
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
               itemCount: 5,
               itemBuilder: (context, index) {
                 return Padding(
@@ -289,7 +299,8 @@ class FeedLoadingSkeleton extends StatelessWidget {
                         height: 180,
                         decoration: BoxDecoration(
                           color: baseColor,
-                          borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                          borderRadius:
+                              BorderRadius.circular(DesignTokens.radiusMD),
                         ),
                       ),
                     ],
@@ -354,7 +365,8 @@ class FeedLoadingSkeleton extends StatelessWidget {
             period: const Duration(milliseconds: 1200),
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
               itemCount: 5,
               itemBuilder: (context, index) {
                 return Padding(
@@ -377,7 +389,8 @@ class FeedLoadingSkeleton extends StatelessWidget {
                         height: 10,
                         decoration: BoxDecoration(
                           color: baseColor,
-                          borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
+                          borderRadius:
+                              BorderRadius.circular(DesignTokens.radiusXS),
                         ),
                       ),
                       const SizedBox(height: DesignTokens.spaceXS),
@@ -386,7 +399,8 @@ class FeedLoadingSkeleton extends StatelessWidget {
                         height: 8,
                         decoration: BoxDecoration(
                           color: baseColor,
-                          borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
+                          borderRadius:
+                              BorderRadius.circular(DesignTokens.radiusXS),
                         ),
                       ),
                     ],
@@ -402,18 +416,18 @@ class FeedLoadingSkeleton extends StatelessWidget {
   }
 
   /// Regular post skeleton - full post card
-  Widget _buildPostSkeleton(BuildContext context, Color baseColor, Color highlightColor) {
-    final theme = Theme.of(context);
+  Widget _buildPostSkeleton(
+      BuildContext context, Color baseColor, Color highlightColor) {
     return Container(
       margin: const EdgeInsets.symmetric(
         horizontal: DesignTokens.spaceSM,
         vertical: DesignTokens.spaceXS,
       ),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: SonarPulseTheme.darkSurface,
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
         border: Border.all(
-          color: theme.dividerColor,
+          color: const Color(0xFF2A2A2C),
           width: 1,
         ),
       ),
@@ -447,7 +461,8 @@ class FeedLoadingSkeleton extends StatelessWidget {
                           height: 14,
                           decoration: BoxDecoration(
                             color: baseColor,
-                            borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
+                            borderRadius:
+                                BorderRadius.circular(DesignTokens.radiusXS),
                           ),
                         ),
                         const SizedBox(height: DesignTokens.spaceXS),
@@ -456,38 +471,37 @@ class FeedLoadingSkeleton extends StatelessWidget {
                           height: 12,
                           decoration: BoxDecoration(
                             color: baseColor,
-                            borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
+                            borderRadius:
+                                BorderRadius.circular(DesignTokens.radiusXS),
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: baseColor,
-                      borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
                     ),
                   ),
                 ],
               ),
             ),
           ),
-          // Image
-          Shimmer.fromColors(
-            baseColor: baseColor,
-            highlightColor: highlightColor,
-            period: const Duration(milliseconds: 1200),
-            child: Container(
-              height: 400,
-              width: double.infinity,
-              color: baseColor,
+          // Nested Media Frame
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10.0),
+            child: Shimmer.fromColors(
+              baseColor: baseColor,
+              highlightColor: highlightColor,
+              period: const Duration(milliseconds: 1200),
+              child: Container(
+                height: 350,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: baseColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ),
-          // Actions
+          // Actions Space
           Padding(
-            padding: const EdgeInsets.all(DesignTokens.spaceSM),
+            padding: const EdgeInsets.all(DesignTokens.spaceMD),
             child: Shimmer.fromColors(
               baseColor: baseColor,
               highlightColor: highlightColor,
@@ -495,32 +509,23 @@ class FeedLoadingSkeleton extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    width: 24,
-                    height: 24,
+                    width: 100,
+                    height: 36,
                     decoration: BoxDecoration(
                       color: baseColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: DesignTokens.spaceMD),
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: baseColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: DesignTokens.spaceMD),
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: baseColor,
-                      shape: BoxShape.circle,
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusMD),
                     ),
                   ),
                   const Spacer(),
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: baseColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -543,7 +548,8 @@ class FeedLoadingSkeleton extends StatelessWidget {
                     height: 12,
                     decoration: BoxDecoration(
                       color: baseColor,
-                      borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusXS),
                     ),
                   ),
                   const SizedBox(height: DesignTokens.spaceXS),
@@ -552,7 +558,8 @@ class FeedLoadingSkeleton extends StatelessWidget {
                     height: 12,
                     decoration: BoxDecoration(
                       color: baseColor,
-                      borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusXS),
                     ),
                   ),
                 ],
@@ -565,4 +572,3 @@ class FeedLoadingSkeleton extends StatelessWidget {
     );
   }
 }
-

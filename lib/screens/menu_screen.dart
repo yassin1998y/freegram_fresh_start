@@ -198,10 +198,10 @@ class _MenuScreenState extends State<MenuScreen> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Colors.amber.withOpacity(0.2),
+                              color: Colors.amber.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                  color: Colors.amber.withOpacity(0.5)),
+                                  color: Colors.amber.withValues(alpha: 0.5)),
                             ),
                             child: const Text("New",
                                 style: TextStyle(
@@ -398,7 +398,13 @@ class _MenuScreenState extends State<MenuScreen> {
       decoration: BoxDecoration(
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
-        boxShadow: DesignTokens.shadowLight,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: DesignTokens.elevation1,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -417,7 +423,7 @@ class _MenuScreenState extends State<MenuScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: theme.colorScheme.primary.withOpacity(0.2),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.2),
                   width: 2,
                 ),
               ),
@@ -432,8 +438,8 @@ class _MenuScreenState extends State<MenuScreen> {
                     ? Icon(
                         Icons.person,
                         size: DesignTokens.iconLG,
-                        color: theme.colorScheme.onSurface.withOpacity(
-                          DesignTokens.opacityMedium,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: DesignTokens.opacityMedium,
                         ),
                       )
                     : null,
@@ -509,7 +515,7 @@ class _MenuScreenState extends State<MenuScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
         side: BorderSide(
-          color: theme.colorScheme.outline.withOpacity(0.1),
+          color: theme.colorScheme.outline.withValues(alpha: 0.1),
           width: 1,
         ),
       ),
@@ -603,7 +609,8 @@ class _MenuScreenState extends State<MenuScreen> {
           useRootNavigator:
               false, // CRITICAL FIX: Use inner navigator to access AuthBloc provider
           barrierDismissible: false,
-          barrierColor: Theme.of(context).colorScheme.scrim.withOpacity(0.5),
+          barrierColor:
+              Theme.of(context).colorScheme.scrim.withValues(alpha: 0.5),
           builder: (context) => PopScope(
             canPop: false,
             child: BlocListener<AuthBloc, AuthState>(
@@ -662,8 +669,10 @@ class _MenuScreenState extends State<MenuScreen> {
                 width: DesignTokens.bottomSheetHandleWidth,
                 height: DesignTokens.bottomSheetHandleHeight,
                 decoration: BoxDecoration(
-                  color:
-                      Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -822,7 +831,7 @@ class _MenuTile extends StatelessWidget {
                   color: (isDestructive
                           ? theme.colorScheme.error
                           : theme.colorScheme.primary)
-                      .withOpacity(0.1),
+                      .withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
                 ),
                 child: Icon(

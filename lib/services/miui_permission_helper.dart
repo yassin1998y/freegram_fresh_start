@@ -74,6 +74,8 @@ class MiuiPermissionHelper {
     final deviceInfo = DeviceInfoHelper();
     await deviceInfo.initialize();
 
+    if (!context.mounted) return;
+
     if (!deviceInfo.isXiaomiDevice) {
       // Not a Xiaomi device, show generic guide
       await _showGenericPermissionGuide(context);
@@ -122,7 +124,7 @@ class MiuiPermissionHelper {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Row(
@@ -164,6 +166,8 @@ class MiuiPermissionHelper {
     final deviceInfo = DeviceInfoHelper();
     await deviceInfo.initialize();
 
+    if (!context.mounted) return;
+
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -180,7 +184,7 @@ class MiuiPermissionHelper {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(

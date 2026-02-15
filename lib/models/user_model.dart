@@ -5,6 +5,7 @@ import 'package:equatable/equatable.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:freegram/utils/level_calculator.dart';
 
 // Helper function remains the same
 String _uidShortFromFull(String fullId) {
@@ -340,6 +341,18 @@ class UserModel extends Equatable {
   double getAffinityFor(String targetId) {
     return userAffinities[targetId] ?? 1.0;
   }
+
+  // Placeholder getters for UI consistency
+  int get followersCount => friends.length;
+  int get followingCount => friends.length;
+
+  // Gamification Getters
+  int get level => userLevel;
+  int get experience =>
+      lifetimeCoinsSpent - LevelCalculator.getThresholdForLevel(userLevel);
+  int get nextLevelExperience =>
+      LevelCalculator.getCoinsForNextLevel(userLevel) -
+      LevelCalculator.getThresholdForLevel(userLevel);
 
   // props updated to remove deleted fields, but kept a selection for Equatable comparison
   @override

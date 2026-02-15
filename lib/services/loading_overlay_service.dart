@@ -133,7 +133,7 @@ class _LoadingOverlayWidgetState extends State<_LoadingOverlayWidget>
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: Container(
-            color: widget.backgroundColor ?? Colors.black.withOpacity(0.5),
+            color: widget.backgroundColor ?? Colors.black.withValues(alpha: 0.5),
             child: Center(
               child: ScaleTransition(
                 scale: _scaleAnimation,
@@ -144,7 +144,7 @@ class _LoadingOverlayWidgetState extends State<_LoadingOverlayWidget>
                     borderRadius: BorderRadius.circular(16.0),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),

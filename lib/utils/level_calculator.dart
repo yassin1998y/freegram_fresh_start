@@ -63,7 +63,7 @@ class LevelCalculator {
 
   /// Get progress percentage to next level (0.0 to 1.0)
   static double getProgressToNextLevel(int lifetimeSpent, int currentLevel) {
-    int currentThreshold = _getThresholdForLevel(currentLevel);
+    int currentThreshold = getThresholdForLevel(currentLevel);
     int nextThreshold = getCoinsForNextLevel(currentLevel);
 
     if (nextThreshold <= currentThreshold) return 1.0;
@@ -72,7 +72,7 @@ class LevelCalculator {
         (nextThreshold - currentThreshold);
   }
 
-  static int _getThresholdForLevel(int level) {
+  static int getThresholdForLevel(int level) {
     if (level >= 50) {
       return 200000 + ((level - 50) * 10000);
     }

@@ -43,7 +43,7 @@ class FeedScrollManager {
 
   // Load more threshold
   static const double _loadMoreThreshold =
-      500.0; // Trigger when within 500px of bottom
+      200.0; // Trigger when within 200px of bottom
 
   // Scroll-to-top button visibility
   bool _showScrollToTop = false;

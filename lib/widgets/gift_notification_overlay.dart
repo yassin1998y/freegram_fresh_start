@@ -81,7 +81,7 @@ class _GiftNotificationOverlayState extends State<GiftNotificationOverlay>
         FadeTransition(
           opacity: _fadeAnimation,
           child: Container(
-            color: Colors.black.withOpacity(0.7),
+            color: Colors.black.withValues(alpha: 0.7),
           ),
         ),
 
@@ -131,7 +131,7 @@ class _GiftNotificationOverlayState extends State<GiftNotificationOverlay>
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.purple.withOpacity(0.5),
+            color: Colors.purple.withValues(alpha: 0.5),
             blurRadius: 30,
             offset: const Offset(0, 10),
           ),
@@ -145,7 +145,7 @@ class _GiftNotificationOverlayState extends State<GiftNotificationOverlay>
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -183,7 +183,7 @@ class _GiftNotificationOverlayState extends State<GiftNotificationOverlay>
               else
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: Colors.white.withOpacity(0.3),
+                  backgroundColor: Colors.white.withValues(alpha: 0.3),
                   child: Text(
                     widget.senderName[0].toUpperCase(),
                     style: const TextStyle(
@@ -212,7 +212,7 @@ class _GiftNotificationOverlayState extends State<GiftNotificationOverlay>
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(

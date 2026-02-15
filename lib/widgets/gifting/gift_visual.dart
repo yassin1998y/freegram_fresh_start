@@ -56,8 +56,8 @@ class GiftVisual extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              rarityColor.withOpacity(0.3),
-              rarityColor.withOpacity(0.1),
+              rarityColor.withValues(alpha: 0.3),
+              rarityColor.withValues(alpha: 0.1),
             ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
@@ -65,7 +65,7 @@ class GiftVisual extends StatelessWidget {
           borderRadius: BorderRadius.circular(
               size * 0.2), // Rounded corners based on size
           border: Border.all(
-            color: rarityColor.withOpacity(0.5),
+            color: rarityColor.withValues(alpha: 0.5),
             width: 1,
           ),
         ),

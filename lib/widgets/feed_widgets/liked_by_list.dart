@@ -193,7 +193,7 @@ class _LikedByListState extends State<LikedByList> {
                                   color: Theme.of(context)
                                       .colorScheme
                                       .onSurface
-                                      .withOpacity(DesignTokens.opacityMedium),
+                                      .withValues(alpha: DesignTokens.opacityMedium),
                                 ),
                                 const SizedBox(height: 16),
                                 Text(

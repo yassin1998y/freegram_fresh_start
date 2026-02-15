@@ -337,7 +337,7 @@ class DraggableCardState extends State<DraggableCard>
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
+                    color: Colors.black.withValues(alpha: 0.2),
                     spreadRadius: 0,
                     blurRadius: shadowDepth,
                     offset: Offset(0, shadowDepth / 2),
@@ -368,7 +368,7 @@ class DraggableCardState extends State<DraggableCard>
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              color: Colors.black.withOpacity(0.7),
+              color: Colors.black.withValues(alpha: 0.7),
             ),
             child: Center(
               child: Column(
@@ -390,7 +390,7 @@ class DraggableCardState extends State<DraggableCard>
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24, vertical: 12),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Text(
@@ -434,7 +434,7 @@ class DraggableCardState extends State<DraggableCard>
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        color: Colors.black.withOpacity(0.3),
+        color: Colors.black.withValues(alpha: 0.3),
       ),
       child: Center(
         child: Container(
@@ -488,7 +488,7 @@ class DraggableCardState extends State<DraggableCard>
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          color: Colors.black.withOpacity(0.3),
+          color: Colors.black.withValues(alpha: 0.3),
         ),
         child: Center(
           child: Container(

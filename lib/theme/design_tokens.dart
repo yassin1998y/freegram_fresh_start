@@ -14,9 +14,10 @@ class DesignTokens {
   static const double spaceXXXL = 64.0; // 64px
 
   // ===== BORDER RADIUS SCALE =====
+  // ===== BORDER RADIUS SCALE =====
   static const double radiusXS = 4.0; // Small elements
   static const double radiusSM = 8.0; // Buttons, chips
-  static const double radiusMD = 12.0; // Cards, inputs
+  static const double radiusMD = 16.0; // Cards, inputs
   static const double radiusLG = 16.0; // Large cards
   static const double radiusXL = 20.0; // Modals, sheets
   static const double radiusXXL = 24.0; // Large modals
@@ -50,7 +51,7 @@ class DesignTokens {
   static const double inputHeight = 48.0; // Standard input field height
   static const double inputPadding = spaceMD; // 16px - Input internal padding
   static const double inputBorderRadius =
-      radiusMD; // 12px - Input border radius
+      radiusMD; // 16px - Input border radius
 
   // Avatar sizing
   static const double avatarSizeXS = 24.0; // Extra small avatar
@@ -113,7 +114,7 @@ class DesignTokens {
 
   // ===== LINE HEIGHTS =====
   static const double lineHeightTight = 1.2; // Headings
-  static const double lineHeightNormal = 1.4; // Body text
+  static const double lineHeightNormal = 1.5; // Body text
   static const double lineHeightRelaxed = 1.6; // Large text
 
   // ===== LETTER SPACING =====
@@ -152,7 +153,7 @@ class DesignTokens {
   @Deprecated('Use Borders.subtle instead')
   static List<BoxShadow> get shadowLight => [
         BoxShadow(
-          color: Colors.black.withOpacity(0.05),
+          color: Colors.black.withValues(alpha: 0.05),
           blurRadius: elevation1,
           offset: const Offset(0, 1),
         ),
@@ -161,7 +162,7 @@ class DesignTokens {
   @Deprecated('Use Borders.subtle instead')
   static List<BoxShadow> get shadowMedium => [
         BoxShadow(
-          color: Colors.black.withOpacity(0.1),
+          color: Colors.black.withValues(alpha: 0.1),
           blurRadius: elevation2,
           offset: const Offset(0, 2),
         ),
@@ -170,7 +171,7 @@ class DesignTokens {
   @Deprecated('Use Borders.subtle instead')
   static List<BoxShadow> get shadowHeavy => [
         BoxShadow(
-          color: Colors.black.withOpacity(0.15),
+          color: Colors.black.withValues(alpha: 0.15),
           blurRadius: elevation3,
           offset: const Offset(0, 4),
         ),
@@ -179,7 +180,7 @@ class DesignTokens {
   @Deprecated('Use Borders.subtle instead')
   static List<BoxShadow> get shadowFloating => [
         BoxShadow(
-          color: Colors.black.withOpacity(0.2),
+          color: Colors.black.withValues(alpha: 0.2),
           blurRadius: elevation4,
           offset: const Offset(0, 8),
         ),
@@ -199,8 +200,8 @@ class DesignTokens {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          Colors.white.withOpacity(0.1),
-          Colors.white.withOpacity(0.05),
+          Colors.white.withValues(alpha: 0.1),
+          Colors.white.withValues(alpha: 0.05),
         ],
       );
 
@@ -208,8 +209,8 @@ class DesignTokens {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          Colors.white.withOpacity(0.25),
-          Colors.white.withOpacity(0.1),
+          Colors.white.withValues(alpha: 0.25),
+          Colors.white.withValues(alpha: 0.1),
         ],
       );
 }
@@ -217,7 +218,7 @@ class DesignTokens {
 // ===== BORDERS =====
 class Borders {
   static BorderSide get subtle => BorderSide(
-        color: Colors.grey.withOpacity( 0.2),
+        color: Colors.grey.withValues(alpha: 0.2),
         width: 1,
       );
 
@@ -230,7 +231,7 @@ class Borders {
 // ===== CONTAINERS =====
 class Containers {
   static BoxDecoration iconBox(Color color) => BoxDecoration(
-        color: color.withOpacity( 0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       );
 
@@ -240,7 +241,19 @@ class Containers {
             : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.grey.withOpacity( 0.1),
+          color: Colors.grey.withValues(alpha: 0.1),
+        ),
+      );
+
+  static BoxDecoration glassDecoration(BuildContext context) => BoxDecoration(
+        border: Border.all(color: Colors.white24),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white10,
+            Colors.white12,
+          ],
         ),
       );
 }
@@ -254,6 +267,8 @@ class AnimationTokens {
       Duration(milliseconds: 200); // Quick interactions
   static const Duration normal =
       Duration(milliseconds: 300); // Standard transitions
+  static const Duration snappy =
+      Duration(milliseconds: 400); // Snappy interactions
   static const Duration slow = Duration(milliseconds: 500); // Macro animations
   static const Duration verySlow =
       Duration(milliseconds: 800); // Complex animations
@@ -273,6 +288,7 @@ class AnimationTokens {
   static const Curve easeIn = Curves.easeIn;
   static const Curve easeOut = Curves.easeOut;
   static const Curve easeInOut = Curves.easeInOut;
+  static const Curve snappyCurve = Curves.easeOutQuart;
 
   // Cubic curves (smoother, more natural)
   static const Curve easeOutCubic = Curves.easeOutCubic;
@@ -357,8 +373,8 @@ class SemanticColors {
   static Color textTertiary(BuildContext context) {
     final theme = Theme.of(context);
     return theme.brightness == Brightness.dark
-        ? const Color(0xFF8A8A8E).withOpacity(0.6)
-        : const Color(0xFF6E6E73).withOpacity(0.6);
+        ? const Color(0xFF8A8A8E).withValues(alpha: 0.6)
+        : const Color(0xFF6E6E73).withValues(alpha: 0.6);
   }
 
   // ===== SURFACE COLORS (Theme-aware) =====
@@ -366,7 +382,7 @@ class SemanticColors {
   static Color surfaceBackground(BuildContext context) {
     final theme = Theme.of(context);
     return theme.brightness == Brightness.dark
-        ? const Color(0xFF121212) // darkBackground
+        ? const Color(0xFF0A0A0B) // darkBackground
         : const Color(0xFFF5F5F7); // lightBackground
   }
 
@@ -374,7 +390,7 @@ class SemanticColors {
   static Color surfaceCard(BuildContext context) {
     final theme = Theme.of(context);
     return theme.brightness == Brightness.dark
-        ? const Color(0xFF1E1E1E) // darkSurface
+        ? const Color(0xFF161618) // darkSurface
         : Colors.white; // lightSurface
   }
 

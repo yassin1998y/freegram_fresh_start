@@ -110,7 +110,7 @@ class _AppReactionButtonState extends State<AppReactionButton>
                     widget.isLiked
                         ? SemanticColors.reactionLiked
                         : theme.colorScheme.onSurface
-                            .withOpacity(DesignTokens.opacityMedium),
+                            .withValues(alpha: DesignTokens.opacityMedium),
                   ),
                 ),
               )
@@ -132,7 +132,7 @@ class _AppReactionButtonState extends State<AppReactionButton>
                           color: widget.isLiked
                               ? SemanticColors.reactionLiked
                               : theme.colorScheme.onSurface
-                                  .withOpacity(DesignTokens.opacityMedium),
+                                  .withValues(alpha: DesignTokens.opacityMedium),
                           width: 1.5,
                         ),
                       ),
@@ -142,7 +142,7 @@ class _AppReactionButtonState extends State<AppReactionButton>
                         color: widget.isLiked
                             ? Colors.white
                             : theme.colorScheme.onSurface
-                                .withOpacity(DesignTokens.opacityMedium),
+                                .withValues(alpha: DesignTokens.opacityMedium),
                       ),
                     ),
                   );
@@ -161,7 +161,7 @@ class _AppReactionButtonState extends State<AppReactionButton>
                   color: widget.isLiked
                       ? SemanticColors.reactionLiked
                       : theme.colorScheme.onSurface
-                          .withOpacity(DesignTokens.opacityMedium),
+                          .withValues(alpha: DesignTokens.opacityMedium),
                   fontWeight:
                       widget.isLiked ? FontWeight.w600 : FontWeight.normal,
                 ),

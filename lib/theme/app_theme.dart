@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:freegram/theme/design_tokens.dart';
 
 class SonarPulseTheme {
   // --- PRIMARY COLORS ---
   static const Color primaryAccent = Color(0xFF00BFA5); // A vibrant Teal/Cyan
   static const Color primaryAccentLight = Color(0xFF5DF2D6);
   static const Color primaryAccentDark = Color(0xFF008E76);
+  static const Color socialAccent = Color(0xFF8B5CF6); // Cyber Violet
 
   // --- LIGHT THEME COLORS ---
   static const Color lightBackground = Color(0xFFF5F5F7); // Slightly off-white
@@ -16,8 +18,8 @@ class SonarPulseTheme {
   static const Color lightError = Color(0xFFD32F2F);
 
   // --- DARK THEME COLORS ---
-  static const Color darkBackground = Color(0xFF121212); // A very dark charcoal
-  static const Color darkSurface = Color(0xFF1E1E1E); // For cards, dialogs
+  static const Color darkBackground = Color(0xFF0A0A0B); // Deep Obsidian
+  static const Color darkSurface = Color(0xFF161618); // Cool Slate
   static const Color darkTextPrimary = Color(0xFFE8E8E8); // Off-white
   static const Color darkTextSecondary = Color(0xFF8A8A8E);
   static const Color darkIcon = Color(0xFF9E9E9E);
@@ -35,26 +37,35 @@ class SonarPulseTheme {
   );
 
   // --- TYPOGRAPHY ---
-  static final TextTheme _textTheme = TextTheme(
-    displayLarge: const TextStyle(
-        fontFamily: 'Roboto', fontSize: 34, fontWeight: FontWeight.bold),
-    displayMedium: const TextStyle(
-        fontFamily: 'Roboto', fontSize: 28, fontWeight: FontWeight.bold),
-    headlineSmall: const TextStyle(
-        fontFamily: 'Roboto', fontSize: 24, fontWeight: FontWeight.w600),
-    titleLarge: const TextStyle(
+  static const TextTheme _textTheme = TextTheme(
+    displayLarge: TextStyle(
+        fontFamily: 'Roboto',
+        fontSize: 34,
+        fontWeight: FontWeight.bold,
+        letterSpacing: DesignTokens.letterSpacingTight),
+    displayMedium: TextStyle(
+        fontFamily: 'Roboto',
+        fontSize: 28,
+        fontWeight: FontWeight.bold,
+        letterSpacing: DesignTokens.letterSpacingTight),
+    headlineSmall: TextStyle(
+        fontFamily: 'Roboto',
+        fontSize: 24,
+        fontWeight: FontWeight.w600,
+        letterSpacing: DesignTokens.letterSpacingTight),
+    titleLarge: TextStyle(
         fontFamily: 'Roboto', fontSize: 20, fontWeight: FontWeight.bold),
-    titleMedium: const TextStyle(
+    titleMedium: TextStyle(
         fontFamily: 'Roboto', fontSize: 17, fontWeight: FontWeight.w600),
-    titleSmall: const TextStyle(
+    titleSmall: TextStyle(
         fontFamily: 'Roboto', fontSize: 15, fontWeight: FontWeight.w500),
-    bodyLarge: const TextStyle(
+    bodyLarge: TextStyle(
         fontFamily: 'Roboto', fontSize: 17, fontWeight: FontWeight.normal),
-    bodyMedium: const TextStyle(
+    bodyMedium: TextStyle(
         fontFamily: 'Roboto', fontSize: 15, fontWeight: FontWeight.normal),
-    bodySmall: const TextStyle(
+    bodySmall: TextStyle(
         fontFamily: 'Roboto', fontSize: 13, fontWeight: FontWeight.normal),
-    labelLarge: const TextStyle(
+    labelLarge: TextStyle(
         fontFamily: 'Roboto', fontSize: 15, fontWeight: FontWeight.bold),
   );
 
@@ -63,16 +74,19 @@ class SonarPulseTheme {
     elevation: 0,
     margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
-      side: BorderSide(color: Colors.grey.withOpacity(0.2), width: 1),
+      borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+      side: BorderSide(color: Colors.grey.withValues(alpha: 0.1), width: 1),
     ),
   );
 
   static final _elevatedButtonTheme = ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
       elevation: 0,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      minimumSize: const Size.fromHeight(52), // Fixed height 52.0
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16.0),
+      ),
       textStyle: _textTheme.labelLarge,
     ),
   );
@@ -102,7 +116,7 @@ class SonarPulseTheme {
         foregroundColor: lightTextPrimary,
         elevation: 0,
         scrolledUnderElevation: 1,
-        shadowColor: Colors.black.withOpacity(0.1),
+        shadowColor: Colors.black.withValues(alpha: 0.1),
         iconTheme: const IconThemeData(color: lightTextPrimary),
         titleTextStyle:
             _textTheme.titleLarge?.copyWith(color: lightTextPrimary),
@@ -125,7 +139,7 @@ class SonarPulseTheme {
         fillColor: Colors.white,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.withOpacity(0.2)),
+          borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -172,7 +186,7 @@ class SonarPulseTheme {
         foregroundColor: darkTextPrimary,
         elevation: 0,
         scrolledUnderElevation: 1,
-        shadowColor: Colors.black.withOpacity(0.3),
+        shadowColor: Colors.black.withValues(alpha: 0.3),
         iconTheme: const IconThemeData(color: darkTextPrimary),
         titleTextStyle: _textTheme.titleLarge?.copyWith(color: darkTextPrimary),
       ),
@@ -185,21 +199,21 @@ class SonarPulseTheme {
         foregroundColor: Colors.black,
       ),
       bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: Color(0xFF1E1E1E),
+        backgroundColor: darkSurface,
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF1E1E1E), // Dark surface color, not grey[900]
+        fillColor: darkSurface,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.withOpacity(0.2)),
+          borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide:
-              const BorderSide(color: SonarPulseTheme.primaryAccent, width: 2),
+          borderSide: const BorderSide(
+              color: SonarPulseTheme.primaryAccent, width: 1.5),
         ),
         labelStyle: const TextStyle(color: darkTextSecondary),
       ),
@@ -214,5 +228,12 @@ class SonarPulseTheme {
         onError: Colors.black,
       ),
     );
+  }
+}
+
+class CyberScrollBehavior extends MaterialScrollBehavior {
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const BouncingScrollPhysics();
   }
 }

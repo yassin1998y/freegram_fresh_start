@@ -180,18 +180,18 @@ class _DayCard extends StatelessWidget {
 
     switch (state) {
       case _DayState.completed:
-        bgColor = Colors.green.withOpacity(0.2);
+        bgColor = Colors.green.withValues(alpha: 0.2);
         borderColor = Colors.green;
         textColor = Colors.green;
         break;
       case _DayState.current:
-        bgColor = Colors.amber.withOpacity(0.2);
+        bgColor = Colors.amber.withValues(alpha: 0.2);
         borderColor = Colors.amber;
         textColor = Colors.black87;
         break;
       case _DayState.locked:
-        bgColor = Colors.grey.withOpacity(0.1);
-        borderColor = Colors.grey.withOpacity(0.3);
+        bgColor = Colors.grey.withValues(alpha: 0.1);
+        borderColor = Colors.grey.withValues(alpha: 0.3);
         textColor = Colors.grey;
         break;
     }

@@ -202,6 +202,8 @@ class _GiftCard extends StatelessWidget {
     );
 
     if (confirm == true) {
+      if (!context.mounted) return;
+
       try {
         // Show loading
         showDialog(
@@ -213,17 +215,21 @@ class _GiftCard extends StatelessWidget {
 
         await locator<GiftRepository>().purchaseGift(userId, gift.id);
 
+        if (!context.mounted) return;
         // Hide loading
         Navigator.pop(context);
 
+        if (!context.mounted) return;
         // Show success
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Successfully purchased ${gift.name}!")),
         );
       } catch (e) {
+        if (!context.mounted) return;
         // Hide loading
         Navigator.pop(context);
 
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Purchase failed: $e")),
         );

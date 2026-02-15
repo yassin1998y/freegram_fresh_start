@@ -66,7 +66,7 @@ class _RadarPainter extends CustomPainter {
     final maxRadius = size.width / 2;
 
     final Paint paint = Paint()
-      ..color = color.withOpacity(1.0 - value)
+      ..color = color.withValues(alpha: 1.0 - value)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
 
@@ -78,7 +78,7 @@ class _RadarPainter extends CustomPainter {
     if (secondValue < 0) secondValue += 1.0;
 
     final Paint paint2 = Paint()
-      ..color = color.withOpacity(1.0 - secondValue)
+      ..color = color.withValues(alpha: 1.0 - secondValue)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
 
@@ -87,7 +87,7 @@ class _RadarPainter extends CustomPainter {
     // Scanner line
     final Paint linePaint = Paint()
       ..shader = SweepGradient(
-        colors: [Colors.transparent, color.withOpacity(0.5)],
+        colors: [Colors.transparent, color.withValues(alpha: 0.5)],
         startAngle: 0.0,
         endAngle: math.pi / 2,
         stops: const [0.0, 1.0],

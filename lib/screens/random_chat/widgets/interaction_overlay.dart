@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:lottie/lottie.dart';
 import 'package:freegram/blocs/interaction/interaction_bloc.dart';
 import 'package:freegram/blocs/interaction/interaction_state.dart';
+import 'package:freegram/screens/random_chat/widgets/gift_reveal_modal.dart';
 
 class InteractionOverlay extends StatefulWidget {
   const InteractionOverlay({super.key});
@@ -12,41 +12,21 @@ class InteractionOverlay extends StatefulWidget {
   State<InteractionOverlay> createState() => _InteractionOverlayState();
 }
 
-class _InteractionOverlayState extends State<InteractionOverlay>
-    with TickerProviderStateMixin {
+class _InteractionOverlayState extends State<InteractionOverlay> {
   // --- Gift Animation State ---
   String? _currentAnimationAsset;
   bool _isPlaying = false;
-  AnimationController? _lottieController;
 
   // --- Chat Bubble State ---
   final List<_ChatMessage> _messages = [];
-  // final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>(); // Unused
-
-  @override
-  void initState() {
-    super.initState();
-    _lottieController = AnimationController(vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _lottieController?.dispose();
-    super.dispose();
-  }
 
   void _playGiftAnimation(String assetUrl) {
-    setState(() {
-      _currentAnimationAsset = assetUrl;
-      _isPlaying = true;
-    });
-
-    _lottieController?.duration = const Duration(seconds: 3);
-    _lottieController?.forward(from: 0).whenComplete(() {
-      if (mounted) {
-        setState(() => _isPlaying = false);
-      }
-    });
+    if (mounted) {
+      setState(() {
+        _currentAnimationAsset = assetUrl;
+        _isPlaying = true;
+      });
+    }
   }
 
   void _addChatMessage(String text, String sender) {
@@ -85,20 +65,18 @@ class _InteractionOverlayState extends State<InteractionOverlay>
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // 1. Gift Animation Layer (Centered)
+          // 1. Gift Reveal Layer (Full Screen with Blur)
           if (_isPlaying && _currentAnimationAsset != null)
-            Center(
-              child: Lottie.asset(
-                _currentAnimationAsset!,
-                controller: _lottieController,
-                onLoaded: (composition) {
-                  _lottieController?.duration = composition.duration;
-                  _lottieController?.forward(from: 0);
-                },
-                height: 300,
-                width: 300,
-                // createWindow: false, // Removed invalid param
-              ),
+            GiftRevealModal(
+              animationUrl: _currentAnimationAsset!,
+              onComplete: () {
+                if (mounted) {
+                  setState(() {
+                    _isPlaying = false;
+                    _currentAnimationAsset = null;
+                  });
+                }
+              },
             ),
 
           // 2. Chat Bubbles Layer (Bottom Left)
@@ -166,7 +144,7 @@ class _ChatBubbleState extends State<_ChatBubble>
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.6),
+          color: Colors.black.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(

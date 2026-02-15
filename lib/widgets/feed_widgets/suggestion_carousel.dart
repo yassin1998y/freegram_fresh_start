@@ -67,7 +67,7 @@ class SuggestionCarouselWidget extends StatelessWidget {
                     icon: Icon(
                       Icons.close,
                       size: DesignTokens.iconMD,
-                      color: theme.colorScheme.onSurface.withOpacity(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 
                         DesignTokens.opacityMedium,
                       ),
                     ),

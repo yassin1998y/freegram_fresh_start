@@ -356,7 +356,7 @@ class _AppButtonState extends State<AppButton>
                   width: size,
                   height: size,
                   decoration: BoxDecoration(
-                    color: buttonColor.withOpacity(0.08),
+                    color: buttonColor.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
                   ),
                   child: widget.isLoading
@@ -453,13 +453,13 @@ class _AppButtonState extends State<AppButton>
                           color: buttonColor,
                           border: widget.isPrimary
                               ? Border.all(
-                                  color: iconColor.withOpacity(0.3),
+                                  color: iconColor.withValues(alpha: 0.3),
                                   width: 2.5,
                                 )
                               : null,
                           boxShadow: [
                             BoxShadow(
-                              color: iconColor.withOpacity(0.1),
+                              color: iconColor.withValues(alpha: 0.1),
                               spreadRadius: 0,
                               blurRadius: 8.0,
                               offset: const Offset(0, 4),
@@ -492,7 +492,7 @@ class _AppButtonState extends State<AppButton>
                               gradient: LinearGradient(
                                 colors: [
                                   iconColor,
-                                  iconColor.withOpacity(0.8),
+                                  iconColor.withValues(alpha: 0.8),
                                 ],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
@@ -504,7 +504,7 @@ class _AppButtonState extends State<AppButton>
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: iconColor.withOpacity(0.4),
+                                  color: iconColor.withValues(alpha: 0.4),
                                   blurRadius: 6,
                                   offset: const Offset(0, 2),
                                 ),
@@ -529,7 +529,7 @@ class _AppButtonState extends State<AppButton>
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: iconColor.withOpacity(0.2),
+                                color: iconColor.withValues(alpha: 0.2),
                                 width: 1.5,
                               ),
                             ),
@@ -553,7 +553,7 @@ class _AppButtonState extends State<AppButton>
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: isDisabled
-                        ? theme.textTheme.bodySmall?.color?.withOpacity(0.5)
+                        ? theme.textTheme.bodySmall?.color?.withValues(alpha: 0.5)
                         : iconColor,
                     letterSpacing: 0.3,
                   ),
@@ -572,7 +572,7 @@ class _AppButtonState extends State<AppButton>
     final theme = Theme.of(context);
     final isDisabled = widget.isDisabled || widget.onPressed == null;
     final textColor = isDisabled
-        ? theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityDisabled)
+        ? theme.colorScheme.onSurface.withValues(alpha: DesignTokens.opacityDisabled)
         : (widget.color ?? theme.colorScheme.primary);
 
     return Semantics(
@@ -616,10 +616,10 @@ class _AppButtonState extends State<AppButton>
     final backgroundColor = widget.backgroundColor ??
         (isDisabled
             ? theme.colorScheme.onSurface
-                .withOpacity(DesignTokens.opacityDisabled)
+                .withValues(alpha: DesignTokens.opacityDisabled)
             : theme.colorScheme.primary);
     final foregroundColor = isDisabled
-        ? theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityDisabled)
+        ? theme.colorScheme.onSurface.withValues(alpha: DesignTokens.opacityDisabled)
         : (widget.color ?? theme.colorScheme.onPrimary);
 
     return Semantics(
@@ -669,10 +669,10 @@ class _AppButtonState extends State<AppButton>
     final theme = Theme.of(context);
     final isDisabled = widget.isDisabled || widget.onPressed == null;
     final borderColor = isDisabled
-        ? theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityDisabled)
+        ? theme.colorScheme.onSurface.withValues(alpha: DesignTokens.opacityDisabled)
         : (widget.color ?? theme.colorScheme.primary);
     final foregroundColor = isDisabled
-        ? theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityDisabled)
+        ? theme.colorScheme.onSurface.withValues(alpha: DesignTokens.opacityDisabled)
         : (widget.color ?? theme.colorScheme.primary);
 
     return Semantics(

@@ -147,7 +147,7 @@ class _CategoryBrowseScreenState extends State<CategoryBrowseScreen> {
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: rarityColor.withOpacity(0.1),
+                  color: rarityColor.withValues(alpha: 0.1),
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(12),
                   ),
@@ -236,7 +236,7 @@ class _CategoryBrowseScreenState extends State<CategoryBrowseScreen> {
           width: 60,
           height: 60,
           decoration: BoxDecoration(
-            color: rarityColor.withOpacity(0.1),
+            color: rarityColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(Icons.card_giftcard, color: rarityColor, size: 32),

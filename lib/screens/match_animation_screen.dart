@@ -122,7 +122,7 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
     final mutualInterests = _getMutualInterests();
 
     return Scaffold(
-      backgroundColor: Colors.black.withOpacity(0.9),
+      backgroundColor: Colors.black.withValues(alpha: 0.9),
       body: Stack(
         children: [
           // Confetti layer
@@ -232,10 +232,10 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
                         margin: const EdgeInsets.symmetric(horizontal: 32),
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: Colors.pinkAccent.withOpacity(0.3),
+                            color: Colors.pinkAccent.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Column(
@@ -249,7 +249,7 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
                                 Text(
                                   'You both love',
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: Colors.white.withValues(alpha: 0.9),
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -324,7 +324,7 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
                                     ),
                                     elevation: 8,
                                     shadowColor:
-                                        Colors.pinkAccent.withOpacity(0.5),
+                                        Colors.pinkAccent.withValues(alpha: 0.5),
                                   ),
                                 ),
                                 const SizedBox(height: 16),
@@ -387,7 +387,7 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
               boxShadow: [
                 BoxShadow(
                   color: Colors.pinkAccent
-                      .withOpacity(0.5 + (_shimmerController.value * 0.3)),
+                      .withValues(alpha: 0.5 + (_shimmerController.value * 0.3)),
                   blurRadius: 20 + (_shimmerController.value * 10),
                   spreadRadius: 2,
                 ),
@@ -452,7 +452,7 @@ class ConfettiPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     for (var particle in particles) {
       final paint = Paint()
-        ..color = particle.color.withOpacity(1.0 - (progress * 0.7))
+        ..color = particle.color.withValues(alpha: 1.0 - (progress * 0.7))
         ..style = PaintingStyle.fill;
 
       final currentY = particle.y + (progress * particle.velocity * 1.2);

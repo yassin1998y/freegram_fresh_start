@@ -178,7 +178,7 @@ class GiftRepository {
     required String giftId,
     String? message,
   }) async {
-    return await _db.runTransaction((transaction) async {
+    await _db.runTransaction((transaction) async {
       // 1. Get gift details
       final giftDoc =
           await transaction.get(_db.collection('gifts').doc(giftId));
@@ -870,7 +870,7 @@ class GiftRepository {
     required String ownedGiftId,
     String? message,
   }) async {
-    return await _db.runTransaction((transaction) async {
+    await _db.runTransaction((transaction) async {
       // Get the owned gift
       final ownedGiftDoc = await transaction.get(_db
           .collection('users')
@@ -1362,7 +1362,6 @@ class GiftRepository {
       }
 
       // 5. Perform upgrade
-      // Deduct coins
       transaction.update(userRef, {
         'coins': FieldValue.increment(-upgradeCost),
         'lifetimeCoinsSpent': FieldValue.increment(upgradeCost),

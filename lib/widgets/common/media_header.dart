@@ -132,7 +132,7 @@ class MediaHeader extends StatelessWidget {
                   ? Icon(
                       Icons.person,
                       size: DesignTokens.iconMD,
-                      color: theme.colorScheme.onSurface.withOpacity(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 
                         DesignTokens.opacityMedium,
                       ),
                     )
@@ -189,7 +189,7 @@ class MediaHeader extends StatelessWidget {
                         Icon(
                           Icons.location_on,
                           size: DesignTokens.iconSM,
-                          color: theme.colorScheme.onSurface.withOpacity(
+                          color: theme.colorScheme.onSurface.withValues(alpha: 
                             DesignTokens.opacityMedium,
                           ),
                         ),
@@ -200,7 +200,7 @@ class MediaHeader extends StatelessWidget {
                             style: timestampStyle ??
                                 theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onSurface
-                                      .withOpacity(DesignTokens.opacityMedium),
+                                      .withValues(alpha: DesignTokens.opacityMedium),
                                 ),
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
@@ -211,7 +211,7 @@ class MediaHeader extends StatelessWidget {
                           '•',
                           style: timestampStyle ??
                               theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(
+                                color: theme.colorScheme.onSurface.withValues(alpha: 
                                   DesignTokens.opacityMedium,
                                 ),
                               ),
@@ -225,7 +225,7 @@ class MediaHeader extends StatelessWidget {
                             style: timestampStyle ??
                                 theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onSurface
-                                      .withOpacity(DesignTokens.opacityMedium),
+                                      .withValues(alpha: DesignTokens.opacityMedium),
                                 ),
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
@@ -241,7 +241,7 @@ class MediaHeader extends StatelessWidget {
                             style: timestampStyle ??
                                 theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onSurface
-                                      .withOpacity(DesignTokens.opacityMedium),
+                                      .withValues(alpha: DesignTokens.opacityMedium),
                                   fontStyle: FontStyle.italic,
                                 ),
                           ),

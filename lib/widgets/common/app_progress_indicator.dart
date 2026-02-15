@@ -55,7 +55,7 @@ class AppProgressIndicator extends StatelessWidget {
 
     // Determine background color
     final trackColor = backgroundColor ??
-        (color?.withOpacity(0.2) ?? theme.colorScheme.primary.withOpacity(0.2));
+        (color?.withValues(alpha: 0.2) ?? theme.colorScheme.primary.withValues(alpha: 0.2));
 
     // If size is specified, wrap in SizedBox
     if (size != null) {
@@ -112,7 +112,7 @@ class AppLinearProgressIndicator extends StatelessWidget {
 
     // Determine background color
     final trackColor = backgroundColor ??
-        (color?.withOpacity(0.2) ?? theme.colorScheme.primary.withOpacity(0.2));
+        (color?.withValues(alpha: 0.2) ?? theme.colorScheme.primary.withValues(alpha: 0.2));
 
     return LinearProgressIndicator(
       value: value,

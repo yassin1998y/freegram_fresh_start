@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:freegram/models/reel_model.dart';
 import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/theme/app_theme.dart';
 import 'package:freegram/widgets/common/app_reaction_button.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:freegram/screens/random_chat/widgets/gift_picker_sheet.dart';
 
-class ReelsVideoUIOverlay extends StatelessWidget {
+class ReelsVideoUIOverlay extends StatefulWidget {
   final ReelModel reel;
   final bool isLiked;
   final VoidCallback onLike;
@@ -17,6 +19,8 @@ class ReelsVideoUIOverlay extends StatelessWidget {
   final VoidCallback onProfileTap;
   final String? currentUserId;
   final VoidCallback? onDelete;
+  final double progress; // 0.0 to 1.0
+  final ValueChanged<double>? onScrub;
 
   const ReelsVideoUIOverlay({
     Key? key,
@@ -28,131 +32,127 @@ class ReelsVideoUIOverlay extends StatelessWidget {
     required this.onProfileTap,
     this.currentUserId,
     this.onDelete,
+    this.progress = 0.0,
+    this.onScrub,
   }) : super(key: key);
 
-  String _formatCount(int count) {
-    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
-    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}K';
-    return count.toString();
+  @override
+  State<ReelsVideoUIOverlay> createState() => _ReelsVideoUIOverlayState();
+}
+
+class _ReelsVideoUIOverlayState extends State<ReelsVideoUIOverlay> {
+  bool _isScrubbing = false;
+
+  void _handleGiftTap(BuildContext context) {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const GiftPickerSheet(),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final safeAreaBottom = MediaQuery.of(context).padding.bottom;
     final safeAreaTop = MediaQuery.of(context).padding.top;
-    final screenHeight = MediaQuery.of(context).size.height;
-    final isOwnReel = currentUserId != null && currentUserId == reel.uploaderId;
+    final isOwnReel = widget.currentUserId != null &&
+        widget.currentUserId == widget.reel.uploaderId;
 
     return Stack(
       children: [
-        // Bottom gradient for text readability - extends into safe area
+        // Task 2: Subtle gradient for top legibility
         Positioned(
-          bottom: -safeAreaBottom, // Extend into safe area
+          top: 0,
           left: 0,
           right: 0,
           child: Container(
-            height: screenHeight * 0.4 +
-                safeAreaBottom, // Include safe area in height
+            height: 100 + safeAreaTop,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withOpacity(DesignTokens.opacityHigh),
-                  Colors.black.withOpacity(
-                    DesignTokens.opacityHigh,
-                  ), // Keep solid at bottom for safe area
-                  Colors.black.withOpacity(DesignTokens.opacityMedium),
+                  Colors.black.withValues(alpha: 0.4),
                   Colors.transparent,
                 ],
-                stops: const [
-                  0.0,
-                  0.1,
-                  0.5,
-                  1.0
-                ], // Adjust stops for smooth transition
               ),
             ),
           ),
         ),
 
         // Top-right menu button (only for own reels)
-        if (isOwnReel && onDelete != null)
+        if (isOwnReel && widget.onDelete != null)
           Positioned(
             top: safeAreaTop + DesignTokens.spaceSM,
             right: DesignTokens.spaceMD,
-            child: GestureDetector(
+            child: _GlassIconButton(
+              icon: Icons.more_vert,
               onTap: () {
                 HapticFeedback.lightImpact();
                 _showDeleteConfirmation(context);
               },
-              child: Container(
-                padding: const EdgeInsets.all(DesignTokens.spaceSM),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(DesignTokens.opacityMedium),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.more_vert,
-                  color: Colors.white,
-                  size: DesignTokens.iconLG,
-                ),
-              ),
             ),
           ),
 
-        // User info and caption (bottom-left) - Facebook Reels style
+        // User info and caption (bottom-left)
         Positioned(
-          bottom: DesignTokens.spaceXXXL + safeAreaBottom,
+          bottom: safeAreaBottom + DesignTokens.spaceXXL,
           left: DesignTokens.spaceMD,
-          right:
-              DesignTokens.spaceXXXL, // Leave space for action buttons on right
+          right: 100, // Space for right actions
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // User info row (tappable)
+              // User info
               GestureDetector(
-                onTap: onProfileTap,
+                onTap: widget.onProfileTap,
                 child: Row(
                   children: [
                     Container(
-                      width: DesignTokens.iconXXL,
-                      height: DesignTokens.iconXXL,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: Colors.white,
-                          width: DesignTokens.elevation1,
+                          color: Colors.white.withValues(alpha: 0.8),
+                          width: 1.5,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            spreadRadius: 2,
+                          ),
+                        ],
                       ),
                       child: ClipOval(
-                        child: reel.uploaderAvatarUrl.isNotEmpty
+                        child: widget.reel.uploaderAvatarUrl.isNotEmpty
                             ? CachedNetworkImage(
-                                imageUrl: reel.uploaderAvatarUrl,
+                                imageUrl: widget.reel.uploaderAvatarUrl,
                                 fit: BoxFit.cover,
                                 errorWidget: (context, url, error) =>
-                                    const Icon(
-                                  Icons.person,
-                                  color: Colors.white,
-                                  size: DesignTokens.iconMD,
-                                ),
+                                    const Icon(Icons.person,
+                                        color: Colors.white),
                               )
-                            : const Icon(
-                                Icons.person,
-                                color: Colors.white,
-                                size: DesignTokens.iconMD,
-                              ),
+                            : const Icon(Icons.person, color: Colors.white),
                       ),
                     ),
                     const SizedBox(width: DesignTokens.spaceSM),
                     Expanded(
                       child: Text(
-                        reel.uploaderUsername,
-                        style: const TextStyle(
+                        widget.reel.uploaderUsername,
+                        style: TextStyle(
                           color: Colors.white,
                           fontSize: DesignTokens.fontSizeMD,
                           fontWeight: FontWeight.bold,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withValues(alpha: 0.8),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -161,73 +161,146 @@ class ReelsVideoUIOverlay extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: DesignTokens.spaceSM),
-              // Caption
-              if (reel.caption != null && reel.caption!.isNotEmpty)
-                Text(
-                  reel.caption!,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: DesignTokens.fontSizeSM,
-                    height: DesignTokens.lineHeightNormal,
+              // Caption with Task 2: Contrast Architecture (BoxShadow)
+              if (widget.reel.caption != null &&
+                  widget.reel.caption!.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    widget.reel.caption!,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: DesignTokens.fontSizeSM,
+                      height: 1.4,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withValues(alpha: 0.8),
+                          blurRadius: 12,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
                 ),
             ],
           ),
         ),
 
-        // Action buttons (right side) - Facebook Reels style (vertical stack)
+        // Task 2: Interaction Column (Right Side)
         Positioned(
-          bottom: DesignTokens.spaceXXL * 1.25 + safeAreaBottom,
+          bottom: safeAreaBottom + DesignTokens.spaceXXL,
           right: DesignTokens.spaceMD,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Like button - using AppReactionButton in vertical layout
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AppReactionButton(
-                    isLiked: isLiked,
-                    reactionCount: reel.likeCount,
-                    isLoading: false,
-                    onTap: onLike,
-                    showCount: false,
-                    size: DesignTokens.iconXXL,
-                  ),
-                  const SizedBox(height: DesignTokens.spaceXS),
-                  Text(
-                    _formatCount(reel.likeCount),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: DesignTokens.fontSizeSM,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+              // Like Button
+              _VerticalAction(
+                label: _formatCount(widget.reel.likeCount),
+                child: AppReactionButton(
+                  isLiked: widget.isLiked,
+                  reactionCount: widget.reel.likeCount,
+                  isLoading: false,
+                  onTap: widget.onLike,
+                  showCount: false,
+                  size: 32,
+                ),
               ),
               const SizedBox(height: DesignTokens.spaceLG),
-              // Comment button
-              _FacebookStyleActionButton(
-                icon: Icons.comment_outlined,
-                iconColor: Colors.white,
-                count: reel.commentCount,
-                onTap: onComment,
+
+              // Comment Button
+              _VerticalAction(
+                label: _formatCount(widget.reel.commentCount),
+                child: _GlassIconButton(
+                  icon: Icons.chat_bubble_outline,
+                  onTap: widget.onComment,
+                ),
               ),
               const SizedBox(height: DesignTokens.spaceLG),
-              // Share button
-              _FacebookStyleActionButton(
-                icon: Icons.share_outlined,
-                iconColor: Colors.white,
-                count: reel.shareCount,
-                onTap: onShare,
+
+              // Share Button
+              _VerticalAction(
+                label: _formatCount(widget.reel.shareCount),
+                child: _GlassIconButton(
+                  icon: Icons.share_outlined,
+                  onTap: widget.onShare,
+                ),
+              ),
+              const SizedBox(height: DesignTokens.spaceLG),
+
+              // Task 2: The "Gift" Surge
+              _VerticalAction(
+                label: "Gift",
+                child: _GlassIconButton(
+                  icon: Icons.card_giftcard,
+                  color: SonarPulseTheme.socialAccent,
+                  onTap: () => _handleGiftTap(context),
+                ),
               ),
             ],
           ),
         ),
+
+        // Task 4: Minimalist Scrubber (Neon Pulse)
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: GestureDetector(
+            onHorizontalDragStart: (_) => setState(() => _isScrubbing = true),
+            onHorizontalDragUpdate: (details) {
+              final box = context.findRenderObject() as RenderBox;
+              final width = box.size.width;
+              final newProgress =
+                  (details.localPosition.dx / width).clamp(0.0, 1.0);
+              widget.onScrub?.call(newProgress);
+            },
+            onHorizontalDragEnd: (_) => setState(() => _isScrubbing = false),
+            onLongPressStart: (_) => setState(() => _isScrubbing = true),
+            onLongPressEnd: (_) => setState(() => _isScrubbing = false),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              height: _isScrubbing ? 6.0 : 2.0,
+              width: double.infinity,
+              color: Colors.transparent,
+              child: Stack(
+                children: [
+                  // Background track
+                  Container(
+                    width: double.infinity,
+                    color: Colors.white.withValues(alpha: 0.2),
+                  ),
+                  // Pulse/Progress line
+                  FractionallySizedBox(
+                    widthFactor: widget.progress,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: SonarPulseTheme.primaryAccent,
+                        boxShadow: [
+                          BoxShadow(
+                            color: SonarPulseTheme.primaryAccent
+                                .withValues(alpha: 0.6),
+                            blurRadius: _isScrubbing ? 8 : 4,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ],
     );
+  }
+
+  String _formatCount(int count) {
+    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
+    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}K';
+    return count.toString();
   }
 
   void _showDeleteConfirmation(BuildContext context) {
@@ -245,39 +318,29 @@ class ReelsVideoUIOverlay extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Handle bar
               Container(
                 margin: const EdgeInsets.only(top: DesignTokens.spaceSM),
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color:
-                      Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
               const SizedBox(height: DesignTokens.spaceMD),
-              // Delete option
               ListTile(
-                leading: const Icon(
-                  Icons.delete_outline,
-                  color: Colors.red,
-                  size: DesignTokens.iconLG,
-                ),
-                title: const Text(
-                  'Delete Reel',
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontSize: DesignTokens.fontSizeMD,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                subtitle: const Text(
-                  'This action cannot be undone',
-                  style: TextStyle(
-                    fontSize: DesignTokens.fontSizeSM,
-                  ),
-                ),
+                leading: const Icon(Icons.delete_outline,
+                    color: Colors.red, size: DesignTokens.iconLG),
+                title: const Text('Delete Reel',
+                    style: TextStyle(
+                        color: Colors.red,
+                        fontSize: DesignTokens.fontSizeMD,
+                        fontWeight: FontWeight.w600)),
+                subtitle: const Text('This action cannot be undone',
+                    style: TextStyle(fontSize: DesignTokens.fontSizeSM)),
                 onTap: () {
                   Navigator.pop(context);
                   _showDeleteDialog(context);
@@ -297,21 +360,17 @@ class ReelsVideoUIOverlay extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: const Text('Delete Reel?'),
         content: const Text(
-          'Are you sure you want to delete this reel? This action cannot be undone.',
-        ),
+            'Are you sure you want to delete this reel? This action cannot be undone.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              onDelete?.call();
+              widget.onDelete?.call();
             },
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Delete'),
           ),
         ],
@@ -320,60 +379,75 @@ class ReelsVideoUIOverlay extends StatelessWidget {
   }
 }
 
-// Facebook Reels-style action button (vertical layout)
-class _FacebookStyleActionButton extends StatelessWidget {
+class _GlassIconButton extends StatelessWidget {
   final IconData icon;
-  final Color iconColor;
-  final int count;
   final VoidCallback onTap;
+  final Color color;
 
-  const _FacebookStyleActionButton({
+  const _GlassIconButton({
     required this.icon,
-    required this.iconColor,
-    required this.count,
     required this.onTap,
+    this.color = Colors.white,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: DesignTokens.iconXXL,
-            height: DesignTokens.iconXXL,
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(DesignTokens.opacityMedium),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              color: iconColor,
-              size: DesignTokens.iconXL,
-            ),
+      onTap: onTap,
+      child: Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.15),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.2),
+            width: 1,
           ),
-          const SizedBox(height: DesignTokens.spaceXS),
-          Text(
-            _formatCount(count),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: DesignTokens.fontSizeSM,
-              fontWeight: FontWeight.bold,
+        ),
+        child: ClipOval(
+          child: BackdropFilter(
+            filter: ColorFilter.mode(
+              Colors.white.withValues(alpha: 0.1),
+              BlendMode.srcOver,
             ),
+            child: Icon(icon, color: color, size: 28),
           ),
-        ],
+        ),
       ),
     );
   }
+}
 
-  String _formatCount(int count) {
-    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
-    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}K';
-    return count.toString();
+class _VerticalAction extends StatelessWidget {
+  final Widget child;
+  final String label;
+
+  const _VerticalAction({required this.child, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        child,
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: DesignTokens.fontSizeXS,
+            fontWeight: FontWeight.bold,
+            shadows: [
+              Shadow(
+                color: Colors.black.withValues(alpha: 0.5),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

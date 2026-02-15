@@ -100,8 +100,8 @@ class _StoryReplyBarWidgetState extends State<StoryReplyBarWidget>
                 DesignTokens.opacityMedium,
               ],
               colors: [
-                theme.colorScheme.surface.withOpacity(0.95),
-                theme.colorScheme.surface.withOpacity(0.8),
+                theme.colorScheme.surface.withValues(alpha: 0.95),
+                theme.colorScheme.surface.withValues(alpha: 0.8),
                 Colors.transparent,
               ],
             ),
@@ -114,11 +114,11 @@ class _StoryReplyBarWidgetState extends State<StoryReplyBarWidget>
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.onSurface.withOpacity(0.2),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
                         borderRadius:
                             BorderRadius.circular(DesignTokens.radiusXL),
                         border: Border.all(
-                          color: theme.colorScheme.onSurface.withOpacity(0.1),
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
                           width: DesignTokens.elevation1,
                         ),
                       ),
@@ -133,7 +133,7 @@ class _StoryReplyBarWidgetState extends State<StoryReplyBarWidget>
                           hintText: 'Send message...',
                           hintStyle: TextStyle(
                             color: theme.colorScheme.onSurface
-                                .withOpacity(DesignTokens.opacityMedium),
+                                .withValues(alpha: DesignTokens.opacityMedium),
                             fontSize: DesignTokens.fontSizeMD,
                           ),
                           filled: false,
@@ -264,12 +264,12 @@ class _StoryReplyBarWidgetState extends State<StoryReplyBarWidget>
                 color: hasText
                     ? SonarPulseTheme.primaryAccent
                     : SonarPulseTheme.primaryAccent
-                        .withOpacity(DesignTokens.opacityMedium),
+                        .withValues(alpha: DesignTokens.opacityMedium),
                 shape: BoxShape.circle,
                 boxShadow: controller.value > 0
                     ? [
                         BoxShadow(
-                          color: SonarPulseTheme.primaryAccent.withOpacity(
+                          color: SonarPulseTheme.primaryAccent.withValues(alpha: 
                             0.5 * (1 - controller.value),
                           ),
                           blurRadius:

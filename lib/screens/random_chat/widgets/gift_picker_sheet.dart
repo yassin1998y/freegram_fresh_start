@@ -37,18 +37,21 @@ class GiftPickerSheet extends StatelessWidget {
             child: StreamBuilder<List<GiftModel>>(
                 stream: giftRepo.getAvailableGifts(),
                 builder: (context, snapshot) {
-                  if (snapshot.hasError)
+                  if (snapshot.hasError) {
                     return Center(
                         child: Text("Error: ${snapshot.error}",
                             style: const TextStyle(color: Colors.white)));
-                  if (!snapshot.hasData)
+                  }
+                  if (!snapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
+                  }
 
                   final gifts = snapshot.data!;
-                  if (gifts.isEmpty)
+                  if (gifts.isEmpty) {
                     return const Center(
                         child: Text("No gifts available",
                             style: TextStyle(color: Colors.white)));
+                  }
 
                   return GridView.builder(
                     padding: const EdgeInsets.all(16),

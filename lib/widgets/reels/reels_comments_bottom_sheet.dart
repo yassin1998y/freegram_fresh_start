@@ -312,7 +312,7 @@ class _ReelsCommentsBottomSheetState extends State<ReelsCommentsBottomSheet> {
                 vertical: DesignTokens.spaceXS,
               ),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.1),
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
               ),
               child: Text(
@@ -384,7 +384,7 @@ class _ReelsCommentsBottomSheetState extends State<ReelsCommentsBottomSheet> {
                 Icons.send,
                 color: _commentController.text.trim().isEmpty
                     ? theme.colorScheme.onSurface
-                        .withOpacity(DesignTokens.opacityMedium)
+                        .withValues(alpha: DesignTokens.opacityMedium)
                     : SonarPulseTheme.primaryAccent,
                 size: DesignTokens.iconLG,
               ),
@@ -435,14 +435,14 @@ class _ReelsCommentsBottomSheetState extends State<ReelsCommentsBottomSheet> {
                       Icons.comment_outlined,
                       size: DesignTokens.iconXXL,
                       color: theme.colorScheme.onSurface
-                          .withOpacity(DesignTokens.opacityMedium),
+                          .withValues(alpha: DesignTokens.opacityMedium),
                     ),
                     const SizedBox(height: DesignTokens.spaceMD),
                     Text(
                       'No comments yet',
                       style: theme.textTheme.bodyLarge?.copyWith(
                         color: theme.colorScheme.onSurface
-                            .withOpacity(DesignTokens.opacityMedium),
+                            .withValues(alpha: DesignTokens.opacityMedium),
                       ),
                     ),
                     const SizedBox(height: DesignTokens.spaceSM),
@@ -450,7 +450,7 @@ class _ReelsCommentsBottomSheetState extends State<ReelsCommentsBottomSheet> {
                       'Be the first to comment!',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurface
-                            .withOpacity(DesignTokens.opacityMedium),
+                            .withValues(alpha: DesignTokens.opacityMedium),
                       ),
                     ),
                   ],

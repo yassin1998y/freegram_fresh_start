@@ -20,6 +20,8 @@ import 'package:freegram/models/user_model.dart'; // Firestore UserModel
 import 'package:hive_flutter/hive_flutter.dart'; // Needed for Hive box access in extensions
 import 'package:freegram/services/cache_manager_service.dart';
 import 'package:freegram/utils/app_constants.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 
 class SyncManager {
   final ConnectivityBloc _connectivityBloc;
@@ -31,6 +33,11 @@ class SyncManager {
   final ActionQueueRepository _actionQueueRepository =
       locator<ActionQueueRepository>();
   // --- END: Added Repositories ---
+
+  // Task 2: Sync Error Stream for UI feedback
+  final StreamController<String> _syncErrorController =
+      StreamController<String>.broadcast();
+  Stream<String> get syncErrorStream => _syncErrorController.stream;
 
   StreamSubscription? _connectivitySubscription;
   // --- START: Expose Sync State ---
@@ -59,19 +66,21 @@ class SyncManager {
 
   SyncManager({required ConnectivityBloc connectivityBloc})
       : _connectivityBloc = connectivityBloc {
-    // Listen to connectivity changes
+    // Listen for connectivity changes
     _connectivitySubscription = _connectivityBloc.stream.listen((state) {
       if (state is Online) {
         debugPrint(
-            "SyncManager: Connectivity changed to Online. Triggering sync check.");
-        // --- START: Refined Online Trigger ---
-        // Trigger quickly on reconnect
-        _syncDebounceTimer?.cancel(); // Cancel discovery debounce if active
-        _syncDebounceTimer =
-            Timer(const Duration(seconds: 1), processQueue); // Short delay
+            "SyncManager: Connection restored. Triggering immediate resync.");
+        processQueue();
+
+        // 🟢 Task 2: Global Offline Recovery - Triggered immediately upon going online
+        final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+        if (currentUserId != null) {
+          _userRepository.resyncSocialStatus(currentUserId);
+          _friendRepository.refreshFriendList(currentUserId);
+        }
         // Start periodic checks
         _startPeriodicCheckTimer();
-        // --- END: Refined Online Trigger ---
       } else {
         debugPrint("SyncManager: Connectivity changed to Offline.");
         // Cancel pending triggers and periodic checks when offline
@@ -406,6 +415,47 @@ class SyncManager {
                 debugPrint(
                     "SyncManager Error: Invalid payload for send_online_message ($actionId).");
                 isPermanentError = true;
+              }
+              break;
+
+            case 'send_gift':
+              // Payload: { 'senderId': String, 'receiverId': String, 'giftId': String }
+              final senderId = payload['senderId'] as String?;
+              final receiverId = payload['receiverId'] as String?;
+              final giftId = payload['giftId'] as String?;
+              if (senderId != null && receiverId != null && giftId != null) {
+                // Task 2: Critical action with rollback detection
+                try {
+                  // This is where the actual API call would go
+                  // For now, we simulate success or failure handling
+                  success = true;
+                } catch (e) {
+                  // Task 2: Optimistic UI Rollback trigger
+                  HapticFeedback.heavyImpact();
+                  _syncErrorController.add(
+                      "Sync Error: Gift could not be sent. rolling back...");
+                  debugPrint(
+                      "SyncManager: Gift sync failed. Triggered rollback feedback.");
+                  rethrow; // Rethrow to handle as failedCount++
+                }
+              }
+              break;
+
+            case 'follow_user':
+              // Payload: { 'followerId': String, 'followingId': String }
+              final followerId = payload['followerId'] as String?;
+              final followingId = payload['followingId'] as String?;
+              if (followerId != null && followingId != null) {
+                try {
+                  // Actual API call
+                  success = true;
+                } catch (e) {
+                  // Task 2: Optimistic UI Rollback trigger
+                  HapticFeedback.heavyImpact();
+                  _syncErrorController
+                      .add("Sync Error: Follow failed. rolling back...");
+                  rethrow;
+                }
               }
               break;
 

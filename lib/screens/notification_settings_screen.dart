@@ -528,7 +528,7 @@ class _NotificationSettingsScreenState
   Widget _buildDebugInfo(ThemeData theme) {
     return Card(
       elevation: 1,
-      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
       ),

@@ -327,7 +327,7 @@ class _VideoTrimmerScreenState extends State<VideoTrimmerScreen> {
                                             width: segmentLeft - 16,
                                             height: 60,
                                             child: Container(
-                                              color: Colors.white.withOpacity(0.1),
+                                              color: Colors.white.withValues(alpha: 0.1),
                                             ),
                                           ),
                                         // Selected segment
@@ -337,7 +337,7 @@ class _VideoTrimmerScreenState extends State<VideoTrimmerScreen> {
                                           height: 60,
                                           child: Container(
                                             decoration: BoxDecoration(
-                                              color: SonarPulseTheme.primaryAccent.withOpacity(0.3),
+                                              color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.3),
                                               border: Border.all(
                                                 color: SonarPulseTheme.primaryAccent,
                                                 width: 2,
@@ -362,7 +362,7 @@ class _VideoTrimmerScreenState extends State<VideoTrimmerScreen> {
                                             width: timelineWidth - segmentLeft - segmentWidth + 16,
                                             height: 60,
                                             child: Container(
-                                              color: Colors.white.withOpacity(0.1),
+                                              color: Colors.white.withValues(alpha: 0.1),
                                             ),
                                           ),
                                       ],
@@ -488,7 +488,7 @@ class _VideoTrimmerScreenState extends State<VideoTrimmerScreen> {
                         child: Text(
                           'Total: ${_formatTime(_videoDuration)} | Selected: ${_formatTime(maxDuration)}',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withValues(alpha: 0.7),
                             fontSize: DesignTokens.fontSizeXS,
                           ),
                         ),

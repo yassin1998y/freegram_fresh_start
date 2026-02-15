@@ -447,7 +447,7 @@ class _FriendsListScreenState extends State<FriendsListScreen>
         title: 'No Blocked Users',
         subtitle:
             'You haven\'t blocked anyone.\nBlocked users will appear here.',
-        iconColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+        iconColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
       );
     }
 
@@ -626,7 +626,7 @@ class EnhancedFriendCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).colorScheme.scrim.withOpacity(0.05),
+            color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.05),
             blurRadius: DesignTokens.elevation2,
             offset: const Offset(0, 2),
           ),
@@ -781,7 +781,7 @@ class EnhancedFriendCard extends StatelessWidget {
             user.country,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color:
-                      Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                      Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
           ),
         ],
@@ -806,7 +806,7 @@ class EnhancedFriendCard extends StatelessWidget {
               icon: Container(
                 padding: const EdgeInsets.all(DesignTokens.spaceSM),
                 decoration: BoxDecoration(
-                  color: SemanticColors.success.withOpacity(0.1),
+                  color: SemanticColors.success.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -826,7 +826,7 @@ class EnhancedFriendCard extends StatelessWidget {
               icon: Container(
                 padding: const EdgeInsets.all(DesignTokens.spaceSM),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                  color: Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -868,7 +868,7 @@ class EnhancedFriendCard extends StatelessWidget {
               vertical: DesignTokens.spaceSM,
             ),
             backgroundColor:
-                Theme.of(context).colorScheme.error.withOpacity(0.1),
+                Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
             ),

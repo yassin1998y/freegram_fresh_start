@@ -147,8 +147,8 @@ class _ProfessionalMessageActionsModalState
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.black.withOpacity(0.3),
-              Colors.black.withOpacity(0.5),
+              Colors.black.withValues(alpha: 0.3),
+              Colors.black.withValues(alpha: 0.5),
             ],
           ),
         ),
@@ -464,11 +464,13 @@ class _ProfessionalMessageActionsModalState
                   editController.text.trim(),
                 );
                 Navigator.of(context).pop();
-                showIslandPopup(
-                  context: context,
-                  message: 'Message edited',
-                  icon: Icons.check_circle,
-                );
+                if (mounted) {
+                  showIslandPopup(
+                    context: this.context,
+                    message: 'Message edited',
+                    icon: Icons.check_circle,
+                  );
+                }
               }
             },
             child: const Text('Save'),
@@ -494,11 +496,13 @@ class _ProfessionalMessageActionsModalState
             onPressed: () {
               widget.onDelete?.call(widget.message.id);
               Navigator.of(context).pop();
-              showIslandPopup(
-                context: context,
-                message: 'Message deleted',
-                icon: Icons.check_circle,
-              );
+              if (mounted) {
+                showIslandPopup(
+                  context: this.context,
+                  message: 'Message deleted',
+                  icon: Icons.check_circle,
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
@@ -565,7 +569,13 @@ class _ReactionButtonState extends State<_ReactionButton>
           decoration: BoxDecoration(
             color: Colors.grey[100],
             shape: BoxShape.circle,
-            boxShadow: DesignTokens.shadowLight,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: DesignTokens.elevation1,
+                offset: const Offset(0, 1),
+              ),
+            ],
           ),
           child: Center(
             child: Text(

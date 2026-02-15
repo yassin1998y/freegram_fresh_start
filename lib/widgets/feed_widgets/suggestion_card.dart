@@ -85,29 +85,35 @@ class _SuggestionCardWidgetState extends State<SuggestionCardWidget> {
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
         child: InkWell(
           borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
-          onTap: () => _navigateToProfile(context, userId),
+          onTap: () => _navigateToProfile(userId),
           child: Container(
             padding: const EdgeInsets.all(DesignTokens.spaceSM),
             decoration: BoxDecoration(
               color: theme.cardColor,
               borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
               border: Border.all(
-                color: theme.colorScheme.outline.withOpacity(0.1),
+                color: theme.colorScheme.outline.withValues(alpha: 0.1),
                 width: 1,
               ),
-              boxShadow: DesignTokens.shadowLight,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: DesignTokens.elevation1,
+                  offset: const Offset(0, 1),
+                ),
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Avatar with optional border
                 GestureDetector(
-                  onTap: () => _navigateToProfile(context, userId),
+                  onTap: () => _navigateToProfile(userId),
                   child: Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: theme.colorScheme.primary.withOpacity(0.2),
+                        color: theme.colorScheme.primary.withValues(alpha: 0.2),
                         width: 2,
                       ),
                     ),
@@ -122,8 +128,8 @@ class _SuggestionCardWidgetState extends State<SuggestionCardWidget> {
                           ? Icon(
                               Icons.person,
                               size: DesignTokens.iconMD,
-                              color: theme.colorScheme.onSurface.withOpacity(
-                                DesignTokens.opacityMedium,
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: DesignTokens.opacityMedium,
                               ),
                             )
                           : null,
@@ -151,8 +157,8 @@ class _SuggestionCardWidgetState extends State<SuggestionCardWidget> {
                       Icon(
                         Icons.people_outline,
                         size: DesignTokens.iconXS,
-                        color: theme.colorScheme.onSurface.withOpacity(
-                          DesignTokens.opacityMedium,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: DesignTokens.opacityMedium,
                         ),
                       ),
                       const SizedBox(width: DesignTokens.spaceXS / 2),
@@ -161,8 +167,8 @@ class _SuggestionCardWidgetState extends State<SuggestionCardWidget> {
                           MutualFriendsHelper.formatMutualFriendsText(
                               mutualFriendsCount),
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(
-                              DesignTokens.opacityMedium,
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: DesignTokens.opacityMedium,
                             ),
                             fontSize: DesignTokens.fontSizeXS,
                             height: DesignTokens.lineHeightTight,
@@ -184,8 +190,7 @@ class _SuggestionCardWidgetState extends State<SuggestionCardWidget> {
                           : 'Add Friend $name')
                       : 'Follow $name',
                   button: true,
-                  child:
-                      _buildActionButton(context, theme, isUser, name, userId),
+                  child: _buildActionButton(theme, isUser, name, userId),
                 ),
               ],
             ),
@@ -196,7 +201,6 @@ class _SuggestionCardWidgetState extends State<SuggestionCardWidget> {
   }
 
   Widget _buildActionButton(
-    BuildContext context,
     ThemeData theme,
     bool isUser,
     String name,
@@ -213,9 +217,9 @@ class _SuggestionCardWidgetState extends State<SuggestionCardWidget> {
 
     // Use different styling for sent state - subtle success color
     final backgroundColor = isRequestSentState
-        ? SonarPulseTheme.primaryAccent.withOpacity(0.2)
+        ? SonarPulseTheme.primaryAccent.withValues(alpha: 0.2)
         : (_isLoading
-            ? SonarPulseTheme.primaryAccent.withOpacity(0.7)
+            ? SonarPulseTheme.primaryAccent.withValues(alpha: 0.7)
             : SonarPulseTheme.primaryAccent);
 
     final textColor =
@@ -230,7 +234,7 @@ class _SuggestionCardWidgetState extends State<SuggestionCardWidget> {
             : () {
                 HapticFeedback.lightImpact();
                 // Handle action without triggering card tap
-                _handleAction(context, userId);
+                _handleAction(userId);
               },
         style: ElevatedButton.styleFrom(
           backgroundColor: backgroundColor,
@@ -246,7 +250,7 @@ class _SuggestionCardWidgetState extends State<SuggestionCardWidget> {
             borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
             side: isRequestSentState
                 ? BorderSide(
-                    color: SonarPulseTheme.primaryAccent.withOpacity(0.3),
+                    color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.3),
                     width: 1,
                   )
                 : BorderSide.none,
@@ -293,7 +297,7 @@ class _SuggestionCardWidgetState extends State<SuggestionCardWidget> {
     );
   }
 
-  void _navigateToProfile(BuildContext context, String? userId) {
+  void _navigateToProfile(String? userId) {
     if (userId == null) return;
 
     HapticFeedback.lightImpact();
@@ -303,7 +307,7 @@ class _SuggestionCardWidgetState extends State<SuggestionCardWidget> {
     );
   }
 
-  void _handleAction(BuildContext context, String? userId) {
+  void _handleAction(String? userId) {
     final suggestionId = widget.type == SuggestionType.friends
         ? (widget.suggestion as UserModel).id
         : (widget.suggestion as PageModel).pageId;
@@ -317,14 +321,14 @@ class _SuggestionCardWidgetState extends State<SuggestionCardWidget> {
 
     if (widget.type == SuggestionType.friends) {
       // Handle Add Friend - send friend request
-      _handleAddFriend(context, suggestionId);
+      _handleAddFriend(suggestionId);
     } else {
       // Handle Follow Page
-      _handleFollowPage(context, suggestionId);
+      _handleFollowPage(suggestionId);
     }
   }
 
-  Future<void> _handleAddFriend(BuildContext context, String userId) async {
+  Future<void> _handleAddFriend(String userId) async {
     // Don't send if already sent (check both local and data state)
     if (_isRequestSent(userId)) {
       return;
@@ -332,17 +336,20 @@ class _SuggestionCardWidgetState extends State<SuggestionCardWidget> {
 
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('You must be logged in to send friend requests'),
-          backgroundColor: SonarPulseTheme.darkError,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                const Text('You must be logged in to send friend requests'),
+            backgroundColor: SonarPulseTheme.darkError,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+            ),
+            duration: const Duration(seconds: 2),
           ),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+        );
+      }
       return;
     }
 
@@ -427,14 +434,34 @@ class _SuggestionCardWidgetState extends State<SuggestionCardWidget> {
     }
   }
 
-  void _handleFollowPage(BuildContext context, String pageId) async {
+  void _handleFollowPage(String pageId) async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('You must be logged in to follow pages'),
+              backgroundColor: SonarPulseTheme.darkError,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+              ),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+        return;
+      }
+
+      final pageRepository = locator<PageRepository>();
+      await pageRepository.followPage(pageId, currentUser.uid);
+
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('You must be logged in to follow pages'),
-            backgroundColor: SonarPulseTheme.darkError,
+            content: const Text('Page followed!'),
+            backgroundColor: SonarPulseTheme.primaryAccent,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
@@ -442,36 +469,22 @@ class _SuggestionCardWidgetState extends State<SuggestionCardWidget> {
             duration: const Duration(seconds: 2),
           ),
         );
-        return;
       }
-
-      final pageRepository = locator<PageRepository>();
-      await pageRepository.followPage(pageId, currentUser.uid);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Page followed!'),
-          backgroundColor: SonarPulseTheme.primaryAccent,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
-          ),
-          duration: const Duration(seconds: 2),
-        ),
-      );
     } catch (e) {
       debugPrint('Error following page: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to follow page: $e'),
-          backgroundColor: SonarPulseTheme.darkError,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to follow page: $e'),
+            backgroundColor: SonarPulseTheme.darkError,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+            ),
+            duration: const Duration(seconds: 3),
           ),
-          duration: const Duration(seconds: 3),
-        ),
-      );
+        );
+      }
     }
   }
 }

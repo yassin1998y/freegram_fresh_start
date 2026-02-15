@@ -62,9 +62,9 @@ class _PulseAvatarState extends State<PulseAvatar>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: const Color(0xFF00BFA5)
-                      .withOpacity(_opacityAnimation.value),
+                      .withValues(alpha: _opacityAnimation.value),
                   border: Border.all(
-                    color: const Color(0xFF00BFA5).withOpacity(0.5),
+                    color: const Color(0xFF00BFA5).withValues(alpha: 0.5),
                     width: 2,
                   ),
                 ),

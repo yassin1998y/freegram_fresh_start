@@ -90,265 +90,265 @@ class ReelsProfilePreviewBottomSheet extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-                          // Profile Header
-                          Row(
-                            children: [
-                              // Avatar
-                              Hero(
-                                tag: 'profile_preview_${user.id}',
-                                child: CircleAvatar(
-                                  radius: DesignTokens.avatarSizeLarge / 2,
-                                  backgroundColor: Colors.grey[300],
-                                  backgroundImage: user.photoUrl.isNotEmpty
-                                      ? CachedNetworkImageProvider(user.photoUrl)
-                                      : null,
-                                  child: user.photoUrl.isEmpty
-                                      ? Text(
-                                          user.username.isNotEmpty
-                                              ? user.username[0].toUpperCase()
-                                              : '?',
-                                          style: const TextStyle(
-                                            fontSize: DesignTokens.fontSizeXXL,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        )
-                                      : null,
-                                ),
+              // Profile Header
+              Row(
+                children: [
+                  // Avatar
+                  Hero(
+                    tag: 'profile_preview_${user.id}',
+                    child: CircleAvatar(
+                      radius: AvatarSize.large.size / 2,
+                      backgroundColor: Colors.grey[300],
+                      backgroundImage: user.photoUrl.isNotEmpty
+                          ? CachedNetworkImageProvider(user.photoUrl)
+                          : null,
+                      child: user.photoUrl.isEmpty
+                          ? Text(
+                              user.username.isNotEmpty
+                                  ? user.username[0].toUpperCase()
+                                  : '?',
+                              style: const TextStyle(
+                                fontSize: DesignTokens.fontSizeXXL,
+                                fontWeight: FontWeight.bold,
                               ),
-                              const SizedBox(width: DesignTokens.spaceMD),
-                              // Username and info
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      user.username,
-                                      style: theme.textTheme.titleLarge?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    if (user.country.isNotEmpty) ...[
-                                      const SizedBox(height: DesignTokens.spaceXS),
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.location_on_outlined,
-                                            size: DesignTokens.iconSM,
-                                            color: theme.colorScheme.onSurface
-                                                .withOpacity(DesignTokens.opacityMedium),
-                                          ),
-                                          const SizedBox(width: DesignTokens.spaceXS),
-                                          Text(
-                                            user.country,
-                                            style: theme.textTheme.bodySmall?.copyWith(
-                                              color: theme.colorScheme.onSurface
-                                                  .withOpacity(DesignTokens.opacityMedium),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                              // Close button
-                              IconButton(
-                                icon: Icon(
-                                  Icons.close,
-                                  color: theme.colorScheme.onSurface,
-                                ),
-                                onPressed: () => Navigator.of(context).pop(),
-                              ),
-                            ],
+                            )
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(width: DesignTokens.spaceMD),
+                  // Username and info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user.username,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
-                          const SizedBox(height: DesignTokens.spaceLG),
-                          // Action buttons
+                        ),
+                        if (user.country.isNotEmpty) ...[
+                          const SizedBox(height: DesignTokens.spaceXS),
                           Row(
                             children: [
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  onPressed: () {
-                                    HapticFeedback.lightImpact();
-                                    Navigator.of(context).pop();
-                                    locator<NavigationService>().navigateNamed(
-                                      AppRoutes.profile,
-                                      arguments: {'userId': user.id},
-                                    );
-                                  },
-                                  icon: const Icon(
-                                    Icons.person_outline,
-                                    size: DesignTokens.iconMD,
-                                  ),
-                                  label: const Text('View Profile'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: SonarPulseTheme.primaryAccent,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: DesignTokens.spaceMD,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(
-                                        DesignTokens.radiusMD,
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                              Icon(
+                                Icons.location_on_outlined,
+                                size: DesignTokens.iconSM,
+                                color: theme.colorScheme.onSurface.withValues(
+                                    alpha: DesignTokens.opacityMedium),
                               ),
-                              const SizedBox(width: DesignTokens.spaceMD),
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () async {
-                                    HapticFeedback.lightImpact();
-                                    try {
-                                      final chatId = await locator<ChatRepository>()
-                                          .startOrGetChat(
-                                        user.id,
-                                        user.username,
-                                      );
-                                      if (context.mounted) {
-                                        Navigator.of(context).pop();
-                                        locator<NavigationService>().navigateTo(
-                                          ImprovedChatScreen(
-                                            chatId: chatId,
-                                            otherUsername: user.username,
-                                          ),
-                                        );
-                                      }
-                                    } catch (e) {
-                                      debugPrint(
-                                          'ReelsProfilePreviewBottomSheet: Error starting chat: $e');
-                                    }
-                                  },
-                                  icon: const Icon(
-                                    Icons.chat_bubble_outline,
-                                    size: DesignTokens.iconMD,
-                                  ),
-                                  label: const Text('Message'),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: DesignTokens.spaceMD,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(
-                                        DesignTokens.radiusMD,
-                                      ),
-                                    ),
-                                  ),
+                              const SizedBox(width: DesignTokens.spaceXS),
+                              Text(
+                                user.country,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface.withValues(
+                                      alpha: DesignTokens.opacityMedium),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: DesignTokens.spaceLG),
-                          // Stats
-                          Container(
-                            padding: const EdgeInsets.all(DesignTokens.spaceMD),
+                        ],
+                      ],
+                    ),
+                  ),
+                  // Close button
+                  IconButton(
+                    icon: Icon(
+                      Icons.close,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: DesignTokens.spaceLG),
+              // Action buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.of(context).pop();
+                        locator<NavigationService>().navigateNamed(
+                          AppRoutes.profile,
+                          arguments: {'userId': user.id},
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.person_outline,
+                        size: DesignTokens.iconMD,
+                      ),
+                      label: const Text('View Profile'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: SonarPulseTheme.primaryAccent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: DesignTokens.spaceMD,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusMD,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: DesignTokens.spaceMD),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        HapticFeedback.lightImpact();
+                        try {
+                          final chatId =
+                              await locator<ChatRepository>().startOrGetChat(
+                            user.id,
+                            user.username,
+                          );
+                          if (context.mounted) {
+                            Navigator.of(context).pop();
+                            locator<NavigationService>().navigateTo(
+                              ImprovedChatScreen(
+                                chatId: chatId,
+                                otherUsername: user.username,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          debugPrint(
+                              'ReelsProfilePreviewBottomSheet: Error starting chat: $e');
+                        }
+                      },
+                      icon: const Icon(
+                        Icons.chat_bubble_outline,
+                        size: DesignTokens.iconMD,
+                      ),
+                      label: const Text('Message'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: DesignTokens.spaceMD,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusMD,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: DesignTokens.spaceLG),
+              // Stats
+              Container(
+                padding: const EdgeInsets.all(DesignTokens.spaceMD),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildStatItem(
+                      context,
+                      icon: Icons.people_outline,
+                      label: 'Friends',
+                      value: user.friends.length.toString(),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 30,
+                      color: theme.dividerColor,
+                    ),
+                    _buildStatItem(
+                      context,
+                      icon: Icons.cake_outlined,
+                      label: 'Age',
+                      value: user.age > 0 ? user.age.toString() : 'N/A',
+                    ),
+                  ],
+                ),
+              ),
+              // Bio
+              if (user.bio.isNotEmpty) ...[
+                const SizedBox(height: DesignTokens.spaceMD),
+                Container(
+                  padding: const EdgeInsets.all(DesignTokens.spaceMD),
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'About',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: DesignTokens.spaceSM),
+                      Text(
+                        user.bio,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              // Interests
+              if (user.interests.isNotEmpty) ...[
+                const SizedBox(height: DesignTokens.spaceMD),
+                Container(
+                  padding: const EdgeInsets.all(DesignTokens.spaceMD),
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Interests',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: DesignTokens.spaceSM),
+                      Wrap(
+                        spacing: DesignTokens.spaceSM,
+                        runSpacing: DesignTokens.spaceSM,
+                        children: user.interests.take(6).map((interest) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: DesignTokens.spaceMD,
+                              vertical: DesignTokens.spaceXS,
+                            ),
                             decoration: BoxDecoration(
-                              color: theme.cardColor,
-                              borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                _buildStatItem(
-                                  context,
-                                  icon: Icons.people_outline,
-                                  label: 'Friends',
-                                  value: user.friends.length.toString(),
-                                ),
-                                Container(
-                                  width: 1,
-                                  height: 30,
-                                  color: theme.dividerColor,
-                                ),
-                                _buildStatItem(
-                                  context,
-                                  icon: Icons.cake_outlined,
-                                  label: 'Age',
-                                  value: user.age > 0 ? user.age.toString() : 'N/A',
-                                ),
-                              ],
-                            ),
-                          ),
-                          // Bio
-                          if (user.bio.isNotEmpty) ...[
-                            const SizedBox(height: DesignTokens.spaceMD),
-                            Container(
-                              padding: const EdgeInsets.all(DesignTokens.spaceMD),
-                              decoration: BoxDecoration(
-                                color: theme.cardColor,
-                                borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                              color: SonarPulseTheme.primaryAccent
+                                  .withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(
+                                DesignTokens.radiusSM,
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'About',
-                                    style: theme.textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: DesignTokens.spaceSM),
-                                  Text(
-                                    user.bio,
-                                    style: theme.textTheme.bodyMedium,
-                                  ),
-                                ],
+                              border: Border.all(
+                                color: SonarPulseTheme.primaryAccent
+                                    .withValues(alpha: 0.3),
                               ),
                             ),
-                          ],
-                          // Interests
-                          if (user.interests.isNotEmpty) ...[
-                            const SizedBox(height: DesignTokens.spaceMD),
-                            Container(
-                              padding: const EdgeInsets.all(DesignTokens.spaceMD),
-                              decoration: BoxDecoration(
-                                color: theme.cardColor,
-                                borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Interests',
-                                    style: theme.textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: DesignTokens.spaceSM),
-                                  Wrap(
-                                    spacing: DesignTokens.spaceSM,
-                                    runSpacing: DesignTokens.spaceSM,
-                                    children: user.interests.take(6).map((interest) {
-                                      return Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: DesignTokens.spaceMD,
-                                          vertical: DesignTokens.spaceXS,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: SonarPulseTheme.primaryAccent
-                                              .withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(
-                                            DesignTokens.radiusSM,
-                                          ),
-                                          border: Border.all(
-                                            color: SonarPulseTheme.primaryAccent
-                                                .withOpacity(0.3),
-                                          ),
-                                        ),
-                                        child: Text(
-                                          interest,
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            color: SonarPulseTheme.primaryAccent,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ],
+                            child: Text(
+                              interest,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: SonarPulseTheme.primaryAccent,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
-                          ],
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         );
@@ -363,7 +363,7 @@ class ReelsProfilePreviewBottomSheet extends StatelessWidget {
     required String value,
   }) {
     final theme = Theme.of(context);
-    
+
     return Column(
       children: [
         Icon(
@@ -382,8 +382,8 @@ class ReelsProfilePreviewBottomSheet extends StatelessWidget {
         Text(
           label,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(
-              DesignTokens.opacityMedium,
+            color: theme.colorScheme.onSurface.withValues(
+              alpha: DesignTokens.opacityMedium,
             ),
           ),
         ),
@@ -391,4 +391,3 @@ class ReelsProfilePreviewBottomSheet extends StatelessWidget {
     );
   }
 }
-

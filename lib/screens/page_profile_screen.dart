@@ -413,7 +413,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                           end: Alignment.bottomCenter,
                           colors: [
                             Colors.transparent,
-                            Colors.black.withOpacity(0.5),
+                            Colors.black.withValues(alpha: 0.5),
                           ],
                         ),
                       ),
@@ -424,7 +424,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                         bottom: DesignTokens.spaceMD,
                         right: DesignTokens.spaceMD,
                         child: Material(
-                          color: Colors.black.withOpacity(0.5),
+                          color: Colors.black.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(
                             DesignTokens.radiusMD,
                           ),
@@ -488,20 +488,21 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                       Stack(
                         children: [
                           CircleAvatar(
-                            radius: DesignTokens.avatarSizeLarge / 2,
+                            radius: AvatarSize.large.size / 2,
                             backgroundColor: theme.colorScheme.surface,
                             child: CircleAvatar(
-                              radius: (DesignTokens.avatarSizeLarge / 2) - 2,
+                              radius: (AvatarSize.large.size / 2) - 2,
                               backgroundImage: _page!.profileImageUrl.isNotEmpty
                                   ? NetworkImage(_page!.profileImageUrl)
                                   : null,
                               child: _page!.profileImageUrl.isEmpty
                                   ? Icon(
                                       Icons.business,
-                                      size: DesignTokens.avatarSizeLarge / 2,
+                                      size: AvatarSize.large.size / 2,
                                       color: theme.colorScheme.onSurface
-                                          .withOpacity(
-                                              DesignTokens.opacityMedium),
+                                          .withValues(
+                                              alpha:
+                                                  DesignTokens.opacityMedium),
                                     )
                                   : null,
                             ),
@@ -562,8 +563,8 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                             Text(
                               '@${_page!.pageHandle}',
                               style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurface
-                                    .withOpacity(DesignTokens.opacityMedium),
+                                color: theme.colorScheme.onSurface.withValues(
+                                    alpha: DesignTokens.opacityMedium),
                               ),
                             ),
                           ],
@@ -577,7 +578,7 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                     '${_page!.followerCount} followers',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurface
-                          .withOpacity(DesignTokens.opacityMedium),
+                          .withValues(alpha: DesignTokens.opacityMedium),
                     ),
                   ),
                   const SizedBox(height: DesignTokens.spaceMD),
@@ -704,8 +705,8 @@ class _PageProfileScreenState extends State<PageProfileScreen>
               controller: _tabController,
               indicatorColor: theme.colorScheme.primary,
               labelColor: theme.colorScheme.primary,
-              unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(
-                DesignTokens.opacityMedium,
+              unselectedLabelColor: theme.colorScheme.onSurface.withValues(
+                alpha: DesignTokens.opacityMedium,
               ),
               tabs: const [
                 Tab(
@@ -803,16 +804,16 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                 Icon(
                   Icons.post_add,
                   size: DesignTokens.iconXXL,
-                  color: theme.colorScheme.onSurface.withOpacity(
-                    DesignTokens.opacityMedium,
+                  color: theme.colorScheme.onSurface.withValues(
+                    alpha: DesignTokens.opacityMedium,
                   ),
                 ),
                 const SizedBox(height: DesignTokens.spaceMD),
                 Text(
                   'No posts yet',
                   style: theme.textTheme.bodyLarge?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(
-                      DesignTokens.opacityMedium,
+                    color: theme.colorScheme.onSurface.withValues(
+                      alpha: DesignTokens.opacityMedium,
                     ),
                   ),
                 ),
@@ -940,8 +941,8 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                 Icon(
                   Icons.email_outlined,
                   size: DesignTokens.iconSM,
-                  color: theme.colorScheme.onSurface.withOpacity(
-                    DesignTokens.opacityMedium,
+                  color: theme.colorScheme.onSurface.withValues(
+                    alpha: DesignTokens.opacityMedium,
                   ),
                 ),
                 const SizedBox(width: DesignTokens.spaceSM),
@@ -969,8 +970,8 @@ class _PageProfileScreenState extends State<PageProfileScreen>
                 Icon(
                   Icons.phone_outlined,
                   size: DesignTokens.iconSM,
-                  color: theme.colorScheme.onSurface.withOpacity(
-                    DesignTokens.opacityMedium,
+                  color: theme.colorScheme.onSurface.withValues(
+                    alpha: DesignTokens.opacityMedium,
                   ),
                 ),
                 const SizedBox(width: DesignTokens.spaceSM),
@@ -999,16 +1000,16 @@ class _PageProfileScreenState extends State<PageProfileScreen>
           Icon(
             Icons.storefront_outlined,
             size: DesignTokens.iconXXL,
-            color: theme.colorScheme.onSurface.withOpacity(
-              DesignTokens.opacityMedium,
+            color: theme.colorScheme.onSurface.withValues(
+              alpha: DesignTokens.opacityMedium,
             ),
           ),
           const SizedBox(height: DesignTokens.spaceMD),
           Text(
             'Shop Coming Soon',
             style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(
-                DesignTokens.opacityMedium,
+              color: theme.colorScheme.onSurface.withValues(
+                alpha: DesignTokens.opacityMedium,
               ),
             ),
           ),
@@ -1016,8 +1017,8 @@ class _PageProfileScreenState extends State<PageProfileScreen>
           Text(
             'This feature will be available soon!',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(
-                DesignTokens.opacityMedium,
+              color: theme.colorScheme.onSurface.withValues(
+                alpha: DesignTokens.opacityMedium,
               ),
             ),
           ),
@@ -1036,16 +1037,16 @@ class _PageProfileScreenState extends State<PageProfileScreen>
           Icon(
             Icons.event_outlined,
             size: DesignTokens.iconXXL,
-            color: theme.colorScheme.onSurface.withOpacity(
-              DesignTokens.opacityMedium,
+            color: theme.colorScheme.onSurface.withValues(
+              alpha: DesignTokens.opacityMedium,
             ),
           ),
           const SizedBox(height: DesignTokens.spaceMD),
           Text(
             'Events Coming Soon',
             style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(
-                DesignTokens.opacityMedium,
+              color: theme.colorScheme.onSurface.withValues(
+                alpha: DesignTokens.opacityMedium,
               ),
             ),
           ),
@@ -1053,8 +1054,8 @@ class _PageProfileScreenState extends State<PageProfileScreen>
           Text(
             'This feature will be available soon!',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(
-                DesignTokens.opacityMedium,
+              color: theme.colorScheme.onSurface.withValues(
+                alpha: DesignTokens.opacityMedium,
               ),
             ),
           ),

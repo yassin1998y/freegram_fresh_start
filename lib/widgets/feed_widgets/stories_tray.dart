@@ -31,6 +31,16 @@ class StoriesTrayWidget extends StatelessWidget {
 
     return Container(
       height: 160,
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSM),
       child: NotificationListener<ScrollNotification>(
         onNotification: (notification) {
@@ -194,8 +204,8 @@ class StoriesTrayWidget extends StatelessWidget {
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
               ),
               child: Container(
-                color: theme.colorScheme.surfaceContainerHighest
-                    .withOpacity( 0.5),
+                color:
+                    theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
               ),
             ),
           ),

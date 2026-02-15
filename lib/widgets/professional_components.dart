@@ -101,16 +101,28 @@ class _ProfessionalStatusChipState extends State<ProfessionalStatusChip>
               decoration: BoxDecoration(
                 color: widget.backgroundColor ??
                     (widget.isActive
-                        ? Theme.of(context).colorScheme.primary.withOpacity(0.2)
-                        : Colors.black.withOpacity(0.1)),
+                        ? Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withValues(alpha: 0.2)
+                        : Colors.black.withValues(alpha: 0.1)),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
                 border: Border.all(
                   color: widget.isActive
-                      ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
-                      : Colors.white.withOpacity(0.2),
+                      ? Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.3)
+                      : Colors.white.withValues(alpha: 0.2),
                   width: 0.5,
                 ),
-                boxShadow: DesignTokens.shadowLight,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: DesignTokens.elevation1,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -327,7 +339,7 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
           vertical: DesignTokens.spaceXS,
         ),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.6),
+          color: Colors.black.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
         ),
         child: Row(
@@ -347,7 +359,9 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
                 width: 3,
                 height: barHeight,
                 decoration: BoxDecoration(
-                  color: isActive ? signalColor : Colors.grey.withOpacity(0.4),
+                  color: isActive
+                      ? signalColor
+                      : Colors.grey.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(1.5),
                 ),
               ),
@@ -374,7 +388,13 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
         decoration: BoxDecoration(
           color: widget.isNew ? SemanticColors.success : SemanticColors.warning,
           borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
-          boxShadow: DesignTokens.shadowLight,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: DesignTokens.elevation1,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -411,9 +431,15 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
         curve: AnimationTokens.easeInOut,
         padding: const EdgeInsets.all(DesignTokens.spaceXS),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.8),
+          color: Colors.black.withValues(alpha: 0.8),
           shape: BoxShape.circle,
-          boxShadow: DesignTokens.shadowLight,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: DesignTokens.elevation1,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
         child: const Icon(
           Icons.cloud_download_outlined,
@@ -444,7 +470,7 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
               child: Material(
                 elevation: DesignTokens.elevation2,
                 borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
-                shadowColor: Colors.black.withOpacity(0.1),
+                shadowColor: Colors.black.withValues(alpha: 0.1),
                 child: GestureDetector(
                   onTapDown: _handleTapDown,
                   onTapUp: _handleTapUp,
@@ -461,7 +487,7 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
                             ? Theme.of(context)
                                 .colorScheme
                                 .primary
-                                .withOpacity(0.5)
+                                .withValues(alpha: 0.5)
                             : Colors.transparent,
                         width: 2,
                       ),
@@ -509,7 +535,7 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
                                   padding: const EdgeInsets.all(
                                       DesignTokens.spaceXS),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.6),
+                                    color: Colors.black.withValues(alpha: 0.6),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
@@ -541,7 +567,8 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
                                       fontSize: DesignTokens.fontSizeMD,
                                       shadows: [
                                         Shadow(
-                                          color: Colors.black.withOpacity(0.5),
+                                          color: Colors.black
+                                              .withValues(alpha: 0.5),
                                           offset: const Offset(0, 1),
                                           blurRadius: 2,
                                         ),
@@ -558,12 +585,13 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
                                       widget.statusMessage!,
                                       style:
                                           theme.textTheme.bodySmall?.copyWith(
-                                        color: Colors.white.withOpacity(0.9),
+                                        color:
+                                            Colors.white.withValues(alpha: 0.9),
                                         fontSize: DesignTokens.fontSizeXS,
                                         shadows: [
                                           Shadow(
-                                            color:
-                                                Colors.black.withOpacity(0.5),
+                                            color: Colors.black
+                                                .withValues(alpha: 0.5),
                                             offset: const Offset(0, 1),
                                             blurRadius: 2,
                                           ),
@@ -585,16 +613,16 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(
                                       DesignTokens.radiusLG),
-                                  color: SemanticColors.success
-                                      .withOpacity(0.2 * _waveAnimation.value),
+                                  color: SemanticColors.success.withValues(
+                                      alpha: 0.2 * _waveAnimation.value),
                                 ),
                                 child: Center(
                                   child: Transform.scale(
                                     scale: _waveAnimation.value,
                                     child: Icon(
                                       Icons.waving_hand,
-                                      color: Colors.white
-                                          .withOpacity(_waveAnimation.value),
+                                      color: Colors.white.withValues(
+                                          alpha: _waveAnimation.value),
                                       size: DesignTokens.iconXXL,
                                     ),
                                   ),
@@ -729,7 +757,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
                       Theme.of(context).scaffoldBackgroundColor,
                       Theme.of(context)
                           .scaffoldBackgroundColor
-                          .withOpacity(0.95),
+                          .withValues(alpha: 0.95),
                     ],
                   ),
                   borderRadius: const BorderRadius.only(
@@ -738,7 +766,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 20,
                       offset: const Offset(0, -5),
                     ),
@@ -911,7 +939,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
                             decoration: BoxDecoration(
                               color: Theme.of(context)
                                   .scaffoldBackgroundColor
-                                  .withOpacity(0.8),
+                                  .withValues(alpha: 0.8),
                               borderRadius:
                                   BorderRadius.circular(DesignTokens.radiusSM),
                               border: Border.all(
@@ -947,7 +975,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
           end: Alignment.bottomCenter,
           colors: [
             Theme.of(context).scaffoldBackgroundColor,
-            Theme.of(context).scaffoldBackgroundColor.withOpacity(0.95),
+            Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.95),
           ],
         ),
         borderRadius: const BorderRadius.only(
@@ -981,7 +1009,7 @@ class _UserActionsModalState extends State<_UserActionsModal>
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, 5),
           ),
@@ -1029,10 +1057,11 @@ class _UserActionsModalState extends State<_UserActionsModal>
             vertical: DesignTokens.spaceXS,
           ),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
             border: Border.all(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+              color:
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
               width: 0.5,
             ),
           ),
@@ -1060,14 +1089,20 @@ class _UserActionsModalState extends State<_UserActionsModal>
           color: Theme.of(context).dividerColor,
           width: 0.5,
         ),
-        boxShadow: DesignTokens.shadowLight,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: DesignTokens.elevation1,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Icon(
             Icons.chat_bubble_outline,
             size: DesignTokens.iconSM,
-            color: Theme.of(context).iconTheme.color?.withOpacity(0.6),
+            color: Theme.of(context).iconTheme.color?.withValues(alpha: 0.6),
           ),
           const SizedBox(width: DesignTokens.spaceSM),
           Expanded(
@@ -1097,7 +1132,13 @@ class _UserActionsModalState extends State<_UserActionsModal>
           color: Theme.of(context).dividerColor,
           width: 0.5,
         ),
-        boxShadow: DesignTokens.shadowLight,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: DesignTokens.elevation1,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -1144,7 +1185,13 @@ class _UserActionsModalState extends State<_UserActionsModal>
           color: Theme.of(context).dividerColor,
           width: 0.5,
         ),
-        boxShadow: DesignTokens.shadowLight,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: DesignTokens.elevation1,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1180,14 +1227,14 @@ class _UserActionsModalState extends State<_UserActionsModal>
                         color: Theme.of(context)
                             .colorScheme
                             .primary
-                            .withOpacity(0.1),
+                            .withValues(alpha: 0.1),
                         borderRadius:
                             BorderRadius.circular(DesignTokens.radiusSM),
                         border: Border.all(
                           color: Theme.of(context)
                               .colorScheme
                               .primary
-                              .withOpacity(0.2),
+                              .withValues(alpha: 0.2),
                           width: 0.5,
                         ),
                       ),
@@ -1364,7 +1411,7 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
       await sonarController.sendWave(targetUidShort);
 
       if (!mounted) return;
-      Navigator.pop(widget.modalContext);
+      Navigator.of(context).pop();
       widget.onWaveAnimation();
       showIslandPopup(
           context: context, message: "Wave sent!", icon: Icons.waving_hand);
@@ -1395,7 +1442,7 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
         );
 
         if (!mounted) return;
-        Navigator.pop(widget.modalContext);
+        Navigator.of(context).pop();
         showIslandPopup(
             context: context,
             message: "Friend request queued for sync!",
@@ -1407,7 +1454,7 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
 
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
-      Navigator.pop(widget.modalContext);
+      Navigator.of(context).pop();
       showIslandPopup(
           context: context,
           message: "Friend request sent!",
@@ -1548,15 +1595,23 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
               decoration: BoxDecoration(
                 color: isOnline
                     ? Theme.of(context).cardColor
-                    : Theme.of(context).dividerColor.withOpacity(0.3),
+                    : Theme.of(context).dividerColor.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
                 border: Border.all(
                   color: isOnline
                       ? Theme.of(context).dividerColor
-                      : Theme.of(context).dividerColor.withOpacity(0.3),
+                      : Theme.of(context).dividerColor.withValues(alpha: 0.3),
                   width: 0.5,
                 ),
-                boxShadow: isOnline ? DesignTokens.shadowLight : null,
+                boxShadow: isOnline
+                    ? [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: DesignTokens.elevation1,
+                          offset: const Offset(0, 1),
+                        ),
+                      ]
+                    : null,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1569,8 +1624,10 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
                           ? Theme.of(context)
                               .colorScheme
                               .primary
-                              .withOpacity(0.1)
-                          : Theme.of(context).dividerColor.withOpacity(0.3),
+                              .withValues(alpha: 0.1)
+                          : Theme.of(context)
+                              .dividerColor
+                              .withValues(alpha: 0.3),
                       shape: BoxShape.circle,
                     ),
                     child: Stack(
@@ -1654,16 +1711,24 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
               padding: const EdgeInsets.all(DesignTokens.spaceMD),
               decoration: BoxDecoration(
                 color: isDisabled
-                    ? theme.dividerColor.withOpacity(0.3)
+                    ? theme.dividerColor.withValues(alpha: 0.3)
                     : theme.cardColor,
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
                 border: Border.all(
                   color: isDisabled
-                      ? theme.dividerColor.withOpacity(0.3)
+                      ? theme.dividerColor.withValues(alpha: 0.3)
                       : theme.dividerColor,
                   width: 0.5,
                 ),
-                boxShadow: isDisabled ? null : DesignTokens.shadowLight,
+                boxShadow: isDisabled
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: DesignTokens.elevation1,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1681,8 +1746,8 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
                     showLabel:
                         false, // We'll add the label separately to match original layout
                     backgroundColor: isDisabled
-                        ? theme.dividerColor.withOpacity(0.3)
-                        : theme.colorScheme.primary.withOpacity(0.1),
+                        ? theme.dividerColor.withValues(alpha: 0.3)
+                        : theme.colorScheme.primary.withValues(alpha: 0.1),
                     color: isDisabled
                         ? Colors.grey[500]
                         : theme.colorScheme.primary,

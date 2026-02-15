@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui'; // Added for AppLifecycleState
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -54,7 +55,6 @@ class WebRTCService {
   // --- Session State ---
   String? _roomId;
   Timer? _watchdogTimer;
-  bool _isDisposed = false;
 
   // Track partner for history
   String? _currentPartnerId;
@@ -275,7 +275,7 @@ class WebRTCService {
     });
 
     _socket?.on('offer', (data) async {
-      debugPrint('📡 [SIGNALING] Received Remote Offer from: ${_roomId}');
+      debugPrint('📡 [SIGNALING] Received Remote Offer from: $_roomId');
 
       // Signaling Guard: Unless waiting, don't just kill it.
       if (_peerConnection != null &&
@@ -653,7 +653,7 @@ class WebRTCService {
 
             if (payloads.contains(vp8Payload)) {
               payloads.remove(vp8Payload);
-              payloads.insert(0, vp8Payload!);
+              payloads.insert(0, vp8Payload);
               newLines.add('$prefix ${payloads.join(' ')}');
               modified = true;
             } else {
@@ -676,22 +676,50 @@ class WebRTCService {
 
   void _startWatchdog() {
     _watchdogTimer?.cancel();
-    _watchdogTimer = Timer(const Duration(seconds: 5), () {
+    // Task 1: 10-second production-grade watchdog
+    _watchdogTimer = Timer(const Duration(seconds: 10), () {
       debugPrint('🐕 [WEBRTC_WATCHDOG] Watchdog timeout triggered');
 
       final currentState = _peerConnection?.connectionState;
       if (currentState !=
           RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
-        debugPrint('🐕 [WEBRTC_WATCHDOG] Connection not established. Retry.');
+        debugPrint(
+            '🐕 [WEBRTC_WATCHDOG] Connection failed to reach connected state within 10s. Triggering recovery.');
+
+        // Task 1: Automatic cleanup and notify UI
+        _cleanupSession();
+
         if (!_messageStreamController.isClosed) {
-          _messageStreamController
-              .add("Connection unstable. Finding a better match...");
+          _messageStreamController.add(
+            "Network unstable, searching for a new match", // Matches requested string
+          );
         }
-        Future.delayed(const Duration(seconds: 1), () {
-          nextMatch();
+
+        // Auto-restart search after recovery
+        Future.delayed(const Duration(seconds: 2), () {
+          startRandomSearch();
         });
       }
     });
+  }
+
+  /// Task 1: Background Persistence Lifecycle Handler
+  /// Pauses camera when app is inactive/paused to prevent hardware lock-up
+  void handleAppLifecycleState(AppLifecycleState state) {
+    if (_localStream == null) return;
+
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      debugPrint(
+          '📷 [WEBRTC_LIFECYCLE] Pausing camera for background state: $state');
+      _localStream!.getVideoTracks().forEach((track) => track.enabled = false);
+    } else if (state == AppLifecycleState.resumed) {
+      debugPrint('📷 [WEBRTC_LIFECYCLE] Resuming camera for foreground state');
+      // Only resume if the user hadn't manually turned it off
+      _localStream!
+          .getVideoTracks()
+          .forEach((track) => track.enabled = _isCameraOn);
+    }
   }
 
   void _cleanupSession() {
@@ -717,7 +745,6 @@ class WebRTCService {
   }
 
   void dispose() {
-    _isDisposed = true;
     _cleanupSession();
 
     _localStream?.getTracks().forEach((track) => track.stop());

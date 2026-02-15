@@ -115,12 +115,14 @@ class BluetoothStatusService {
     }
 
     // Always log adapter on/off changes
-    if (from == NearbyStatus.adapterOff || to == NearbyStatus.adapterOff)
+    if (from == NearbyStatus.adapterOff || to == NearbyStatus.adapterOff) {
       return true;
+    }
 
     // Always log scanning state changes
-    if (from == NearbyStatus.scanning || to == NearbyStatus.scanning)
+    if (from == NearbyStatus.scanning || to == NearbyStatus.scanning) {
       return true;
+    }
 
     // Always log user found state
     if (to == NearbyStatus.userFound) return true;

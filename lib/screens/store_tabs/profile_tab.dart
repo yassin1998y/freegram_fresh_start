@@ -9,7 +9,6 @@ class ProfileTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final profileRepository = locator<ProfileRepository>();
     final userId = FirebaseAuth.instance.currentUser?.uid;
 
     if (userId == null) {
@@ -200,10 +199,12 @@ class _ProfileItemCard extends StatelessWidget {
       try {
         await locator<ProfileRepository>()
             .equipProfileItem(userId, item.id, item.type);
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Equipped ${item.name}!")),
         );
       } catch (e) {
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Failed to equip: $e")),
         );
@@ -229,6 +230,7 @@ class _ProfileItemCard extends StatelessWidget {
       );
 
       if (confirm == true) {
+        if (!context.mounted) return;
         try {
           // Show loading
           showDialog(
@@ -241,17 +243,21 @@ class _ProfileItemCard extends StatelessWidget {
           await locator<ProfileRepository>()
               .purchaseProfileItem(userId, item.id);
 
+          if (!context.mounted) return;
           // Hide loading
           Navigator.pop(context);
 
+          if (!context.mounted) return;
           // Show success
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("Successfully purchased ${item.name}!")),
           );
         } catch (e) {
+          if (!context.mounted) return;
           // Hide loading
           Navigator.pop(context);
 
+          if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("Purchase failed: $e")),
           );

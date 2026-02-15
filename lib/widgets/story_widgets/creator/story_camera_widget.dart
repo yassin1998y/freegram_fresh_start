@@ -181,7 +181,7 @@ class _VideoRecordButton extends StatelessWidget {
             width: DesignTokens.elevation1,
           ),
           color: isRecording
-              ? recordingColor.withOpacity(DesignTokens.opacityMedium)
+              ? recordingColor.withValues(alpha: DesignTokens.opacityMedium)
               : Colors.transparent,
         ),
         child: Icon(
@@ -209,7 +209,7 @@ class _RecordingIndicator extends StatelessWidget {
           horizontal: DesignTokens.spaceMD,
         ),
         decoration: BoxDecoration(
-          color: theme.colorScheme.error.withOpacity(DesignTokens.opacityHigh),
+          color: theme.colorScheme.error.withValues(alpha: DesignTokens.opacityHigh),
           borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
         ),
         child: Text(

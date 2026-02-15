@@ -61,10 +61,10 @@ class _HistoryTabState extends State<HistoryTab> {
   }
 
   Widget _buildEmptyState() {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
+        children: [
           Icon(Icons.history_toggle_off, size: 80, color: Colors.white24),
           SizedBox(height: 16),
           Text(

@@ -62,9 +62,20 @@ class _LoungeTabState extends State<LoungeTab> {
 
           // 2. Grid Content
           if (_isLoading)
-            const SliverFillRemaining(
-              child: Center(
-                  child: CircularProgressIndicator(color: Colors.deepPurple)),
+            SliverPadding(
+              padding: const EdgeInsets.all(8.0),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 0.75,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => const UserGridItemSkeleton(),
+                  childCount: 6,
+                ),
+              ),
             )
           else
             SliverPadding(
@@ -72,16 +83,19 @@ class _LoungeTabState extends State<LoungeTab> {
               sliver: SliverGrid(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  childAspectRatio: 0.75, // Taller cards
+                  childAspectRatio: 0.75,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
                 ),
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final user = _users[index];
-                    return UserGridItem(
-                      user: user,
-                      onTap: widget.onUserTap,
+                    return _StaggeredEntryItem(
+                      index: index,
+                      child: UserGridItem(
+                        user: user,
+                        onTap: widget.onUserTap,
+                      ),
                     );
                   },
                   childCount: _users.length,
@@ -89,6 +103,55 @@ class _LoungeTabState extends State<LoungeTab> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _StaggeredEntryItem extends StatefulWidget {
+  final int index;
+  final Widget child;
+  const _StaggeredEntryItem({required this.index, required this.child});
+  @override
+  State<_StaggeredEntryItem> createState() => _StaggeredEntryItemState();
+}
+
+class _StaggeredEntryItemState extends State<_StaggeredEntryItem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fade;
+  late Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 400));
+    _fade = Tween<double>(begin: 0.0, end: 1.0)
+        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    _slide = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+
+    // Staggered Delay (Cap for scrolling performance)
+    int delay = (widget.index < 12 ? widget.index : 2) * 50;
+    Future.delayed(Duration(milliseconds: delay), () {
+      if (mounted) _controller.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        child: widget.child,
       ),
     );
   }

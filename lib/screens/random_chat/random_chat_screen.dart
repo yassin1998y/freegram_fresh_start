@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +9,7 @@ import 'package:freegram/blocs/interaction/interaction_bloc.dart';
 import 'package:freegram/screens/random_chat/match_tab.dart';
 import 'package:freegram/screens/random_chat/lounge_tab.dart';
 import 'package:freegram/screens/random_chat/history_tab.dart';
+import 'package:freegram/utils/memory_manager.dart';
 
 class RandomChatScreen extends StatefulWidget {
   const RandomChatScreen({super.key});
@@ -18,7 +18,8 @@ class RandomChatScreen extends StatefulWidget {
   State<RandomChatScreen> createState() => _RandomChatScreenState();
 }
 
-class _RandomChatScreenState extends State<RandomChatScreen> {
+class _RandomChatScreenState extends State<RandomChatScreen>
+    with GlobalMemoryManager {
   int _currentIndex = 1; // Default to 'Match' tab
 
   @override
@@ -29,6 +30,7 @@ class _RandomChatScreenState extends State<RandomChatScreen> {
 
   @override
   void dispose() {
+    evictResources(); // Task 3: Aggressive eviction when leaving Random Chat
     _disableSecureMode();
     super.dispose();
   }
@@ -55,7 +57,7 @@ class _RandomChatScreenState extends State<RandomChatScreen> {
   }
 
   void _showAdminDialog(BuildContext context) {
-    final TextEditingController _passwordController = TextEditingController();
+    final TextEditingController passwordController = TextEditingController();
 
     showDialog(
       context: context,
@@ -65,7 +67,7 @@ class _RandomChatScreenState extends State<RandomChatScreen> {
           title:
               const Text("Admin Access", style: TextStyle(color: Colors.white)),
           content: TextField(
-            controller: _passwordController,
+            controller: passwordController,
             obscureText: true,
             style: const TextStyle(color: Colors.white),
             decoration: const InputDecoration(
@@ -84,7 +86,7 @@ class _RandomChatScreenState extends State<RandomChatScreen> {
             ),
             TextButton(
               onPressed: () {
-                if (_passwordController.text == "Morph1998@") {
+                if (passwordController.text == "Morph1998@") {
                   context.read<RandomChatBloc>().add(InitializeGatedScreen());
                   Navigator.pop(dialogContext);
                   ScaffoldMessenger.of(context).showSnackBar(

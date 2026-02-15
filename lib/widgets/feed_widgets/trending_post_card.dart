@@ -71,7 +71,7 @@ class TrendingPostCard extends StatelessWidget {
                           end: Alignment.bottomCenter,
                           colors: [
                             Colors.transparent,
-                            Colors.black.withOpacity(0.7),
+                            Colors.black.withValues(alpha: 0.7),
                           ],
                         ),
                       ),
@@ -144,7 +144,7 @@ class TrendingPostCard extends StatelessWidget {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.9),
+                        color: Colors.orange.withValues(alpha: 0.9),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Row(
@@ -256,7 +256,7 @@ class TrendingPostCard extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha: 0.5),
             ),
             padding: const EdgeInsets.all(12),
             child: const Icon(
@@ -327,7 +327,7 @@ class TrendingPostCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color:
-                        theme.colorScheme.onPrimaryContainer.withOpacity(0.3),
+                        theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.3),
                   ),
                   child: Icon(
                     Icons.person,

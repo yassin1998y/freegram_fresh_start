@@ -89,14 +89,14 @@ class _GiftSentBannerState extends State<GiftSentBanner>
                   borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
                   boxShadow: [
                     BoxShadow(
-                      color: rarityColor.withOpacity(0.5),
+                      color: rarityColor.withValues(alpha: 0.5),
                       blurRadius: 20,
                       offset: const Offset(0, 8),
                       spreadRadius: 2,
                     ),
                   ],
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.3),
+                    color: Colors.white.withValues(alpha: 0.3),
                     width: 1.5,
                   ),
                 ),
@@ -108,10 +108,10 @@ class _GiftSentBannerState extends State<GiftSentBanner>
                       width: 60,
                       height: 60,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.5),
+                          color: Colors.white.withValues(alpha: 0.5),
                           width: 2,
                         ),
                       ),
@@ -157,7 +157,7 @@ class _GiftSentBannerState extends State<GiftSentBanner>
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.2),
+                                color: Colors.black.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -173,7 +173,7 @@ class _GiftSentBannerState extends State<GiftSentBanner>
                             Text(
                               formattedTime,
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
+                                color: Colors.white.withValues(alpha: 0.9),
                                 fontSize: DesignTokens.fontSizeXS,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -188,7 +188,7 @@ class _GiftSentBannerState extends State<GiftSentBanner>
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(

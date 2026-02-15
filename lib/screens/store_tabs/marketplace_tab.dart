@@ -199,6 +199,8 @@ class _ListingCard extends StatelessWidget {
     );
 
     if (confirm == true) {
+      if (!context.mounted) return;
+
       try {
         showDialog(
           context: context,
@@ -210,12 +212,18 @@ class _ListingCard extends StatelessWidget {
         await locator<MarketplaceRepository>()
             .purchaseListing(currentUserId, listing.id);
 
+        if (!context.mounted) return;
         Navigator.pop(context); // Hide loading
+
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Purchase successful!")),
         );
       } catch (e) {
+        if (!context.mounted) return;
         Navigator.pop(context); // Hide loading
+
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Purchase failed: $e")),
         );
@@ -246,10 +254,13 @@ class _ListingCard extends StatelessWidget {
       try {
         await locator<MarketplaceRepository>()
             .cancelListing(currentUserId, listing.id);
+
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Listing cancelled.")),
         );
       } catch (e) {
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Failed to cancel: $e")),
         );

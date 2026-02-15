@@ -102,7 +102,7 @@ class _MyReelsTabState extends State<MyReelsTab> {
                       Icon(
                         Icons.video_library_outlined,
                         color: Colors.white
-                            .withOpacity(DesignTokens.opacityMedium),
+                            .withValues(alpha: DesignTokens.opacityMedium),
                         size: DesignTokens.iconXXL * 1.6,
                       ),
                       const SizedBox(height: DesignTokens.spaceMD),
@@ -110,7 +110,7 @@ class _MyReelsTabState extends State<MyReelsTab> {
                         'No reels yet',
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: Colors.white
-                              .withOpacity(DesignTokens.opacityHigh),
+                              .withValues(alpha: DesignTokens.opacityHigh),
                         ),
                       ),
                       const SizedBox(height: DesignTokens.spaceSM),
@@ -118,7 +118,7 @@ class _MyReelsTabState extends State<MyReelsTab> {
                         'Tap the + button to create your first reel',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: Colors.white
-                              .withOpacity(DesignTokens.opacityMedium),
+                              .withValues(alpha: DesignTokens.opacityMedium),
                         ),
                       ),
                     ],
@@ -194,7 +194,7 @@ class _ReelGridItem extends StatelessWidget {
                   vertical: DesignTokens.spaceXS / 2,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(DesignTokens.opacityHigh),
+                  color: Colors.black.withValues(alpha: DesignTokens.opacityHigh),
                   borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
                 ),
                 child: Row(

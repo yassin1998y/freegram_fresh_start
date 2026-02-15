@@ -396,10 +396,10 @@ class _PostVideoPlayerState extends State<PostVideoPlayer> {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Colors.black.withOpacity(0.3),
+            Colors.black.withValues(alpha: 0.3),
             Colors.transparent,
             Colors.transparent,
-            Colors.black.withOpacity(0.5),
+            Colors.black.withValues(alpha: 0.5),
           ],
         ),
       ),

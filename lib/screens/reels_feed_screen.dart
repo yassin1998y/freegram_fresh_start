@@ -2,6 +2,7 @@
 // Facebook Reels-style full-screen video feed
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/reels_feed/reels_feed_bloc.dart';
 import 'package:freegram/blocs/reels_feed/reels_feed_event.dart';
@@ -16,6 +17,7 @@ import 'package:freegram/services/media_prefetch_service.dart';
 import 'package:freegram/services/reel_upload_service.dart';
 import 'package:freegram/services/reels_feed_state_service.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/utils/memory_manager.dart';
 
 class ReelsFeedScreen extends StatefulWidget {
   final String? initialReelId; // Optional: navigate to specific reel
@@ -29,7 +31,8 @@ class ReelsFeedScreen extends StatefulWidget {
   State<ReelsFeedScreen> createState() => _ReelsFeedScreenState();
 }
 
-class _ReelsFeedScreenState extends State<ReelsFeedScreen> {
+class _ReelsFeedScreenState extends State<ReelsFeedScreen>
+    with GlobalMemoryManager {
   late PageController _pageController;
   int _currentIndex = 0;
   late MediaPrefetchService _prefetchService;
@@ -98,7 +101,7 @@ class _ReelsFeedScreenState extends State<ReelsFeedScreen> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: true,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, result) {
         // PopScope handles device back button automatically
         // No action needed - just let it pop
       },
@@ -237,6 +240,7 @@ class _ReelsFeedScreenState extends State<ReelsFeedScreen> {
                             reel: reel,
                             isCurrentReel: isCurrentReel,
                             prefetchService: _prefetchService,
+                            showSwipeHint: index == 0,
                           ),
                         );
                       },
@@ -250,6 +254,9 @@ class _ReelsFeedScreenState extends State<ReelsFeedScreen> {
                     ),
                     onPageChanged: (index) {
                       final bloc = context.read<ReelsFeedBloc>();
+
+                      // Task 3: Haptic feedback on swipe
+                      HapticFeedback.lightImpact();
 
                       // Phase 4.1: Calculate scroll velocity
                       final now = DateTime.now();
@@ -289,6 +296,11 @@ class _ReelsFeedScreenState extends State<ReelsFeedScreen> {
 
                       // Update current index
                       setState(() => _currentIndex = index);
+
+                      // Task 3: Heavy haptic at end of feed
+                      if (index == state.reels.length - 1 && !state.hasMore) {
+                        HapticFeedback.heavyImpact();
+                      }
 
                       // Phase 4.1: Intelligent prefetch with velocity and play state
                       _prefetchService.prefetchReelsVideos(

@@ -21,8 +21,9 @@ import 'package:freegram/widgets/feed_widgets/suggestion_carousel.dart';
 import 'package:freegram/repositories/post_repository.dart';
 import 'package:freegram/repositories/user_repository.dart';
 import 'package:freegram/locator.dart';
-import 'package:freegram/screens/page_profile_screen.dart';
 import 'package:freegram/screens/profile_screen.dart';
+import 'package:freegram/screens/page_profile_screen.dart';
+import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/screens/report_screen.dart';
 import 'package:freegram/models/report_model.dart';
 import 'package:freegram/screens/boost_post_screen.dart';
@@ -32,6 +33,7 @@ import 'package:freegram/services/mention_service.dart';
 import 'package:freegram/screens/hashtag_explore_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/screens/gift_send_selection_screen.dart'; // Import GiftSendSelectionScreen
+import 'package:freegram/theme/app_theme.dart';
 
 class PostCard extends StatefulWidget {
   final FeedItem item;
@@ -121,13 +123,21 @@ class _PostCardState extends State<PostCard> {
     PostModel post,
     PostDisplayType displayType,
   ) {
-    return Card(
+    return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: SonarPulseTheme.darkSurface,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+        border: Border.all(
+          color: const Color(0xFF2A2A2C),
+          width: 1.0,
+        ),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // HEADER - Using refined padding
+          // HEADER
           Padding(
             padding: const EdgeInsets.all(DesignTokens.postHeaderPadding),
             child: PostHeader(
@@ -137,12 +147,10 @@ class _PostCardState extends State<PostCard> {
               onProfileTap: () => _navigateToProfile(context, post),
               onMenuSelected: (value) =>
                   _handleMenuAction(context, post, value),
-              onBoostTap: null, // Moved to footer
-              onInsightsTap: null, // Moved to footer
             ),
           ),
 
-          // CAPTION (moved to top, before media)
+          // CAPTION
           if (post.content.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(
@@ -152,36 +160,51 @@ class _PostCardState extends State<PostCard> {
               child: _buildCaption(context),
             ),
 
-          // MEDIA (wrapped in RepaintBoundary to isolate repaints)
-          // Full-width, no padding
+          // MEDIA + FLOATING ACTIONS
           if (post.mediaItems.isNotEmpty || post.mediaUrls.isNotEmpty)
-            RepaintBoundary(
-              child: PostMedia(
-                post: post,
-                loadMedia: widget.loadMedia,
-                isVisible: widget.isVisible,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              child: Stack(
+                alignment: Alignment.bottomCenter,
+                children: [
+                  // MEDIA with nested radius 12px
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12.0),
+                    child: RepaintBoundary(
+                      child: PostMedia(
+                        post: post,
+                        loadMedia: widget.loadMedia,
+                        isVisible: widget.isVisible,
+                      ),
+                    ),
+                  ),
+
+                  // FLOATING GLASS ACTIONS
+                  Positioned(
+                    bottom: 12,
+                    left: 12,
+                    right: 12,
+                    child: PostActions(
+                      post: post,
+                      onReactionCountChanged: _onReactionCountChanged,
+                      onGiftTap: () => _navigateToGiftSelection(context, post),
+                      isFloating: true,
+                    ),
+                  ),
+                ],
               ),
             ),
 
-          // ACTIONS - Using refined padding
-          Padding(
-            padding: const EdgeInsets.all(DesignTokens.postActionsPadding),
-            child: PostActions(
-              post: post,
-              onReactionCountChanged: _onReactionCountChanged,
-              onGiftTap: () => _navigateToGiftSelection(context, post),
-            ),
-          ),
-
-          // FOOTER (engagement stats only, caption moved to top)
+          // FOOTER (engagement stats only)
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: DesignTokens.postCaptionPadding,
+              vertical: DesignTokens.spaceSM,
             ),
             child: PostFooter(
               post: post,
               reactionCount: _localReactionCount,
-              showCaption: false, // Caption is now at top
+              showCaption: false,
               onBoostTap: () => _navigateToBoostPost(context, post),
               onInsightsTap: () => _navigateToBoostInsights(context, post),
             ),
@@ -196,20 +219,11 @@ class _PostCardState extends State<PostCard> {
   }
 
   void _navigateToProfile(BuildContext context, PostModel post) {
+    final navigationService = locator<NavigationService>();
     if (post.pageId != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PageProfileScreen(pageId: post.pageId!),
-        ),
-      );
+      navigationService.navigateTo(PageProfileScreen(pageId: post.pageId!));
     } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ProfileScreen(userId: post.authorId),
-        ),
-      );
+      navigationService.navigateTo(ProfileScreen(userId: post.authorId));
     }
   }
 
@@ -315,24 +329,18 @@ class _PostCardState extends State<PostCard> {
   }
 
   void _reportPost(BuildContext context, PostModel post) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ReportScreen(
-          contentType: ReportContentType.post,
-          contentId: post.id,
-        ),
+    locator<NavigationService>().navigateTo(
+      ReportScreen(
+        contentType: ReportContentType.post,
+        contentId: post.id,
       ),
     );
   }
 
   void _navigateToBoostPost(BuildContext context, PostModel post) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => BoostPostScreen(post: post),
-      ),
-    ).then((boosted) {
+    locator<NavigationService>()
+        .navigateTo(BoostPostScreen(post: post))
+        .then((boosted) {
       if (boosted == true && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -345,12 +353,7 @@ class _PostCardState extends State<PostCard> {
   }
 
   void _navigateToBoostInsights(BuildContext context, PostModel post) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => BoostAnalyticsScreen(post: post),
-      ),
-    );
+    locator<NavigationService>().navigateTo(BoostAnalyticsScreen(post: post));
   }
 
   void _navigateToGiftSelection(BuildContext context, PostModel post) async {
@@ -358,11 +361,8 @@ class _PostCardState extends State<PostCard> {
     final author = await currentUserRef.getUser(post.authorId);
 
     if (context.mounted) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => GiftSendSelectionScreen(recipient: author),
-        ),
+      locator<NavigationService>().navigateTo(
+        GiftSendSelectionScreen(recipient: author),
       );
     }
   }
@@ -391,23 +391,15 @@ class _PostCardState extends State<PostCard> {
         fontWeight: FontWeight.w500,
       ),
       onHashtagTap: (hashtag) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => HashtagExploreScreen(hashtag: hashtag),
-          ),
-        );
+        locator<NavigationService>()
+            .navigateTo(HashtagExploreScreen(hashtag: hashtag));
       },
       onMentionTap: (username) async {
         final userRepository = locator<UserRepository>();
         final user = await userRepository.getUserByUsername(username);
         if (user != null && context.mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ProfileScreen(userId: user.id),
-            ),
-          );
+          locator<NavigationService>()
+              .navigateTo(ProfileScreen(userId: user.id));
         } else if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('User @$username not found')),

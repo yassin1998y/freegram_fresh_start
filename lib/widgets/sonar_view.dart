@@ -118,7 +118,7 @@ class SonarPainter extends CustomPainter {
     required this.secondaryColor,
     required this.discoveryColor,
   })  : _sonarPaint = Paint()
-          ..color = primaryColor.withOpacity(0.5)
+          ..color = primaryColor.withValues(alpha: 0.5)
           ..style = PaintingStyle.stroke,
         super(
             repaint: Listenable.merge(
@@ -132,14 +132,14 @@ class SonarPainter extends CustomPainter {
     // Draw static circles
     for (int i = 1; i <= 3; i++) {
       _sonarPaint.strokeWidth = 1.0;
-      _sonarPaint.color = primaryColor.withOpacity(0.3);
+      _sonarPaint.color = primaryColor.withValues(alpha: 0.3);
       canvas.drawCircle(center, maxRadius * (i / 3), _sonarPaint);
     }
 
     // Draw scanning pulse
     if (sonarAnimation.value > 0) {
       _sonarPaint.strokeWidth = 2.5;
-      _sonarPaint.color = primaryColor.withOpacity(1.0 - sonarAnimation.value);
+      _sonarPaint.color = primaryColor.withValues(alpha: 1.0 - sonarAnimation.value);
       canvas.drawCircle(center, maxRadius * sonarAnimation.value, _sonarPaint);
     }
 
@@ -147,7 +147,7 @@ class SonarPainter extends CustomPainter {
     if (unleashAnimation.value > 0) {
       _sonarPaint.strokeWidth = 4.0;
       _sonarPaint.color =
-          secondaryColor.withOpacity(1.0 - unleashAnimation.value);
+          secondaryColor.withValues(alpha: 1.0 - unleashAnimation.value);
       canvas.drawCircle(
           center, maxRadius * unleashAnimation.value, _sonarPaint);
     }
@@ -156,7 +156,7 @@ class SonarPainter extends CustomPainter {
     if (discoveryAnimation.value > 0) {
       _sonarPaint.strokeWidth = 5.0;
       _sonarPaint.color =
-          discoveryColor.withOpacity(1.0 - discoveryAnimation.value);
+          discoveryColor.withValues(alpha: 1.0 - discoveryAnimation.value);
       canvas.drawCircle(
           center, maxRadius * discoveryAnimation.value, _sonarPaint);
     }

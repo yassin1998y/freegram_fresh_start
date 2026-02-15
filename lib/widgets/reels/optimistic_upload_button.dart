@@ -103,7 +103,7 @@ class OptimisticUploadButton extends StatelessWidget {
         width: width ?? double.infinity,
         height: height ?? DesignTokens.buttonHeight,
         decoration: BoxDecoration(
-          color: SonarPulseTheme.primaryAccent.withOpacity(0.1),
+          color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
           border: Border.all(
             color: SonarPulseTheme.primaryAccent,

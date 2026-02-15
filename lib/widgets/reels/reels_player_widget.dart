@@ -24,17 +24,20 @@ import 'package:freegram/services/network_quality_service.dart';
 import 'package:freegram/services/cache_manager_service.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:freegram/blocs/reels_feed/reels_feed_state.dart';
+import 'package:lottie/lottie.dart';
 
 class ReelsPlayerWidget extends StatefulWidget {
   final ReelModel reel;
   final bool isCurrentReel;
   final MediaPrefetchService prefetchService;
+  final bool showSwipeHint;
 
   const ReelsPlayerWidget({
     Key? key,
     required this.reel,
     required this.isCurrentReel,
     required this.prefetchService,
+    this.showSwipeHint = false,
   }) : super(key: key);
 
   @override
@@ -78,8 +81,9 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
     _networkService = locator<NetworkQualityService>();
     _cacheService = locator<CacheManagerService>();
 
-    // Set initial quality
-    _currentQuality = _networkService.currentQuality;
+    // Set initial quality with buffer capping for Task 3
+    _currentQuality =
+        _getAdjustedNetworkQuality(_networkService.currentQuality);
 
     _initializeVideo(initialQuality: _currentQuality!);
     _checkLikeStatus();
@@ -87,16 +91,17 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
     // CRITICAL FIX: Listen to network quality changes with proper cancellation
     _networkSubscription = _networkService.qualityStream.listen(
       (newQuality) {
+        final adjustedQuality = _getAdjustedNetworkQuality(newQuality);
         // Early return if widget is disposed, switching, or not current
         if (_isSwitchingQuality || !mounted || _videoController == null) return;
         if (!widget.isCurrentReel) return; // Only switch if currently visible
 
         // Check if a quality switch is necessary
-        if (newQuality != _currentQuality &&
-            _shouldSwitchQuality(_currentQuality!, newQuality)) {
+        if (adjustedQuality != _currentQuality &&
+            _shouldSwitchQuality(_currentQuality!, adjustedQuality)) {
           debugPrint(
-              'ReelsPlayerWidget: Network change detected! Switching from $_currentQuality to $newQuality');
-          _switchVideoQuality(newQuality);
+              'ReelsPlayerWidget: Network change detected! Switching to $adjustedQuality (Network: $newQuality)');
+          _switchVideoQuality(adjustedQuality);
         }
       },
       onError: (error) {
@@ -661,46 +666,6 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
     super.dispose();
   }
 
-  void _handleVisibilityChanged(VisibilityInfo info) {
-    // Phase 1.1: Aggressive disposal - dispose if less than 10% visible (far off-screen)
-    // CRITICAL FIX: Only handle visibility if widget is not current reel (disposal handled by didUpdateWidget)
-    if (info.visibleFraction < 0.1 &&
-        _videoController != null &&
-        !widget.isCurrentReel) {
-      debugPrint(
-          'ReelsPlayerWidget: Disposing controller for far off-screen reel ${widget.reel.reelId} (visibility: ${info.visibleFraction})');
-      _disposalTimer?.cancel();
-      // Use async disposal but don't await (fire and forget)
-      _disposeVideoImmediately();
-      return;
-    }
-
-    // Only handle play/pause if video is initialized
-    if (_videoController == null || !_isInitialized) return;
-
-    // Don't auto-play/pause if user manually paused
-    if (_isPaused && !widget.isCurrentReel) return;
-
-    // Play if visible and is current reel, pause otherwise
-    if (info.visibleFraction > 0.5 && widget.isCurrentReel) {
-      // Cancel any pending disposal if scrolled back on-screen
-      _disposalTimer?.cancel();
-
-      if (!_videoController!.value.isPlaying && !_isPaused) {
-        _videoController?.play();
-        if (mounted) {
-          setState(() {
-            _isPaused = false;
-          });
-        }
-      }
-    } else {
-      if (_videoController!.value.isPlaying) {
-        _videoController?.pause();
-      }
-    }
-  }
-
   void _handleLike() {
     HapticFeedback.mediumImpact(); // More important action gets medium impact
     final bloc = context.read<ReelsFeedBloc>();
@@ -853,7 +818,7 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
           child: Container(
             padding: const EdgeInsets.all(DesignTokens.spaceMD),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(DesignTokens.opacityMedium),
+              color: Colors.black.withValues(alpha: DesignTokens.opacityMedium),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -886,11 +851,7 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
           if (_isInitialized && _videoController != null) {
             if (shouldBePlaying && !isCurrentlyPlaying && !_isPaused) {
               _videoController?.play();
-              if (mounted) {
-                setState(() {
-                  _isPaused = false;
-                });
-              }
+              if (mounted) setState(() => _isPaused = false);
             } else if (!shouldBePlaying && isCurrentlyPlaying) {
               _videoController?.pause();
             }
@@ -913,6 +874,9 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
                 RepaintBoundary(
                   child: GestureDetector(
                     onTap: _handleVideoTap,
+                    onDoubleTapDown: (details) =>
+                        _handleDoubleTap(details.localPosition),
+                    onDoubleTap: () {}, // Handled by onDoubleTapDown
                     child: SizedBox.expand(
                       child: FittedBox(
                         fit: BoxFit.cover,
@@ -949,23 +913,27 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
                           children: [
                             Icon(
                               Icons.video_library_outlined,
-                              color: Colors.white.withOpacity(
-                                DesignTokens.opacityMedium,
-                              ),
+                              color: Colors.white.withValues(alpha: 0.5),
                               size: DesignTokens.iconXXL,
                             ),
                             const SizedBox(height: DesignTokens.spaceMD),
                             Text(
                               'No thumbnail available',
                               style: theme.textTheme.bodyMedium?.copyWith(
-                                color: Colors.white.withOpacity(
-                                  DesignTokens.opacityMedium,
-                                ),
+                                color: Colors.white.withValues(alpha: 0.5),
                               ),
                             ),
                           ],
                         ),
                       ),
+
+              // Heart Pop Animations
+              ..._hearts.map((heart) => _HeartAnim(
+                    key: ValueKey(heart.id),
+                    position: heart.position,
+                    onComplete: () => setState(
+                        () => _hearts.removeWhere((h) => h.id == heart.id)),
+                  )),
 
               // Play/pause indicator overlay
               _buildPlayPauseIndicator(),
@@ -981,10 +949,204 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
                   onProfileTap: _handleProfileTap,
                   currentUserId: FirebaseAuth.instance.currentUser?.uid,
                   onDelete: _handleDelete,
+                  progress: _videoController?.value.isInitialized == true
+                      ? _videoController!.value.position.inMilliseconds /
+                          _videoController!.value.duration.inMilliseconds
+                      : 0.0,
+                  onScrub: (value) {
+                    final duration = _videoController?.value.duration;
+                    if (duration != null) {
+                      _videoController?.seekTo(duration * value);
+                    }
+                  },
+                ),
+
+              // Swipe Up Hint (Lottie)
+              if (widget.showSwipeHint && _isInitialized)
+                Positioned(
+                  bottom: 120,
+                  left: 0,
+                  right: 0,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        height: 100,
+                        child: Lottie.network(
+                          'https://assets9.lottiefiles.com/packages/lf20_7limp2as.json',
+                          repeat: true,
+                        ),
+                      ),
+                      const Text(
+                        'Swipe up for more',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          shadows: [
+                            Shadow(color: Colors.black45, blurRadius: 4),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // HEART ANIMATION LOGIC
+  final List<_HeartPosition> _hearts = [];
+
+  void _handleDoubleTap(Offset position) {
+    if (!_isLiked) {
+      _handleLike();
+    }
+
+    HapticFeedback.heavyImpact(); // Task 3: Double tap gets heavy haptic
+
+    setState(() {
+      _hearts.add(_HeartPosition(
+        id: DateTime.now().millisecondsSinceEpoch,
+        position: position,
+      ));
+    });
+  }
+
+  // Task 1: Smart-Auto-Play (>80% visible)
+  void _handleVisibilityChanged(VisibilityInfo info) {
+    if (info.visibleFraction < 0.1 &&
+        _videoController != null &&
+        !widget.isCurrentReel) {
+      _disposeVideoImmediately();
+      return;
+    }
+
+    if (_videoController == null || !_isInitialized) return;
+    if (_isPaused && !widget.isCurrentReel) return;
+
+    // Task 1: auto-play only when >80% visible
+    if (info.visibleFraction > 0.8 && widget.isCurrentReel) {
+      _disposalTimer?.cancel();
+      if (!_videoController!.value.isPlaying && !_isPaused) {
+        _videoController?.play();
+        if (mounted) setState(() => _isPaused = false);
+      }
+    } else if (info.visibleFraction < 0.5) {
+      // Auto-pause when less than 50% visible (as requested: reset/pause move out of view)
+      if (_videoController!.value.isPlaying) {
+        _videoController?.pause();
+      }
+    }
+  }
+
+  /// Task 3: Adaptive Bitrate / Buffer Capping
+  /// Returns a quality level capped by current network conditions
+  NetworkQuality _getAdjustedNetworkQuality(NetworkQuality actualQuality) {
+    switch (actualQuality) {
+      case NetworkQuality.excellent:
+        return NetworkQuality.excellent; // Allow 1080p/4K
+      case NetworkQuality.good:
+        return NetworkQuality.good; // Allow High/720p
+      case NetworkQuality.fair:
+        // Cap at 'fair' (roughly 720p or lower)
+        return NetworkQuality.fair;
+      case NetworkQuality.poor:
+        // Strictly cap at 'poor' (360p/480p)
+        return NetworkQuality.poor;
+      case NetworkQuality.offline:
+        return NetworkQuality.poor;
+    }
+  }
+}
+
+class _HeartPosition {
+  final int id;
+  final Offset position;
+  _HeartPosition({required this.id, required this.position});
+}
+
+class _HeartAnim extends StatefulWidget {
+  final Offset position;
+  final VoidCallback onComplete;
+
+  const _HeartAnim({
+    Key? key,
+    required this.position,
+    required this.onComplete,
+  }) : super(key: key);
+
+  @override
+  State<_HeartAnim> createState() => _HeartAnimState();
+}
+
+class _HeartAnimState extends State<_HeartAnim>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scale;
+  late Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    _scale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.0, end: 1.2)
+            .chain(CurveTween(curve: Curves.elasticOut)),
+        weight: 40,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.2, end: 1.0),
+        weight: 60,
+      ),
+    ]).animate(_controller);
+
+    _opacity = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween<double>(begin: 0.0, end: 1.0), weight: 20),
+      TweenSequenceItem(tween: ConstantTween<double>(1.0), weight: 60),
+      TweenSequenceItem(tween: Tween<double>(begin: 1.0, end: 0.0), weight: 20),
+    ]).animate(_controller);
+
+    _controller.forward().then((_) => widget.onComplete());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: widget.position.dx - 50,
+      top: widget.position.dy - 50,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return Opacity(
+            opacity: _opacity.value,
+            child: Transform.scale(
+              scale: _scale.value,
+              child: const Icon(
+                Icons.favorite,
+                color: Colors.white,
+                size: 100,
+                shadows: [
+                  Shadow(color: Colors.black26, blurRadius: 20),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

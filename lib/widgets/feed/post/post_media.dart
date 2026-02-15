@@ -98,14 +98,15 @@ class _PostMediaState extends State<PostMedia>
           // Page indicator dots
           if (widget.post.mediaItems.length > 1)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSM),
+              padding:
+                  const EdgeInsets.symmetric(vertical: DesignTokens.spaceSM),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
                   widget.post.mediaItems.length,
                   (index) => Container(
-                    margin:
-                        const EdgeInsets.symmetric(horizontal: DesignTokens.spaceXS),
+                    margin: const EdgeInsets.symmetric(
+                        horizontal: DesignTokens.spaceXS),
                     width: DesignTokens.spaceSM,
                     height: DesignTokens.spaceSM,
                     decoration: BoxDecoration(
@@ -115,7 +116,7 @@ class _PostMediaState extends State<PostMedia>
                           : Theme.of(context)
                               .colorScheme
                               .onSurface
-                              .withOpacity(DesignTokens.opacityMedium),
+                              .withValues(alpha: DesignTokens.opacityMedium),
                     ),
                   ),
                 ),
@@ -255,8 +256,8 @@ class _PostMediaState extends State<PostMedia>
           begin: Alignment.bottomCenter,
           end: Alignment.topCenter,
           colors: [
-            Colors.black.withOpacity(0.7),
-            Colors.black.withOpacity(0.3),
+            Colors.black.withValues(alpha: 0.7),
+            Colors.black.withValues(alpha: 0.3),
             Colors.transparent,
           ],
         ),
@@ -341,7 +342,7 @@ class _PostMediaState extends State<PostMedia>
           child: Hero(
             tag: widget.post.mediaUrls.first,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+              borderRadius: BorderRadius.circular(12.0),
               child: SizedBox(
                 width: double.infinity,
                 height: 300,
@@ -391,7 +392,7 @@ class _PostMediaState extends State<PostMedia>
             child: Hero(
               tag: widget.post.mediaUrls[index],
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                borderRadius: BorderRadius.circular(12.0),
                 child: widget.loadMedia
                     ? LQIPImage(
                         imageUrl: widget.post.mediaUrls[index],

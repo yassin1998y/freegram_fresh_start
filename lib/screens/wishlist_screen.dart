@@ -92,7 +92,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: _getPriorityColor(item.priority).withOpacity(0.1),
+                color: _getPriorityColor(item.priority).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -223,9 +223,9 @@ class _WishlistScreenState extends State<WishlistScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         label,
@@ -330,8 +330,8 @@ class _WishlistScreenState extends State<WishlistScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setState) => AlertDialog(
           title: const Text('Edit Wishlist Item'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -372,7 +372,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
@@ -385,7 +385,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                       noteController.text.isEmpty ? null : noteController.text,
                 );
                 if (mounted) {
-                  Navigator.pop(context);
+                  Navigator.pop(dialogContext);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Updated!')),
                   );
@@ -421,19 +421,19 @@ class _WishlistScreenState extends State<WishlistScreen> {
   void _confirmDelete(WishlistItem item, String userId) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Remove from Wishlist?'),
         content: Text('Remove "${item.giftName}" from your wishlist?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
               await _giftRepo.removeFromWishlist(userId, item.id);
               if (mounted) {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Removed from wishlist')),
                 );

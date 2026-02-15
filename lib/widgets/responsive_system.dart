@@ -123,7 +123,7 @@ class ProfessionalGlassmorphicContainer extends StatelessWidget {
                 colors: gradientColors ?? DesignTokens.glassmorphicGradient.colors,
               ),
               border: border ?? Border.all(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 width: 1.5,
               ),
               boxShadow: boxShadow ?? DesignTokens.shadowMedium,
@@ -189,8 +189,8 @@ class _ProfessionalLoadingSkeletonState extends State<ProfessionalLoadingSkeleto
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final baseColor = widget.baseColor ?? theme.colorScheme.surface.withOpacity(0.3);
-    final highlightColor = widget.highlightColor ?? theme.colorScheme.surface.withOpacity(0.6);
+    final baseColor = widget.baseColor ?? theme.colorScheme.surface.withValues(alpha: 0.3);
+    final highlightColor = widget.highlightColor ?? theme.colorScheme.surface.withValues(alpha: 0.6);
     
     return AnimatedBuilder(
       animation: _animation,
@@ -259,15 +259,15 @@ class ProfessionalEmptyState extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    (iconColor ?? theme.colorScheme.primary).withOpacity(0.1),
-                    (iconColor ?? theme.colorScheme.primary).withOpacity(0.05),
+                    (iconColor ?? theme.colorScheme.primary).withValues(alpha: 0.1),
+                    (iconColor ?? theme.colorScheme.primary).withValues(alpha: 0.05),
                   ],
                 ),
               ),
               child: Icon(
                 icon,
                 size: DesignTokens.iconXXL,
-                color: iconColor ?? theme.colorScheme.primary.withOpacity(0.6),
+                color: iconColor ?? theme.colorScheme.primary.withValues(alpha: 0.6),
               ),
             ),
             
@@ -290,7 +290,7 @@ class ProfessionalEmptyState extends StatelessWidget {
             Text(
               subtitle,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityMedium),
+                color: theme.colorScheme.onSurface.withValues(alpha: DesignTokens.opacityMedium),
                 fontSize: DesignTokens.fontSizeMD,
                 height: DesignTokens.lineHeightNormal,
               ),

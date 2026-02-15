@@ -55,7 +55,7 @@ class ReelsFeedAppBar extends StatelessWidget implements PreferredSizeWidget {
                   vertical: DesignTokens.spaceXS,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(DesignTokens.opacityMedium),
+                  color: Colors.black.withValues(alpha: DesignTokens.opacityMedium),
                   borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
                 ),
                 child: Row(
@@ -66,7 +66,7 @@ class ReelsFeedAppBar extends StatelessWidget implements PreferredSizeWidget {
                       value: uploadService.uploadProgress,
                       strokeWidth: DesignTokens.elevation1,
                       color: SonarPulseTheme.primaryAccent,
-                      backgroundColor: Colors.white.withOpacity(
+                      backgroundColor: Colors.white.withValues(alpha: 
                         DesignTokens.opacityMedium * 0.5,
                       ),
                     ),

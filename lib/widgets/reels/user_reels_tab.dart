@@ -80,7 +80,7 @@ class UserReelsTab extends StatelessWidget {
                     children: [
                       Icon(
                         Icons.video_library_outlined,
-                        color: theme.colorScheme.onSurface.withOpacity(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 
                           DesignTokens.opacityMedium,
                         ),
                         size: DesignTokens.iconXXL * 1.6,
@@ -89,7 +89,7 @@ class UserReelsTab extends StatelessWidget {
                       Text(
                         'No reels yet',
                         style: theme.textTheme.titleMedium?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(
+                          color: theme.colorScheme.onSurface.withValues(alpha: 
                             DesignTokens.opacityHigh,
                           ),
                         ),
@@ -164,7 +164,7 @@ class _ReelGridItem extends StatelessWidget {
                   vertical: DesignTokens.spaceXS / 2,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(DesignTokens.opacityHigh),
+                  color: Colors.black.withValues(alpha: DesignTokens.opacityHigh),
                   borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
                 ),
                 child: Row(

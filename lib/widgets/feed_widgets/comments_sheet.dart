@@ -281,7 +281,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: theme.dividerColor.withOpacity(0.5),
+            color: theme.dividerColor.withValues(alpha: 0.5),
             width: 0.5,
           ),
         ),
@@ -302,7 +302,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                 vertical: DesignTokens.spaceXS,
               ),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.1),
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
               ),
               child: Text(
@@ -332,7 +332,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
           color: theme.scaffoldBackgroundColor,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 4,
               offset: const Offset(0, -2),
             ),
@@ -354,7 +354,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: theme.colorScheme.surface.withOpacity(0.5),
+                      fillColor: theme.colorScheme.surface.withValues(alpha: 0.5),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: DesignTokens.spaceMD,
                         vertical: DesignTokens.spaceSM,
@@ -439,7 +439,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                         Icon(
                           Icons.comment_outlined,
                           size: DesignTokens.iconXXL,
-                          color: theme.colorScheme.onSurface.withOpacity(
+                          color: theme.colorScheme.onSurface.withValues(alpha: 
                             DesignTokens.opacityMedium,
                           ),
                         ),
@@ -447,7 +447,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                         Text(
                           'No comments yet',
                           style: theme.textTheme.bodyLarge?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(
+                            color: theme.colorScheme.onSurface.withValues(alpha: 
                               DesignTokens.opacityMedium,
                             ),
                           ),
@@ -456,7 +456,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                         Text(
                           'Be the first to comment!',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(
+                            color: theme.colorScheme.onSurface.withValues(alpha: 
                               DesignTokens.opacityMedium,
                             ),
                           ),

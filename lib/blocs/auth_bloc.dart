@@ -236,6 +236,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(Unauthenticated());
       }
     });
+
+    on<AuthOnboarded>((event, emit) async {
+      final user = _firebaseAuth.currentUser;
+      if (user != null) {
+        // Confirm authentication state after successful onboarding
+        emit(Authenticated(user));
+        if (kDebugMode) {
+          debugPrint("AuthBloc: Handled AuthOnboarded for ${user.uid}");
+        }
+      }
+    });
   }
 
   @override

@@ -78,7 +78,7 @@ class _ShimmerChatSkeletonState extends State<ShimmerChatSkeleton>
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             width: 0.5,
           ),
         ),

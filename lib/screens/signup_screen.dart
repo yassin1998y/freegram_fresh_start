@@ -585,15 +585,18 @@ class _SignUpScreenState extends State<SignUpScreen>
                                         : Theme.of(context)
                                             .colorScheme
                                             .outline
-                                            .withOpacity(
-                                                DesignTokens.opacityMedium),
+                                            .withValues(
+                                                alpha:
+                                                    DesignTokens.opacityMedium),
                                     width: _usernameValidated ? 2 : 1,
                                   ),
                                 ),
                               ),
                               enabled: !isLoading,
-                              onFieldSubmitted: (_) =>
-                                  _emailFocusNode.requestFocus(),
+                              onFieldSubmitted: (_) => WidgetsBinding.instance
+                                  .addPostFrameCallback((_) {
+                                if (mounted) _emailFocusNode.requestFocus();
+                              }),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Username is required';
@@ -645,8 +648,9 @@ class _SignUpScreenState extends State<SignUpScreen>
                                         : Theme.of(context)
                                             .colorScheme
                                             .outline
-                                            .withOpacity(
-                                                DesignTokens.opacityMedium),
+                                            .withValues(
+                                                alpha:
+                                                    DesignTokens.opacityMedium),
                                     width: _emailValidated ? 2 : 1,
                                   ),
                                 ),
@@ -665,8 +669,10 @@ class _SignUpScreenState extends State<SignUpScreen>
                               ),
                               enabled: !isLoading,
                               // IMPROVEMENT #11: Validation on blur
-                              onFieldSubmitted: (_) =>
-                                  _passwordFocusNode.requestFocus(),
+                              onFieldSubmitted: (_) => WidgetsBinding.instance
+                                  .addPostFrameCallback((_) {
+                                if (mounted) _passwordFocusNode.requestFocus();
+                              }),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Email is required';
@@ -732,8 +738,9 @@ class _SignUpScreenState extends State<SignUpScreen>
                                         : Theme.of(context)
                                             .colorScheme
                                             .outline
-                                            .withOpacity(
-                                                DesignTokens.opacityMedium),
+                                            .withValues(
+                                                alpha:
+                                                    DesignTokens.opacityMedium),
                                     width: _passwordValidated &&
                                             _passwordController.text.isNotEmpty
                                         ? 2
@@ -838,8 +845,8 @@ class _SignUpScreenState extends State<SignUpScreen>
                                                             .text))
                                             ? SemanticColors.success
                                             : SemanticColors.textSecondary(context)
-                                                .withOpacity(
-                                                    DesignTokens.opacityMedium),
+                                                .withValues(
+                                                    alpha: DesignTokens.opacityMedium),
                                       ),
                                       const SizedBox(
                                           width: DesignTokens.spaceXS),
@@ -884,8 +891,9 @@ class _SignUpScreenState extends State<SignUpScreen>
                                       .surfaceContainerHighest,
                                   disabledForegroundColor:
                                       SemanticColors.textSecondary(context)
-                                          .withOpacity(
-                                              DesignTokens.opacityDisabled),
+                                          .withValues(
+                                              alpha:
+                                                  DesignTokens.opacityDisabled),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(
                                         DesignTokens.radiusMD),

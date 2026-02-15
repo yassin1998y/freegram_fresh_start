@@ -429,7 +429,7 @@ class EmojiPickerWidget extends StatelessWidget {
             height: 4,
             margin: const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
             decoration: BoxDecoration(
-              color: theme.colorScheme.onSurface.withOpacity(0.3),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -445,7 +445,7 @@ class EmojiPickerWidget extends StatelessWidget {
                     indicatorColor: theme.colorScheme.primary,
                     labelColor: theme.colorScheme.primary,
                     unselectedLabelColor:
-                        theme.colorScheme.onSurface.withOpacity(0.6),
+                        theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     tabs: _emojiCategories.keys.map((category) {
                       return Tab(text: category);
                     }).toList(),
@@ -538,7 +538,7 @@ class _EmojiButtonState extends State<_EmojiButton>
             color: Theme.of(context)
                 .colorScheme
                 .surfaceContainerHighest
-                .withOpacity(0.3),
+                .withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
           ),
           child: Center(

@@ -34,10 +34,10 @@ class StoryEditorToolbar extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(DesignTokens.spaceXS),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface.withOpacity(0.3),
+              color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
               border: Border.all(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
                 width: DesignTokens.elevation1,
               ),
             ),
@@ -100,7 +100,7 @@ class StoryEditorToolbar extends StatelessWidget {
           height: DesignTokens.buttonHeight,
           decoration: BoxDecoration(
             color: isActive
-                ? SonarPulseTheme.primaryAccent.withOpacity( 0.2)
+                ? SonarPulseTheme.primaryAccent.withValues(alpha:  0.2)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
             border: isActive

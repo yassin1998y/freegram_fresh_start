@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 // Use alias for Bloc import to avoid naming conflicts
 import 'package:freegram/blocs/notification_bloc/notification_bloc.dart'
-    as Bloc;
+    as notification_bloc;
 import 'package:freegram/locator.dart';
 import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/models/notification_model.dart';
@@ -36,11 +36,11 @@ class NotificationsScreen extends StatelessWidget {
     debugPrint('📱 SCREEN: notifications_screen.dart');
     // Provide the NotificationBloc to the widget subtree
     return BlocProvider(
-      create: (context) => Bloc.NotificationBloc(
+      create: (context) => notification_bloc.NotificationBloc(
         // Use alias
         notificationRepository: locator<NotificationRepository>(),
-      )..add(
-          Bloc.LoadNotifications()), // Load notifications initially (Use alias)
+      )..add(notification_bloc
+          .LoadNotifications()), // Load notifications initially (Use alias)
       // Conditionally wrap content with Scaffold based on isModal flag
       child: isModal
           ? _NotificationsView(
@@ -53,11 +53,12 @@ class NotificationsScreen extends StatelessWidget {
                 showBackButton: true,
                 actions: [
                   // Button to mark all notifications as read
-                  BlocBuilder<Bloc.NotificationBloc, Bloc.NotificationState>(
+                  BlocBuilder<notification_bloc.NotificationBloc,
+                      notification_bloc.NotificationState>(
                     builder: (context, state) {
                       // Check if there are any unread notifications in the loaded state
                       bool hasUnread = false;
-                      if (state is Bloc.NotificationLoaded) {
+                      if (state is notification_bloc.NotificationLoaded) {
                         hasUnread = state.notifications.any((n) => !n.isRead);
                       }
                       // Render the button, disable if no unread notifications
@@ -67,8 +68,9 @@ class NotificationsScreen extends StatelessWidget {
                         onPressed: hasUnread
                             ? () {
                                 context
-                                    .read<Bloc.NotificationBloc>()
-                                    .add(Bloc.MarkAllNotificationsAsRead());
+                                    .read<notification_bloc.NotificationBloc>()
+                                    .add(notification_bloc
+                                        .MarkAllNotificationsAsRead());
                               }
                             : () {}, // Disabled state
                         color: hasUnread
@@ -98,21 +100,22 @@ class _NotificationsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Listens to NotificationBloc state to build the UI
-    return BlocBuilder<Bloc.NotificationBloc, Bloc.NotificationState>(
+    return BlocBuilder<notification_bloc.NotificationBloc,
+        notification_bloc.NotificationState>(
       // Use alias
       builder: (context, state) {
         // Show loading indicator
-        if (state is Bloc.NotificationLoading) {
+        if (state is notification_bloc.NotificationLoading) {
           // Use alias
           return const Center(child: AppProgressIndicator());
         }
         // Show error message
-        if (state is Bloc.NotificationError) {
+        if (state is notification_bloc.NotificationError) {
           // Use alias
           return Center(child: Text('Error: ${state.message}'));
         }
         // Show notification list if loaded
-        if (state is Bloc.NotificationLoaded) {
+        if (state is notification_bloc.NotificationLoaded) {
           // Use alias
           final notifications = state.notifications;
           // Show empty state if no notifications
@@ -158,7 +161,7 @@ class _NotificationsView extends StatelessWidget {
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSurface
-                                .withOpacity(DesignTokens.opacityMedium),
+                                .withValues(alpha: DesignTokens.opacityMedium),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -179,11 +182,12 @@ class _NotificationsView extends StatelessWidget {
                             Row(
                               children: [
                                 // Mark all as read button
-                                BlocBuilder<Bloc.NotificationBloc,
-                                    Bloc.NotificationState>(
+                                BlocBuilder<notification_bloc.NotificationBloc,
+                                    notification_bloc.NotificationState>(
                                   builder: (context, state) {
                                     bool hasUnread = false;
-                                    if (state is Bloc.NotificationLoaded) {
+                                    if (state is notification_bloc
+                                        .NotificationLoaded) {
                                       hasUnread = state.notifications
                                           .any((n) => !n.isRead);
                                     }
@@ -197,14 +201,16 @@ class _NotificationsView extends StatelessWidget {
                                             : Theme.of(context)
                                                 .colorScheme
                                                 .onSurface
-                                                .withOpacity(0.3),
+                                                .withValues(alpha: 0.3),
                                       ),
                                       tooltip: 'Mark All As Read',
                                       onPressed: hasUnread
                                           ? () {
                                               context
-                                                  .read<Bloc.NotificationBloc>()
-                                                  .add(Bloc
+                                                  .read<
+                                                      notification_bloc
+                                                      .NotificationBloc>()
+                                                  .add(notification_bloc
                                                       .MarkAllNotificationsAsRead());
                                             }
                                           : null,
@@ -320,7 +326,7 @@ class NotificationTile extends StatelessWidget {
       duration: const Duration(milliseconds: 300),
       // Apply subtle background highlight if unread, otherwise transparent
       color: isUnread
-          ? Theme.of(context).colorScheme.primary.withOpacity(0.05)
+          ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.05)
           : Colors.transparent,
       // --- END: Read Status UI Update ---
       child: ListTile(
@@ -328,8 +334,8 @@ class NotificationTile extends StatelessWidget {
             horizontal: 20.0, vertical: 12.0), // Increased padding
         // Leading section with Avatar and Icon Overlay
         leading: SizedBox(
-          width: DesignTokens.avatarSizeLarge,
-          height: DesignTokens.avatarSizeLarge,
+          width: AvatarSize.large.size,
+          height: AvatarSize.large.size,
           child: Stack(
             clipBehavior: Clip.none, // Allow icon overlay to overflow
             children: [
@@ -350,11 +356,11 @@ class NotificationTile extends StatelessWidget {
                           ? Theme.of(context)
                               .colorScheme
                               .primary
-                              .withOpacity(0.3)
+                              .withValues(alpha: 0.3)
                           : Theme.of(context)
                               .colorScheme
                               .outline
-                              .withOpacity(0.2),
+                              .withValues(alpha: 0.2),
                       width: 2,
                     ),
                   ),
@@ -424,8 +430,10 @@ class NotificationTile extends StatelessWidget {
               TextSpan(
                 text: notificationActionText,
                 style: TextStyle(
-                  color:
-                      Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.7),
                   fontWeight: FontWeight.normal,
                 ),
               ),
@@ -441,8 +449,10 @@ class NotificationTile extends StatelessWidget {
             timeago.format(notification.timestamp.toDate()),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   fontSize: DesignTokens.fontSizeXS,
-                  color:
-                      Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
                 ),
           ),
         ),
@@ -459,7 +469,7 @@ class NotificationTile extends StatelessWidget {
                       color: Theme.of(context)
                           .colorScheme
                           .primary
-                          .withOpacity(0.3),
+                          .withValues(alpha: 0.3),
                       blurRadius: 4,
                       spreadRadius: 1,
                     ),
@@ -491,9 +501,9 @@ class NotificationTile extends StatelessWidget {
           // --- Mark as read on tap (Fix #6) ---
           // If the notification was unread, dispatch event to mark it read
           if (isUnread) {
-            context
-                .read<Bloc.NotificationBloc>()
-                .add(Bloc.MarkNotificationAsRead(notification.id)); // Use alias
+            context.read<notification_bloc.NotificationBloc>().add(
+                notification_bloc.MarkNotificationAsRead(
+                    notification.id)); // Use alias
           }
         },
       ),

@@ -107,7 +107,7 @@ class _StoryUploadBorderState extends State<StoryUploadBorder>
               borderWidth: widget.borderWidth,
               pulseOpacity: widget.showPulse ? _pulseAnimation.value : 1.0,
               activeColors: SonarPulseTheme.appLinearGradient.colors,
-              inactiveColor: theme.colorScheme.onSurface.withOpacity(0.2),
+              inactiveColor: theme.colorScheme.onSurface.withValues(alpha: 0.2),
             ),
             child: widget.child,
           );
@@ -171,7 +171,7 @@ class UploadBorderPainter extends CustomPainter {
       );
 
       progressPaint.shader = gradient.createShader(rect);
-      progressPaint.color = progressPaint.color.withOpacity(pulseOpacity);
+      progressPaint.color = progressPaint.color.withValues(alpha: pulseOpacity);
 
       // Draw progress arc
       // Start from top (-π/2), sweep clockwise

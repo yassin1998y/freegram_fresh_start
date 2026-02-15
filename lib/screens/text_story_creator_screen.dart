@@ -253,7 +253,7 @@ class _TextStoryCreatorScreenState extends State<TextStoryCreatorScreen> {
                         hintText: 'Tap to type...',
                         hintStyle: TextStyle(
                           color: _textColor
-                              .withOpacity(DesignTokens.opacityMedium),
+                              .withValues(alpha: DesignTokens.opacityMedium),
                           fontSize: DesignTokens.fontSizeDisplay,
                           fontWeight: FontWeight.bold,
                         ),
@@ -269,7 +269,7 @@ class _TextStoryCreatorScreenState extends State<TextStoryCreatorScreen> {
                 padding: const EdgeInsets.all(DesignTokens.spaceMD),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface
-                      .withOpacity(DesignTokens.opacityMedium),
+                      .withValues(alpha: DesignTokens.opacityMedium),
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(DesignTokens.radiusXL),
                   ),

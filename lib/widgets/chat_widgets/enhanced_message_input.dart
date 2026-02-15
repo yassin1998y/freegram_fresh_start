@@ -1,5 +1,3 @@
-// lib/widgets/chat_widgets/enhanced_message_input.dart
-
 import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
@@ -12,7 +10,6 @@ import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:freegram/widgets/island_popup.dart';
 
 /// Enhanced message input area with multi-line support and attachments
-/// Improvement #22 - Implement enhanced message input area
 class EnhancedMessageInput extends StatefulWidget {
   final TextEditingController controller;
   final VoidCallback onSend;
@@ -77,7 +74,13 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
   }
 
   void _onTextChanged() {
-    final hasText = widget.controller.text.trim().isNotEmpty;
+    final text = widget.controller.text;
+    final hasText = text.trim().isNotEmpty;
+
+    if (text.isNotEmpty && text.length % 10 == 0) {
+      HapticFeedback.lightImpact();
+    }
+
     if (hasText != _hasText) {
       setState(() => _hasText = hasText);
     }
@@ -139,7 +142,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
         color: theme.scaffoldBackgroundColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -149,10 +152,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Reply preview
             if (widget.replyingTo != null) _buildReplyPreview(),
-
-            // Emoji picker
             if (_showEmojiPicker)
               EmojiPickerWidget(
                 onEmojiSelected: (emoji) {
@@ -167,35 +167,28 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
                   widget.controller.selection = TextSelection.fromPosition(
                     TextPosition(offset: selection.start + emoji.length),
                   );
-                  _onTextChanged(); // Update _hasText state
+                  _onTextChanged();
                 },
               ),
-
-            // Input row
             Padding(
               padding: const EdgeInsets.all(DesignTokens.spaceSM),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  // Attachment button
                   _buildAttachmentButton(),
-
                   const SizedBox(width: DesignTokens.spaceSM),
-
-                  // Text input
                   Expanded(
                     child: Container(
                       constraints: const BoxConstraints(
                         minHeight: 48,
-                        maxHeight: 120, // 5 lines max
+                        maxHeight: 120,
                       ),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest
-                            .withOpacity(0.3),
+                        color: theme.colorScheme.surface.withValues(alpha: 0.1),
                         borderRadius:
-                            BorderRadius.circular(DesignTokens.radiusXL),
+                            BorderRadius.circular(DesignTokens.radiusXXL),
                         border: Border.all(
-                          color: theme.dividerColor.withOpacity(0.5),
+                          color: theme.dividerColor.withValues(alpha: 0.2),
                           width: 1,
                         ),
                       ),
@@ -209,10 +202,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
                       ),
                     ),
                   ),
-
                   const SizedBox(width: DesignTokens.spaceSM),
-
-                  // Send button (morphs from voice)
                   _buildActionButton(),
                 ],
               ),
@@ -226,51 +216,51 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
   Widget _buildTextInputContent(ThemeData theme) {
     return Row(
       key: const ValueKey('text-input'),
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: widget.controller,
-                              maxLines: null,
-                              textCapitalization: TextCapitalization.sentences,
-                              style: TextStyle(
-                                color: theme.colorScheme.onSurface,
-                                fontSize: DesignTokens.fontSizeMD,
-                                height: DesignTokens.lineHeightNormal,
-                              ),
-                              decoration: InputDecoration(
-                                hintText: 'Type a message...',
-                                hintStyle: TextStyle(
-                color: theme.colorScheme.onSurface.withOpacity(0.4),
-                                  fontSize: DesignTokens.fontSizeMD,
-                                ),
-                                border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: DesignTokens.spaceMD,
-                                  vertical: DesignTokens.spaceSM,
-                                ),
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: Icon(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: TextField(
+            controller: widget.controller,
+            maxLines: null,
+            textCapitalization: TextCapitalization.sentences,
+            style: TextStyle(
+              color: theme.colorScheme.onSurface,
+              fontSize: DesignTokens.fontSizeMD,
+              height: DesignTokens.lineHeightNormal,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Type a message...',
+              hintStyle: TextStyle(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                fontSize: DesignTokens.fontSizeMD,
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: DesignTokens.spaceMD,
+                vertical: DesignTokens.spaceSM,
+              ),
+            ),
+          ),
+        ),
+        IconButton(
+          icon: Icon(
             _showEmojiPicker ? Icons.keyboard : Icons.emoji_emotions_outlined,
-                              color: _showEmojiPicker
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.primary.withOpacity(0.6),
-                              size: DesignTokens.iconLG,
-                            ),
-                            onPressed: () {
-                              HapticFeedback.lightImpact();
-                              setState(() {
-                                _showEmojiPicker = !_showEmojiPicker;
-                              });
-                              if (_showEmojiPicker) {
-                                FocusScope.of(context).unfocus();
-                              }
-                            },
-                          ),
-                        ],
+            color: _showEmojiPicker
+                ? theme.colorScheme.primary
+                : theme.colorScheme.primary.withValues(alpha: 0.6),
+            size: DesignTokens.iconLG,
+          ),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            setState(() {
+              _showEmojiPicker = !_showEmojiPicker;
+            });
+            if (_showEmojiPicker) {
+              FocusScope.of(context).unfocus();
+            }
+          },
+        ),
+      ],
     );
   }
 
@@ -310,7 +300,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
                         duration: const Duration(milliseconds: 120),
                         height: 18,
                         decoration: BoxDecoration(
-                          color: primary.withOpacity(0.15),
+                          color: primary.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         alignment: Alignment.centerLeft,
@@ -341,7 +331,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
                       size: DesignTokens.iconSM,
                       color: _isCancellingRecording
                           ? cancelColor
-                          : theme.colorScheme.onSurface.withOpacity(0.7),
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
                     const SizedBox(width: 4),
                     Expanded(
@@ -355,7 +345,8 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
                           fontSize: DesignTokens.fontSizeSM,
                           color: _isCancellingRecording
                               ? cancelColor
-                              : theme.colorScheme.onSurface.withOpacity(0.7),
+                              : theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.7),
                         ),
                       ),
                     ),
@@ -388,7 +379,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: primary.withOpacity(0.15),
+                color: primary.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -410,7 +401,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
                     overlayShape:
                         const RoundSliderOverlayShape(overlayRadius: 12),
                     activeTrackColor: primary,
-                    inactiveTrackColor: primary.withOpacity(0.2),
+                    inactiveTrackColor: primary.withValues(alpha: 0.2),
                     thumbColor: primary,
                   ),
                   child: Slider(
@@ -436,7 +427,8 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
                       _formatDuration(_previewPosition),
                       style: TextStyle(
                         fontSize: DesignTokens.fontSizeXS,
-                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
                     const SizedBox(width: 4),
@@ -444,13 +436,14 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
                       '/ ${_formatDuration(total)}',
                       style: TextStyle(
                         fontSize: DesignTokens.fontSizeXS,
-                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
                     ),
                   ],
+                ),
+              ],
             ),
-          ],
-        ),
           ),
           const SizedBox(width: DesignTokens.spaceSM),
           IconButton(
@@ -473,10 +466,10 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
     return Container(
       padding: const EdgeInsets.all(DesignTokens.spaceMD),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withOpacity(0.1),
+        color: theme.colorScheme.primary.withValues(alpha: 0.1),
         border: Border(
           bottom: BorderSide(
-            color: theme.colorScheme.primary.withOpacity(0.3),
+            color: theme.colorScheme.primary.withValues(alpha: 0.3),
             width: 1,
           ),
           left: BorderSide(
@@ -512,7 +505,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: DesignTokens.fontSizeSM,
-                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
               ],
@@ -522,7 +515,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
             icon: Icon(
               Icons.close,
               size: DesignTokens.iconSM,
-              color: theme.colorScheme.primary.withOpacity(0.6),
+              color: theme.colorScheme.primary.withValues(alpha: 0.6),
             ),
             onPressed: widget.onCancelReply,
           ),
@@ -534,102 +527,75 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
   Widget _buildAttachmentButton() {
     final theme = Theme.of(context);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          setState(() => _showAttachmentMenu = !_showAttachmentMenu);
-          if (_showAttachmentMenu) {
-            _showAttachmentOptions();
-          }
-        },
-        borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
-        child: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary,
-            borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
-            boxShadow: DesignTokens.shadowLight,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: _showAttachmentMenu
+          ? BoxDecoration(
+              color: theme.colorScheme.surface.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+            )
+          : null,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                setState(() => _showAttachmentMenu = !_showAttachmentMenu);
+              },
+              borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary,
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: DesignTokens.elevation1,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  _showAttachmentMenu ? Icons.close : Icons.add,
+                  color: Colors.white,
+                  size: DesignTokens.iconLG,
+                ),
+              ),
+            ),
           ),
-          child: Icon(
-            _showAttachmentMenu ? Icons.close : Icons.add,
-            color: Colors.white,
-            size: DesignTokens.iconLG,
-          ),
-        ),
+          if (_showAttachmentMenu) ...[
+            const SizedBox(width: DesignTokens.spaceSM),
+            _buildQuickAction(
+                Icons.camera_alt, 'Camera', Colors.blue, widget.onCamera),
+            _buildQuickAction(Icons.photo_library, 'Gallery', Colors.purple,
+                () => widget.onGallery?.call()),
+            _buildQuickAction(Icons.attach_file, 'File', Colors.green,
+                () => widget.onAttachment?.call()),
+          ],
+        ],
       ),
     );
   }
 
-  void _showAttachmentOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(DesignTokens.radiusXL),
-        ),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(DesignTokens.spaceLG),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Drag handle
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: DesignTokens.spaceMD),
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _AttachmentOption(
-                    icon: Icons.camera_alt,
-                    label: 'Camera',
-                    color: Colors.blue,
-                    onTap: () {
-                      Navigator.pop(context);
-                      widget.onCamera();
-                    },
-                  ),
-                  _AttachmentOption(
-                    icon: Icons.photo_library,
-                    label: 'Gallery',
-                    color: Colors.purple,
-                    onTap: () {
-                      Navigator.pop(context);
-                      widget.onGallery?.call();
-                    },
-                  ),
-                  _AttachmentOption(
-                    icon: Icons.attach_file,
-                    label: 'File',
-                    color: Colors.green,
-                    onTap: () {
-                      Navigator.pop(context);
-                      widget.onAttachment?.call();
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    ).then((_) {
-      if (mounted) {
+  Widget _buildQuickAction(
+      IconData icon, String label, Color color, VoidCallback onTap) {
+    return IconButton(
+      icon: Icon(icon, color: color, size: DesignTokens.iconLG),
+      onPressed: () {
+        HapticFeedback.mediumImpact();
+        onTap();
         setState(() => _showAttachmentMenu = false);
-      }
-    });
+      },
+      tooltip: label,
+    );
   }
 
   Widget _buildActionButton() {
@@ -684,13 +650,21 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
         decoration: BoxDecoration(
           color: _hasText
               ? theme.colorScheme.primary
-              : theme.colorScheme.primary.withOpacity(0.3),
+              : theme.colorScheme.primary.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
-          boxShadow: _hasText ? DesignTokens.shadowLight : null,
+          boxShadow: _hasText
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: DesignTokens.elevation1,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
         ),
         child: Icon(
           widget.onLongPressSend != null ? Icons.schedule_send : Icons.send,
-          color: _hasText ? Colors.white : Colors.white.withOpacity(0.6),
+          color: _hasText ? Colors.white : Colors.white.withValues(alpha: 0.6),
           size: DesignTokens.iconMD,
         ),
       ),
@@ -706,7 +680,13 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
         decoration: BoxDecoration(
           color: theme.colorScheme.primary,
           borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
-          boxShadow: DesignTokens.shadowLight,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: DesignTokens.elevation1,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
         child: const Icon(
           Icons.send,
@@ -720,7 +700,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
   Widget _buildMicButton(ThemeData theme) {
     final bool recordingActive = _voiceRecorderController.isRecording.value;
     final Color baseColor = _isCancellingRecording
-        ? theme.colorScheme.error.withOpacity(0.9)
+        ? theme.colorScheme.error.withValues(alpha: 0.9)
         : recordingActive
             ? theme.colorScheme.error
             : theme.colorScheme.primary;
@@ -754,7 +734,15 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
         decoration: BoxDecoration(
           color: baseColor,
           borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
-          boxShadow: recordingActive ? DesignTokens.shadowLight : null,
+          boxShadow: recordingActive
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: DesignTokens.elevation1,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
         ),
         child: const Icon(
           Icons.mic,
@@ -829,6 +817,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
         icon: Icons.mic_off,
       );
     } else if (started) {
+      if (!mounted) return;
       HapticFeedback.mediumImpact();
       if (showHint) {
         showIslandPopup(
@@ -911,10 +900,8 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
   Future<void> _preparePreview(String path, Duration duration) async {
     await _disposePreviewPlayer();
 
-    // Ensure we have an absolute path and verify file exists with content
     final file = File(path);
     if (!await file.exists()) {
-      // Wait for file to be written (max 2 seconds)
       for (int i = 0; i < 20; i++) {
         await Future.delayed(const Duration(milliseconds: 100));
         if (await file.exists()) {
@@ -924,7 +911,6 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
       }
     }
 
-    // Final check that file exists and has content
     if (!await file.exists()) {
       debugPrint('Audio file does not exist: $path');
       if (mounted) {
@@ -1054,60 +1040,5 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
     } catch (_) {
       await _preparePreview(path, duration);
     }
-  }
-}
-
-class _AttachmentOption extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback? onTap;
-
-  const _AttachmentOption({
-    required this.icon,
-    required this.label,
-    required this.color,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap?.call();
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: color.withOpacity(0.3),
-                width: 1,
-              ),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: DesignTokens.iconLG,
-            ),
-          ),
-          const SizedBox(height: DesignTokens.spaceXS),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: DesignTokens.fontSizeXS,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[700],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

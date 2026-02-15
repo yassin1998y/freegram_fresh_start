@@ -56,11 +56,11 @@ class StoryDrawingTools extends StatelessWidget {
                 horizontal: DesignTokens.spaceLG,
               ),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface.withOpacity(0.7),
+                color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
                 border: Border.all(
                   color:
-                      Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+                      Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
                   width: DesignTokens.elevation1,
                 ),
               ),
@@ -79,7 +79,7 @@ class StoryDrawingTools extends StatelessWidget {
                       color: Theme.of(context)
                           .colorScheme
                           .onSurface
-                          .withOpacity(0.2),
+                          .withValues(alpha: 0.2),
                     ),
                     const SizedBox(width: DesignTokens.spaceMD),
                     // Stroke width options
@@ -114,7 +114,7 @@ class StoryDrawingTools extends StatelessWidget {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: SonarPulseTheme.primaryAccent.withOpacity( 0.5),
+                    color: SonarPulseTheme.primaryAccent.withValues(alpha:  0.5),
                     blurRadius: 8,
                     spreadRadius: 2,
                   ),
@@ -135,8 +135,8 @@ class StoryDrawingTools extends StatelessWidget {
         height: isSelected ? DesignTokens.iconLG : DesignTokens.iconMD,
         decoration: BoxDecoration(
           color: isSelected
-              ? SonarPulseTheme.primaryAccent.withOpacity(0.2)
-              : Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
+              ? SonarPulseTheme.primaryAccent.withValues(alpha: 0.2)
+              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
           shape: BoxShape.circle,
           border: isSelected
               ? Border.all(

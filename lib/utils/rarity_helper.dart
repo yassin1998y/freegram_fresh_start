@@ -33,7 +33,7 @@ class RarityHelper {
 
   /// Get glow color for a given rarity (for shadows/effects)
   static Color getGlowColor(GiftRarity rarity) {
-    return getColor(rarity).withOpacity(0.4);
+    return getColor(rarity).withValues(alpha: 0.4);
   }
 
   /// Get display name for rarity

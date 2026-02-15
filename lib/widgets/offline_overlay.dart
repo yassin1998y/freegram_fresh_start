@@ -11,7 +11,7 @@ class OfflineOverlay extends StatelessWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
           child: Container(
-            color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.6),
+            color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.6),
             child: const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,

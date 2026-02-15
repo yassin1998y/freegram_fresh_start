@@ -106,7 +106,7 @@ class _ProfessionalPresenceIndicatorState
                   : null,
               boxShadow: [
                 BoxShadow(
-                  color: presence.color.withOpacity(0.4),
+                  color: presence.color.withValues(alpha: 0.4),
                   blurRadius: ChatPresenceConstants.onlineIndicatorShadowBlur,
                   spreadRadius: 0,
                 ),
@@ -120,9 +120,8 @@ class _ProfessionalPresenceIndicatorState
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: presence.color.withOpacity(
-                              0.3 * (1 - _pulseController.value),
-                            ),
+                            color: presence.color.withValues(
+                                alpha: 0.3 * (1 - _pulseController.value)),
                             width: 2 * _pulseAnimation.value,
                           ),
                         ),

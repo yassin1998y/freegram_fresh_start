@@ -41,14 +41,24 @@ class ChatDateSeparator extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: isSticky
-              ? Theme.of(context).scaffoldBackgroundColor.withOpacity(0.95)
+              ? Theme.of(context)
+                  .scaffoldBackgroundColor
+                  .withValues(alpha: 0.95)
               : Colors.grey[200],
           borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
           border: Border.all(
-            color: Colors.grey.withOpacity(0.3),
+            color: Colors.grey.withValues(alpha: 0.3),
             width: 0.5,
           ),
-          boxShadow: isSticky ? DesignTokens.shadowLight : null,
+          boxShadow: isSticky
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: DesignTokens.elevation1,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
         ),
         child: Text(
           dateText,
@@ -177,7 +187,7 @@ class _UnreadMessagesDividerState extends State<UnreadMessagesDivider>
                         color: Theme.of(context)
                             .colorScheme
                             .primary
-                            .withOpacity(0.3),
+                            .withValues(alpha: 0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),

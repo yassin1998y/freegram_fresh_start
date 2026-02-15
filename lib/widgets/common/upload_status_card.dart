@@ -118,7 +118,7 @@ class UploadStatusCard extends StatelessWidget {
             Text(
               progress.currentStep,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
             // Details
@@ -129,13 +129,13 @@ class UploadStatusCard extends StatelessWidget {
                   Icon(
                     Icons.data_usage,
                     size: DesignTokens.iconSM,
-                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
                   const SizedBox(width: DesignTokens.spaceXS),
                   Text(
                     '${_formatBytes(progress.bytesUploaded!)} / ${_formatBytes(progress.totalBytes!)}',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                 ],
@@ -149,13 +149,13 @@ class UploadStatusCard extends StatelessWidget {
                   Icon(
                     Icons.speed,
                     size: DesignTokens.iconSM,
-                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
                   const SizedBox(width: DesignTokens.spaceXS),
                   Text(
                     '${progress.uploadSpeed!.toStringAsFixed(1)} MB/s',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                 ],
@@ -169,13 +169,13 @@ class UploadStatusCard extends StatelessWidget {
                   Icon(
                     Icons.timer,
                     size: DesignTokens.iconSM,
-                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
                   const SizedBox(width: DesignTokens.spaceXS),
                   Text(
                     '~${_formatDuration(progress.estimatedTimeRemaining)} remaining',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                 ],

@@ -19,9 +19,8 @@ import 'package:freegram/screens/friends_list_screen.dart';
 import 'package:freegram/screens/menu_screen.dart';
 import 'package:freegram/screens/nearby_screen.dart';
 import 'package:freegram/screens/notifications_screen.dart';
-import 'package:freegram/screens/feed_screen.dart';
-import 'package:freegram/screens/feed/for_you_feed_tab.dart'
-    show kForYouFeedTabKey;
+import 'package:freegram/screens/feed_screen.dart'
+    show FeedScreen, kFeedScreenKey;
 import 'package:freegram/screens/random_chat/random_chat_screen.dart';
 import 'package:freegram/theme/app_theme.dart';
 import 'package:freegram/theme/design_tokens.dart';
@@ -74,6 +73,9 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   void dispose() {
+    // Task 2: Focus Scope Protection - Clear active focus before tearing down
+    FocusManager.instance.primaryFocus?.unfocus();
+
     // Stop listening to gift notifications
     try {
       locator<GiftNotificationService>().stopListening();
@@ -173,7 +175,7 @@ class _MainScreenState extends State<MainScreen> {
 
     // If tapping Feed while already on Feed: scroll to top and refresh
     if (index == 1 && _selectedIndex == 1) {
-      kForYouFeedTabKey.currentState?.scrollToTopAndRefresh();
+      kFeedScreenKey.currentState?.scrollToTopAndRefresh();
       return;
     }
 
@@ -361,36 +363,46 @@ class _MainScreenState extends State<MainScreen> {
                 child: IndexedStack(
                   index: _selectedIndex,
                   children: [
-                    _VisibilityWrapper(
-                      isVisible: _selectedIndex == 0,
-                      child: const NearbyScreen(),
+                    RepaintBoundary(
+                      child: _VisibilityWrapper(
+                        isVisible: _selectedIndex == 0,
+                        child: const NearbyScreen(),
+                      ),
                     ),
-                    _VisibilityWrapper(
-                      isVisible: _selectedIndex == 1,
-                      child: FeedScreen(
+                    RepaintBoundary(
+                      child: _VisibilityWrapper(
                         isVisible: _selectedIndex == 1,
-                        onScrollDirectionChanged: (isScrollingDown) {
-                          _isScrollingDownNotifier.value = isScrollingDown;
-                        },
+                        child: FeedScreen(
+                          isVisible: _selectedIndex == 1,
+                          onScrollDirectionChanged: (isScrollingDown) {
+                            _isScrollingDownNotifier.value = isScrollingDown;
+                          },
+                        ),
                       ),
                     ),
-                    _VisibilityWrapper(
-                      isVisible: _selectedIndex == 2,
-                      child: const RandomChatScreen(),
-                    ),
-                    _VisibilityWrapper(
-                      isVisible: _selectedIndex == 3,
-                      child: BlocProvider(
-                        create: (_) => FriendsBloc(
-                            userRepository: locator<UserRepository>(),
-                            friendRepository: locator<FriendRepository>())
-                          ..add(LoadFriends()),
-                        child: const FriendsListScreen(hideBackButton: true),
+                    RepaintBoundary(
+                      child: _VisibilityWrapper(
+                        isVisible: _selectedIndex == 2,
+                        child: const RandomChatScreen(),
                       ),
                     ),
-                    _VisibilityWrapper(
-                      isVisible: _selectedIndex == 4,
-                      child: const MenuScreen(),
+                    RepaintBoundary(
+                      child: _VisibilityWrapper(
+                        isVisible: _selectedIndex == 3,
+                        child: BlocProvider(
+                          create: (_) => FriendsBloc(
+                              userRepository: locator<UserRepository>(),
+                              friendRepository: locator<FriendRepository>())
+                            ..add(LoadFriends()),
+                          child: const FriendsListScreen(hideBackButton: true),
+                        ),
+                      ),
+                    ),
+                    RepaintBoundary(
+                      child: _VisibilityWrapper(
+                        isVisible: _selectedIndex == 4,
+                        child: const MenuScreen(),
+                      ),
                     ),
                   ],
                 ),
@@ -469,13 +481,13 @@ class _MainScreenState extends State<MainScreen> {
             sigmaX: DesignTokens.blurMedium, sigmaY: DesignTokens.blurMedium),
         child: Container(
           decoration: BoxDecoration(
-            color: appBarColor.withOpacity(0.85),
+            color: appBarColor.withValues(alpha: 0.85),
             gradient: LinearGradient(
               begin: Alignment.bottomCenter,
               end: Alignment.topCenter,
               colors: [
-                appBarColor.withOpacity(0.85),
-                appBarColor.withOpacity(0.95),
+                appBarColor.withValues(alpha: 0.85),
+                appBarColor.withValues(alpha: 0.95),
               ],
               stops: const [0.0, 1.0],
             ),

@@ -91,7 +91,7 @@ class InteractionBloc extends Bloc<InteractionEvent, InteractionState> {
           senderName: "Partner",
         ));
       } else if (type == 'FRIEND_REQUEST') {
-        emit(FriendRequestReceivedState("Partner"));
+        emit(const FriendRequestReceivedState("Partner"));
       }
     });
   }

@@ -4,6 +4,7 @@ class LoungeUser {
   final String imageUrl;
   final String flagEmoji;
   final int age;
+  final String? distance;
 
   const LoungeUser({
     required this.id,
@@ -11,5 +12,6 @@ class LoungeUser {
     required this.imageUrl,
     required this.flagEmoji,
     required this.age,
+    this.distance,
   });
 }

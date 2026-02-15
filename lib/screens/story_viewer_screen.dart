@@ -575,7 +575,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
             if (state.usersWithStories.isEmpty) {
               // Close the viewer
               Future.microtask(() {
-                if (mounted) {
+                if (context.mounted) {
                   Navigator.of(context).pop();
                 }
               });
@@ -666,16 +666,16 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
                           Text(
                             'User: ${state.currentUser?.username ?? "Unknown"}',
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurface
-                                  .withOpacity(DesignTokens.opacityMedium),
+                              color: theme.colorScheme.onSurface.withValues(
+                                  alpha: DesignTokens.opacityMedium),
                             ),
                           ),
                           const SizedBox(height: DesignTokens.spaceSM),
                           Text(
                             'Stories count: ${state.userStoriesMap[state.currentUser?.userId ?? ""]?.length ?? 0}',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurface
-                                  .withOpacity(DesignTokens.opacityMedium),
+                              color: theme.colorScheme.onSurface.withValues(
+                                  alpha: DesignTokens.opacityMedium),
                             ),
                           ),
                         ],
@@ -963,7 +963,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
         if (confirmed && mounted) {
           try {
             await _cubit?.deleteCurrentStory();
-            if (mounted) {
+            if (context.mounted) {
               final theme = Theme.of(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -973,7 +973,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
               );
             }
           } catch (e) {
-            if (mounted) {
+            if (context.mounted) {
               final theme = Theme.of(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(

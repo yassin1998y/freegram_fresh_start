@@ -94,7 +94,7 @@ class CreateReelCard extends StatelessWidget {
         child: Icon(
           Icons.person,
           size: DesignTokens.iconXL,
-          color: theme.colorScheme.onSurface.withOpacity(0.3),
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
         ),
       ),
     );
@@ -130,7 +130,7 @@ class CreateReelCard extends StatelessWidget {
                   child: CircularProgressIndicator(
                     value: progress,
                     strokeWidth: 3,
-                    backgroundColor: Colors.white.withOpacity(0.3),
+                    backgroundColor: Colors.white.withValues(alpha: 0.3),
                     valueColor: const AlwaysStoppedAnimation<Color>(
                       SonarPulseTheme.primaryAccent,
                     ),

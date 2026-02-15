@@ -72,7 +72,7 @@ class _GiftRevealModalState extends State<GiftRevealModal>
     final rarityColor = RarityHelper.getColor(rarity);
 
     return Scaffold(
-      backgroundColor: Colors.black.withOpacity(0.9),
+      backgroundColor: Colors.black.withValues(alpha: 0.9),
       body: SafeArea(
         child: Stack(
           children: [
@@ -84,7 +84,8 @@ class _GiftRevealModalState extends State<GiftRevealModal>
                   decoration: BoxDecoration(
                     gradient: RadialGradient(
                       colors: [
-                        rarityColor.withOpacity(0.3 * _glowAnimation.value),
+                        rarityColor.withValues(
+                            alpha: 0.3 * _glowAnimation.value),
                         Colors.transparent,
                       ],
                       stops: const [0.0, 1.0],
@@ -115,7 +116,7 @@ class _GiftRevealModalState extends State<GiftRevealModal>
                               color: Colors.white,
                               shadows: [
                                 Shadow(
-                                  color: rarityColor.withOpacity(0.5),
+                                  color: rarityColor.withValues(alpha: 0.5),
                                   blurRadius: 20,
                                 ),
                               ],
@@ -138,7 +139,7 @@ class _GiftRevealModalState extends State<GiftRevealModal>
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: rarityColor.withOpacity(0.6),
+                                  color: rarityColor.withValues(alpha: 0.6),
                                   blurRadius: 40,
                                   spreadRadius: 10,
                                 ),
@@ -177,7 +178,7 @@ class _GiftRevealModalState extends State<GiftRevealModal>
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                  color: rarityColor.withOpacity(0.5),
+                                  color: rarityColor.withValues(alpha: 0.5),
                                   blurRadius: 15,
                                   spreadRadius: 2,
                                 ),
@@ -215,7 +216,7 @@ class _GiftRevealModalState extends State<GiftRevealModal>
                               widget.giftModel.description,
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.white.withOpacity(0.8),
+                                color: Colors.white.withValues(alpha: 0.8),
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -250,7 +251,7 @@ class _GiftRevealModalState extends State<GiftRevealModal>
                               "From: ${widget.ownedGift.receivedFrom}",
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.white.withOpacity(0.7),
+                                color: Colors.white.withValues(alpha: 0.7),
                                 fontStyle: FontStyle.italic,
                               ),
                             ),
@@ -263,10 +264,10 @@ class _GiftRevealModalState extends State<GiftRevealModal>
                                   const EdgeInsets.symmetric(horizontal: 40),
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.1),
+                                color: Colors.white.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: Colors.white.withValues(alpha: 0.2),
                                 ),
                               ),
                               child: Text(

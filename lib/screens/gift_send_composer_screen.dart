@@ -116,7 +116,7 @@ class _GiftSendComposerScreenState extends State<GiftSendComposerScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.purple.withOpacity(0.3),
+            color: Colors.purple.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -175,7 +175,7 @@ class _GiftSendComposerScreenState extends State<GiftSendComposerScreen> {
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                    color: rarityColor.withOpacity(0.1),
+                    color: rarityColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -244,7 +244,7 @@ class _GiftSendComposerScreenState extends State<GiftSendComposerScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -373,7 +373,7 @@ class _GiftSendComposerScreenState extends State<GiftSendComposerScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),

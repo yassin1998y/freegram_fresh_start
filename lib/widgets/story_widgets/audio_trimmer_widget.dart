@@ -225,7 +225,7 @@ class _AudioTrimmerWidgetState extends State<AudioTrimmerWidget> {
                     Icon(
                       Icons.video_library,
                       size: DesignTokens.iconMD,
-                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
                     const SizedBox(width: DesignTokens.spaceSM),
                     Text(
@@ -240,7 +240,7 @@ class _AudioTrimmerWidgetState extends State<AudioTrimmerWidget> {
                           vertical: DesignTokens.spaceXS,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.2),
+                          color: Colors.orange.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
                         ),
                         child: Text(
@@ -283,7 +283,7 @@ class _AudioTrimmerWidgetState extends State<AudioTrimmerWidget> {
                         ? 'Audio matches video (${_formatTime(widget.videoDuration!)})'
                         : 'Audio matches video (20s)',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -324,7 +324,7 @@ class _AudioTrimmerWidgetState extends State<AudioTrimmerWidget> {
                     Text(
                       'Total: ${_formatTime(_audioDuration)} | Selected: ${_formatTime(_selectedDuration)}',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
                   ],

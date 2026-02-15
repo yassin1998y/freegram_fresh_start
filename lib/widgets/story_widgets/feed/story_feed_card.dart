@@ -6,7 +6,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:freegram/models/story_media_model.dart';
 import 'package:freegram/models/drawing_path_model.dart';
 import 'package:freegram/theme/design_tokens.dart';
-import 'package:freegram/theme/app_theme.dart';
 import 'package:freegram/utils/image_url_validator.dart';
 import 'package:freegram/widgets/lqip_image.dart';
 
@@ -106,14 +105,14 @@ class _StoryFeedCardState extends State<StoryFeedCard>
                       border: widget.isUnread
                           ? null // Gradient border handled separately
                           : Border.all(
-                              color:
-                                  theme.colorScheme.onSurface.withOpacity(0.3),
-                              width: 2.0,
+                              color: const Color(0xFF2C2C2E)
+                                  .withValues(alpha: 0.6), // Dim Slate
+                              width: 1.0,
                             ),
                       boxShadow: [
                         BoxShadow(
-                          color:
-                              Colors.black.withOpacity(_shadowAnimation.value),
+                          color: Colors.black
+                              .withValues(alpha: _shadowAnimation.value),
                           blurRadius: DesignTokens.elevation2 +
                               (_scaleController.value * 4),
                           spreadRadius: _scaleController.value * 1,
@@ -143,8 +142,9 @@ class _StoryFeedCardState extends State<StoryFeedCard>
                                       Icons.image,
                                       size: DesignTokens.iconXL,
                                       color: theme.colorScheme.onSurface
-                                          .withOpacity(
-                                              DesignTokens.opacityMedium),
+                                          .withValues(
+                                              alpha:
+                                                  DesignTokens.opacityMedium),
                                     ),
                                   ),
                                 ),
@@ -165,7 +165,7 @@ class _StoryFeedCardState extends State<StoryFeedCard>
                               gradient: LinearGradient(
                                 colors: [
                                   Colors.transparent,
-                                  Colors.black.withOpacity(0.7),
+                                  Colors.black.withValues(alpha: 0.7),
                                 ],
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
@@ -180,8 +180,15 @@ class _StoryFeedCardState extends State<StoryFeedCard>
                               child: IgnorePointer(
                                 child: CustomPaint(
                                   painter: GradientBorderPainter(
-                                    gradient: SonarPulseTheme.appLinearGradient,
-                                    width: 3.0,
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFF00BFA5),
+                                        Color(0xFF8B5CF6)
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    width: 2.0,
                                     borderRadius: DesignTokens.radiusMD,
                                   ),
                                 ),
@@ -197,13 +204,18 @@ class _StoryFeedCardState extends State<StoryFeedCard>
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 gradient: widget.isUnread
-                                    ? SonarPulseTheme.appLinearGradient
+                                    ? const LinearGradient(
+                                        colors: [
+                                          Color(0xFF00BFA5),
+                                          Color(0xFF8B5CF6)
+                                        ],
+                                      )
                                     : null,
                                 border: !widget.isUnread
                                     ? Border.all(
-                                        color: theme.colorScheme.onSurface
-                                            .withOpacity(0.3),
-                                        width: 2.0,
+                                        color: const Color(0xFF2C2C2E)
+                                            .withValues(alpha: 0.6),
+                                        width: 1.0,
                                       )
                                     : null,
                               ),
@@ -221,8 +233,9 @@ class _StoryFeedCardState extends State<StoryFeedCard>
                                         Icons.person,
                                         size: DesignTokens.iconSM,
                                         color: theme.colorScheme.onSurface
-                                            .withOpacity(
-                                                DesignTokens.opacityMedium),
+                                            .withValues(
+                                                alpha:
+                                                    DesignTokens.opacityMedium),
                                       )
                                     : null,
                               ),

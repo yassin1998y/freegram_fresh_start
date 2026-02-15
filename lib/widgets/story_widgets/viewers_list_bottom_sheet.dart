@@ -108,13 +108,13 @@ class ViewersListBottomSheet extends StatelessWidget {
                 Icon(
                   Icons.remove_red_eye_outlined,
                   size: 48,
-                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'No viewers yet',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
               ],
@@ -205,7 +205,7 @@ class ViewersListBottomSheet extends StatelessWidget {
                         ? 'Reacted with $reactionEmoji'
                         : 'Viewed',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                   trailing: reactionEmoji != null
@@ -216,7 +216,8 @@ class ViewersListBottomSheet extends StatelessWidget {
                       : Icon(
                           Icons.remove_red_eye,
                           size: 20,
-                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.5),
                         ),
                 );
               },

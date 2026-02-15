@@ -70,7 +70,7 @@ class _SonarVerifiedBadgeState extends State<SonarVerifiedBadge>
                   height: size,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: SonarPulseTheme.primaryAccent.withOpacity(0.2),
+                    color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.2),
                   ),
                 ),
               ),

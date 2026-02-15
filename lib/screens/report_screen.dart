@@ -164,7 +164,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12.0),
                   color: isSelected
-                      ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                      ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
                       : null,
                   child: InkWell(
                     onTap: () {

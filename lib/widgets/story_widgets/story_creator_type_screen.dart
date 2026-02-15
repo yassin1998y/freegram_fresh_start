@@ -496,7 +496,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                     const EdgeInsets.symmetric(vertical: DesignTokens.spaceSM),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.onSurface
-                      .withOpacity(DesignTokens.opacityMedium),
+                      .withValues(alpha: DesignTokens.opacityMedium),
                   borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
                 ),
               ),
@@ -833,7 +833,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                                 'No recent photos',
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   color: theme.colorScheme.onSurface
-                                      .withOpacity(DesignTokens.opacityMedium),
+                                      .withValues(alpha: DesignTokens.opacityMedium),
                                 ),
                               ),
                             ),
@@ -955,7 +955,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                                 'No recent videos',
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   color: theme.colorScheme.onSurface
-                                      .withOpacity(DesignTokens.opacityMedium),
+                                      .withValues(alpha: DesignTokens.opacityMedium),
                                 ),
                               ),
                             ),
@@ -1019,7 +1019,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                 borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
                 boxShadow: [
                   BoxShadow(
-                    color: SonarPulseTheme.primaryAccent.withOpacity(0.3),
+                    color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.3),
                     blurRadius: DesignTokens.elevation3,
                     spreadRadius: 1,
                   ),
@@ -1031,7 +1031,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                     padding: const EdgeInsets.all(DesignTokens.spaceMD),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.onPrimary
-                          .withOpacity(DesignTokens.opacityMedium),
+                          .withValues(alpha: DesignTokens.opacityMedium),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -1057,7 +1057,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                           subtitle,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onPrimary
-                                .withOpacity(DesignTokens.opacityHigh),
+                                .withValues(alpha: DesignTokens.opacityHigh),
                           ),
                         ),
                       ],
@@ -1110,7 +1110,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                   Container(
                     padding: const EdgeInsets.all(DesignTokens.spaceSM),
                     decoration: BoxDecoration(
-                      color: SonarPulseTheme.primaryAccent.withOpacity(0.1),
+                      color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.1),
                       borderRadius:
                           BorderRadius.circular(DesignTokens.radiusSM),
                     ),
@@ -1136,7 +1136,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                           subtitle,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurface
-                                .withOpacity(DesignTokens.opacityMedium),
+                                .withValues(alpha: DesignTokens.opacityMedium),
                           ),
                         ),
                       ],
@@ -1145,7 +1145,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                   Icon(
                     Icons.chevron_right,
                     color: theme.colorScheme.onSurface
-                        .withOpacity(DesignTokens.opacityMedium),
+                        .withValues(alpha: DesignTokens.opacityMedium),
                     size: DesignTokens.iconMD,
                   ),
                 ],
@@ -1178,7 +1178,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
               color: theme.colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
               border: Border.all(
-                color: theme.colorScheme.outline.withOpacity(0.2),
+                color: theme.colorScheme.outline.withValues(alpha: 0.2),
                 width: DesignTokens.elevation1,
               ),
             ),
@@ -1194,7 +1194,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                     child: Icon(
                       Icons.photo,
                       color: theme.colorScheme.onSurface
-                          .withOpacity(DesignTokens.opacityMedium),
+                          .withValues(alpha: DesignTokens.opacityMedium),
                       size: DesignTokens.iconMD,
                     ),
                   );
@@ -1228,7 +1228,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
               color: theme.colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
               border: Border.all(
-                color: theme.colorScheme.outline.withOpacity(0.2),
+                color: theme.colorScheme.outline.withValues(alpha: 0.2),
                 width: DesignTokens.elevation1,
               ),
             ),
@@ -1247,7 +1247,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                         child: Icon(
                           Icons.video_library,
                           color: theme.colorScheme.onSurface
-                              .withOpacity(DesignTokens.opacityMedium),
+                              .withValues(alpha: DesignTokens.opacityMedium),
                           size: DesignTokens.iconMD,
                         ),
                       );
@@ -1259,7 +1259,7 @@ class _StoryCreatorTypeScreenState extends State<StoryCreatorTypeScreen> {
                       padding: const EdgeInsets.all(DesignTokens.spaceXS),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surface
-                            .withOpacity(DesignTokens.opacityMedium),
+                            .withValues(alpha: DesignTokens.opacityMedium),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(

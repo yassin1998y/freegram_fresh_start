@@ -56,7 +56,7 @@ class BoostAnalyticsScreen extends StatelessWidget {
             // Boost Status Card
             Card(
               color: isActive
-                  ? theme.colorScheme.primaryContainer.withOpacity(0.3)
+                  ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
                   : theme.colorScheme.surface,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
@@ -69,8 +69,8 @@ class BoostAnalyticsScreen extends StatelessWidget {
                       isActive ? Icons.trending_up : Icons.trending_down,
                       color: isActive
                           ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurface.withOpacity(
-                              DesignTokens.opacityMedium,
+                          : theme.colorScheme.onSurface.withValues(
+                              alpha: DesignTokens.opacityMedium,
                             ),
                       size: DesignTokens.iconLG,
                     ),
@@ -91,8 +91,8 @@ class BoostAnalyticsScreen extends StatelessWidget {
                                   ? 'Ends: ${DateFormat('MMM d, y').add_jm().format(post.boostEndTime!.toDate())}'
                                   : 'Ended: ${DateFormat('MMM d, y').add_jm().format(post.boostEndTime!.toDate())}',
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(
-                                  DesignTokens.opacityMedium,
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: DesignTokens.opacityMedium,
                                 ),
                               ),
                             ),
@@ -188,8 +188,8 @@ class BoostAnalyticsScreen extends StatelessWidget {
                       Icons.trending_up,
                     ),
                     Divider(
-                      color: theme.colorScheme.onSurface.withOpacity(
-                        DesignTokens.opacityMedium,
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: DesignTokens.opacityMedium,
                       ),
                     ),
                     _buildStatRow(
@@ -292,8 +292,8 @@ class BoostAnalyticsScreen extends StatelessWidget {
             Text(
               label,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(
-                  DesignTokens.opacityMedium,
+                color: theme.colorScheme.onSurface.withValues(
+                  alpha: DesignTokens.opacityMedium,
                 ),
               ),
               textAlign: TextAlign.center,
@@ -346,8 +346,8 @@ class BoostAnalyticsScreen extends StatelessWidget {
         Icon(
           icon,
           size: DesignTokens.iconMD,
-          color: theme.colorScheme.onSurface.withOpacity(
-            DesignTokens.opacityMedium,
+          color: theme.colorScheme.onSurface.withValues(
+            alpha: DesignTokens.opacityMedium,
           ),
         ),
         const SizedBox(width: DesignTokens.spaceMD),

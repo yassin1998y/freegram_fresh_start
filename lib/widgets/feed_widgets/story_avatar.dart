@@ -52,7 +52,7 @@ class StoryAvatarWidget extends StatelessWidget {
                       border: Border.all(
                         color: storyItem.hasUnreadStory
                             ? Colors.transparent
-                            : theme.colorScheme.onSurface.withOpacity(0.2),
+                            : theme.colorScheme.onSurface.withValues(alpha: 0.2),
                         width: 2,
                       ),
                     ),
@@ -74,7 +74,7 @@ class StoryAvatarWidget extends StatelessWidget {
                           ? Icon(
                               Icons.person,
                               color:
-                                  theme.colorScheme.onSurface.withOpacity(0.6),
+                                  theme.colorScheme.onSurface.withValues(alpha: 0.6),
                             )
                           : null,
                     ),

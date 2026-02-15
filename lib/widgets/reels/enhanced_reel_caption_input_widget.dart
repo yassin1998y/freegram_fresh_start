@@ -72,7 +72,7 @@ class _EnhancedReelCaptionInputWidgetState
     } else if (remaining < 100) {
       return Colors.orange;
     } else {
-      return Colors.white.withOpacity(DesignTokens.opacityMedium);
+      return Colors.white.withValues(alpha: DesignTokens.opacityMedium);
     }
   }
 
@@ -91,8 +91,8 @@ class _EnhancedReelCaptionInputWidgetState
             begin: Alignment.bottomCenter,
             end: Alignment.topCenter,
             colors: [
-              Colors.black.withOpacity(DesignTokens.opacityHigh),
-              Colors.black.withOpacity(DesignTokens.opacityHigh),
+              Colors.black.withValues(alpha: DesignTokens.opacityHigh),
+              Colors.black.withValues(alpha: DesignTokens.opacityHigh),
               Colors.transparent,
             ],
           ),
@@ -118,10 +118,10 @@ class _EnhancedReelCaptionInputWidgetState
                     hintText: 'Write a caption... #hashtags @mentions',
                     hintStyle: TextStyle(
                       color:
-                          Colors.white.withOpacity(DesignTokens.opacityMedium),
+                          Colors.white.withValues(alpha: DesignTokens.opacityMedium),
                     ),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(
+                    fillColor: Colors.white.withValues(alpha: 
                       DesignTokens.opacityDisabled,
                     ),
                     border: OutlineInputBorder(
@@ -157,13 +157,13 @@ class _EnhancedReelCaptionInputWidgetState
                           Icon(
                             Icons.tag,
                             size: 14,
-                            color: Colors.blue.withOpacity(0.8),
+                            color: Colors.blue.withValues(alpha: 0.8),
                           ),
                           const SizedBox(width: 4),
                           Text(
                             '$_hashtagCount',
                             style: TextStyle(
-                              color: Colors.blue.withOpacity(0.8),
+                              color: Colors.blue.withValues(alpha: 0.8),
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
@@ -174,13 +174,13 @@ class _EnhancedReelCaptionInputWidgetState
                           Icon(
                             Icons.alternate_email,
                             size: 14,
-                            color: Colors.purple.withOpacity(0.8),
+                            color: Colors.purple.withValues(alpha: 0.8),
                           ),
                           const SizedBox(width: 4),
                           Text(
                             '$_mentionCount',
                             style: TextStyle(
-                              color: Colors.purple.withOpacity(0.8),
+                              color: Colors.purple.withValues(alpha: 0.8),
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),

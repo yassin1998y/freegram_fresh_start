@@ -39,10 +39,10 @@ class StoryViewersCountWidget extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               color: theme.colorScheme.surface
-                  .withOpacity(DesignTokens.opacityMedium),
+                  .withValues(alpha: DesignTokens.opacityMedium),
               borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
               border: Border.all(
-                color: theme.colorScheme.onSurface.withOpacity(0.2),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
                 width: DesignTokens.elevation1,
               ),
             ),

@@ -12,8 +12,10 @@ import 'package:freegram/screens/reels_feed_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/services/user_stream_provider.dart';
 import 'package:freegram/models/user_model.dart';
+import 'package:freegram/locator.dart';
+import 'package:freegram/services/navigation_service.dart';
 
-class TrendingReelsCarouselWidget extends StatelessWidget {
+class TrendingReelsCarouselWidget extends StatefulWidget {
   final List<ReelModel> reels;
   final VoidCallback? onTapReel;
 
@@ -24,13 +26,27 @@ class TrendingReelsCarouselWidget extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  State<TrendingReelsCarouselWidget> createState() =>
+      _TrendingReelsCarouselWidgetState();
+}
+
+class _TrendingReelsCarouselWidgetState
+    extends State<TrendingReelsCarouselWidget>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+
     // Hide if no reels
-    if (reels.isEmpty) {
+    if (widget.reels.isEmpty) {
       return const SizedBox.shrink();
     }
 
     final theme = Theme.of(context);
+    final navigationService = locator<NavigationService>();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,7 +77,7 @@ class TrendingReelsCarouselWidget extends StatelessWidget {
           height: 160,
           child: NotificationListener<ScrollNotification>(
             onNotification: (notification) {
-              // Consume horizontal scroll notifications to prevent TabBarView from switching
+              // Consume horizontal scroll notifications
               if (notification.metrics.axis == Axis.horizontal) {
                 return true;
               }
@@ -72,7 +88,7 @@ class TrendingReelsCarouselWidget extends StatelessWidget {
                   const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
               scrollDirection: Axis.horizontal,
               physics: const ClampingScrollPhysics(),
-              itemCount: reels.length + 1, // +1 for Create Reel card
+              itemCount: widget.reels.length + 1, // +1 for Create Reel card
               separatorBuilder: (_, __) =>
                   const SizedBox(width: DesignTokens.spaceMD),
               itemBuilder: (context, index) {
@@ -93,19 +109,13 @@ class TrendingReelsCarouselWidget extends StatelessWidget {
                 }
 
                 // Regular reel cards
-                final reel = reels[index - 1];
+                final reel = widget.reels[index - 1];
                 return TrendingReelCard(
                   reel: reel,
-                  onTap: onTapReel ??
+                  onTap: widget.onTapReel ??
                       () {
-                        // Navigate to reels feed with specific reel
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ReelsFeedScreen(
-                              initialReelId: reel.reelId,
-                            ),
-                          ),
+                        navigationService.navigateTo(
+                          ReelsFeedScreen(initialReelId: reel.reelId),
                         );
                       },
                 );
@@ -184,7 +194,7 @@ class TrendingReelCard extends StatelessWidget {
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          Colors.black.withOpacity(0.7),
+                          Colors.black.withValues(alpha: 0.7),
                         ],
                       ),
                     ),
@@ -278,7 +288,7 @@ class TrendingReelCard extends StatelessWidget {
                   child: Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.black.withOpacity(0.5),
+                      color: Colors.black.withValues(alpha: 0.5),
                     ),
                     padding: const EdgeInsets.all(12),
                     child: const Icon(

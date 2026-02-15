@@ -139,7 +139,7 @@ class CreateStoryCard extends StatelessWidget {
                               color: SonarPulseTheme.primaryAccent,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
+                                  color: Colors.black.withValues(alpha: 0.2),
                                   blurRadius: DesignTokens.elevation2,
                                   offset: const Offset(0, 2),
                                 ),
@@ -172,7 +172,7 @@ class CreateStoryCard extends StatelessWidget {
           Icons.person,
           size: DesignTokens.iconXL,
           color: theme.colorScheme.onSurface
-              .withOpacity( DesignTokens.opacityMedium),
+              .withValues(alpha:  DesignTokens.opacityMedium),
         ),
       ),
     );

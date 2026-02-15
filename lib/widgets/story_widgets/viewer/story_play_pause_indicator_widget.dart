@@ -33,11 +33,11 @@ class StoryPlayPauseIndicatorWidget extends StatelessWidget {
             padding: const EdgeInsets.all(DesignTokens.spaceLG),
             decoration: BoxDecoration(
               color: theme.colorScheme.surface
-                  .withOpacity(DesignTokens.opacityMedium),
+                  .withValues(alpha: DesignTokens.opacityMedium),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: theme.colorScheme.surface.withOpacity(0.5),
+                  color: theme.colorScheme.surface.withValues(alpha: 0.5),
                   blurRadius: DesignTokens.spaceLG,
                   spreadRadius: DesignTokens.spaceXS,
                 ),

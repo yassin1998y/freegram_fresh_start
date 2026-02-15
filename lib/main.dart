@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -183,6 +184,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Set immersive Obsidian status bar style
+  SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
+
   // --- START: FCM Background Handler Registration ---
   // Must be registered before any other Firebase initialization
   try {
@@ -273,19 +277,18 @@ class MyApp extends StatelessWidget {
               BlocBuilder<ConnectivityBloc, ConnectivityState>(
                 builder: (context, state) {
                   if (state is Offline) {
-                    return Positioned(
+                    return const Positioned(
                       bottom: 0,
                       left: 0,
                       right: 0,
                       child: Material(
                         color: Colors.red,
                         child: Padding(
-                          padding: const EdgeInsets.all(4.0),
+                          padding: EdgeInsets.all(4.0),
                           child: Text(
                             "Offline Mode - Sonar & Cache Active",
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 12),
+                            style: TextStyle(color: Colors.white, fontSize: 12),
                           ),
                         ),
                       ),

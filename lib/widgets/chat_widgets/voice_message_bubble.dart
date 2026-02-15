@@ -113,7 +113,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
                       samples: widget.message.waveform!,
                       progress: _progressRatio(),
                       activeColor: accentColor,
-                      inactiveColor: accentColor.withOpacity(0.3),
+                      inactiveColor: accentColor.withValues(alpha: 0.3),
                     )
                   : _buildProgressSlider(accentColor, theme),
             ),
@@ -128,7 +128,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
               _formatDuration(_position),
               style: TextStyle(
                 fontSize: DesignTokens.fontSizeXS,
-                color: accentColor.withOpacity(widget.isMe ? 0.9 : 0.7),
+                color: accentColor.withValues(alpha: widget.isMe ? 0.9 : 0.7),
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
@@ -136,14 +136,14 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
               ' / ',
               style: TextStyle(
                 fontSize: DesignTokens.fontSizeXS,
-                color: accentColor.withOpacity(widget.isMe ? 0.8 : 0.6),
+                color: accentColor.withValues(alpha: widget.isMe ? 0.8 : 0.6),
               ),
             ),
             Text(
               _formatDuration(_totalDuration),
               style: TextStyle(
                 fontSize: DesignTokens.fontSizeXS,
-                color: accentColor.withOpacity(widget.isMe ? 0.9 : 0.7),
+                color: accentColor.withValues(alpha: widget.isMe ? 0.9 : 0.7),
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
@@ -161,7 +161,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: accentColor.withOpacity(0.2),
+          color: accentColor.withValues(alpha: 0.2),
           shape: BoxShape.circle,
         ),
         child: _isLoading
@@ -190,7 +190,7 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
         overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
         activeTrackColor: accentColor,
-        inactiveTrackColor: accentColor.withOpacity(0.2),
+        inactiveTrackColor: accentColor.withValues(alpha: 0.2),
         thumbColor: accentColor,
       ),
       child: Slider(

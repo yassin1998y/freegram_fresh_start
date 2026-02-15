@@ -8,6 +8,9 @@ import 'package:freegram/widgets/feed_widgets/comments_sheet.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/repositories/post_repository.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter/services.dart';
+import 'package:lottie/lottie.dart';
+import 'dart:ui';
 
 /// Post actions component (Like, Comment, Share)
 ///
@@ -21,6 +24,7 @@ class PostActions extends StatefulWidget {
   final VoidCallback? onCommentTap;
   final VoidCallback? onGiftTap;
   final VoidCallback? onShareTap;
+  final bool isFloating;
 
   const PostActions({
     super.key,
@@ -29,6 +33,7 @@ class PostActions extends StatefulWidget {
     this.onCommentTap,
     this.onGiftTap,
     this.onShareTap,
+    this.isFloating = false,
   });
 
   @override
@@ -136,6 +141,7 @@ class _PostActionsState extends State<PostActions>
 
     // Animate heart
     _heartAnimationController.forward(from: 0.0);
+    HapticFeedback.lightImpact();
 
     try {
       if (wasLiked) {
@@ -191,9 +197,10 @@ class _PostActionsState extends State<PostActions>
         shareText,
         subject: 'Post by $authorName',
       );
+      HapticFeedback.lightImpact();
     } catch (e) {
       debugPrint('PostActions: Error sharing post: $e');
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to share post')),
         );
@@ -203,150 +210,155 @@ class _PostActionsState extends State<PostActions>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final currentUser = FirebaseAuth.instance.currentUser;
     final isSelfPost =
         currentUser != null && widget.post.authorId == currentUser.uid;
 
-    return Row(
+    Widget actionsRow = Row(
       children: [
-        // Like button - Minimum 44x44px hit area for accessibility
+        // Like button
         Expanded(
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: _toggleLike,
-              borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
-              child: Container(
-                constraints: const BoxConstraints(
-                  minHeight: 44.0, // Accessibility minimum
-                  minWidth: 44.0,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: DesignTokens.spaceMD,
-                  vertical: DesignTokens.spaceSM,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ScaleTransition(
-                      scale: _heartScaleAnimation,
-                      child: Icon(
-                        _isLiked ? Icons.favorite : Icons.favorite_border,
-                        size: DesignTokens.iconLG,
-                        color: _isLiked
-                            ? SemanticColors.reactionLiked
-                            : theme.iconTheme.color,
-                      ),
-                    ),
-                    if (_localReactionCount > 0) ...[
-                      const SizedBox(width: DesignTokens.spaceXS),
-                      Text(
-                        _localReactionCount.toString(),
-                        style: theme.textTheme.labelLarge,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
+          child: _buildActionButton(
+            onTap: _toggleLike,
+            icon: _isLiked ? Icons.favorite : Icons.favorite_border,
+            color: _isLiked ? SemanticColors.reactionLiked : Colors.white,
+            label:
+                _localReactionCount > 0 ? _localReactionCount.toString() : null,
+            isLottie: _isLiked,
           ),
         ),
 
-        // Comment button - Minimum 44x44px hit area
+        // Comment button
         Expanded(
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: widget.onCommentTap ??
-                  () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (context) => CommentsSheet(post: widget.post),
-                    );
-                  },
-              borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
-              child: Container(
-                constraints: const BoxConstraints(
-                  minHeight: 44.0, // Accessibility minimum
-                  minWidth: 44.0,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: DesignTokens.spaceMD,
-                  vertical: DesignTokens.spaceSM,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.comment_outlined,
-                      size: DesignTokens.iconLG, // Use standard large icon size
-                      color: theme.iconTheme.color,
-                    ),
-                    if (widget.post.commentCount > 0) ...[
-                      const SizedBox(width: DesignTokens.spaceXS),
-                      Text(
-                        widget.post.commentCount.toString(),
-                        style: theme.textTheme.labelLarge,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
+          child: _buildActionButton(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              if (widget.onCommentTap != null) {
+                widget.onCommentTap!();
+              } else {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => CommentsSheet(post: widget.post),
+                );
+              }
+            },
+            icon: Icons.comment_outlined,
+            color: Colors.white,
+            label: widget.post.commentCount > 0
+                ? widget.post.commentCount.toString()
+                : null,
           ),
         ),
 
         // Gift button
         if (!isSelfPost)
           Expanded(
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: widget.onGiftTap,
-                borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
-                child: Container(
-                  constraints: const BoxConstraints(
-                    minHeight: 44.0,
-                    minWidth: 44.0,
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: DesignTokens.spaceMD,
-                    vertical: DesignTokens.spaceSM,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.card_giftcard,
-                        size: DesignTokens.iconLG,
-                        color: theme.iconTheme.color,
-                      ),
-                      // Optional: Show gift count if we had it
-                    ],
-                  ),
-                ),
-              ),
+            child: _buildActionButton(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                widget.onGiftTap?.call();
+              },
+              icon: Icons.card_giftcard,
+              color: Colors.white,
             ),
           ),
 
-        // Share button - IconButton already has 48x48px hit area (meets requirement)
+        // Share button
         Expanded(
-          child: IconButton(
-            icon: Icon(
-              Icons.share_outlined,
-              size: DesignTokens.iconLG,
-              color: theme.iconTheme.color,
-            ),
-            onPressed: _sharePost,
+          child: _buildActionButton(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              _sharePost();
+            },
+            icon: Icons.share_outlined,
+            color: Colors.white,
           ),
         ),
       ],
+    );
+
+    if (widget.isFloating) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(100),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            height: 52,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(100),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.1),
+                width: 0.5,
+              ),
+            ),
+            child: actionsRow,
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSM),
+      child: actionsRow,
+    );
+  }
+
+  Widget _buildActionButton({
+    required VoidCallback onTap,
+    required IconData icon,
+    required Color color,
+    String? label,
+    bool isLottie = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(100),
+      child: Container(
+        height: 44,
+        alignment: Alignment.center,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isLottie)
+              ScaleTransition(
+                scale: _heartScaleAnimation,
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: Lottie.network(
+                    'https://assets9.lottiefiles.com/packages/lf20_lY397y.json', // Red heart pulse
+                    controller: _heartAnimationController,
+                    onLoaded: (composition) {
+                      _heartAnimationController.duration = composition.duration;
+                    },
+                  ),
+                ),
+              )
+            else
+              ScaleTransition(
+                scale: (icon == Icons.favorite || icon == Icons.favorite_border)
+                    ? _heartScaleAnimation
+                    : const AlwaysStoppedAnimation(1.0),
+                child: Icon(icon, size: 22, color: color),
+              ),
+            if (label != null) ...[
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

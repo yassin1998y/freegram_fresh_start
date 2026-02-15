@@ -40,7 +40,7 @@ class ChatReceivedState extends InteractionState {
 
 class FriendRequestReceivedState extends InteractionState {
   final String senderName;
-  FriendRequestReceivedState(this.senderName);
+  const FriendRequestReceivedState(this.senderName);
 
   @override
   List<Object?> get props => [senderName];

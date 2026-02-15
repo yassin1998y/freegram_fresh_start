@@ -1,28 +1,23 @@
-// lib/repositories/user_repository.dart
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import 'package:freegram/locator.dart';
 import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/notification_repository.dart';
-import 'package:freegram/repositories/action_queue_repository.dart';
 import 'package:freegram/services/friend_cache_service.dart';
 import 'package:freegram/utils/app_constants.dart';
 
 class UserRepository {
   final FirebaseFirestore _db;
-  final NotificationRepository _notificationRepository; // Keep
-  // final GamificationRepository _gamificationRepository; // Removed
-  final ActionQueueRepository _actionQueueRepository;
+  final NotificationRepository _notificationRepository;
+  final FriendCacheService _cacheService;
 
   UserRepository({
     FirebaseFirestore? firestore,
-    required NotificationRepository notificationRepository, // Keep
-    // required GamificationRepository gamificationRepository, // Removed
+    required NotificationRepository notificationRepository,
+    required FriendCacheService cacheService,
   })  : _db = firestore ?? FirebaseFirestore.instance,
-        _notificationRepository = notificationRepository, // Keep
-        // _gamificationRepository = gamificationRepository, // Removed
-        _actionQueueRepository = locator<ActionQueueRepository>();
+        _notificationRepository = notificationRepository,
+        _cacheService = cacheService;
 
   // --- User Profile Methods ---
 
@@ -132,8 +127,7 @@ class UserRepository {
 
     // Bug #14 fix: Invalidate cache when user profile is updated
     try {
-      final cacheService = locator<FriendCacheService>();
-      await cacheService.invalidateUser(uid);
+      await _cacheService.invalidateUser(uid);
     } catch (e) {
       if (kDebugMode) {
         debugPrint(
@@ -355,12 +349,6 @@ class UserRepository {
     });
   }
 
-
-
-
-
-
-
   /// Check if user is following a page
   /// Uses the user's followedPages array for efficient lookup
   /// More efficient than querying a subcollection
@@ -397,5 +385,18 @@ class UserRepository {
     }
   }
 
-
+  /// Task 2: Global Offline Recovery - Social Status Resync
+  /// Refreshes the user's social status (Coins, Level) from Firestore.
+  Future<void> resyncSocialStatus(String userId) async {
+    debugPrint('🔄 [SYNC] Resyncing social status for user: $userId');
+    try {
+      final user = await getUser(userId);
+      // We update the local cache to ensure UI is consistent.
+      await _cacheService.invalidateUser(userId);
+      debugPrint(
+          '✅ [SYNC] Social status resynced: Coins ${user.coins}, Level ${user.userLevel}');
+    } catch (e) {
+      debugPrint('❌ [SYNC] Failed to resync social status: $e');
+    }
+  }
 }

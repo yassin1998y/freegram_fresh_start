@@ -13,7 +13,9 @@ import 'package:freegram/widgets/chat_widgets/message_reaction_display.dart';
 import 'package:freegram/widgets/chat_widgets/voice_message_bubble.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:freegram/widgets/island_popup.dart';
+import 'package:freegram/theme/app_theme.dart';
 import 'package:intl/intl.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 /// Professional Message Bubble with gradients, clustering, and animations
@@ -66,8 +68,8 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
     _highlightAnimation = ColorTween(
       begin: Colors.transparent,
       end: widget.isMe
-          ? Colors.blue.withOpacity(0.3)
-          : Colors.grey.withOpacity(0.3),
+          ? Colors.blue.withValues(alpha: 0.3)
+          : Colors.grey.withValues(alpha: 0.3),
     ).animate(CurvedAnimation(
       parent: _highlightController,
       curve: Curves.easeInOut,
@@ -124,7 +126,7 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
                     color: Theme.of(context)
                         .colorScheme
                         .onSurface
-                        .withOpacity(0.7),
+                        .withValues(alpha: 0.7),
                   ),
             ),
           ],
@@ -171,28 +173,30 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
   }
 
   BorderRadius _getBubbleBorderRadius() {
-    const double defaultRadius = DesignTokens.radiusLG;
-    const double tightRadius = DesignTokens.radiusSM;
+    const double radiusStandard = DesignTokens.radiusLG; // 16px
+    const double radiusFlat = 4.0; // Flatter corners for grouping
 
     if (widget.isMe) {
       // Sent messages - right aligned
+      // Flatten corners on the joined side (right)
       return BorderRadius.only(
-        topLeft: const Radius.circular(defaultRadius),
+        topLeft: const Radius.circular(radiusStandard),
         topRight:
-            Radius.circular(_isFirstInCluster ? defaultRadius : tightRadius),
-        bottomLeft: const Radius.circular(defaultRadius),
+            Radius.circular(_isFirstInCluster ? radiusStandard : radiusFlat),
+        bottomLeft: const Radius.circular(radiusStandard),
         bottomRight:
-            Radius.circular(_isLastInCluster ? defaultRadius : tightRadius),
+            Radius.circular(_isLastInCluster ? radiusStandard : radiusFlat),
       );
     } else {
       // Received messages - left aligned
+      // Flatten corners on the joined side (left)
       return BorderRadius.only(
         topLeft:
-            Radius.circular(_isFirstInCluster ? defaultRadius : tightRadius),
-        topRight: const Radius.circular(defaultRadius),
+            Radius.circular(_isFirstInCluster ? radiusStandard : radiusFlat),
+        topRight: const Radius.circular(radiusStandard),
         bottomLeft:
-            Radius.circular(_isLastInCluster ? defaultRadius : tightRadius),
-        bottomRight: const Radius.circular(defaultRadius),
+            Radius.circular(_isLastInCluster ? radiusStandard : radiusFlat),
+        bottomRight: const Radius.circular(radiusStandard),
       );
     }
   }
@@ -316,7 +320,19 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
                       AnimatedScale(
                         scale: _isPressed ? 0.98 : 1.0,
                         duration: AnimationTokens.fast,
-                        child: _buildMessageContent(context),
+                        child: widget.message.status == MessageStatus.sending
+                            ? Shimmer.fromColors(
+                                baseColor: widget.isMe
+                                    ? SonarPulseTheme.socialAccent
+                                        .withValues(alpha: 0.7)
+                                    : Colors.grey.withValues(alpha: 0.1),
+                                highlightColor: widget.isMe
+                                    ? SonarPulseTheme.socialAccent
+                                        .withValues(alpha: 0.4)
+                                    : Colors.grey.withValues(alpha: 0.05),
+                                child: _buildMessageContent(context),
+                              )
+                            : _buildMessageContent(context),
                       ),
 
                       // Timestamp and status (shown on last message in cluster)
@@ -341,6 +357,7 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
   }
 
   Widget _buildMessageContent(BuildContext context) {
+    final theme = Theme.of(context);
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -361,21 +378,24 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Theme.of(context).colorScheme.primary,
-                      Theme.of(context).colorScheme.primary.withOpacity(0.85),
+                      SonarPulseTheme.socialAccent,
+                      SonarPulseTheme.socialAccent.withValues(alpha: 0.85),
                     ],
                   )
                 : null,
             color: widget.isMe
                 ? null
-                : Theme.of(context)
-                    .colorScheme
-                    .surfaceContainerHighest
-                    .withOpacity(0.5),
+                : theme.colorScheme.surface.withValues(alpha: 0.1),
             borderRadius: _getBubbleBorderRadius(),
+            border: widget.isMe
+                ? null
+                : Border.all(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    width: 0.5,
+                  ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -456,13 +476,14 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
         padding: const EdgeInsets.all(DesignTokens.spaceSM),
         decoration: BoxDecoration(
           color: widget.isMe
-              ? Colors.white.withOpacity(0.2)
-              : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+              ? Colors.white.withValues(alpha: 0.2)
+              : theme.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
           border: Border.all(
             color: widget.isMe
-                ? Colors.white.withOpacity(0.3)
-                : theme.colorScheme.outline.withOpacity(0.3),
+                ? Colors.white.withValues(alpha: 0.3)
+                : theme.colorScheme.outline.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -506,7 +527,7 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
                       Positioned.fill(
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.3),
+                            color: Colors.black.withValues(alpha: 0.3),
                             borderRadius:
                                 BorderRadius.circular(DesignTokens.radiusXS),
                           ),
@@ -547,7 +568,8 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
                         size: DesignTokens.iconXS,
                         color: widget.isMe
                             ? Colors.white70
-                            : theme.colorScheme.onSurface.withOpacity(0.7),
+                            : theme.colorScheme.onSurface
+                                .withValues(alpha: 0.7),
                       ),
                       const SizedBox(width: 4),
                       Text(
@@ -572,7 +594,8 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
                         fontSize: DesignTokens.fontSizeXS,
                         color: widget.isMe
                             ? Colors.white70
-                            : theme.colorScheme.onSurface.withOpacity(0.7),
+                            : theme.colorScheme.onSurface
+                                .withValues(alpha: 0.7),
                       ),
                     ),
                 ],
@@ -592,8 +615,8 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
         padding: const EdgeInsets.all(DesignTokens.spaceSM),
         decoration: BoxDecoration(
           color: widget.isMe
-              ? Colors.white.withOpacity(0.2)
-              : Colors.grey.withOpacity(0.1),
+              ? Colors.white.withValues(alpha: 0.2)
+              : Colors.grey.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
           border: Border(
             left: BorderSide(
@@ -630,7 +653,7 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
                         : Theme.of(context)
                             .colorScheme
                             .onSurface
-                            .withOpacity(0.7),
+                            .withValues(alpha: 0.7),
                   ),
                   const SizedBox(width: DesignTokens.spaceXS),
                   Text(
@@ -642,7 +665,7 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
                           : Theme.of(context)
                               .colorScheme
                               .onSurface
-                              .withOpacity(0.7),
+                              .withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -659,7 +682,7 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
                       : Theme.of(context)
                           .colorScheme
                           .onSurface
-                          .withOpacity(0.7),
+                          .withValues(alpha: 0.7),
                 ),
               ),
           ],
@@ -742,16 +765,6 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
           statusWidget = Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(
-                width: 12,
-                height: 12,
-                child: AppProgressIndicator(
-                  size: 12,
-                  strokeWidth: 1.5,
-                  color: Colors.grey[600]!,
-                ),
-              ),
-              const SizedBox(width: 4),
               Text(
                 'Sending...',
                 style: TextStyle(
@@ -763,15 +776,21 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
           );
           break;
         case MessageStatus.sent:
-          statusWidget = const Icon(Icons.done, size: 16, color: Colors.grey);
-          break;
         case MessageStatus.delivered:
-          statusWidget =
-              const Icon(Icons.done_all, size: 16, color: Colors.grey);
+          // Task 1: Sent (Full opacity, single Teal check)
+          statusWidget = const Icon(
+            Icons.done,
+            size: 16,
+            color: SonarPulseTheme.primaryAccent,
+          );
           break;
         case MessageStatus.seen:
-          statusWidget =
-              const Icon(Icons.done_all, size: 16, color: Color(0xFF3498DB));
+          // Task 1: Read (Double Cyber-Violet checks)
+          statusWidget = const Icon(
+            Icons.done_all,
+            size: 16,
+            color: SonarPulseTheme.socialAccent,
+          );
           break;
         case MessageStatus.error:
           statusWidget = const Row(
@@ -807,7 +826,10 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
               fontSize: DesignTokens.fontSizeXS,
               color: widget.isMe
                   ? Colors.white70
-                  : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  : Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
             ),
           ),
         if (widget.isMe && widget.message.timestamp != null)

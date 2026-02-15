@@ -167,11 +167,14 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
                 ),
                 decoration: BoxDecoration(
                   color: isUnread
-                      ? Theme.of(context).colorScheme.primary.withOpacity(0.05)
+                      ? Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.05)
                       : Colors.transparent,
                   border: Border(
                     bottom: BorderSide(
-                      color: Colors.grey.withOpacity(0.1),
+                      color: Colors.grey.withValues(alpha: 0.1),
                       width: 0.5,
                     ),
                   ),
@@ -324,7 +327,13 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
               height: 56,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                boxShadow: DesignTokens.shadowLight,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: DesignTokens.elevation1,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
               ),
               child: CircleAvatar(
                 radius: 28,
@@ -386,7 +395,10 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
               borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
               boxShadow: [
                 BoxShadow(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.4),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),

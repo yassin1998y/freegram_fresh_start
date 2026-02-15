@@ -329,7 +329,7 @@ class _EditProfileViewState extends State<_EditProfileView> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: !widget.isCompletingProfile,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         // Optional: User tried to pop but was blocked
         if (widget.isCompletingProfile) {
@@ -530,7 +530,7 @@ class _EditProfileViewState extends State<_EditProfileView> {
       return AppProgressIndicator(
         value: progress,
         strokeWidth: 3,
-        backgroundColor: Colors.white.withOpacity(0.3),
+        backgroundColor: Colors.white.withValues(alpha: 0.3),
         color: Colors.white,
       );
     }
@@ -695,7 +695,7 @@ class _EditProfileViewState extends State<_EditProfileView> {
               label: Text(interest),
               selected: isSelected,
               selectedColor:
-                  Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
               checkmarkColor: Theme.of(context).colorScheme.primary,
               onSelected: (selected) {
                 setState(() {

@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/random_chat/random_chat_bloc.dart';
 import 'package:freegram/blocs/random_chat/random_chat_event.dart';
@@ -10,9 +11,16 @@ import 'package:freegram/screens/random_chat/widgets/interaction_overlay.dart';
 import 'package:freegram/screens/random_chat/widgets/report_bottom_sheet.dart';
 import 'package:freegram/blocs/interaction/interaction_bloc.dart';
 import 'package:freegram/blocs/interaction/interaction_event.dart';
+import 'package:freegram/theme/app_theme.dart';
+import 'package:freegram/theme/design_tokens.dart';
 
 class VideoCallOverlay extends StatelessWidget {
-  const VideoCallOverlay({super.key});
+  final GlobalKey? giftButtonKey;
+
+  const VideoCallOverlay({
+    super.key,
+    this.giftButtonKey,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -27,15 +35,13 @@ class VideoCallOverlay extends StatelessWidget {
         return Stack(
           children: [
             // Blur Overlay (Safety Shield & Privacy)
-            // ONLY show if we actually have a remote stream to blur.
             if (state.isBlurred && state.remoteStream != null)
               Positioned.fill(
                 child: BackdropFilter(
                   filter: ui.ImageFilter.blur(
                       sigmaX: 15, sigmaY: 15), // Glass Effect
                   child: Container(
-                    color:
-                        Colors.black.withOpacity(0.4), // Semi-transparent tint
+                    color: Colors.black.withValues(alpha: 0.4),
                     child: const Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -60,14 +66,32 @@ class VideoCallOverlay extends StatelessWidget {
                 ),
               ),
 
+            // Gradient Scrim (Bottom 35%)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                height: MediaQuery.of(context).size.height * 0.35,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Color(0xAA0A0A0B), // ~67% opacity dark background
+                      Colors.transparent
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
             // HUD (Top & Bottom)
             _buildHeadsUpOverlay(context, state),
 
             // Interaction Layer (Gifts + Chat)
             const Positioned.fill(child: InteractionOverlay()),
 
-            // Controls Overlay
-            _buildControlsOverlay(context, state),
+            // ACTION DOCK (Glassmorphic)
+            _buildActionDock(context, state),
           ],
         );
       },
@@ -78,135 +102,189 @@ class VideoCallOverlay extends StatelessWidget {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
           children: [
-            // Quick Report (Top Left)
-            if (state.status == RandomChatStatus.connected)
-              GestureDetector(
-                onTap: () => _handleReport(context),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.8),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.flag, color: Colors.white, size: 22),
-                ),
-              )
-            else
-              const SizedBox(width: 40),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Quick Report (Top Left)
+                if (state.status == RandomChatStatus.connected)
+                  GestureDetector(
+                    onTap: () => _handleReport(context),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.8),
+                        shape: BoxShape.circle,
+                      ),
+                      child:
+                          const Icon(Icons.flag, color: Colors.white, size: 22),
+                    ),
+                  )
+                else
+                  const SizedBox(width: 40),
 
-            // Add Friend (Center)
+                // LIVE Badge (Top Right)
+                if (state.status == RandomChatStatus.connected)
+                  const LiveBadge(),
+              ],
+            ),
+
+            // Add Friend (Center - moved down slightly or kept in flow if needed,
+            // but prompt says "Top Right" for Live badge.
+            // The previous "Add Friend" was center. I'll keep it there but purely layout-wise it might overlap.
+            // Let's create a separate row or just stack it if needed.
+            // Actually, we can put it in the same Row if we use proper alignment.
+            // But "Add Friend" logic:
             if (state.partnerId != null &&
                 state.status == RandomChatStatus.connected)
-              GestureDetector(
-                onTap: () {
-                  context.read<InteractionBloc>().add(SendFriendRequestEvent());
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Friend Request Sent!')),
-                  );
-                },
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white54),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.person_add, color: Colors.white, size: 18),
-                      SizedBox(width: 4),
-                      Text("Add Friend", style: TextStyle(color: Colors.white)),
-                    ],
+              Padding(
+                padding: const EdgeInsets.only(top: 20),
+                child: GestureDetector(
+                  onTap: () {
+                    context
+                        .read<InteractionBloc>()
+                        .add(SendFriendRequestEvent());
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Friend Request Sent!')),
+                    );
+                  },
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white54),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.person_add, color: Colors.white, size: 18),
+                        SizedBox(width: 4),
+                        Text("Add Friend",
+                            style: TextStyle(color: Colors.white)),
+                      ],
+                    ),
                   ),
                 ),
               ),
-
-            const SizedBox(width: 40),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildControlsOverlay(BuildContext context, RandomChatState state) {
+  Widget _buildActionDock(BuildContext context, RandomChatState state) {
     return Align(
       alignment: Alignment.bottomCenter,
-      child: Container(
-        height: 180,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.bottomCenter,
-            end: Alignment.topCenter,
-            colors: [Colors.black, Colors.transparent],
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 30),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          decoration: Containers.glassDecoration(context).copyWith(
+            borderRadius: BorderRadius.circular(30),
+            color: Colors.black.withValues(alpha: 0.3), // Fallback/Base
           ),
-        ),
-        padding: const EdgeInsets.only(bottom: 40, left: 20, right: 20),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Mic Toggle
-            IconButton(
-              icon: Icon(state.isMicOn ? Icons.mic : Icons.mic_off, size: 30),
-              color: Colors.white,
-              onPressed: () =>
-                  context.read<RandomChatBloc>().add(RandomChatToggleMic()),
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Mic Toggle
+              _buildDockButton(
+                context,
+                icon: state.isMicOn ? Icons.mic : Icons.mic_off,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  context.read<RandomChatBloc>().add(RandomChatToggleMic());
+                },
+              ),
+              const SizedBox(width: 16),
 
-            // Cam Toggle
-            IconButton(
-              icon: Icon(state.isCameraOn ? Icons.videocam : Icons.videocam_off,
-                  size: 30),
-              color: Colors.white,
-              onPressed: () =>
-                  context.read<RandomChatBloc>().add(RandomChatToggleCamera()),
-            ),
+              // Camera Toggle
+              _buildDockButton(
+                context,
+                icon: state.isCameraOn ? Icons.videocam : Icons.videocam_off,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  context.read<RandomChatBloc>().add(RandomChatToggleCamera());
+                },
+              ),
+              const SizedBox(width: 16),
 
-            // NEXT / SKIP Button
-            SizedBox(
-              width: 75,
-              height: 75,
-              child: FloatingActionButton(
-                heroTag: 'skip_btn',
-                onPressed: () {
+              // End/Next Call
+              _buildDockButton(
+                context,
+                icon: Icons.call_end,
+                color: SemanticColors.error,
+                isRounded: true,
+                onTap: () {
+                  HapticFeedback.mediumImpact();
                   context.read<RandomChatBloc>().add(RandomChatSwipeNext());
                 },
-                backgroundColor: Colors.white,
-                elevation: 10,
-                child:
-                    const Icon(Icons.skip_next, color: Colors.black, size: 36),
-              ),
-            ),
-
-            // Report Action
-            if (state.status == RandomChatStatus.connected)
-              _buildActionButton(
-                icon: Icons.shield_outlined,
-                label: "Report",
-                color: Colors.red,
-                onPressed: () => _handleReport(context),
               ),
 
-            // Gift Button
-            if (state.status == RandomChatStatus.connected)
-              IconButton(
-                icon: const Icon(Icons.card_giftcard, size: 30),
-                color: Colors.amber,
-                onPressed: () {
-                  showModalBottomSheet(
-                    context: context,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) => const GiftPickerSheet(),
-                  );
-                },
-              ),
-          ],
+              // Gift Button (only if connected)
+              if (state.status == RandomChatStatus.connected) ...[
+                const SizedBox(width: 16),
+                GestureDetector(
+                  key: giftButtonKey,
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    showModalBottomSheet(
+                        context: context,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => BackdropFilter(
+                              filter:
+                                  ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                              child: const GiftPickerSheet(),
+                            ));
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                        color: SonarPulseTheme.socialAccent, // Cyber Violet
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: SonarPulseTheme.socialAccent
+                                .withValues(alpha: 0.5),
+                            blurRadius: 8,
+                            spreadRadius: 2,
+                          )
+                        ]),
+                    child: const Icon(Icons.card_giftcard,
+                        color: Colors.white, size: DesignTokens.iconLG),
+                  ),
+                )
+              ]
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDockButton(
+    BuildContext context, {
+    required IconData icon,
+    required VoidCallback onTap,
+    Color color = Colors.white,
+    bool isRounded = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isRounded ? color : Colors.white.withValues(alpha: 0.1),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon,
+            color: isRounded ? Colors.white : color,
+            size: DesignTokens.iconLG // 24.0
+            ),
       ),
     );
   }
@@ -224,31 +302,69 @@ class VideoCallOverlay extends StatelessWidget {
       );
     }
   }
+}
 
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onPressed,
-  }) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withOpacity(0.5)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(width: 4),
-            Text(label,
-                style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-          ],
-        ),
+class LiveBadge extends StatefulWidget {
+  const LiveBadge({super.key});
+
+  @override
+  State<LiveBadge> createState() => _LiveBadgeState();
+}
+
+class _LiveBadgeState extends State<LiveBadge>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1000))
+      ..repeat(reverse: true);
+    _opacity = Tween<double>(begin: 0.5, end: 1.0).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FadeTransition(
+            opacity: _opacity,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: SemanticColors.success,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          const Text(
+            "LIVE",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.0,
+            ),
+          )
+        ],
       ),
     );
   }

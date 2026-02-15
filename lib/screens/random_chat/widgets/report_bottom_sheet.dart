@@ -128,7 +128,7 @@ class _ReportBottomSheetState extends State<ReportBottomSheet> {
                 margin: const EdgeInsets.only(bottom: 8),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? Colors.red.withOpacity(0.2)
+                      ? Colors.red.withValues(alpha: 0.2)
                       : Colors.transparent,
                   border: Border.all(
                     color: isSelected ? Colors.red : Colors.grey[800]!,

@@ -14,6 +14,15 @@ class CheckAuthentication extends AuthEvent {}
 /// Event to sign the user out.
 class SignOut extends AuthEvent {}
 
+/// Event to signal that the user has completed the onboarding process.
+class AuthOnboarded extends AuthEvent {
+  final String userId;
+  const AuthOnboarded({required this.userId});
+
+  @override
+  List<Object> get props => [userId];
+}
+
 /// Event to initiate sign-in with Google.
 class SignInWithGoogle extends AuthEvent {}
 

@@ -1525,7 +1525,19 @@ class PostRepository {
       final cachedPosts = _pageCache[cacheKey]!;
       debugPrint(
           'PostRepository: Cache hit for $cacheKey (${cachedPosts.length} posts)');
-      // Return cached data with a dummy lastDocument (pagination handled by caller)
+
+      // Task 3: Async Pre-fetching
+      // If we hit cache, pre-fetch the NEXT page in the background
+      if (lastDocument != null) {
+        _preFetchNextPage(
+          userId: userId,
+          timeFilter: timeFilter,
+          lastDocument:
+              lastDocument, // This is current lastDoc, pre-fetch after it
+          userTargeting: userTargeting,
+        ).catchError((e) => debugPrint('PostRepository: Pre-fetch failed: $e'));
+      }
+
       return (cachedPosts, lastDocument);
     }
 
@@ -1545,6 +1557,20 @@ class PostRepository {
 
     try {
       final result = await requestFuture;
+
+      // Task 3: Async Pre-fetching
+      // After successfully fetching a fresh page, pre-fetch the NEXT one
+      final nextLastDoc = result.$2;
+      if (nextLastDoc != null) {
+        _preFetchNextPage(
+                userId: userId,
+                timeFilter: timeFilter,
+                lastDocument: nextLastDoc,
+                userTargeting: userTargeting)
+            .catchError(
+                (e) => debugPrint('PostRepository: Pre-fetch failed: $e'));
+      }
+
       return result;
     } finally {
       // Remove from ongoing requests once complete
@@ -1552,7 +1578,46 @@ class PostRepository {
     }
   }
 
-  /// Internal method that performs the actual fetch
+  /// Task 3: Background pre-fetching logic
+  Future<void> _preFetchNextPage({
+    required String userId,
+    required TimeFilter timeFilter,
+    required DocumentSnapshot lastDocument,
+    Map<String, dynamic>? userTargeting,
+  }) async {
+    final nextCacheKey = _generateCacheKey(
+      userId: userId,
+      timeFilter: timeFilter,
+      lastDocument: lastDocument,
+      userTargeting: userTargeting,
+    );
+
+    // Skip if already in cache or being fetched
+    if (_pageCache.containsKey(nextCacheKey) ||
+        _currentRequests.containsKey(nextCacheKey)) {
+      return;
+    }
+
+    debugPrint('PostRepository: Pre-fetching next page for key: $nextCacheKey');
+
+    // Run fetch in background
+    _fetchUnifiedFeedInternal(
+      userId: userId,
+      timeFilter: timeFilter,
+      lastDocument: lastDocument,
+      limit: 20,
+      userTargeting: userTargeting,
+      cacheKey: nextCacheKey,
+    ).then((result) {
+      debugPrint(
+          'PostRepository: Background pre-fetch complete for $nextCacheKey (${result.$1.length} posts)');
+    }).catchError((e) {
+      debugPrint('PostRepository: Pre-fetch error: $e');
+    });
+  }
+
+  /// Internal method that performs the actual fetch with "Mixing Logic"
+  /// Following posts are prioritized, and trending/recommended are injected every 4 items.
   Future<(List<PostModel>, DocumentSnapshot?)> _fetchUnifiedFeedInternal({
     required String userId,
     GeoPoint? userLocation,
@@ -1568,28 +1633,29 @@ class PostRepository {
 
       // Fetch ALL post types in parallel
       final results = await Future.wait([
-        // Trending posts
+        // Trending posts (Recommended/Trending)
         getTrendingPosts(
           timeFilter: timeFilter,
           lastDocument: lastDocument,
           limit: limit,
-        ),
-        // Boosted posts (with targeting)
+        ).timeout(const Duration(seconds: 5), onTimeout: () => <PostModel>[]),
+        // Boosted posts (Promoted)
         getBoostedPosts(
           userTargeting: targeting,
-          limit: limit ~/ 2, // Fewer boosted posts
-        ),
-        // Friends + public posts (Following feed)
+          limit: limit ~/ 2,
+        ).timeout(const Duration(seconds: 5), onTimeout: () => <PostModel>[]),
+        // Following feed (Friends + Followed Pages + Public)
         getFeedForUserWithPagination(
           userId: userId,
           lastDocument: lastDocument,
           limit: limit,
-        ),
-        // User's own recent posts (to ensure they appear)
+        ).timeout(const Duration(seconds: 8),
+            onTimeout: () => (List<PostModel>.empty(), null)),
+        // User's own recent posts
         getUserPosts(
           userId: userId,
-          limit: 5, // Small limit for user's own posts
-        ),
+          limit: 5,
+        ).timeout(const Duration(seconds: 5), onTimeout: () => <PostModel>[]),
       ]);
 
       final trendingPosts = results[0] as List<PostModel>;
@@ -1600,54 +1666,112 @@ class PostRepository {
       final lastDoc = followingResult.$2;
       final userOwnPosts = results[3] as List<PostModel>;
 
-      // Merge and deduplicate by post ID
-      final allPosts = <PostModel>[];
+      // Deduplication sets
       final seenIds = <String>{};
+      final mixedPosts = <PostModel>[];
 
-      // Add user's own posts first (they get priority)
+      // 1. Prioritize User's Own Recent Posts (always at top)
       for (final post in userOwnPosts) {
         if (!seenIds.contains(post.id)) {
-          allPosts.add(post);
+          mixedPosts.add(post);
           seenIds.add(post.id);
         }
       }
 
-      // Add boosted posts (high priority)
-      for (final post in boostedPosts) {
-        if (!seenIds.contains(post.id)) {
-          allPosts.add(post);
-          seenIds.add(post.id);
+      // 2. Prepare Recommended/Trending Queue (Mixing Logic)
+      // Merge boosted and trending into a single recommendation queue
+      final recommendationQueue = <PostModel>[];
+      final seenInRecs = <String>{};
+
+      // Interleave boosted and trending for the recommendation queue
+      int bIdx = 0, tIdx = 0;
+      while (bIdx < boostedPosts.length || tIdx < trendingPosts.length) {
+        if (bIdx < boostedPosts.length) {
+          final p = boostedPosts[bIdx++];
+          if (!seenIds.contains(p.id) && !seenInRecs.contains(p.id)) {
+            recommendationQueue.add(p);
+            seenInRecs.add(p.id);
+          }
+        }
+        if (tIdx < trendingPosts.length) {
+          final p = trendingPosts[tIdx++];
+          if (!seenIds.contains(p.id) && !seenInRecs.contains(p.id)) {
+            recommendationQueue.add(p);
+            seenInRecs.add(p.id);
+          }
         }
       }
 
-      // Add trending posts
-      for (final post in trendingPosts) {
-        if (!seenIds.contains(post.id)) {
-          allPosts.add(post);
-          seenIds.add(post.id);
+      // 3. Mixing Logic: Prioritize Following, inject Recommendation every N items
+      // We'll inject 1 recommendation for every 3 following posts (Ratio 3:1)
+      int fIdx = 0;
+      int rIdx = 0;
+      int followCounter = 0;
+
+      while (
+          fIdx < followingPosts.length || rIdx < recommendationQueue.length) {
+        // Add up to 3 following posts
+        while (fIdx < followingPosts.length && followCounter < 3) {
+          final post = followingPosts[fIdx++];
+          if (!seenIds.contains(post.id)) {
+            mixedPosts.add(post);
+            seenIds.add(post.id);
+            followCounter++;
+          }
+        }
+
+        // Inject 1 recommendation if available
+        if (rIdx < recommendationQueue.length) {
+          final post = recommendationQueue[rIdx++];
+          if (!seenIds.contains(post.id)) {
+            mixedPosts.add(post);
+            seenIds.add(post.id);
+          }
+        }
+
+        // Reset follow counter to start next batch of following posts
+        followCounter = 0;
+
+        // Break if we've reached the desired limit or no more posts
+        if (mixedPosts.length >= limit + 10) break;
+        if (fIdx >= followingPosts.length && rIdx >= recommendationQueue.length) {
+          break;
         }
       }
 
-      // Add following posts (friends + public)
-      for (final post in followingPosts) {
-        if (!seenIds.contains(post.id)) {
-          allPosts.add(post);
-          seenIds.add(post.id);
+      // Fallback: If still under limit, add any remaining posts
+      if (mixedPosts.length < limit) {
+        // Add any remaining following
+        while (fIdx < followingPosts.length && mixedPosts.length < limit + 10) {
+          final p = followingPosts[fIdx++];
+          if (!seenIds.contains(p.id)) {
+            mixedPosts.add(p);
+            seenIds.add(p.id);
+          }
+        }
+        // Add any remaining recommendations
+        while (rIdx < recommendationQueue.length &&
+            mixedPosts.length < limit + 10) {
+          final p = recommendationQueue[rIdx++];
+          if (!seenIds.contains(p.id)) {
+            mixedPosts.add(p);
+            seenIds.add(p.id);
+          }
         }
       }
 
       debugPrint(
-          'PostRepository: Unified feed fetched ${allPosts.length} unique posts (trending: ${trendingPosts.length}, boosted: ${boostedPosts.length}, following: ${followingPosts.length}, user: ${userOwnPosts.length})');
+          'PostRepository: Unified mixed feed fetched ${mixedPosts.length} unique posts '
+          '(Following priority with 1:3 injection ratio)');
 
-      // Cache the results (only for paginated requests, not initial load)
+      // Cache the results
       if (lastDocument != null) {
-        _pageCache[cacheKey] = allPosts;
-        debugPrint('PostRepository: Cached page $cacheKey');
+        _pageCache[cacheKey] = mixedPosts;
       }
 
-      return (allPosts, lastDoc);
+      return (mixedPosts, lastDoc);
     } catch (e) {
-      debugPrint('PostRepository: Error getting unified feed: $e');
+      debugPrint('PostRepository: Error getting unified feed with mixing: $e');
       rethrow;
     }
   }

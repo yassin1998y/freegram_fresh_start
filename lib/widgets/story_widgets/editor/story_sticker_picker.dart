@@ -117,7 +117,7 @@ class StoryStickerPicker extends StatelessWidget {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: theme.colorScheme.onSurface.withOpacity( 0.3),
+              color: theme.colorScheme.onSurface.withValues(alpha:  0.3),
               borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
             ),
           ),
@@ -159,7 +159,7 @@ class StoryStickerPicker extends StatelessWidget {
                             BorderRadius.circular(DesignTokens.radiusMD),
                         border: Border.all(
                           color: theme.colorScheme.onSurface
-                              .withOpacity( 0.1),
+                              .withValues(alpha:  0.1),
                           width: 1,
                         ),
                       ),

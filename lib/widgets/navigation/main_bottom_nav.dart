@@ -65,7 +65,7 @@ class MainBottomNav extends StatelessWidget {
             scaffoldBackgroundColor, // Match scaffold background to fill gaps
         border: Border(
           top: BorderSide(
-            color: dividerColor.withOpacity(0.2),
+            color: dividerColor.withValues(alpha: 0.2),
             width: 0.5,
           ),
         ),
@@ -146,7 +146,7 @@ class _BottomNavIcon extends StatelessWidget {
     final iconColor = isSelected
         ? primaryColor
         : SemanticColors.iconDefault(context)
-            .withOpacity(DesignTokens.opacityHigh);
+            .withValues(alpha: DesignTokens.opacityHigh);
 
     final fontWeight = isSelected ? FontWeight.w600 : FontWeight.normal;
 
@@ -173,7 +173,7 @@ class _BottomNavIcon extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? primaryColor.withOpacity(0.1)
+                        ? primaryColor.withValues(alpha: 0.1)
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -261,28 +261,28 @@ class _GlassmorphicCenterButton extends StatelessWidget {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              accentColor.withOpacity(0.4),
-                              primaryColor.withOpacity(0.3),
+                              accentColor.withValues(alpha: 0.4),
+                              primaryColor.withValues(alpha: 0.3),
                             ],
                           )
                         : LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              primaryColor.withOpacity(0.15),
-                              primaryColor.withOpacity(0.08),
+                              primaryColor.withValues(alpha: 0.15),
+                              primaryColor.withValues(alpha: 0.08),
                             ],
                           ),
                     border: Border.all(
                       color: isSelected
-                          ? accentColor.withOpacity(0.6)
-                          : primaryColor.withOpacity(0.3),
+                          ? accentColor.withValues(alpha: 0.6)
+                          : primaryColor.withValues(alpha: 0.3),
                       width: isSelected ? 2 : 1.5,
                     ),
                     boxShadow: isSelected
                         ? [
                             BoxShadow(
-                              color: accentColor.withOpacity(0.4),
+                              color: accentColor.withValues(alpha: 0.4),
                               blurRadius: 12,
                               spreadRadius: 2,
                             ),
@@ -295,7 +295,7 @@ class _GlassmorphicCenterButton extends StatelessWidget {
                       size: DesignTokens.iconMD + 2,
                       color: isSelected
                           ? Colors.white
-                          : primaryColor.withOpacity(0.9),
+                          : primaryColor.withValues(alpha: 0.9),
                     ),
                   ),
                 ),
@@ -307,7 +307,7 @@ class _GlassmorphicCenterButton extends StatelessWidget {
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                     color: isSelected
                         ? accentColor
-                        : primaryColor.withOpacity(0.9),
+                        : primaryColor.withValues(alpha: 0.9),
                     height: DesignTokens.lineHeightTight,
                   ),
                   child: Text(

@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:freegram/screens/random_chat/widgets/radar_scan_animation.dart'; // Added
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:freegram/services/window_manager_service.dart';
 import 'package:shimmer/shimmer.dart';
@@ -9,59 +10,9 @@ import 'package:freegram/blocs/random_chat/random_chat_bloc.dart';
 import 'package:freegram/blocs/random_chat/random_chat_event.dart';
 import 'package:freegram/blocs/random_chat/random_chat_state.dart';
 import 'package:freegram/screens/random_chat/video_call_overlay.dart';
-import 'package:freegram/services/webrtc_service.dart';
-
-class PulseAvatar extends StatefulWidget {
-  final double radius;
-  const PulseAvatar({super.key, required this.radius});
-
-  @override
-  State<PulseAvatar> createState() => _PulseAvatarState();
-}
-
-class _PulseAvatarState extends State<PulseAvatar>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller =
-        AnimationController(vsync: this, duration: const Duration(seconds: 2))
-          ..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return Container(
-          width: widget.radius * 2 + (20 * _controller.value),
-          height: widget.radius * 2 + (20 * _controller.value),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white.withOpacity(0.3 * (1 - _controller.value)),
-          ),
-          child: child,
-        );
-      },
-      child: Center(
-        child: CircleAvatar(
-          radius: widget.radius,
-          backgroundColor: Colors.white,
-          child: const Icon(Icons.person, color: Colors.blue, size: 40),
-        ),
-      ),
-    );
-  }
-}
+import 'package:freegram/theme/app_theme.dart'; // Added
+import 'package:freegram/theme/design_tokens.dart'; // Added
+import 'package:freegram/widgets/guided_overlay.dart';
 
 class MatchTab extends StatefulWidget {
   const MatchTab({super.key});
@@ -70,7 +21,8 @@ class MatchTab extends StatefulWidget {
   State<MatchTab> createState() => _MatchTabState();
 }
 
-class _MatchTabState extends State<MatchTab> {
+class _MatchTabState extends State<MatchTab>
+    with SingleTickerProviderStateMixin {
   final _localRenderer = RTCVideoRenderer();
   final _remoteRenderer = RTCVideoRenderer();
   bool _areRenderersInitialized = false;
@@ -81,9 +33,25 @@ class _MatchTabState extends State<MatchTab> {
   // Swipe Logic
   final PageController _pageController = PageController(initialPage: 0);
 
+  // Pulse Animation for Search
+  late AnimationController _pulseController;
+
+  // Showcase Keys
+  final GlobalKey _giftButtonKey = GlobalKey();
+  bool _showTutorial = false;
+  bool _hasSubscribedToTutorial = false;
+
   @override
   void initState() {
     super.initState();
+    // Pulse Animation: Scales from 1.0 to 1.1 scale
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+      lowerBound: 1.0,
+      upperBound: 1.1,
+    )..repeat(reverse: true);
+
     // Defer renderer initialization until ungated
     // _initRenderers();
     context.read<RandomChatBloc>().add(RandomChatJoinQueue());
@@ -115,6 +83,7 @@ class _MatchTabState extends State<MatchTab> {
     _localRenderer.dispose();
     _remoteRenderer.dispose();
     _pageController.dispose();
+    _pulseController.dispose(); // Dispose controller
     super.dispose();
   }
 
@@ -172,10 +141,22 @@ class _MatchTabState extends State<MatchTab> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: BlocConsumer<RandomChatBloc, RandomChatState>(
+        listenWhen: (previous, current) {
+          return previous.status != current.status ||
+              previous.errorMessage != current.errorMessage ||
+              previous.infoMessage != current.infoMessage ||
+              previous.isMicOn != current.isMicOn ||
+              previous.isCameraOn != current.isCameraOn;
+        },
         listener: (context, state) {
           // 0. Initialize Renderers when ungated
           if (!state.isGated && !_areRenderersInitialized) {
             _initRenderers();
+          }
+
+          // Haptics: Match Found
+          if (state.status == RandomChatStatus.matching) {
+            HapticFeedback.mediumImpact();
           }
 
           // Renderers
@@ -210,19 +191,50 @@ class _MatchTabState extends State<MatchTab> {
           }
         },
         builder: (context, state) {
-          return PageView(
-            controller: _pageController,
-            onPageChanged: (index) {
-              if (index == 1) {
-                context.read<RandomChatBloc>().add(RandomChatSwipeNext());
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _pageController.jumpToPage(0);
-                });
-              }
-            },
+          // Trigger tutorial when connected for the first time
+          if (state.status == RandomChatStatus.connected &&
+              !_hasSubscribedToTutorial) {
+            _hasSubscribedToTutorial = true;
+            // Short delay to let the UI settle
+            Future.delayed(const Duration(seconds: 1), () {
+              if (mounted) setState(() => _showTutorial = true);
+            });
+          }
+
+          return Stack(
             children: [
-              _buildMainContent(state),
-              Container(color: Colors.black),
+              PageView(
+                controller: _pageController,
+                onPageChanged: (index) {
+                  if (index == 1) {
+                    // Swipe detected
+                    context.read<RandomChatBloc>().add(RandomChatSwipeNext());
+                    // Haptic feedback for swipe could be here too
+                    HapticFeedback.lightImpact();
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _pageController.jumpToPage(0);
+                    });
+                  }
+                },
+                children: [
+                  _buildMainContent(state),
+                  Container(color: Colors.black),
+                ],
+              ),
+              if (_showTutorial)
+                GuidedOverlay(
+                  steps: [
+                    GuideStep(
+                      targetKey: _giftButtonKey,
+                      title: 'Surprise Them! 🎁',
+                      description:
+                          'Send a cinematic gift to break the ice and make a lasting impression.',
+                    ),
+                  ],
+                  onFinish: () {
+                    setState(() => _showTutorial = false);
+                  },
+                ),
             ],
           );
         },
@@ -239,12 +251,10 @@ class _MatchTabState extends State<MatchTab> {
         if (state.status == RandomChatStatus.searching)
           _buildSearchingOverlay(),
 
-        // Matching Overlay (Shimmer)
+        // Matching Overlay (Shimmer) (Only if not searching)
         if (state.status == RandomChatStatus.matching) _buildMatchingOverlay(),
 
-        // Ensure Shimmer Overlay is NOT shown if searching
-
-        const VideoCallOverlay(),
+        VideoCallOverlay(giftButtonKey: _giftButtonKey),
 
         if (state.status == RandomChatStatus.connected) _buildPiPView(),
       ],
@@ -256,6 +266,7 @@ class _MatchTabState extends State<MatchTab> {
       return const SizedBox.shrink();
     }
 
+    // Full-Bleed Remote Video (No Padding)
     if (state.status == RandomChatStatus.connected &&
         state.remoteStream != null) {
       return SizedBox.expand(
@@ -266,6 +277,7 @@ class _MatchTabState extends State<MatchTab> {
         ),
       );
     } else {
+      // Local preview full screen (Mirror)
       return SizedBox.expand(
         child: RTCVideoView(
           _localRenderer,
@@ -300,15 +312,19 @@ class _MatchTabState extends State<MatchTab> {
       height: 140,
       decoration: BoxDecoration(
         color: Colors.black,
-        border: Border.all(color: Colors.white, width: 2),
-        borderRadius: BorderRadius.circular(12),
+        // Squircle Style: Radius 16 + Border
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMD), // 16.0
+        border: Border.all(
+            color: Colors.white, width: DesignTokens.borderWidthThin),
         boxShadow: [
           if (!isDragging)
-            BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 8),
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.5),
+                blurRadius: DesignTokens.elevation2),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMD - 1),
         child: RTCVideoView(
           _localRenderer,
           mirror: true,
@@ -322,11 +338,18 @@ class _MatchTabState extends State<MatchTab> {
     return Stack(children: [
       BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(color: Colors.black.withOpacity(0.3)),
+        child: Container(color: Colors.black.withValues(alpha: 0.3)),
       ),
       Center(
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const PulseAvatar(radius: 60), // New Pulse Widget
+        // Pulse Animation for Search (Scale 1.0 -> 1.1)
+        ScaleTransition(
+          scale: _pulseController,
+          child: const RadarScanAnimation(
+            size: 200,
+            color: SonarPulseTheme.primaryAccent,
+          ),
+        ),
         const SizedBox(height: 20),
         const Text("Finding Match...",
             style: TextStyle(
@@ -340,7 +363,7 @@ class _MatchTabState extends State<MatchTab> {
     return Stack(children: [
       BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Container(color: Colors.black.withOpacity(0.5)),
+        child: Container(color: Colors.black.withValues(alpha: 0.5)),
       ),
       Center(
         child: Shimmer.fromColors(

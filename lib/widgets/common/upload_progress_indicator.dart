@@ -37,7 +37,7 @@ class UploadProgressIndicator extends StatelessWidget {
               child: CircularProgressIndicator(
                 value: progress,
                 strokeWidth: strokeWidth,
-                backgroundColor: Colors.white.withOpacity(0.2),
+                backgroundColor: Colors.white.withValues(alpha: 0.2),
                 valueColor: const AlwaysStoppedAnimation<Color>(
                   SonarPulseTheme.primaryAccent,
                 ),
@@ -104,7 +104,7 @@ class CompactUploadProgressIndicator extends StatelessWidget {
             Text(
               currentStep,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
                 fontSize: DesignTokens.fontSizeXS,
               ),
             ),

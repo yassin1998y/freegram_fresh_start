@@ -146,7 +146,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           fillColor: Theme.of(context)
               .colorScheme
               .surfaceContainerHighest
-              .withOpacity(0.5),
+              .withValues(alpha: 0.5),
         ),
         onChanged: (value) {
           setState(() => _searchQuery = value);
@@ -164,7 +164,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       child: Container(
         height: 180,
         decoration: BoxDecoration(
-          color: Theme.of(context).primaryColor.withOpacity( 0.1),
+          color: Theme.of(context).primaryColor.withValues(alpha:  0.1),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Stack(
@@ -178,7 +178,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 color: Theme.of(context)
                     .colorScheme
                     .onSurface
-                    .withOpacity( 0.05),
+                    .withValues(alpha:  0.05),
               ),
             ),
             Padding(
@@ -266,9 +266,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -460,7 +460,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: rarityColor.withOpacity(0.1),
+                    color: rarityColor.withValues(alpha: 0.1),
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(16),
                     ),

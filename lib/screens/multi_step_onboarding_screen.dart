@@ -2,7 +2,6 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:ui';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -25,6 +24,10 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'dart:async';
+import 'dart:ui';
+import 'package:flutter/services.dart';
+import 'package:freegram/theme/app_theme.dart';
+import 'package:freegram/navigation/app_routes.dart';
 
 /// Animated input field that moves above keyboard with blur effect
 class AnimatedInputField extends StatefulWidget {
@@ -137,6 +140,11 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
   int _currentStep = 0;
   final int _totalSteps = 3;
 
+  // IMPROVEMENT: Onboarding Phases
+  bool _introSlidesCompleted = false;
+  final PageController _slidesPageController = PageController();
+  int _currentSlide = 0;
+
   // Keyboard-aware scrolling controllers
   final Map<int, ScrollController> _stepScrollControllers = {};
   final Map<GlobalKey, FocusNode> _fieldFocusNodes = {};
@@ -192,6 +200,31 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
   bool _dobValidated = false;
   bool _genderValidated = false;
   bool _countryValidated = false;
+
+  // Cinematic Slide Propositions
+  final List<Map<String, String>> _introSlides = [
+    {
+      'title': 'Cinematic Video Match',
+      'subtitle':
+          'Experience high-fidelity video connections with a single swipe.',
+      'image': 'assets/onboarding_match.png',
+      'icon': '🎬'
+    },
+    {
+      'title': 'Global Social Radar',
+      'subtitle':
+          'Discover people nearby or around the world with our advanced sonar tech.',
+      'image': 'assets/onboarding_radar.png',
+      'icon': '📡'
+    },
+    {
+      'title': 'Virtual Gifting Economy',
+      'subtitle':
+          'Express yourself and support creators through our unique social economy.',
+      'image': 'assets/onboarding_gifting.png',
+      'icon': '🎁'
+    },
+  ];
 
   @override
   void initState() {
@@ -864,51 +897,34 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
     }
   }
 
-  void _previousStep() {
-    if (_currentStep > 0) {
-      _pageController.previousPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-      setState(() {
-        _currentStep--;
-      });
-    }
-  }
-
   Future<void> _completeOnboarding(BuildContext blocContext) async {
+    // Task 1: Capture ProfileBloc early to avoid deactivated context lookup
+    // This resolves potential "Deactivated Widget Ancestor" crashes.
+    final profileBloc = blocContext.read<ProfileBloc>();
+
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      showIslandPopup(
-        context: context,
-        message: 'Error: You are not logged in',
-        icon: Icons.error_outline,
-      );
+      if (mounted) {
+        showIslandPopup(
+          context: context,
+          message: 'Error: You are not logged in',
+          icon: Icons.error_outline,
+        );
+      }
       return;
     }
 
     // UX IMPROVEMENT: Set loading state to prevent multiple submissions
     if (_isCompletingOnboarding) return;
 
-    // PHASE 1: Add mounted check before setState
+    // Task 1: Strict mounted check before setState
     if (!mounted) return;
     setState(() {
       _isCompletingOnboarding = true;
     });
 
-    // IMPROVEMENT #36: Celebration animation
+    // Task 3: Trigger celebration animation
     _celebrationAnimationController.forward();
-
-    // IMPROVEMENT #40: Show success screen before navigation
-    // PHASE 1: Add mounted check before setState
-    if (mounted) {
-      setState(() {
-        _showSuccessScreen = true;
-      });
-    }
-
-    // Wait for celebration animation
-    await Future.delayed(const Duration(milliseconds: 1500));
 
     // IMPROVEMENT #24: Use accurate age calculation
     final age = _calculateAge() ?? 0;
@@ -931,10 +947,10 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
       updatedData['photoUrl'] = _uploadedImageUrl;
     }
 
-    // IMPROVEMENT #35: Clear draft on completion
+    // Task 3: Clear draft BEFORE triggering the profile update
     await _clearDraft();
 
-    // UX IMPROVEMENT: Show loading indicator during profile update
+    // Task 1: Guarded popup
     if (mounted) {
       showIslandPopup(
         context: context,
@@ -943,14 +959,12 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
       );
     }
 
-    // Dispatch update event using the blocContext that has access to ProfileBloc
-    blocContext.read<ProfileBloc>().add(ProfileUpdateEvent(
-          userId: currentUser.uid,
-          updatedData: updatedData,
-          imageFile: _uploadedImageUrl == null
-              ? _imageFile
-              : null, // Only upload if not already uploaded
-        ));
+    // Task 3: Dispatch update event using captured bloc
+    profileBloc.add(ProfileUpdateEvent(
+      userId: currentUser.uid,
+      updatedData: updatedData,
+      imageFile: _uploadedImageUrl == null ? _imageFile : null,
+    ));
   }
 
   Future<void> _pickImage(BuildContext blocContext) async {
@@ -1300,132 +1314,246 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (_showSuccessScreen) {
+      return _buildSuccessScreen();
+    }
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body:
+          !_introSlidesCompleted ? _buildIntroSlides() : _buildOnboardingForm(),
+    );
+  }
+
+  Widget _buildIntroSlides() {
+    return Stack(
+      children: [
+        // Background - Obsidian Background
+        Positioned.fill(
+          child: Container(
+            color: SonarPulseTheme.darkBackground,
+          ),
+        ),
+
+        PageView.builder(
+          controller: _slidesPageController,
+          onPageChanged: (index) => setState(() => _currentSlide = index),
+          itemCount: _introSlides.length,
+          itemBuilder: (context, index) {
+            final slide = _introSlides[index];
+            return AnimatedBuilder(
+              animation: _slidesPageController,
+              builder: (context, child) {
+                double value = 1.0;
+                if (_slidesPageController.position.haveDimensions) {
+                  value = _slidesPageController.page! - index;
+                  value = (1 - (value.abs() * 0.3)).clamp(0.0, 1.0);
+                }
+                return Center(
+                  child: Opacity(
+                    opacity: value,
+                    child: Transform.scale(
+                      scale: value,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 40),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              slide['icon']!,
+                              style: const TextStyle(fontSize: 80),
+                            ),
+                            const SizedBox(height: 40),
+                            // Glass Overlay Card
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(30),
+                              child: BackdropFilter(
+                                filter:
+                                    ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                child: Container(
+                                  padding: const EdgeInsets.all(
+                                      DesignTokens.spaceXL),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(30),
+                                    border: Border.all(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.2),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        slide['title']!,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .headlineMedium
+                                            ?.copyWith(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: -0.5,
+                                            ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(
+                                          height: DesignTokens.spaceMD),
+                                      Text(
+                                        slide['subtitle']!,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyLarge
+                                            ?.copyWith(
+                                              color: Colors.white70,
+                                              height: 1.4,
+                                            ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+
+        // Indicator and Next Button
+        Positioned(
+          bottom: 60,
+          left: 30,
+          right: 30,
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(_introSlides.length, (index) {
+                  return AnimatedContainer(
+                    duration: AnimationTokens.fast,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: _currentSlide == index ? 24 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _currentSlide == index
+                          ? SonarPulseTheme.primaryAccent
+                          : Colors.white30,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 40),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _nextSlide,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: SonarPulseTheme.primaryAccent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusMD),
+                    ),
+                    elevation: 10,
+                    shadowColor:
+                        SonarPulseTheme.primaryAccent.withValues(alpha: 0.4),
+                  ),
+                  child: Text(
+                    _currentSlide == _introSlides.length - 1
+                        ? 'Get Started'
+                        : 'Next',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _nextSlide() {
+    if (_currentSlide < _introSlides.length - 1) {
+      HapticFeedback.lightImpact();
+      _slidesPageController.nextPage(
+        duration: AnimationTokens.snappy,
+        curve: AnimationTokens.snappyCurve,
+      );
+    } else {
+      HapticFeedback.mediumImpact();
+      setState(() {
+        _introSlidesCompleted = true;
+      });
+    }
+  }
+
+  Widget _buildOnboardingForm() {
     return BlocProvider(
       create: (context) => ProfileBloc(
         userRepository: locator<UserRepository>(),
       ),
-      child: BlocListener<ProfileBloc, ProfileState>(
+      child: BlocConsumer<ProfileBloc, ProfileState>(
         listener: (context, state) {
           if (state is ProfileImageUploading) {
-            final percentage = (state.progress * 100).toInt();
-            // Always show progress, even at 0%
-            showIslandPopup(
-              context: context,
-              message: 'Uploading image... $percentage%',
-              icon: Icons.cloud_upload_outlined,
-            );
+            if (mounted) {
+              final percentage = (state.progress * 100).toInt();
+              showIslandPopup(
+                context: context,
+                message: 'Uploading image... $percentage%',
+                icon: Icons.cloud_upload_outlined,
+              );
+            }
           }
 
           if (state is ProfileImageUploaded) {
-            // Image uploaded successfully - store the URL
-            // PHASE 1: Add mounted check before setState
             if (mounted) {
               setState(() {
                 _uploadedImageUrl = state.imageUrl;
               });
+              showIslandPopup(
+                context: context,
+                message: 'Image uploaded successfully!',
+                icon: Icons.check_circle_outline,
+              );
             }
-            showIslandPopup(
-              context: context,
-              message: 'Image uploaded successfully!',
-              icon: Icons.check_circle_outline,
-            );
           }
 
           if (state is ProfileUpdateSuccess) {
-            // Mark onboarding as complete
             final currentUser = FirebaseAuth.instance.currentUser;
             if (currentUser != null && mounted) {
               final settingsBox = Hive.box('settings');
-              // Use AuthConstants.getOnboardingKey for consistency with AuthWrapper
               final onboardingKey =
                   AuthConstants.getOnboardingKey(currentUser.uid);
               settingsBox.put(onboardingKey, true);
-              debugPrint(
-                "Onboarding marked as complete for user ${currentUser.uid}",
-              );
 
-              // CRITICAL FIX: Ensure AuthWrapper rebuilds after profile update
-              // The AuthWrapper listens to the user stream and will automatically
-              // switch from MultiStepOnboardingScreen to MainScreen when it detects
-              // that onboarding is complete and profile is complete.
-              //
-              // The ProfileUpdateSuccess event already updated Firestore, which will
-              // trigger the user stream to emit a new value, causing AuthWrapper to rebuild.
-              // However, there might be a slight delay. We add a small delay to ensure
-              // Firestore has propagated the update, then force a check.
-              //
-              // As a fallback, if navigation doesn't happen within 3 seconds, we'll
-              // try to manually trigger a stream refresh by checking the user data again.
-              debugPrint(
-                'Onboarding complete - AuthWrapper will handle navigation when user stream updates',
-              );
+              setState(() {
+                _showSuccessScreen = true;
+              });
 
-              // Wait for Firestore to propagate the update, then verify navigation happens
-              // The StreamBuilder in AuthWrapper should automatically rebuild when the stream emits
-              // Add a delay to ensure Firestore has time to propagate the update
-              Future.delayed(const Duration(milliseconds: 500), () async {
-                if (!mounted) return;
+              // Task 2: Auth State Sync - Explicit event to trigger top-level navigation
+              context
+                  .read<AuthBloc>()
+                  .add(AuthOnboarded(userId: currentUser.uid));
 
-                // Verify the update was successful by checking Firestore
-                try {
-                  final userRepository = locator<UserRepository>();
-                  final updatedUser =
-                      await userRepository.getUser(currentUser.uid);
-                  final isProfileComplete = updatedUser.age > 0 &&
-                      updatedUser.country.isNotEmpty &&
-                      updatedUser.gender.isNotEmpty &&
-                      updatedUser.username.isNotEmpty;
-
-                  if (isProfileComplete && mounted) {
-                    debugPrint(
-                      'MultiStepOnboardingScreen: Profile update confirmed in Firestore. '
-                      'Profile data: age=${updatedUser.age}, country=${updatedUser.country}, '
-                      'gender=${updatedUser.gender}, username=${updatedUser.username}',
-                    );
-
-                    // The StreamBuilder in AuthWrapper should automatically detect the Firestore update
-                    // However, Firestore streams can have delays. If the stream doesn't update within
-                    // 1.5 seconds, we'll trigger a manual refresh by writing a dummy field to Firestore
-                    // and immediately removing it. This forces the stream to emit a new value.
-                    Future.delayed(const Duration(milliseconds: 1500),
-                        () async {
-                      if (!mounted || !_showSuccessScreen) return;
-
-                      debugPrint(
-                        'MultiStepOnboardingScreen: Stream update delay detected. '
-                        'Attempting to force stream refresh...',
-                      );
-
-                      try {
-                        // Force the Firestore stream to emit by updating a timestamp field
-                        // This is a common technique to force stream updates when the stream
-                        // doesn't detect changes immediately after an update
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(currentUser.uid)
-                            .update({
-                          'lastProfileUpdate': DateTime.now().toIso8601String(),
-                        });
-                        debugPrint(
-                          'MultiStepOnboardingScreen: Triggered stream refresh update. '
-                          'AuthWrapper should rebuild shortly.',
-                        );
-                      } catch (e) {
-                        debugPrint(
-                          'MultiStepOnboardingScreen: Error forcing stream refresh: $e',
-                        );
-                      }
-                    });
-                  } else {
-                    debugPrint(
-                      'MultiStepOnboardingScreen: Profile update incomplete. '
-                      'age=${updatedUser.age}, country=${updatedUser.country}, '
-                      'gender=${updatedUser.gender}, username=${updatedUser.username}',
-                    );
-                  }
-                } catch (e) {
-                  debugPrint(
-                    'MultiStepOnboardingScreen: Error verifying profile update: $e',
+              // Task 2: Manual Navigation Fallback (Navigation Watchdog)
+              // If the user stream doesn't trigger navigation within 2 seconds, force it.
+              Future.delayed(const Duration(seconds: 2), () {
+                if (context.mounted) {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    AppRoutes.main,
+                    (route) => false,
                   );
                 }
               });
@@ -1433,312 +1561,226 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
           }
 
           if (state is ProfileError) {
-            // UX IMPROVEMENT: Better error handling with user-friendly messages
-            String errorMessage = state.message;
-
-            // Parse error for user-friendly messages
-            final errorLower = state.message.toLowerCase();
-            if (errorLower.contains('network') ||
-                errorLower.contains('connection')) {
-              errorMessage =
-                  'Network error. Please check your connection and try again.';
-            } else if (errorLower.contains('permission') ||
-                errorLower.contains('denied')) {
-              errorMessage = 'Permission denied. Please check app permissions.';
-            } else if (errorLower.contains('timeout')) {
-              errorMessage = 'Request timed out. Please try again.';
-            } else if (errorLower.contains('storage') ||
-                errorLower.contains('quota')) {
-              errorMessage =
-                  'Storage error. Please try again or use a smaller image.';
+            if (mounted) {
+              showIslandPopup(
+                context: context,
+                message: state.message,
+                icon: Icons.error_outline,
+              );
             }
-
-            showIslandPopup(
-              context: context,
-              message: errorMessage,
-              icon: Icons.error_outline,
-            );
           }
         },
-        child: Builder(
-          builder: (blocContext) => PopScope(
+        builder: (context, state) {
+          return PopScope(
             canPop: false,
             onPopInvokedWithResult: (didPop, result) async {
               if (didPop) return;
-
-              // Show confirmation dialog when user tries to go back
-              final shouldExit = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Cancel Onboarding?'),
-                  content: const Text(
-                    'Are you sure you want to cancel? You will be signed out and need to complete this setup to use the app.',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Continue'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Theme.of(context).colorScheme.error,
-                      ),
-                      child: const Text('Sign Out'),
-                    ),
-                  ],
-                ),
-              );
-
-              if (shouldExit == true) {
-                // User confirmed - sign out
-                // Note: SignOut usually triggers navigation change via AuthBloc listener
-                context.read<AuthBloc>().add(SignOut());
-                // If we need to forcefully pop referencing the previous behavior of 'return true',
-                // we would call Navigator.pop(context), but since SignOut likely redirects,
-                // we let the BLoC listener handle the routing.
-              }
+              _handleBackNavigation(context);
             },
-            child: _showSuccessScreen
-                ? _buildSuccessScreen()
-                : Scaffold(
-                    // CRITICAL: Explicit background color to prevent black screen during transitions
-                    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                    resizeToAvoidBottomInset: true,
-                    // IMPROVEMENT #34: Better keyboard handling
-                    appBar: FreegramAppBar(
-                      title: 'Register',
-                      showBackButton: true,
-                      onBackPressed: () async {
-                        // Same logic as WillPopScope
-                        final shouldExit = await showDialog<bool>(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('Cancel Onboarding?'),
-                            content: const Text(
-                              'Are you sure you want to cancel? You will be signed out and need to complete this setup to use the app.',
+            child: Scaffold(
+              appBar: FreegramAppBar(
+                title: 'Create Profile',
+                showBackButton: _currentStep > 0,
+                onBackPressed: () {
+                  if (_currentStep > 0) {
+                    HapticFeedback.lightImpact();
+                    _pageController.previousPage(
+                      duration: AnimationTokens.normal,
+                      curve: AnimationTokens.easeInOut,
+                    );
+                    setState(() => _currentStep--);
+                  } else {
+                    _handleBackNavigation(context);
+                  }
+                },
+              ),
+              body: KeyboardSafeArea(
+                child: Column(
+                  children: [
+                    // Step Indicator
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: DesignTokens.spaceLG,
+                        vertical: DesignTokens.spaceMD,
+                      ),
+                      child: Row(
+                        children: List.generate(
+                          _totalSteps,
+                          (index) => Expanded(
+                            child: AnimatedContainer(
+                              duration: AnimationTokens.normal,
+                              height: 4,
+                              margin: const EdgeInsets.symmetric(horizontal: 2),
+                              decoration: BoxDecoration(
+                                color: index <= _currentStep
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context)
+                                        .dividerColor
+                                        .withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
                             ),
-                            actions: [
-                              TextButton(
-                                onPressed: () =>
-                                    Navigator.of(context).pop(false),
-                                child: const Text('Continue'),
-                              ),
-                              TextButton(
-                                onPressed: () =>
-                                    Navigator.of(context).pop(true),
-                                style: TextButton.styleFrom(
-                                  foregroundColor:
-                                      Theme.of(context).colorScheme.error,
-                                ),
-                                child: const Text('Sign Out'),
-                              ),
-                            ],
                           ),
-                        );
-
-                        if (shouldExit == true) {
-                          // User confirmed - sign out
-                          context.read<AuthBloc>().add(SignOut());
-                        }
-                      },
+                        ),
+                      ),
                     ),
-                    body: SafeArea(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          // Get keyboard height
-                          final keyboardHeight =
-                              MediaQuery.of(context).viewInsets.bottom;
-                          final isKeyboardVisible = keyboardHeight > 0;
 
-                          return Column(
-                            children: [
-                              // IMPROVEMENT #21 & #33: Enhanced progress indicator with percentage
-                              Padding(
-                                padding:
-                                    const EdgeInsets.all(DesignTokens.spaceLG),
-                                child: Column(
-                                  children: [
-                                    Row(
-                                      children: List.generate(
-                                        _totalSteps,
-                                        (index) => Expanded(
-                                          child: AnimatedContainer(
-                                            duration: AnimationTokens.normal,
-                                            curve: AnimationTokens.easeInOut,
-                                            height: 6,
-                                            margin: EdgeInsets.only(
-                                              right: index < _totalSteps - 1
-                                                  ? DesignTokens.spaceSM
-                                                  : 0,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: index <= _currentStep
-                                                  ? Theme.of(context)
-                                                      .colorScheme
-                                                      .primary
-                                                  : Colors.grey[300],
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                      DesignTokens.radiusXS),
-                                            ),
+                    // Main Content (Pager)
+                    Expanded(
+                      child: PageView(
+                        controller: _pageController,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: [
+                          _buildStep1(),
+                          _buildStep2(),
+                          _buildStep3(),
+                        ],
+                      ),
+                    ),
+
+                    // Action Bar (Bottom)
+                    Padding(
+                      padding: const EdgeInsets.all(DesignTokens.spaceLG),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ScaleTransition(
+                            scale: _stepScaleAnimation,
+                            child: Row(
+                              children: [
+                                if (_currentStep > 0) ...[
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: () {
+                                        HapticFeedback.lightImpact();
+                                        _pageController.previousPage(
+                                          duration: AnimationTokens.normal,
+                                          curve: AnimationTokens.easeInOut,
+                                        );
+                                        setState(() => _currentStep--);
+                                      },
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: DesignTokens.spaceMD,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            DesignTokens.radiusMD,
                                           ),
                                         ),
                                       ),
+                                      child: const Text('Previous'),
                                     ),
-                                    const SizedBox(
-                                        height: DesignTokens.spaceMD),
-                                    // IMPROVEMENT #33: Progress percentage display
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          'Step ${_currentStep + 1} of $_totalSteps',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                        ),
-                                        Text(
-                                          '${((_currentStep + 1) / _totalSteps * 100).toInt()}% Complete',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall
-                                              ?.copyWith(
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .primary,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              // Page content - adjust height when keyboard is visible
-                              Expanded(
-                                child: KeyboardSafeArea(
-                                  child: PageView(
-                                    controller: _pageController,
-                                    physics:
-                                        const NeverScrollableScrollPhysics(),
-                                    children: [
-                                      _buildStep1(),
-                                      _buildStep2(),
-                                      _buildStep3(),
-                                    ],
                                   ),
-                                ),
-                              ),
-
-                              // Navigation buttons - hide when keyboard is visible
-                              AnimatedSize(
-                                duration: const Duration(milliseconds: 100),
-                                child: isKeyboardVisible
-                                    ? const SizedBox.shrink()
-                                    : Padding(
-                                        padding: const EdgeInsets.all(
-                                            DesignTokens.spaceLG),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            if (_currentStep > 0)
-                                              TextButton.icon(
-                                                onPressed: _previousStep,
-                                                icon: const Icon(
-                                                    Icons.arrow_back),
-                                                label: const Text('Back'),
-                                              )
-                                            else
-                                              const SizedBox.shrink(),
-                                            ElevatedButton.icon(
-                                              onPressed: _isCompletingOnboarding
-                                                  ? null
-                                                  : () =>
-                                                      _nextStep(blocContext),
-                                              style: ElevatedButton.styleFrom(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                  horizontal:
-                                                      DesignTokens.spaceXL,
-                                                  vertical:
-                                                      DesignTokens.spaceMD,
-                                                ),
-                                                backgroundColor:
-                                                    _isCompletingOnboarding
-                                                        ? Colors.grey
-                                                        : Theme.of(context)
-                                                            .colorScheme
-                                                            .primary,
-                                                foregroundColor:
-                                                    Theme.of(context)
-                                                        .colorScheme
-                                                        .onPrimary,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                    DesignTokens.radiusMD,
-                                                  ),
-                                                ),
-                                              ),
-                                              icon: _isCompletingOnboarding
-                                                  ? SizedBox(
-                                                      width:
-                                                          DesignTokens.iconMD,
-                                                      height:
-                                                          DesignTokens.iconMD,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                        valueColor:
-                                                            AlwaysStoppedAnimation<
-                                                                Color>(
-                                                          Theme.of(context)
-                                                              .colorScheme
-                                                              .onPrimary,
-                                                        ),
-                                                      ),
-                                                    )
-                                                  : Icon(
-                                                      _currentStep ==
-                                                              _totalSteps - 1
-                                                          ? Icons.check_circle
-                                                          : Icons.arrow_forward,
-                                                    ),
-                                              label: Text(
-                                                _isCompletingOnboarding
-                                                    ? 'Saving...'
-                                                    : (_currentStep ==
-                                                            _totalSteps - 1
-                                                        ? 'Complete'
-                                                        : 'Next'),
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.w600,
-                                                  fontSize:
-                                                      DesignTokens.fontSizeLG,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
+                                  const SizedBox(width: DesignTokens.spaceMD),
+                                ],
+                                Expanded(
+                                  flex: 2,
+                                  child: ElevatedButton.icon(
+                                    onPressed: _isCompletingOnboarding
+                                        ? null
+                                        : () {
+                                            HapticFeedback.lightImpact();
+                                            _nextStep(context);
+                                          },
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: DesignTokens.spaceMD,
+                                      ),
+                                      backgroundColor: _isCompletingOnboarding
+                                          ? Colors.grey
+                                          : Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                      foregroundColor: Theme.of(context)
+                                          .colorScheme
+                                          .onPrimary,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          DesignTokens.radiusMD,
                                         ),
                                       ),
-                              ),
-                            ],
-                          );
-                        },
+                                    ),
+                                    icon: _isCompletingOnboarding
+                                        ? SizedBox(
+                                            width: DesignTokens.iconMD,
+                                            height: DesignTokens.iconMD,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                Theme.of(context)
+                                                    .colorScheme
+                                                    .onPrimary,
+                                              ),
+                                            ),
+                                          )
+                                        : Icon(
+                                            _currentStep == _totalSteps - 1
+                                                ? Icons.check_circle
+                                                : Icons.arrow_forward,
+                                          ),
+                                    label: Text(
+                                      _isCompletingOnboarding
+                                          ? 'Saving...'
+                                          : (_currentStep == _totalSteps - 1
+                                              ? 'Complete'
+                                              : 'Next'),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: DesignTokens.fontSizeLG,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-          ),
-        ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
+  }
+
+  void _handleBackNavigation(BuildContext context) async {
+    final shouldExit = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel Onboarding?'),
+        content: const Text(
+          'Are you sure you want to cancel? You will be signed out and need to complete this setup to use the app.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Continue'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldExit == true && context.mounted) {
+      // Task 4: Clear "Ghost" Routes on Logout to completely clear onboarding stack
+      context.read<AuthBloc>().add(SignOut());
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        AppRoutes.login,
+        (route) => false,
+      );
+    }
   }
 
   Widget _buildStep1() {
@@ -2101,10 +2143,10 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
             Container(
               padding: const EdgeInsets.all(DesignTokens.spaceMD),
               decoration: BoxDecoration(
-                color: SemanticColors.success.withOpacity(0.1),
+                color: SemanticColors.success.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
                 border: Border.all(
-                  color: SemanticColors.success.withOpacity(0.3),
+                  color: SemanticColors.success.withValues(alpha: 0.3),
                   width: DesignTokens.borderWidthThin,
                 ),
               ),
@@ -2349,9 +2391,9 @@ class _MultiStepOnboardingScreenState extends State<MultiStepOnboardingScreen>
                     height: 100,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: SemanticColors.success.withOpacity(0.1),
+                      color: SemanticColors.success.withValues(alpha: 0.1),
                       border: Border.all(
-                        color: SemanticColors.success.withOpacity(0.3),
+                        color: SemanticColors.success.withValues(alpha: 0.3),
                         width: 4,
                       ),
                     ),

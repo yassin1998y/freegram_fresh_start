@@ -4,8 +4,7 @@ import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/services/session_manager.dart';
 
 /// Splash screen that displays during app initialization
-/// Handles both app initialization AND session preparation in one unified experience
-/// Includes error handling, retry functionality, and timeout warnings
+/// Task 4: Upgraded with FadeTransition and Cyber-Violet pulse
 class SplashScreen extends StatefulWidget {
   final Future<dynamic> Function()? onInitializationComplete;
   final Widget Function(dynamic)? onComplete;
@@ -29,9 +28,11 @@ enum LoadingPhase {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _pulseController;
+  late AnimationController _fadeController;
   late Animation<double> _pulseAnimation;
+  late Animation<double> _fadeAnimation;
 
   String _currentStep = 'Initializing...';
   int _currentStepIndex = 0;
@@ -56,7 +57,13 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
-    // Pulse animation for logo
+    // Task 4: Fade animation for logo reveal
+    _fadeController = AnimationController(
+        duration: const Duration(milliseconds: 1000), vsync: this);
+    _fadeAnimation =
+        CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
+
+    // Task 4: Cyber-Violet Pulse (Visual Polish)
     _pulseController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
@@ -70,39 +77,51 @@ class _SplashScreenState extends State<SplashScreen>
       curve: Curves.easeInOut,
     ));
 
-    // Start unified loading sequence
+    _fadeController.forward();
     _startUnifiedLoadingSequence();
   }
 
   void _startUnifiedLoadingSequence() async {
     try {
-      // Phase 1: App Initialization (7 seconds with animation)
       _runAppInitialization();
       await _animateInitialSteps();
 
-      // Phase 2: Session Preparation
       if (!mounted) return;
       setState(() {
         _phase = LoadingPhase.sessionPreparation;
-        _currentStep = _initializationSteps[5]; // "Preparing your session..."
+        _currentStep = _initializationSteps[5];
         _currentStepIndex = 5;
       });
 
       await _runSessionInitialization();
 
-      // Phase 3: Complete - Navigate to app
       if (!mounted) return;
       setState(() {
         _phase = LoadingPhase.complete;
         _currentStep = 'Ready!';
       });
 
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Task 4: Modern Cyber-Violet Pulse Transition
+      await Future.delayed(const Duration(milliseconds: 800));
 
       if (mounted && widget.onComplete != null) {
         final appWidget = widget.onComplete!(_initializationResult);
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => appWidget),
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => appWidget,
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: animation,
+                child: Container(
+                  color: const Color(0xFF1A0B2E)
+                      .withValues(alpha: 1.0 - animation.value),
+                  child: child,
+                ),
+              );
+            },
+            transitionDuration: const Duration(milliseconds: 800),
+          ),
         );
       }
     } catch (e) {
@@ -136,7 +155,6 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _animateInitialSteps() async {
-    // Initial delay
     await Future.delayed(const Duration(milliseconds: 800));
 
     if (!mounted) return;
@@ -145,7 +163,6 @@ class _SplashScreenState extends State<SplashScreen>
       _currentStepIndex = 0;
     });
 
-    // Animate through first 5 steps
     for (int i = 1; i < 5; i++) {
       await Future.delayed(const Duration(milliseconds: 1200));
 
@@ -156,7 +173,6 @@ class _SplashScreenState extends State<SplashScreen>
       });
     }
 
-    // Wait for app initialization to complete
     int waitTime = 0;
     while (!_appInitComplete && mounted && waitTime < 10000) {
       await Future.delayed(const Duration(milliseconds: 100));
@@ -172,11 +188,8 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _runSessionInitialization() async {
     try {
-      // Initialize session
       final sessionManager = SessionManager();
       await sessionManager.initialize();
-
-      // Start background services (fire and forget)
       sessionManager.checkOnboardingAndStartServices();
     } catch (e) {
       debugPrint('Session initialization error: $e');
@@ -206,6 +219,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void dispose() {
     _pulseController.dispose();
+    _fadeController.dispose();
     super.dispose();
   }
 
@@ -214,7 +228,6 @@ class _SplashScreenState extends State<SplashScreen>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Error state
     if (_phase == LoadingPhase.error) {
       return Scaffold(
         backgroundColor: isDark
@@ -271,7 +284,6 @@ class _SplashScreenState extends State<SplashScreen>
       );
     }
 
-    // Normal loading state
     return Scaffold(
       backgroundColor: isDark
           ? SonarPulseTheme.darkBackground
@@ -281,24 +293,26 @@ class _SplashScreenState extends State<SplashScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Freegram Logo with pulse animation
-              AnimatedBuilder(
-                animation: _pulseAnimation,
-                builder: (context, child) {
-                  return Transform.scale(
-                    scale: _pulseAnimation.value,
-                    child: Image.asset(
-                      'assets/freegram_logo_no_bg.png',
-                      width: 180,
-                      height: 180,
-                    ),
-                  );
-                },
+              // Task 4: FadeTransition for logo reveal
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: AnimatedBuilder(
+                  animation: _pulseAnimation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _pulseAnimation.value,
+                      child: Image.asset(
+                        'assets/freegram_logo_no_bg.png',
+                        width: 180,
+                        height: 180,
+                      ),
+                    );
+                  },
+                ),
               ),
 
               const SizedBox(height: DesignTokens.spaceXXL),
 
-              // Spinner
               const SizedBox(
                 width: 40,
                 height: 40,
@@ -312,7 +326,6 @@ class _SplashScreenState extends State<SplashScreen>
 
               const SizedBox(height: DesignTokens.spaceXL),
 
-              // Current step text
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
                 child: Text(
@@ -329,7 +342,6 @@ class _SplashScreenState extends State<SplashScreen>
 
               const SizedBox(height: DesignTokens.spaceLG),
 
-              // Progress dots (6 dots now, including session preparation)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
@@ -350,7 +362,6 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
               ),
 
-              // Timeout warning
               if (_showTimeout) ...[
                 const SizedBox(height: DesignTokens.spaceXL),
                 Text(

@@ -33,7 +33,7 @@ class StoryOptionsDialog {
               margin:
                   const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
               decoration: BoxDecoration(
-                color: theme.colorScheme.onSurface.withOpacity(
+                color: theme.colorScheme.onSurface.withValues(alpha: 
                   DesignTokens.opacityMedium,
                 ),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
@@ -112,7 +112,7 @@ class StoryOptionsDialog {
         content: Text(
           'This story will be deleted permanently. This action cannot be undone.',
           style: TextStyle(
-            color: theme.colorScheme.onSurface.withOpacity(
+            color: theme.colorScheme.onSurface.withValues(alpha: 
               DesignTokens.opacityHigh,
             ),
           ),
@@ -123,7 +123,7 @@ class StoryOptionsDialog {
             child: Text(
               'Cancel',
               style: TextStyle(
-                color: theme.colorScheme.onSurface.withOpacity(
+                color: theme.colorScheme.onSurface.withValues(alpha: 
                   DesignTokens.opacityHigh,
                 ),
               ),

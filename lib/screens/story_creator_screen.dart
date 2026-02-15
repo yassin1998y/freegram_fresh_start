@@ -399,6 +399,8 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
   Future<void> _showMediaPicker() async {
     final result = await StoryMediaPickerDialog.show(context);
 
+    if (!context.mounted) return;
+
     if (result != null) {
       final source = result['source'] as ImageSource;
       final type = result['type'] as String? ?? 'image';
@@ -411,7 +413,7 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
       }
     } else {
       // User cancelled, go back
-      if (mounted) {
+      if (context.mounted) {
         Navigator.of(context).pop();
       }
     }
@@ -898,7 +900,7 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
             content: Text(
               'Would you like to post another story?',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(
+                color: theme.colorScheme.onSurface.withValues(alpha: 
                   DesignTokens.opacityHigh,
                 ),
               ),
@@ -909,7 +911,7 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
                 child: Text(
                   'Done',
                   style: TextStyle(
-                    color: theme.colorScheme.onSurface.withOpacity(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 
                       DesignTokens.opacityHigh,
                     ),
                   ),
@@ -928,6 +930,8 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
             ],
           ),
         );
+
+        if (!context.mounted) return;
 
         if (postAnother == true) {
           // Reset state for new story

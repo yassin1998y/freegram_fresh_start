@@ -35,7 +35,7 @@ class DrawingToolbar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.7),
+        color: Colors.black.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -80,7 +80,7 @@ class DrawingToolbar extends StatelessWidget {
         width: isSelected ? 40 : 32,
         height: isSelected ? 40 : 32,
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.white.withOpacity(0.5),
+          color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.5),
           shape: BoxShape.circle,
         ),
         child: Center(

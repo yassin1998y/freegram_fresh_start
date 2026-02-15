@@ -155,7 +155,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
         color: theme.scaffoldBackgroundColor,
         border: Border(
           bottom: BorderSide(
-            color: theme.dividerColor.withOpacity(0.1),
+            color: theme.dividerColor.withValues(alpha: 0.1),
             width: 1,
           ),
         ),
@@ -165,19 +165,19 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
         decoration: InputDecoration(
           hintText: 'Search chats...',
           hintStyle: TextStyle(
-            color: theme.colorScheme.onSurface.withOpacity(0.5),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             fontSize: DesignTokens.fontSizeMD,
           ),
           prefixIcon: Icon(
             Icons.search_rounded,
-            color: theme.colorScheme.onSurface.withOpacity(0.5),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             size: DesignTokens.iconLG,
           ),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
                   icon: Icon(
                     Icons.clear_rounded,
-                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                     size: DesignTokens.iconMD,
                   ),
                   onPressed: () {
@@ -192,7 +192,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
                         : Icons.filter_list_outlined,
                     color: _showUnreadOnly
                         ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurface.withOpacity(0.5),
+                        : theme.colorScheme.onSurface.withValues(alpha: 0.5),
                     size: DesignTokens.iconLG,
                   ),
                   tooltip: 'Filter',
@@ -204,7 +204,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
                   },
                 ),
           filled: true,
-          fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+          fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
             borderSide: BorderSide.none,
@@ -291,7 +291,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
             border: Border.all(
               color: isActive
                   ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.outline.withOpacity(
+                  : Theme.of(context).colorScheme.outline.withValues(alpha: 
                         DesignTokens.opacityMedium,
                       ),
               width: 1,
@@ -557,7 +557,7 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: Theme.of(context).dividerColor.withOpacity(0.1),
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
                 width: DesignTokens.borderWidthHairline,
               ),
             ),

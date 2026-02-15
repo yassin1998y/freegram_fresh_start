@@ -137,7 +137,7 @@ class _PostFooterState extends State<PostFooter> {
                           child: Text(
                             '${widget.reactionCount} ${widget.reactionCount == 1 ? 'like' : 'likes'}',
                             style: theme.textTheme.labelLarge?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(
+                              color: theme.colorScheme.onSurface.withValues(alpha: 
                                 DesignTokens.opacityMedium,
                               ),
                             ),
@@ -151,7 +151,7 @@ class _PostFooterState extends State<PostFooter> {
                           child: Text(
                             '•',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(
+                              color: theme.colorScheme.onSurface.withValues(alpha: 
                                 DesignTokens.opacityMedium,
                               ),
                             ),
@@ -161,7 +161,7 @@ class _PostFooterState extends State<PostFooter> {
                         Text(
                           '${widget.post.commentCount} ${widget.post.commentCount == 1 ? 'comment' : 'comments'}',
                           style: theme.textTheme.labelLarge?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(
+                            color: theme.colorScheme.onSurface.withValues(alpha: 
                               DesignTokens.opacityMedium,
                             ),
                           ),
@@ -212,7 +212,7 @@ class _PostFooterState extends State<PostFooter> {
                         color: theme.colorScheme.primary,
                       ),
                     ),
-                    backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                    backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
                     padding: EdgeInsets.zero,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
@@ -300,7 +300,7 @@ class _PostFooterState extends State<PostFooter> {
               child: Text(
                 'more',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 
                     DesignTokens.opacityMedium,
                   ),
                 ),

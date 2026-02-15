@@ -27,7 +27,7 @@ import 'package:freegram/services/miui_permission_helper.dart';
 // Models (Hive & Firestore Alias)
 import 'package:freegram/models/hive/nearby_user.dart';
 import 'package:freegram/models/hive/user_profile.dart';
-import 'package:freegram/models/user_model.dart' as ServerUserModel; // Alias
+import 'package:freegram/models/user_model.dart' as server_user_model; // Alias
 import 'package:freegram/services/navigation_service.dart';
 // Screens
 import 'package:freegram/screens/profile_screen.dart';
@@ -91,6 +91,8 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
       _unleashController; // Animation for sonar start pulse
   late AnimationController
       _discoveryController; // Animation for user found pulse
+  late AnimationController
+      _radarRotationController; // Animation for rotating radar glow
   String? _currentUserPhotoUrl; // For the center avatar
   final bool _isWeb = kIsWeb; // Check if running on web
   StreamSubscription?
@@ -122,6 +124,9 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
           vsync: this, duration: const Duration(milliseconds: 800));
       _discoveryController = AnimationController(
           vsync: this, duration: const Duration(milliseconds: 600));
+      _radarRotationController =
+          AnimationController(vsync: this, duration: const Duration(seconds: 4))
+            ..repeat();
 
       // Fetch current user's photo for the center avatar
       _fetchCurrentUserPhoto();
@@ -153,6 +158,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
       // SonarController stop is now handled centrally in MainScreenWrapper
       _unleashController.dispose();
       _discoveryController.dispose();
+      _radarRotationController.dispose();
       _statusSubscription?.cancel(); // Cancel status listener
       _syncTimer?.cancel(); // Cancel auto-sync timer
       _connectivitySubscription?.cancel(); // Cancel connectivity listener
@@ -221,7 +227,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       try {
-        final ServerUserModel.UserModel userModel =
+        final server_user_model.UserModel userModel =
             await _userRepository.getUser(user.uid);
         if (mounted) setState(() => _currentUserPhotoUrl = userModel.photoUrl);
       } catch (e) {
@@ -479,6 +485,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
     return Column(
       children: [
         // Professional Top Status Bar
+        // Professional Top Status Bar (Radar Badge)
         Padding(
           padding: EdgeInsets.fromLTRB(
             DesignTokens.spaceLG,
@@ -486,27 +493,31 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
             DesignTokens.spaceLG,
             0,
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: ProfessionalStatusChip(
-                  label: "Bluetooth",
-                  icon: Icons.bluetooth,
-                  isActive: _isBluetoothHardwareEnabled,
-                  onTap: () => AppSettings.openAppSettings(
-                    type: AppSettingsType.bluetooth,
-                  ),
-                ),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: Colors.white12),
               ),
-              const SizedBox(width: DesignTokens.spaceMD),
-              const Expanded(
-                child: ProfessionalStatusChip(
-                  label: "Rankings",
-                  icon: Icons.leaderboard_outlined,
-                  isActive: false, // Disabled
-                ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.radar,
+                      color: SonarPulseTheme.socialAccent, size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    "Finding people within 10km",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  )
+                ],
               ),
-            ],
+            ),
           ),
         ),
 
@@ -546,7 +557,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                       color: Theme.of(context)
                           .colorScheme
                           .onSurface
-                          .withOpacity(0.8),
+                          .withValues(alpha: 0.8),
                       fontSize: DesignTokens.fontSizeMD,
                       fontWeight: FontWeight.w500,
                       height: DesignTokens.lineHeightNormal,
@@ -568,26 +579,26 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
   // Build professional center avatar with enhanced glassmorphism
   Widget _buildProfessionalCenterAvatar(bool isScanningActive) {
     return Container(
-      width: DesignTokens.avatarSizeLarge,
-      height: DesignTokens.avatarSizeLarge,
+      width: AvatarSize.large.size,
+      height: AvatarSize.large.size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         boxShadow: isScanningActive
             ? [
                 BoxShadow(
-                  color: SonarPulseTheme.primaryAccent.withOpacity(0.6),
+                  color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.6),
                   blurRadius: DesignTokens.elevation4,
                   spreadRadius: 4,
                 ),
                 BoxShadow(
-                  color: SonarPulseTheme.primaryAccent.withOpacity(0.3),
+                  color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.3),
                   blurRadius: DesignTokens.elevation4 * 2,
                   spreadRadius: 6,
                 ),
               ]
             : [
                 BoxShadow(
-                  color: Theme.of(context).shadowColor.withOpacity(0.1),
+                  color: Theme.of(context).shadowColor.withValues(alpha: 0.1),
                   blurRadius: DesignTokens.elevation2,
                   offset: const Offset(0, 2),
                 )
@@ -596,15 +607,37 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
       child: Stack(
         alignment: Alignment.center,
         children: [
+          // Scanning Glow (Rotating)
+          if (isScanningActive)
+            RotationTransition(
+              turns: _radarRotationController,
+              child: Container(
+                width: AvatarSize.large.size + 60,
+                height: AvatarSize.large.size + 60,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: SweepGradient(
+                    colors: [
+                      Colors.transparent,
+                      SonarPulseTheme.socialAccent.withValues(alpha: 0.05),
+                      SonarPulseTheme.socialAccent.withValues(alpha: 0.3),
+                      Colors.transparent
+                    ],
+                    stops: const [0.0, 0.3, 0.5, 1.0],
+                  ),
+                ),
+              ),
+            ),
+
           // Enhanced glassmorphic border
           Container(
-            width: DesignTokens.avatarSizeLarge,
-            height: DesignTokens.avatarSizeLarge,
+            width: AvatarSize.large.size,
+            height: AvatarSize.large.size,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: DesignTokens.glassmorphicGradient,
               border: Border.all(
-                color: Colors.white.withOpacity(0.4),
+                color: Colors.white.withValues(alpha: 0.4),
                 width: 2,
               ),
             ),
@@ -615,12 +648,12 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                     ? Image(
                         image:
                             CachedNetworkImageProvider(_currentUserPhotoUrl!),
-                        width: DesignTokens.avatarSizeLarge - 8,
-                        height: DesignTokens.avatarSizeLarge - 8,
+                        width: AvatarSize.large.size - 8,
+                        height: AvatarSize.large.size - 8,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) => Container(
-                          width: DesignTokens.avatarSizeLarge - 8,
-                          height: DesignTokens.avatarSizeLarge - 8,
+                          width: AvatarSize.large.size - 8,
+                          height: AvatarSize.large.size - 8,
                           color: Theme.of(context).colorScheme.surface,
                           child: Icon(
                             Icons.person,
@@ -628,13 +661,13 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSurface
-                                .withOpacity(0.6),
+                                .withValues(alpha: 0.6),
                           ),
                         ),
                       )
                     : Container(
-                        width: DesignTokens.avatarSizeLarge - 8,
-                        height: DesignTokens.avatarSizeLarge - 8,
+                        width: AvatarSize.large.size - 8,
+                        height: AvatarSize.large.size - 8,
                         color: Theme.of(context).colorScheme.surface,
                         child: Icon(
                           Icons.person,
@@ -642,7 +675,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                           color: Theme.of(context)
                               .colorScheme
                               .onSurface
-                              .withOpacity(0.6),
+                              .withValues(alpha: 0.6),
                         ),
                       ),
               ),
@@ -730,7 +763,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                         color: Theme.of(context)
                             .colorScheme
                             .primary
-                            .withOpacity(0.1),
+                            .withValues(alpha: 0.1),
                         borderRadius:
                             BorderRadius.circular(DesignTokens.radiusXL),
                       ),
@@ -1022,7 +1055,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
     return Icon(
       Icons.person_outline,
       size: size,
-      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
     );
   }
 } // End _NearbyScreenViewState
@@ -1355,14 +1388,20 @@ class _ProfessionalFoundUsersModalState
                         decoration: BoxDecoration(
                           color: Theme.of(context)
                               .scaffoldBackgroundColor
-                              .withOpacity(0.9),
+                              .withValues(alpha: 0.9),
                           borderRadius:
                               BorderRadius.circular(DesignTokens.radiusSM),
                           border: Border.all(
                             color: Theme.of(context).dividerColor,
                             width: DesignTokens.borderWidthHairline,
                           ),
-                          boxShadow: DesignTokens.shadowLight,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: DesignTokens.elevation1,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
                         ),
                         child: Icon(
                           Icons.close,
@@ -1397,14 +1436,23 @@ class _ProfessionalFoundUsersModalState
               color: Theme.of(context).dividerColor,
               width: DesignTokens.borderWidthHairline,
             ),
-            boxShadow: DesignTokens.shadowLight,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: DesignTokens.elevation1,
+                offset: const Offset(0, 1),
+              ),
+            ],
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(DesignTokens.spaceMD),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
                 ),
                 child: Icon(
@@ -1446,11 +1494,16 @@ class _ProfessionalFoundUsersModalState
                   vertical: DesignTokens.spaceSM,
                 ),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
                   border: Border.all(
-                    color:
-                        Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.2),
                     width: DesignTokens.borderWidthHairline,
                   ),
                 ),
@@ -1480,7 +1533,13 @@ class _ProfessionalFoundUsersModalState
           color: Theme.of(context).dividerColor,
           width: DesignTokens.borderWidthHairline,
         ),
-        boxShadow: DesignTokens.shadowLight,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: DesignTokens.elevation1,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -1488,8 +1547,8 @@ class _ProfessionalFoundUsersModalState
             padding: const EdgeInsets.all(DesignTokens.spaceMD),
             decoration: BoxDecoration(
               color: _isSyncing
-                  ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
-                  : Theme.of(context).dividerColor.withOpacity(0.3),
+                  ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
+                  : Theme.of(context).dividerColor.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
             ),
             child: AnimatedBuilder(
@@ -1502,7 +1561,10 @@ class _ProfessionalFoundUsersModalState
                     size: DesignTokens.iconLG,
                     color: _isSyncing
                         ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).iconTheme.color?.withOpacity(0.6),
+                        : Theme.of(context)
+                            .iconTheme
+                            .color
+                            ?.withValues(alpha: 0.6),
                   ),
                 );
               },
@@ -1545,7 +1607,7 @@ class _ProfessionalFoundUsersModalState
                 ),
                 decoration: BoxDecoration(
                   color: _isSyncing
-                      ? Theme.of(context).dividerColor.withOpacity(0.3)
+                      ? Theme.of(context).dividerColor.withValues(alpha: 0.3)
                       : Theme.of(context).colorScheme.primary,
                   borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
                 ),
@@ -1593,14 +1655,21 @@ class _ProfessionalFoundUsersModalState
           color: Theme.of(context).dividerColor,
           width: 0.5,
         ),
-        boxShadow: DesignTokens.shadowLight,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: DesignTokens.elevation1,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(DesignTokens.spaceXL),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+              color:
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -1685,7 +1754,7 @@ class _ProfessionalFoundUsersModalState
               : null;
 
           // Create temporary UserModel from combined local data
-          final displayUser = ServerUserModel.UserModel(
+          final displayUser = server_user_model.UserModel(
             id: nearbyUser.profileId ?? nearbyUser.uidShort,
             username: userProfile?.name ?? 'User ${nearbyUser.uidShort}',
             email: '', // UserProfile doesn't have email

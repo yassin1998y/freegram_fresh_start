@@ -45,7 +45,7 @@ class ReelCameraPreviewWidget extends StatelessWidget {
                 horizontal: DesignTokens.spaceMD,
               ),
               decoration: BoxDecoration(
-                color: theme.colorScheme.error.withOpacity(
+                color: theme.colorScheme.error.withValues(alpha: 
                   DesignTokens.opacityHigh,
                 ),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
@@ -96,7 +96,7 @@ class ReelCameraPreviewWidget extends StatelessWidget {
                       width: ReelConstants.cameraButtonBorderWidth,
                     ),
                     color: isRecording
-                        ? theme.colorScheme.error.withOpacity(
+                        ? theme.colorScheme.error.withValues(alpha: 
                             DesignTokens.opacityMedium,
                           )
                         : Colors.transparent,

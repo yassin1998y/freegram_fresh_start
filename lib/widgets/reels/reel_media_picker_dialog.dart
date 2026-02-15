@@ -39,7 +39,7 @@ class ReelMediaPickerDialog extends StatelessWidget {
           height: DesignTokens.elevation1,
           margin: const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
           decoration: BoxDecoration(
-            color: theme.colorScheme.onSurface.withOpacity(
+            color: theme.colorScheme.onSurface.withValues(alpha: 
               DesignTokens.opacityMedium,
             ),
             borderRadius: BorderRadius.circular(DesignTokens.radiusXS),

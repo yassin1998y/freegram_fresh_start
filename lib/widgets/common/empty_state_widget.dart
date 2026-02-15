@@ -46,7 +46,7 @@ class EmptyStateWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final effectiveIconColor = iconColor ??
-        theme.colorScheme.primary.withOpacity(DesignTokens.opacityMedium);
+        theme.colorScheme.primary.withValues(alpha: DesignTokens.opacityMedium);
     final effectiveIconSize = iconSize ?? DesignTokens.iconXXL * 2;
 
     return Center(
@@ -76,7 +76,7 @@ class EmptyStateWidget extends StatelessWidget {
             Text(
               subtitle,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(
+                color: theme.colorScheme.onSurface.withValues(alpha: 
                   DesignTokens.opacityMedium,
                 ),
                 fontSize: DesignTokens.fontSizeMD,

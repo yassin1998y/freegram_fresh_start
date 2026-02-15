@@ -60,6 +60,7 @@ import 'package:freegram/services/gift_notification_service.dart'; // Gift Notif
 import 'package:freegram/services/webrtc_service.dart'; // Random Chat WebRTC
 import 'package:freegram/repositories/lounge_repository.dart'; // RandomChat Discovery
 import 'package:freegram/repositories/match_history_repository.dart'; // RandomChat History
+import 'package:freegram/blocs/unified_feed_bloc.dart';
 import 'package:get_it/get_it.dart';
 
 final GetIt locator = GetIt.instance;
@@ -114,11 +115,22 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
   locator.registerLazySingleton(
       () => GiftNotificationService()); // Gift Notifications
 
+  // --- Register Blocs ---
+  locator.registerFactory(() => UnifiedFeedBloc(
+        postRepository: locator<PostRepository>(),
+        userRepository: locator<UserRepository>(),
+        friendRepository: locator<FriendRepository>(),
+        adService: locator<AdService>(),
+        reelRepository: locator<ReelRepository>(),
+        pageRepository: locator<PageRepository>(),
+        feedCacheService: locator<FeedCacheService>(),
+      ));
+
   // --- Register Repositories with Dependencies ---
   // UserRepository: Remove GamificationRepository dependency, keep NotificationRepository
   locator.registerLazySingleton(() => UserRepository(
         notificationRepository: locator<NotificationRepository>(),
-        // gamificationRepository: locator<GamificationRepository>(), // Removed
+        cacheService: locator<FriendCacheService>(),
       ));
 
   // FriendRepository

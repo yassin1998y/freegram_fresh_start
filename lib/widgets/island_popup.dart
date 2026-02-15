@@ -123,7 +123,7 @@ class _IslandPopupState extends State<IslandPopup>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final backgroundColor = colorScheme.surface.withOpacity(0.95);
+    final backgroundColor = colorScheme.surface.withValues(alpha: 0.95);
     final textColor = colorScheme.onSurface;
     final primaryAccent = colorScheme.primary;
 
@@ -156,14 +156,14 @@ class _IslandPopupState extends State<IslandPopup>
               boxShadow: [
                 BoxShadow(
                   color: theme.brightness == Brightness.dark
-                      ? Colors.black.withOpacity(0.6)
-                      : Colors.grey.withOpacity(0.25),
+                      ? Colors.black.withValues(alpha: 0.6)
+                      : Colors.grey.withValues(alpha: 0.25),
                   blurRadius: 18,
                   offset: const Offset(0, 6),
                 ),
               ],
               border: Border.all(
-                color: primaryAccent.withOpacity(0.25),
+                color: primaryAccent.withValues(alpha: 0.25),
                 width: 1,
               ),
             ),
@@ -179,7 +179,7 @@ class _IslandPopupState extends State<IslandPopup>
                       if (widget.icon != null) ...[
                         Container(
                           decoration: BoxDecoration(
-                            color: primaryAccent.withOpacity(0.15),
+                            color: primaryAccent.withValues(alpha: 0.15),
                             shape: BoxShape.circle,
                           ),
                           padding: const EdgeInsets.all(5),

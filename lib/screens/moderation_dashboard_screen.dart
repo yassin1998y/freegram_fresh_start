@@ -678,7 +678,7 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
 
   Widget _buildStatCard(String label, int count, Color color) {
     return Card(
-      color: color.withOpacity(0.1),
+      color: color.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Column(
@@ -954,7 +954,7 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
         leading: Container(
           padding: const EdgeInsets.all(8.0),
           decoration: BoxDecoration(
-            color: statusColor.withOpacity(0.1),
+            color: statusColor.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(
@@ -990,7 +990,7 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
             status.toUpperCase(),
             style: const TextStyle(fontSize: 10),
           ),
-          backgroundColor: statusColor.withOpacity(0.1),
+          backgroundColor: statusColor.withValues(alpha: 0.1),
           labelStyle: TextStyle(color: statusColor),
         ),
         children: [
@@ -1100,7 +1100,7 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
         leading: Container(
           padding: const EdgeInsets.all(8.0),
           decoration: BoxDecoration(
-            color: _getStatusColor(report.status).withOpacity(0.1),
+            color: _getStatusColor(report.status).withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(
@@ -1128,7 +1128,7 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
             report.status.toString().split('.').last.toUpperCase(),
             style: const TextStyle(fontSize: 10),
           ),
-          backgroundColor: _getStatusColor(report.status).withOpacity(0.1),
+          backgroundColor: _getStatusColor(report.status).withValues(alpha: 0.1),
           labelStyle: TextStyle(color: _getStatusColor(report.status)),
         ),
         children: [

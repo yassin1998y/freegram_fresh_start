@@ -18,8 +18,8 @@ class ReelsFeedEmptyWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // For reels feed, use white text/icons on dark background
-    final iconColor = Colors.white.withOpacity(DesignTokens.opacityMedium);
-    final textColor = Colors.white.withOpacity(DesignTokens.opacityMedium);
+    final iconColor = Colors.white.withValues(alpha: DesignTokens.opacityMedium);
+    final textColor = Colors.white.withValues(alpha: DesignTokens.opacityMedium);
 
     return Center(
       child: Column(

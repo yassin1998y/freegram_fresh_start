@@ -409,7 +409,7 @@ class _SocialLoginButton extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         // Dim background when disabled
         backgroundColor: disabled
-            ? backgroundColor.withOpacity(DesignTokens.opacityDisabled)
+            ? backgroundColor.withValues(alpha: DesignTokens.opacityDisabled)
             : backgroundColor,
         padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSM),
         shape: RoundedRectangleBorder(

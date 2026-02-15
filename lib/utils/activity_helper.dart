@@ -51,7 +51,7 @@ class ActivityHelper {
     if (difference.inHours < 24) return Colors.orange;
     if (difference.inDays < 7) return Colors.grey;
 
-    return Theme.of(context).colorScheme.onSurface.withOpacity(0.4);
+    return Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4);
   }
 
   /// Get activity indicator widget

@@ -153,7 +153,7 @@ class _SettingsSection extends StatelessWidget {
           child: Text(
             title.toUpperCase(),
             style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.white.withOpacity(DesignTokens.opacityMedium),
+              color: Colors.white.withValues(alpha: DesignTokens.opacityMedium),
               fontWeight: FontWeight.bold,
               letterSpacing: 1,
             ),
@@ -198,7 +198,7 @@ class _SettingsSwitchTile extends StatelessWidget {
       subtitle: Text(
         subtitle,
         style: theme.textTheme.bodySmall?.copyWith(
-          color: Colors.white.withOpacity(DesignTokens.opacityHigh),
+          color: Colors.white.withValues(alpha: DesignTokens.opacityHigh),
         ),
       ),
       value: value,
@@ -233,12 +233,12 @@ class _SettingsListTile extends StatelessWidget {
       subtitle: Text(
         subtitle,
         style: theme.textTheme.bodySmall?.copyWith(
-          color: Colors.white.withOpacity(DesignTokens.opacityHigh),
+          color: Colors.white.withValues(alpha: DesignTokens.opacityHigh),
         ),
       ),
       trailing: Icon(
         Icons.chevron_right,
-        color: Colors.white.withOpacity(DesignTokens.opacityMedium),
+        color: Colors.white.withValues(alpha: DesignTokens.opacityMedium),
       ),
       onTap: onTap,
     );

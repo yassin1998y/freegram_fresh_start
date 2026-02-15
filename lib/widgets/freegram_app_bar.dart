@@ -95,7 +95,7 @@ class FreegramAppBar extends StatelessWidget implements PreferredSizeWidget {
                       width: 2,
                       height: 20,
                       decoration: BoxDecoration(
-                        color: foregroundColor.withOpacity(0.2),
+                        color: foregroundColor.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(1),
                       ),
                     ),

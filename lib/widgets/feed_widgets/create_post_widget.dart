@@ -134,7 +134,11 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
       // Auto-focus TextField after expansion animation
       Future.delayed(AnimationTokens.normal, () {
         if (mounted) {
-          _textFieldFocusNode.requestFocus();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _textFieldFocusNode.requestFocus();
+            }
+          });
         }
       });
     }
@@ -204,7 +208,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: theme.colorScheme.onSurface.withOpacity( 0.2),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -235,7 +239,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
               subtitle: Text(
                 'Capture with camera',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity( 0.6),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
               onTap: () {
@@ -256,7 +260,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
               subtitle: Text(
                 'Select images and videos',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity( 0.6),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
               onTap: () {
@@ -293,7 +297,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: theme.colorScheme.onSurface.withOpacity( 0.2),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -380,7 +384,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.onSurface.withOpacity( 0.2),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -816,9 +820,11 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
           }
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error uploading: $e')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error uploading: $e')),
+          );
+        }
       }
     }
   }
@@ -1270,7 +1276,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
           GestureDetector(
             onTap: _showPageSelection,
             child: CircleAvatar(
-              radius: DesignTokens.avatarSize / 2,
+              radius: DesignTokens.avatarSizeMedium / 2,
               backgroundColor: theme.colorScheme.surfaceContainerHighest,
               backgroundImage: (displayPhotoUrl != null &&
                       ImageUrlValidator.isValidUrl(displayPhotoUrl))
@@ -1298,10 +1304,10 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
                 ),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerHighest
-                      .withOpacity( 0.5),
+                      .withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
                   border: Border.all(
-                    color: theme.colorScheme.outline.withOpacity( 0.2),
+                    color: theme.colorScheme.outline.withValues(alpha: 0.2),
                     width: 1,
                   ),
                 ),
@@ -1309,7 +1315,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
                   'Quoi de neuf, $displayName ?',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurface
-                        .withOpacity( DesignTokens.opacityMedium),
+                        .withValues(alpha: DesignTokens.opacityMedium),
                   ),
                 ),
               ),
@@ -1468,7 +1474,8 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
                               size: 20,
                             ),
                             style: IconButton.styleFrom(
-                              backgroundColor: Colors.black.withOpacity(0.5),
+                              backgroundColor:
+                                  Colors.black.withValues(alpha: 0.5),
                               padding: const EdgeInsets.all(4),
                               minimumSize: const Size(32, 32),
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1657,10 +1664,10 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
         ),
         decoration: BoxDecoration(
           color:
-              theme.colorScheme.surfaceContainerHighest.withOpacity( 0.5),
+              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
           border: Border.all(
-            color: theme.colorScheme.outline.withOpacity( 0.2),
+            color: theme.colorScheme.outline.withValues(alpha: 0.2),
           ),
         ),
         child: Row(
@@ -1693,7 +1700,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
     return Shimmer.fromColors(
       baseColor: theme.colorScheme.surfaceContainerHighest,
       highlightColor:
-          theme.colorScheme.surfaceContainerHighest.withOpacity( 0.3),
+          theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       period: const Duration(milliseconds: 1200),
       child: Container(
         width: double.infinity,
@@ -1747,7 +1754,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
         fileName.length > 20 ? '${fileName.substring(0, 17)}...' : fileName;
 
     return Container(
-      color: Colors.black.withOpacity(0.75),
+      color: Colors.black.withValues(alpha: 0.75),
       padding: const EdgeInsets.all(DesignTokens.spaceMD),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

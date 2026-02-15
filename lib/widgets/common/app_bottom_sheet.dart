@@ -236,7 +236,7 @@ class AppBottomSheet extends StatelessWidget {
       width: DesignTokens.spaceXL,
       height: DesignTokens.spaceXS,
       decoration: BoxDecoration(
-        color: theme.colorScheme.onSurface.withOpacity(
+        color: theme.colorScheme.onSurface.withValues(alpha: 
           DesignTokens.opacityMedium,
         ),
         borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
@@ -263,7 +263,7 @@ class AppBottomSheet extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: theme.dividerColor.withOpacity(0.5),
+            color: theme.dividerColor.withValues(alpha: 0.5),
             width: 0.5,
           ),
         ),

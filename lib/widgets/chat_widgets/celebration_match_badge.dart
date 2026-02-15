@@ -149,7 +149,7 @@ class _CelebrationMatchBadgeState extends State<CelebrationMatchBadge>
                           BorderRadius.circular(DesignTokens.radiusXL),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.pink.withOpacity(0.4),
+                          color: Colors.pink.withValues(alpha: 0.4),
                           blurRadius: 20,
                           offset: const Offset(0, 4),
                         ),
@@ -180,7 +180,7 @@ class _CelebrationMatchBadgeState extends State<CelebrationMatchBadge>
                             Text(
                               formattedDate,
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
+                                color: Colors.white.withValues(alpha: 0.9),
                                 fontSize: DesignTokens.fontSizeXS,
                                 fontWeight: FontWeight.w500,
                               ),

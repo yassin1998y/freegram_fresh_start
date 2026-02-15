@@ -100,13 +100,13 @@ class _GiftMessageBannerState extends State<GiftMessageBanner>
                     borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
                     boxShadow: [
                       BoxShadow(
-                        color: rarityColor.withOpacity(0.4),
+                        color: rarityColor.withValues(alpha: 0.4),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
                     ],
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
+                      color: Colors.white.withValues(alpha: 0.3),
                       width: 1.5,
                     ),
                   ),
@@ -153,7 +153,7 @@ class _GiftMessageBannerState extends State<GiftMessageBanner>
                                     vertical: 2,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.2),
+                                    color: Colors.black.withValues(alpha: 0.2),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
@@ -169,7 +169,7 @@ class _GiftMessageBannerState extends State<GiftMessageBanner>
                                 Text(
                                   formattedTime,
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: Colors.white.withValues(alpha: 0.9),
                                     fontSize: DesignTokens.fontSizeXS,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -184,7 +184,7 @@ class _GiftMessageBannerState extends State<GiftMessageBanner>
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(

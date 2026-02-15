@@ -29,8 +29,8 @@ class ReelCaptionInputWidget extends StatelessWidget {
             begin: Alignment.bottomCenter,
             end: Alignment.topCenter,
             colors: [
-              Colors.black.withOpacity(DesignTokens.opacityHigh),
-              Colors.black.withOpacity(DesignTokens.opacityHigh),
+              Colors.black.withValues(alpha: DesignTokens.opacityHigh),
+              Colors.black.withValues(alpha: DesignTokens.opacityHigh),
               Colors.transparent,
             ],
           ),
@@ -44,10 +44,10 @@ class ReelCaptionInputWidget extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: 'Write a caption...',
                 hintStyle: TextStyle(
-                  color: Colors.white.withOpacity(DesignTokens.opacityMedium),
+                  color: Colors.white.withValues(alpha: DesignTokens.opacityMedium),
                 ),
                 filled: true,
-                fillColor: Colors.white.withOpacity(
+                fillColor: Colors.white.withValues(alpha: 
                   DesignTokens.opacityDisabled,
                 ),
                 border: OutlineInputBorder(

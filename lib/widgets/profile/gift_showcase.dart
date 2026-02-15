@@ -60,7 +60,7 @@ class GiftShowcase extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 2),
               ),
@@ -329,13 +329,13 @@ class GiftShowcase extends StatelessWidget {
     );
   }
 
-  void _showUpgradeDialog(BuildContext context, OwnedGift gift) {
+  void _showUpgradeDialog(BuildContext parentContext, OwnedGift gift) {
     // Close detail sheet first
-    Navigator.pop(context);
+    Navigator.pop(parentContext);
 
     showDialog(
-      context: context,
-      builder: (context) => FutureBuilder<int>(
+      context: parentContext,
+      builder: (dialogContext) => FutureBuilder<int>(
         future: locator<GiftRepository>().getUserCoins(gift.ownerId),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
@@ -349,31 +349,37 @@ class GiftShowcase extends StatelessWidget {
             userCoins: userCoins,
             onUpgrade: () async {
               try {
-                Navigator.pop(context); // Close dialog
+                Navigator.pop(dialogContext); // Close dialog
 
                 // Show loading
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Upgrading gift...')),
-                );
+                if (parentContext.mounted) {
+                  ScaffoldMessenger.of(parentContext).showSnackBar(
+                    const SnackBar(content: Text('Upgrading gift...')),
+                  );
+                }
 
                 await locator<GiftRepository>()
                     .upgradeGift(gift.ownerId, gift.id);
 
                 HapticHelper.success();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Gift upgraded successfully! ⭐'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
+                if (parentContext.mounted) {
+                  ScaffoldMessenger.of(parentContext).showSnackBar(
+                    const SnackBar(
+                      content: Text('Gift upgraded successfully! ⭐'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
               } catch (e) {
                 HapticHelper.error();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Upgrade failed: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                if (parentContext.mounted) {
+                  ScaffoldMessenger.of(parentContext).showSnackBar(
+                    SnackBar(
+                      content: Text('Upgrade failed: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               }
             },
           );
@@ -433,7 +439,7 @@ class _GiftShowcaseCard extends StatelessWidget {
                       : Icon(
                           Icons.card_giftcard,
                           size: 40,
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                         ),
                 ),
                 if (rarity == GiftRarity.legendary)
@@ -460,7 +466,7 @@ class _GiftShowcaseCard extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.3),
+                      color: Colors.black.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(

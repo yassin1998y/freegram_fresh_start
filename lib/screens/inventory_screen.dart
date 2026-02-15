@@ -102,7 +102,7 @@ class _InventoryScreenState extends State<InventoryScreen>
                     await seeder.seedPartyPopper();
                   }
 
-                  if (!mounted) return;
+                  if (!context.mounted) return;
 
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -243,7 +243,7 @@ class _InventoryScreenState extends State<InventoryScreen>
   Widget _buildStatsCard(List<OwnedGift> gifts) {
     final totalValue = gifts.fold<int>(
       0,
-      (sum, gift) => sum + gift.currentMarketValue,
+      (acc, gift) => acc + gift.currentMarketValue,
     );
 
     return Card(
@@ -429,7 +429,7 @@ class _StatItem extends StatelessWidget {
           label,
           style: TextStyle(
             color:
-                Theme.of(context).colorScheme.onSurface.withOpacity( 0.7),
+                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
             fontSize: 11,
           ),
         ),
@@ -466,7 +466,7 @@ class _GiftInventoryCard extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
               side: BorderSide(
-                color: RarityHelper.getColor(rarity).withOpacity( 0.3),
+                color: RarityHelper.getColor(rarity).withValues(alpha: 0.3),
                 width: 1,
               ),
             ),
@@ -742,7 +742,8 @@ class _GiftDetailSheetState extends State<_GiftDetailSheet> {
               final giftRepo = locator<GiftRepository>();
               final gift = await giftRepo.getGiftById(widget.ownedGift.giftId);
 
-              if (context.mounted && gift != null) {
+              if (!context.mounted) return;
+              if (gift != null) {
                 Navigator.pop(context); // Close sheet
                 Navigator.push(
                   context,

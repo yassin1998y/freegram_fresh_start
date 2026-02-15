@@ -62,7 +62,7 @@ class UserAvatar extends StatelessWidget {
     final effectiveBackgroundColor =
         backgroundColor ?? theme.colorScheme.surfaceContainerHighest;
     final effectiveIconColor = iconColor ??
-        theme.colorScheme.onSurface.withOpacity(DesignTokens.opacityMedium);
+        theme.colorScheme.onSurface.withValues(alpha: DesignTokens.opacityMedium);
 
     // Validate URL
     final isValidUrl =

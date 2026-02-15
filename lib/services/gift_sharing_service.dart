@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter/services.dart';
 import 'package:freegram/models/user_inventory_model.dart';
 import 'package:freegram/models/gift_model.dart';
 import 'package:freegram/utils/haptic_helper.dart';
@@ -211,8 +212,7 @@ class ShareOptionsSheet extends StatelessWidget {
     HapticHelper.success();
     final url = GiftSharingService._generateShareUrl(gift.id);
 
-    // TODO: Copy to clipboard
-    // Clipboard.setData(ClipboardData(text: url));
+    Clipboard.setData(ClipboardData(text: url));
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -260,7 +260,7 @@ class _ShareOption extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: color),
@@ -320,7 +320,7 @@ class GiftPreviewCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.purple.withOpacity(0.3),
+            color: Colors.purple.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -362,7 +362,7 @@ class GiftPreviewCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(

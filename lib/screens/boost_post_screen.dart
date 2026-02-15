@@ -218,7 +218,7 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
                           final user = snapshot.data!;
                           return Card(
                             color: theme.colorScheme.primaryContainer
-                                .withOpacity(0.3),
+                                .withValues(alpha: 0.3),
                             shape: RoundedRectangleBorder(
                               borderRadius:
                                   BorderRadius.circular(DesignTokens.radiusMD),
@@ -246,8 +246,8 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
                                           style: theme.textTheme.bodySmall
                                               ?.copyWith(
                                             color: theme.colorScheme.onSurface
-                                                .withOpacity(
-                                              DesignTokens.opacityMedium,
+                                                .withValues(
+                                              alpha: DesignTokens.opacityMedium,
                                             ),
                                           ),
                                         ),
@@ -579,16 +579,16 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
                         Icon(
                           Icons.people_outline,
                           size: DesignTokens.iconSM,
-                          color: theme.colorScheme.onSurface.withOpacity(
-                            DesignTokens.opacityMedium,
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: DesignTokens.opacityMedium,
                           ),
                         ),
                         const SizedBox(width: DesignTokens.spaceXS),
                         Text(
                           '~${_formatNumber(package.targetReach)} estimated reach',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(
-                              DesignTokens.opacityMedium,
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: DesignTokens.opacityMedium,
                             ),
                           ),
                         ),
@@ -600,16 +600,16 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
                         Icon(
                           Icons.access_time,
                           size: DesignTokens.iconSM,
-                          color: theme.colorScheme.onSurface.withOpacity(
-                            DesignTokens.opacityMedium,
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: DesignTokens.opacityMedium,
                           ),
                         ),
                         const SizedBox(width: DesignTokens.spaceXS),
                         Text(
                           '${package.duration} ${package.duration == 1 ? 'day' : 'days'}',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(
-                              DesignTokens.opacityMedium,
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: DesignTokens.opacityMedium,
                             ),
                           ),
                         ),
@@ -631,8 +631,8 @@ class _BoostPostScreenState extends State<BoostPostScreen> {
                   Text(
                     'Coins',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(
-                        DesignTokens.opacityMedium,
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: DesignTokens.opacityMedium,
                       ),
                     ),
                   ),

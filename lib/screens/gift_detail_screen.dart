@@ -63,7 +63,7 @@ class _GiftDetailScreenState extends State<GiftDetailScreen> {
               background: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [rarityColor.withOpacity(0.3), rarityColor],
+                    colors: [rarityColor.withValues(alpha: 0.3), rarityColor],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
@@ -376,7 +376,7 @@ class _GiftDetailScreenState extends State<GiftDetailScreen> {
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: rarityColor.withOpacity(0.1),
+                    color: rarityColor.withValues(alpha: 0.1),
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(12),
                     ),
@@ -427,7 +427,7 @@ class _GiftDetailScreenState extends State<GiftDetailScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
