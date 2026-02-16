@@ -140,13 +140,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
     return Container(
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
+        boxShadow: [],
       ),
       child: SafeArea(
         child: Column(
@@ -186,10 +180,10 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surface.withValues(alpha: 0.1),
                         borderRadius:
-                            BorderRadius.circular(DesignTokens.radiusXXL),
+                            BorderRadius.circular(DesignTokens.radiusXL),
                         border: Border.all(
-                          color: theme.dividerColor.withValues(alpha: 0.2),
-                          width: 1,
+                          color: theme.dividerColor.withValues(alpha: 0.1),
+                          width: 1.0,
                         ),
                       ),
                       child: AnimatedSwitcher(
@@ -247,8 +241,8 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
             _showEmojiPicker ? Icons.keyboard : Icons.emoji_emotions_outlined,
             color: _showEmojiPicker
                 ? theme.colorScheme.primary
-                : theme.colorScheme.primary.withValues(alpha: 0.6),
-            size: DesignTokens.iconLG,
+                : theme.colorScheme.primary,
+            size: DesignTokens.iconMD,
           ),
           onPressed: () {
             HapticFeedback.lightImpact();
@@ -554,19 +548,12 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
                 height: 48,
                 decoration: BoxDecoration(
                   color: theme.colorScheme.primary,
-                  borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: DesignTokens.elevation1,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
                 ),
                 child: Icon(
                   _showAttachmentMenu ? Icons.close : Icons.add,
                   color: Colors.white,
-                  size: DesignTokens.iconLG,
+                  size: DesignTokens.iconMD,
                 ),
               ),
             ),
@@ -651,20 +638,11 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
           color: _hasText
               ? theme.colorScheme.primary
               : theme.colorScheme.primary.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
-          boxShadow: _hasText
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: DesignTokens.elevation1,
-                    offset: const Offset(0, 1),
-                  ),
-                ]
-              : null,
+          borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
         ),
         child: Icon(
           widget.onLongPressSend != null ? Icons.schedule_send : Icons.send,
-          color: _hasText ? Colors.white : Colors.white.withValues(alpha: 0.6),
+          color: _hasText ? Colors.white : Colors.white.withValues(alpha: 0.4),
           size: DesignTokens.iconMD,
         ),
       ),
@@ -733,16 +711,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
         height: 48,
         decoration: BoxDecoration(
           color: baseColor,
-          borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
-          boxShadow: recordingActive
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: DesignTokens.elevation1,
-                    offset: const Offset(0, 1),
-                  ),
-                ]
-              : null,
+          borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
         ),
         child: const Icon(
           Icons.mic,

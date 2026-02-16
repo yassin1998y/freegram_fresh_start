@@ -252,6 +252,7 @@ class _MainScreenState extends State<MainScreen> {
                 automaticallyImplyLeading: false,
                 backgroundColor: Colors.transparent,
                 elevation: 0,
+                centerTitle: false,
                 toolbarHeight:
                     kToolbarHeight + MediaQuery.of(context).padding.top,
                 flexibleSpace: _buildBlurredAppBarBackground(context),
@@ -284,7 +285,7 @@ class _MainScreenState extends State<MainScreen> {
                                   .bodySmall
                                   ?.copyWith(
                                     height: DesignTokens.lineHeightTight,
-                                    color: Colors.blueAccent,
+                                    color: SonarPulseTheme.primaryAccent,
                                   ),
                             );
                           } else {
@@ -366,7 +367,7 @@ class _MainScreenState extends State<MainScreen> {
                     RepaintBoundary(
                       child: _VisibilityWrapper(
                         isVisible: _selectedIndex == 0,
-                        child: const NearbyScreen(),
+                        child: NearbyScreen(isVisible: _selectedIndex == 0),
                       ),
                     ),
                     RepaintBoundary(
@@ -383,7 +384,7 @@ class _MainScreenState extends State<MainScreen> {
                     RepaintBoundary(
                       child: _VisibilityWrapper(
                         isVisible: _selectedIndex == 2,
-                        child: const RandomChatScreen(),
+                        child: RandomChatScreen(isVisible: _selectedIndex == 2),
                       ),
                     ),
                     RepaintBoundary(
@@ -472,8 +473,8 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildBlurredAppBarBackground(BuildContext context) {
-    final appBarColor =
-        Theme.of(context).appBarTheme.backgroundColor ?? Colors.white;
+    final appBarColor = Theme.of(context).appBarTheme.backgroundColor ??
+        Theme.of(context).colorScheme.surface;
     if (!_enableBlurEffects) return Container(color: appBarColor);
     return ClipRect(
       child: BackdropFilter(

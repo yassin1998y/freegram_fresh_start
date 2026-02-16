@@ -244,11 +244,11 @@ class VideoCallOverlay extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                        color: SonarPulseTheme.socialAccent, // Cyber Violet
+                        color: SonarPulseTheme.primaryAccent,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: SonarPulseTheme.socialAccent
+                            color: SonarPulseTheme.primaryAccent
                                 .withValues(alpha: 0.5),
                             blurRadius: 8,
                             spreadRadius: 2,

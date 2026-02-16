@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:freegram/theme/design_tokens.dart';
 
 /// Phase 3.2: Enhanced Skeleton Loader for Feed Posts
 ///
@@ -10,8 +11,13 @@ class FeedPostSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = Colors.grey[300]!;
-    final highlightColor = Colors.grey[100]!;
+    final theme = Theme.of(context);
+    final baseColor = theme.brightness == Brightness.dark
+        ? SemanticColors.gray800(context)
+        : SemanticColors.gray300(context);
+    final highlightColor = theme.brightness == Brightness.dark
+        ? SemanticColors.gray600(context)
+        : SemanticColors.gray200(context);
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -75,4 +81,3 @@ class FeedPostSkeleton extends StatelessWidget {
     );
   }
 }
-

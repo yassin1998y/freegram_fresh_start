@@ -21,6 +21,14 @@ class ListSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final baseColor = theme.brightness == Brightness.dark
+        ? SemanticColors.gray800(context)
+        : SemanticColors.gray300(context);
+    final highlightColor = theme.brightness == Brightness.dark
+        ? SemanticColors.gray600(context)
+        : SemanticColors.gray200(context);
+
     return ListView.separated(
       padding: const EdgeInsets.all(DesignTokens.spaceMD),
       itemCount: itemCount,
@@ -28,8 +36,8 @@ class ListSkeleton extends StatelessWidget {
           const SizedBox(height: DesignTokens.spaceSM),
       itemBuilder: (context, index) {
         return Shimmer.fromColors(
-          baseColor: Colors.grey[300]!,
-          highlightColor: Colors.grey[100]!,
+          baseColor: baseColor,
+          highlightColor: highlightColor,
           child: Container(
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,

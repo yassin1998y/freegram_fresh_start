@@ -3,24 +3,23 @@ import 'package:freegram/theme/design_tokens.dart';
 
 class SonarPulseTheme {
   // --- PRIMARY COLORS ---
-  static const Color primaryAccent = Color(0xFF00BFA5); // A vibrant Teal/Cyan
+  static const Color primaryAccent = Color(0xFF00BFA5); // Brand Green
   static const Color primaryAccentLight = Color(0xFF5DF2D6);
   static const Color primaryAccentDark = Color(0xFF008E76);
-  static const Color socialAccent = Color(0xFF8B5CF6); // Cyber Violet
 
   // --- LIGHT THEME COLORS ---
-  static const Color lightBackground = Color(0xFFF5F5F7); // Slightly off-white
-  static const Color lightSurface = Colors.white; // For cards, dialogs
-  static const Color lightTextPrimary = Color(0xFF1D1D1F); // Almost black
+  static const Color lightBackground = Color(0xFFF5F5F7);
+  static const Color lightSurface = Color(0xFFFFFFFF);
+  static const Color lightTextPrimary = Color(0xFF1D1D1F);
   static const Color lightTextSecondary = Color(0xFF6E6E73);
   static const Color lightIcon = Color(0xFF8A8A8E);
   static const Color lightDivider = Color(0xFFE5E5EA);
   static const Color lightError = Color(0xFFD32F2F);
 
   // --- DARK THEME COLORS ---
-  static const Color darkBackground = Color(0xFF0A0A0B); // Deep Obsidian
-  static const Color darkSurface = Color(0xFF161618); // Cool Slate
-  static const Color darkTextPrimary = Color(0xFFE8E8E8); // Off-white
+  static const Color darkBackground = Color(0xFF121212);
+  static const Color darkSurface = Color(0xFF1E1E1E);
+  static const Color darkTextPrimary = Color(0xFFE8E8E8);
   static const Color darkTextSecondary = Color(0xFF8A8A8E);
   static const Color darkIcon = Color(0xFF9E9E9E);
   static const Color darkDivider = Color(0xFF2C2C2E);
@@ -70,19 +69,23 @@ class SonarPulseTheme {
   );
 
   // --- SHARED COMPONENT STYLES ---
-  static final _cardTheme = CardThemeData(
-    elevation: 0,
-    margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
-      side: BorderSide(color: Colors.grey.withValues(alpha: 0.1), width: 1),
-    ),
-  );
+  static CardThemeData _buildCardTheme(Brightness brightness) {
+    final dividerColor =
+        brightness == Brightness.light ? lightDivider : darkDivider;
+    return CardThemeData(
+      elevation: 0,
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+        side: BorderSide(color: dividerColor, width: 1.0),
+      ),
+    );
+  }
 
   static final _elevatedButtonTheme = ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
       elevation: 0,
-      minimumSize: const Size.fromHeight(52), // Fixed height 52.0
+      minimumSize: const Size.fromHeight(52),
       padding: const EdgeInsets.symmetric(horizontal: 24),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16.0),
@@ -103,7 +106,8 @@ class SonarPulseTheme {
         displayColor: lightTextPrimary,
         fontFamily: 'Roboto',
       ),
-      cardTheme: _cardTheme.copyWith(color: lightSurface),
+      cardTheme:
+          _buildCardTheme(Brightness.light).copyWith(color: lightSurface),
       elevatedButtonTheme: _elevatedButtonTheme,
       dividerColor: lightDivider,
       dividerTheme: const DividerThemeData(
@@ -112,14 +116,16 @@ class SonarPulseTheme {
       ),
       iconTheme: const IconThemeData(color: lightIcon),
       appBarTheme: AppBarTheme(
-        backgroundColor: lightSurface,
+        backgroundColor: lightSurface.withValues(alpha: 0.85),
         foregroundColor: lightTextPrimary,
         elevation: 0,
-        scrolledUnderElevation: 1,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         shadowColor: Colors.black.withValues(alpha: 0.1),
         iconTheme: const IconThemeData(color: lightTextPrimary),
         titleTextStyle:
             _textTheme.titleLarge?.copyWith(color: lightTextPrimary),
+        centerTitle: false,
       ),
       bottomAppBarTheme: const BottomAppBarThemeData(
         color: lightSurface,
@@ -138,13 +144,12 @@ class SonarPulseTheme {
         filled: true,
         fillColor: Colors.white,
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: lightDivider, width: 1.0),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide:
-              const BorderSide(color: SonarPulseTheme.primaryAccent, width: 2),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: primaryAccent, width: 1.0),
         ),
         labelStyle: const TextStyle(color: lightTextSecondary),
       ),
@@ -173,7 +178,7 @@ class SonarPulseTheme {
         displayColor: darkTextPrimary,
         fontFamily: 'Roboto',
       ),
-      cardTheme: _cardTheme.copyWith(color: darkSurface),
+      cardTheme: _buildCardTheme(Brightness.dark).copyWith(color: darkSurface),
       elevatedButtonTheme: _elevatedButtonTheme,
       dividerColor: darkDivider,
       dividerTheme: const DividerThemeData(
@@ -182,13 +187,15 @@ class SonarPulseTheme {
       ),
       iconTheme: const IconThemeData(color: darkIcon),
       appBarTheme: AppBarTheme(
-        backgroundColor: darkSurface,
+        backgroundColor: darkSurface.withValues(alpha: 0.85),
         foregroundColor: darkTextPrimary,
         elevation: 0,
-        scrolledUnderElevation: 1,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         shadowColor: Colors.black.withValues(alpha: 0.3),
         iconTheme: const IconThemeData(color: darkTextPrimary),
         titleTextStyle: _textTheme.titleLarge?.copyWith(color: darkTextPrimary),
+        centerTitle: false,
       ),
       bottomAppBarTheme: const BottomAppBarThemeData(
         color: darkSurface,
@@ -207,13 +214,12 @@ class SonarPulseTheme {
         filled: true,
         fillColor: darkSurface,
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: darkDivider, width: 1.0),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-              color: SonarPulseTheme.primaryAccent, width: 1.5),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: primaryAccent, width: 1.0),
         ),
         labelStyle: const TextStyle(color: darkTextSecondary),
       ),

@@ -25,18 +25,18 @@ class ProfessionalResponsiveGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final screenWidth = constraints.maxWidth;
-        
+
         // Responsive breakpoints
         final isMobile = screenWidth < DesignTokens.breakpointTablet;
-        final isTablet = screenWidth >= DesignTokens.breakpointTablet && 
-                        screenWidth < DesignTokens.breakpointDesktop;
-        
+        final isTablet = screenWidth >= DesignTokens.breakpointTablet &&
+            screenWidth < DesignTokens.breakpointDesktop;
+
         // Calculate grid parameters based on screen size
         int crossAxisCount;
         double spacing;
         double aspectRatio;
         EdgeInsets gridPadding;
-        
+
         if (isMobile) {
           crossAxisCount = 2;
           spacing = DesignTokens.spaceMD;
@@ -53,7 +53,7 @@ class ProfessionalResponsiveGrid extends StatelessWidget {
           aspectRatio = childAspectRatio ?? 0.85;
           gridPadding = padding ?? const EdgeInsets.all(DesignTokens.spaceXXL);
         }
-        
+
         return Container(
           padding: gridPadding,
           child: GridView.builder(
@@ -107,7 +107,8 @@ class ProfessionalGlassmorphicContainer extends StatelessWidget {
     return Container(
       margin: margin,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius ?? DesignTokens.radiusLG),
+        borderRadius:
+            BorderRadius.circular(borderRadius ?? DesignTokens.radiusLG),
         child: BackdropFilter(
           filter: ImageFilter.blur(
             sigmaX: blurIntensity ?? DesignTokens.blurMedium,
@@ -116,16 +117,22 @@ class ProfessionalGlassmorphicContainer extends StatelessWidget {
           child: Container(
             padding: padding ?? const EdgeInsets.all(DesignTokens.spaceLG),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(borderRadius ?? DesignTokens.radiusLG),
+              borderRadius:
+                  BorderRadius.circular(borderRadius ?? DesignTokens.radiusLG),
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: gradientColors ?? DesignTokens.glassmorphicGradient.colors,
+                colors: gradientColors ??
+                    [
+                      Colors.white.withValues(alpha: 0.25),
+                      Colors.white.withValues(alpha: 0.1)
+                    ],
               ),
-              border: border ?? Border.all(
-                color: Colors.white.withValues(alpha: 0.2),
-                width: 1.5,
-              ),
+              border: border ??
+                  Border.all(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    width: 1.5,
+                  ),
               boxShadow: boxShadow ?? DesignTokens.shadowMedium,
             ),
             child: child,
@@ -155,10 +162,12 @@ class ProfessionalLoadingSkeleton extends StatefulWidget {
   });
 
   @override
-  State<ProfessionalLoadingSkeleton> createState() => _ProfessionalLoadingSkeletonState();
+  State<ProfessionalLoadingSkeleton> createState() =>
+      _ProfessionalLoadingSkeletonState();
 }
 
-class _ProfessionalLoadingSkeletonState extends State<ProfessionalLoadingSkeleton>
+class _ProfessionalLoadingSkeletonState
+    extends State<ProfessionalLoadingSkeleton>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _animation;
@@ -189,9 +198,11 @@ class _ProfessionalLoadingSkeletonState extends State<ProfessionalLoadingSkeleto
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final baseColor = widget.baseColor ?? theme.colorScheme.surface.withValues(alpha: 0.3);
-    final highlightColor = widget.highlightColor ?? theme.colorScheme.surface.withValues(alpha: 0.6);
-    
+    final baseColor =
+        widget.baseColor ?? theme.colorScheme.surface.withValues(alpha: 0.3);
+    final highlightColor = widget.highlightColor ??
+        theme.colorScheme.surface.withValues(alpha: 0.6);
+
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
@@ -199,7 +210,8 @@ class _ProfessionalLoadingSkeletonState extends State<ProfessionalLoadingSkeleto
           width: widget.width,
           height: widget.height,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(widget.borderRadius ?? DesignTokens.radiusMD),
+            borderRadius: BorderRadius.circular(
+                widget.borderRadius ?? DesignTokens.radiusMD),
             gradient: LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
@@ -244,7 +256,7 @@ class ProfessionalEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(DesignTokens.spaceXXL),
@@ -259,20 +271,23 @@ class ProfessionalEmptyState extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    (iconColor ?? theme.colorScheme.primary).withValues(alpha: 0.1),
-                    (iconColor ?? theme.colorScheme.primary).withValues(alpha: 0.05),
+                    (iconColor ?? theme.colorScheme.primary)
+                        .withValues(alpha: 0.1),
+                    (iconColor ?? theme.colorScheme.primary)
+                        .withValues(alpha: 0.05),
                   ],
                 ),
               ),
               child: Icon(
                 icon,
                 size: DesignTokens.iconXXL,
-                color: iconColor ?? theme.colorScheme.primary.withValues(alpha: 0.6),
+                color: iconColor ??
+                    theme.colorScheme.primary.withValues(alpha: 0.6),
               ),
             ),
-            
+
             const SizedBox(height: DesignTokens.spaceXL),
-            
+
             // Title
             Text(
               title,
@@ -283,23 +298,24 @@ class ProfessionalEmptyState extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            
+
             const SizedBox(height: DesignTokens.spaceMD),
-            
+
             // Subtitle
             Text(
               subtitle,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: DesignTokens.opacityMedium),
+                color: theme.colorScheme.onSurface
+                    .withValues(alpha: DesignTokens.opacityMedium),
                 fontSize: DesignTokens.fontSizeMD,
                 height: DesignTokens.lineHeightNormal,
               ),
               textAlign: TextAlign.center,
             ),
-            
+
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: DesignTokens.spaceXL),
-              
+
               // Action Button
               ElevatedButton(
                 onPressed: onAction,

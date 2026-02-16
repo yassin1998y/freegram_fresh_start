@@ -7,6 +7,8 @@ import 'package:freegram/models/post_model.dart';
 import 'package:freegram/models/media_item_model.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:freegram/screens/post_detail_screen.dart';
+import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/theme/app_theme.dart';
 
 /// Compact card widget for horizontal trending sections
 /// Shows only the media with minimal overlay info
@@ -43,11 +45,15 @@ class TrendingPostCard extends StatelessWidget {
         height: 160,
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: Colors.grey[200],
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+            color: SonarPulseTheme.darkSurface,
+            border: Border.all(
+              color: Theme.of(context).dividerColor,
+              width: 1.0,
+            ),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
             child: Stack(
               fit: StackFit.expand,
               children: [
@@ -144,7 +150,10 @@ class TrendingPostCard extends StatelessWidget {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.9),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withValues(alpha: 0.9),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Row(
@@ -326,8 +335,8 @@ class TrendingPostCard extends StatelessWidget {
                   height: 24,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color:
-                        theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.3),
+                    color: theme.colorScheme.onPrimaryContainer
+                        .withValues(alpha: 0.3),
                   ),
                   child: Icon(
                     Icons.person,

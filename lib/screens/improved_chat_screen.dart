@@ -1056,31 +1056,44 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    Container(
-                      width: DesignTokens.avatarSizeSmall + 6,
-                      height: DesignTokens.avatarSizeSmall + 6,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                      ),
-                      child: CircleAvatar(
-                        backgroundImage: photoUrl.isNotEmpty
-                            ? CachedNetworkImageProvider(photoUrl)
-                                as ImageProvider
-                            : null,
-                        backgroundColor:
-                            theme.colorScheme.primary.withValues(alpha: 0.1),
-                        child: photoUrl.isEmpty
-                            ? Text(
-                                widget.otherUsername.isNotEmpty
-                                    ? widget.otherUsername[0].toUpperCase()
-                                    : '?',
-                                style: TextStyle(
-                                  color: theme.colorScheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              )
-                            : null,
-                      ),
+                    StreamBuilder<PresenceData>(
+                      stream: presenceStream,
+                      builder: (context, snapshot) {
+                        final isOnline = snapshot.data?.isOnline ?? false;
+                        return Container(
+                          width: DesignTokens.avatarSizeSmall + 6,
+                          height: DesignTokens.avatarSizeSmall + 6,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: isOnline
+                                ? Border.all(
+                                    color: theme.colorScheme.primary,
+                                    width: 1.0,
+                                  )
+                                : null,
+                          ),
+                          child: CircleAvatar(
+                            backgroundImage: photoUrl.isNotEmpty
+                                ? CachedNetworkImageProvider(photoUrl)
+                                    as ImageProvider
+                                : null,
+                            backgroundColor:
+                                theme.colorScheme.surfaceContainerHighest,
+                            child: photoUrl.isEmpty
+                                ? Text(
+                                    widget.otherUsername.isNotEmpty
+                                        ? widget.otherUsername[0].toUpperCase()
+                                        : '?',
+                                    style: TextStyle(
+                                      color: theme.colorScheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                        );
+                      },
                     ),
                     // Professional presence indicator
                     Positioned(
@@ -1475,8 +1488,8 @@ class _SenderInfoBanner extends StatelessWidget {
         color: backgroundColor,
         border: Border(
           top: BorderSide(
-            color: theme.dividerColor.withValues(alpha: 0.2),
-            width: 1,
+            color: theme.dividerColor.withValues(alpha: 0.1),
+            width: 1.0,
           ),
         ),
       ),

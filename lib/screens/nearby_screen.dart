@@ -44,7 +44,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 // --- Main StatelessWidget Wrapper ---
 // Provides BLoCs needed by this screen and its children
 class NearbyScreen extends StatelessWidget {
-  const NearbyScreen({super.key});
+  final bool isVisible;
+  const NearbyScreen({super.key, this.isVisible = true});
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +61,8 @@ class NearbyScreen extends StatelessWidget {
             ..add(LoadFriends()),
         ),
       ],
-      child: const _NearbyScreenView(), // The main stateful widget
+      child:
+          _NearbyScreenView(isVisible: isVisible), // The main stateful widget
     );
   }
 }
@@ -68,7 +70,8 @@ class NearbyScreen extends StatelessWidget {
 // --- Main StatefulWidget View ---
 // Handles UI state, animations, and interacts with services/Blocs
 class _NearbyScreenView extends StatefulWidget {
-  const _NearbyScreenView();
+  final bool isVisible;
+  const _NearbyScreenView({required this.isVisible});
   @override
   State<_NearbyScreenView> createState() => _NearbyScreenViewState();
 }
@@ -377,6 +380,22 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
 
   // --- Get Status Message ---
   // Determines the text shown below the Sonar animation
+  @override
+  void didUpdateWidget(_NearbyScreenView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isVisible != oldWidget.isVisible) {
+      if (!widget.isVisible) {
+        // Pause active discovery tasks when screen is not visible
+        if (_sonarController.isRunning) {
+          _sonarController.stopSonar();
+        }
+      } else {
+        // Optionally resume if it was running before?
+        // For now, let user manually restart to save battery
+      }
+    }
+  }
+
   String _getStatusMessage(NearbyState state) {
     // Prioritize hardware/permission issues reported by the StatusService
     final currentServiceStatus = BluetoothStatusService().currentStatus;
@@ -437,21 +456,18 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
         },
         builder: (context, state) {
           final currentServiceStatus = BluetoothStatusService().currentStatus;
-          Widget bodyContent;
 
           // Build UI based on permission/hardware status first
           if (currentServiceStatus ==
               NearbyStatus.permissionsPermanentlyDenied) {
-            bodyContent =
-                const _PermissionDeniedState(isPermanentlyDenied: true);
+            return const _PermissionDeniedState(isPermanentlyDenied: true);
           } else if (currentServiceStatus == NearbyStatus.permissionsDenied) {
-            bodyContent =
-                _PermissionDeniedState(onRetry: _handlePermissionRequest);
+            return _PermissionDeniedState(onRetry: _handlePermissionRequest);
           }
           // Handle BLoC error state (unless it's already covered by hardware/permission state)
           else if (state is NearbyError &&
               currentServiceStatus != NearbyStatus.adapterOff) {
-            bodyContent = _ErrorState(
+            return _ErrorState(
               message: state.message,
               onRetry: () async {
                 await _sonarController.startSonar(); // Retry starting
@@ -460,16 +476,8 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
               },
             );
           }
-          // Otherwise, build the main Nearby UI
-          else {
-            bodyContent = _buildFullScreenSonar(context, state);
-          }
-          // Animate transitions between permission/error/main UI states
-          return AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child:
-                bodyContent, // Switch between the different body content widgets
-          );
+
+          return _buildSliverDiscoveryView(context, state);
         },
       ),
     );
@@ -477,102 +485,183 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
 
   // --- Helper Build Methods ---
 
-  // Build full-screen sonar layout with professional components
-  Widget _buildFullScreenSonar(BuildContext context, NearbyState state) {
+  Widget _buildSliverDiscoveryView(BuildContext context, NearbyState state) {
     bool isScanningActive = state is NearbyActive;
     int userCount = _getUserCount();
 
-    return Column(
-      children: [
-        // Professional Top Status Bar
-        // Professional Top Status Bar (Radar Badge)
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            DesignTokens.spaceLG,
-            MediaQuery.of(context).padding.top + DesignTokens.spaceLG,
-            DesignTokens.spaceLG,
-            0,
-          ),
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: Colors.white12),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.radar,
-                      color: SonarPulseTheme.socialAccent, size: 18),
-                  SizedBox(width: 8),
-                  Text(
-                    "Finding people within 10km",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  )
-                ],
-              ),
-            ),
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        // 1. Radar Badge Header
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.only(top: DesignTokens.spaceLG),
+            child: _buildRadarBadge(),
           ),
         ),
 
-        // Professional Sonar Area with Glassmorphism
-        Expanded(
+        // 2. Sonar Scan Area
+        SliverToBoxAdapter(
           child: Container(
+            height:
+                MediaQuery.of(context).size.width - (DesignTokens.spaceLG * 2),
             margin: const EdgeInsets.all(DesignTokens.spaceLG),
-            decoration: Containers.glassCard(context),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+              border: Border.all(
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+                width: 1.0,
+              ),
+            ),
             child: GestureDetector(
               onTap: () => _handleSonarToggle(isScanningActive),
               child: SonarView(
                 isScanning: isScanningActive,
                 unleashController: _unleashController,
                 discoveryController: _discoveryController,
-                centerAvatar: _buildProfessionalCenterAvatar(isScanningActive),
-                foundUserAvatars: const [], // Empty for now
+                centerAvatar: _buildCenterAvatar(isScanningActive),
+                foundUserAvatars: const [], // Avatars pop in the grid below
               ),
             ),
           ),
         ),
 
-        // Professional Bottom Status and Controls
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            DesignTokens.spaceLG,
-            DesignTokens.spaceMD,
-            DesignTokens.spaceLG,
-            MediaQuery.of(context).padding.bottom + DesignTokens.spaceLG,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Status message with better typography
-              Text(
-                _getStatusMessage(state),
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.8),
-                      fontSize: DesignTokens.fontSizeMD,
-                      fontWeight: FontWeight.w500,
-                      height: DesignTokens.lineHeightNormal,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: DesignTokens.spaceLG),
-
-              // Found users section - always show if users exist in cache
-              if (userCount > 0) _buildProfessionalFoundUsersSection(),
-            ],
+        // 3. Status Information
+        SliverToBoxAdapter(
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: DesignTokens.spaceLG),
+            child: Column(
+              children: [
+                Text(
+                  _getStatusMessage(state),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.8),
+                        fontSize: DesignTokens.fontSizeMD,
+                        fontWeight: FontWeight.w500,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: DesignTokens.spaceLG),
+              ],
+            ),
           ),
         ),
+
+        // 4. Recently Found Users (Sub-List)
+        if (userCount > 0)
+          SliverToBoxAdapter(
+            child: _buildProfessionalFoundUsersSection(),
+          ),
+
+        // 5. Main Discovery Grid (Historical + New)
+        _buildDiscoveredUsersGrid(),
+
+        // Bottom Padding for Nav
+        const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
       ],
+    );
+  }
+
+  Widget _buildRadarBadge() {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
+          border: Border.all(
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.radar, color: SonarPulseTheme.primaryAccent, size: 18),
+            SizedBox(width: 8),
+            Text(
+              "Local Bluetooth Discovery",
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCenterAvatar(bool isScanning) {
+    return _buildProfessionalCenterAvatar(isScanning);
+  }
+
+  Widget _buildDiscoveredUsersGrid() {
+    return ValueListenableBuilder<Box<NearbyUser>>(
+      valueListenable: _localCacheService.getNearbyUsersListenable(),
+      builder: (context, nearbyBox, _) {
+        final nearbyUsers = nearbyBox.values.toList()
+          ..sort((a, b) => b.lastSeen.compareTo(a.lastSeen));
+
+        if (nearbyUsers.isEmpty) {
+          return SliverFillRemaining(
+            hasScrollBody: false,
+            child: _buildEmptyState(),
+          );
+        }
+
+        return SliverToBoxAdapter(
+          child: ProfessionalResponsiveGrid(
+            padding: const EdgeInsets.all(DesignTokens.spaceLG),
+            children: nearbyUsers.map((user) {
+              return _ProfessionalUserCardWrapper(
+                user: user,
+                onDelete: () => _deleteFoundUser(user.uidShort),
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.person_search,
+            size: DesignTokens.iconXXL,
+            color:
+                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+          ),
+          const SizedBox(height: DesignTokens.spaceMD),
+          Text(
+            "No nearby users found yet.",
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
+                ),
+          ),
+          const SizedBox(height: DesignTokens.spaceSM),
+          Text(
+            "Start scanning to discover people around you!",
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.5),
+                ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 
@@ -619,8 +708,8 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                   gradient: SweepGradient(
                     colors: [
                       Colors.transparent,
-                      SonarPulseTheme.socialAccent.withValues(alpha: 0.05),
-                      SonarPulseTheme.socialAccent.withValues(alpha: 0.3),
+                      SonarPulseTheme.primaryAccent.withValues(alpha: 0.05),
+                      SonarPulseTheme.primaryAccent.withValues(alpha: 0.3),
                       Colors.transparent
                     ],
                     stops: const [0.0, 0.3, 0.5, 1.0],
@@ -635,7 +724,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
             height: AvatarSize.large.size,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: DesignTokens.glassmorphicGradient,
+              gradient: DesignTokens.glassmorphicGradient(context),
               border: Border.all(
                 color: Colors.white.withValues(alpha: 0.4),
                 width: 2,
@@ -734,7 +823,9 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                             vertical: DesignTokens.spaceXS,
                           ),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.secondary,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .secondary, // Use secondary for sync indicator
                             borderRadius:
                                 BorderRadius.circular(DesignTokens.radiusSM),
                           ),
@@ -766,6 +857,12 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                             .withValues(alpha: 0.1),
                         borderRadius:
                             BorderRadius.circular(DesignTokens.radiusXL),
+                        border: Border.all(
+                          color: Theme.of(context)
+                              .dividerColor
+                              .withValues(alpha: 0.1),
+                          width: 1.0,
+                        ),
                       ),
                       child: Icon(
                         _isFoundUsersExpanded
@@ -857,6 +954,20 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                                           size: DesignTokens.spaceXXXL / 2)
                                       : null,
                                 ),
+                                // Online Pulse (Brand Green)
+                                if (isProfileSynced)
+                                  Positioned.fill(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: SonarPulseTheme.primaryAccent
+                                              .withValues(alpha: 0.3),
+                                          width: 2,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 // Sync status indicator
                                 if (!isProfileSynced)
                                   Positioned(
@@ -880,7 +991,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                                       ),
                                     ),
                                   ),
-                                // New indicator
+                                // New indicator (Brand Green)
                                 if (isNew)
                                   Positioned(
                                     top: 0,
@@ -889,14 +1000,14 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                                       width: DesignTokens.spaceMD,
                                       height: DesignTokens.spaceMD,
                                       decoration: BoxDecoration(
-                                        color: SemanticColors.success,
+                                        color: SonarPulseTheme.primaryAccent,
                                         shape: BoxShape.circle,
                                         border: Border.all(
                                             color: Colors.white, width: 2),
                                       ),
                                       child: const Icon(
                                         Icons.fiber_new,
-                                        size: DesignTokens.iconXS,
+                                        size: DesignTokens.iconSM,
                                         color: Colors.white,
                                       ),
                                     ),
@@ -1056,6 +1167,78 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
       Icons.person_outline,
       size: size,
       color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+    );
+  }
+
+  Widget _ProfessionalUserCardWrapper({
+    required NearbyUser user,
+    required VoidCallback onDelete,
+  }) {
+    return ValueListenableBuilder<Box<UserProfile>>(
+      valueListenable: Hive.box<UserProfile>('userProfiles').listenable(
+        keys: user.profileId != null ? [user.profileId!] : null,
+      ),
+      builder: (context, profileBox, _) {
+        final userProfile = user.profileId != null
+            ? _localCacheService.getUserProfile(user.profileId!)
+            : null;
+
+        // Create temporary UserModel from combined local data
+        final displayUser = server_user_model.UserModel(
+          id: user.profileId ?? user.uidShort,
+          username:
+              userProfile?.name ?? "User ${user.uidShort.substring(0, 4)}",
+          email: '',
+          photoUrl: userProfile?.photoUrl ?? '',
+          age: 0,
+          gender: userProfile?.gender ?? '',
+          country: '',
+          interests: userProfile?.interests ?? [],
+          friends: userProfile?.friends ?? [],
+          friendRequestsSent: userProfile?.friendRequestsSent ?? [],
+          friendRequestsReceived: userProfile?.friendRequestsReceived ?? [],
+          nearbyStatusMessage: userProfile?.nearbyStatusMessage ?? '',
+          nearbyStatusEmoji: userProfile?.nearbyStatusEmoji ?? '',
+          lastSeen: user.lastSeen,
+          createdAt: DateTime.now(),
+          lastFreeSuperLike: DateTime.now(),
+          lastNearbyDiscoveryDate: DateTime.now(),
+          lastDailyRewardClaim: DateTime(1970),
+        );
+
+        final now = DateTime.now();
+        int estimatedRssi = -80;
+        final mins = now.difference(user.lastSeen).inMinutes;
+        if (mins < 1) {
+          estimatedRssi = -50;
+        } else if (mins < 5) {
+          estimatedRssi = -60;
+        } else if (mins < 15) {
+          estimatedRssi = -70;
+        }
+
+        final isProfileSynced =
+            user.profileId != null && user.profileId!.length > 8;
+        final isNew = now.difference(user.foundAt).inSeconds < 60;
+        final isRecentlyActive = mins < 5;
+
+        return ProfessionalUserCard(
+          key: ValueKey(user.uidShort),
+          username: displayUser.username,
+          photoUrl: displayUser.photoUrl,
+          statusMessage: displayUser.nearbyStatusMessage,
+          genderValue: user.gender,
+          isNew: isNew,
+          isRecentlyActive: isRecentlyActive,
+          isProfileSynced: isProfileSynced,
+          rssi: estimatedRssi,
+          userModel: displayUser,
+          onTap: () => locator<NavigationService>().navigateTo(
+              ProfileScreen(userId: displayUser.id),
+              transition: PageTransition.slide),
+          onDelete: onDelete,
+        );
+      },
     );
   }
 } // End _NearbyScreenViewState
@@ -1637,7 +1820,11 @@ class _ProfessionalFoundUsersModalState
           ..sort((a, b) => b.lastSeen.compareTo(a.lastSeen));
 
         if (nearbyUsers.isEmpty) {
-          return _buildEmptyState(context);
+          return Padding(
+            padding:
+                const EdgeInsets.symmetric(vertical: DesignTokens.spaceXXL),
+            child: _buildEmptyState(context),
+          );
         }
 
         return _buildUserCards(nearbyUsers);
@@ -1652,16 +1839,9 @@ class _ProfessionalFoundUsersModalState
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
         border: Border.all(
-          color: Theme.of(context).dividerColor,
-          width: 0.5,
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+          width: 1.0,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: DesignTokens.elevation1,
-            offset: const Offset(0, 1),
-          ),
-        ],
       ),
       child: Column(
         children: [
@@ -1711,7 +1891,7 @@ class _ProfessionalFoundUsersModalState
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
                 ),
-                elevation: DesignTokens.elevation2,
+                elevation: 0, // Pure aesthetic
               ),
               onPressed: () {
                 HapticFeedback.lightImpact();
@@ -1721,16 +1901,14 @@ class _ProfessionalFoundUsersModalState
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
-                    Icons.radar,
-                    size: DesignTokens.iconSM,
-                  ),
+                  const Icon(Icons.radar, size: DesignTokens.iconSM),
                   const SizedBox(width: DesignTokens.spaceSM),
                   Text(
                     'Start Scanning',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                           fontSize: DesignTokens.fontSizeMD,
+                          color: Colors.white,
                         ),
                   ),
                 ],
@@ -1753,15 +1931,14 @@ class _ProfessionalFoundUsersModalState
               ? widget.localCacheService.getUserProfile(nearbyUser.profileId!)
               : null;
 
-          // Create temporary UserModel from combined local data
           final displayUser = server_user_model.UserModel(
             id: nearbyUser.profileId ?? nearbyUser.uidShort,
             username: userProfile?.name ?? 'User ${nearbyUser.uidShort}',
-            email: '', // UserProfile doesn't have email
+            email: '',
             photoUrl: userProfile?.photoUrl ?? '',
-            age: 0, // UserProfile doesn't have age
+            age: 0,
             gender: userProfile?.gender ?? '',
-            country: '', // UserProfile doesn't have country
+            country: '',
             interests: userProfile?.interests ?? [],
             friends: userProfile?.friends ?? [],
             friendRequestsSent: userProfile?.friendRequestsSent ?? [],
@@ -1775,30 +1952,19 @@ class _ProfessionalFoundUsersModalState
             lastDailyRewardClaim: DateTime(1970),
           );
 
-          // Calculate estimated RSSI based on last seen time
           final now = DateTime.now();
-          final minutesSinceLastSeen =
-              now.difference(nearbyUser.lastSeen).inMinutes;
-          int estimatedRssi = -80; // Default poor signal
-          if (minutesSinceLastSeen < 1) {
-            estimatedRssi = -50; // Excellent
-          } else if (minutesSinceLastSeen < 5) {
-            estimatedRssi = -60; // Good
-          } else if (minutesSinceLastSeen < 15) {
-            estimatedRssi = -70; // Fair
-          }
+          int estimatedRssi = -80;
+          final mins = now.difference(nearbyUser.lastSeen).inMinutes;
+          if (mins < 1)
+            estimatedRssi = -50;
+          else if (mins < 5)
+            estimatedRssi = -60;
+          else if (mins < 15) estimatedRssi = -70;
 
-          // Check if profile is synced
           final isProfileSynced =
               nearbyUser.profileId != null && nearbyUser.profileId!.length > 8;
-
-          // NEW badge: Recently found (last 60 seconds)
-          final timeSinceFound = now.difference(nearbyUser.foundAt).inSeconds;
-          bool isNew = (timeSinceFound < 60);
-
-          // ACTIVE badge: Recently active (last 5 minutes)
-          bool isRecentlyActive =
-              (now.difference(nearbyUser.lastSeen).inMinutes < 5);
+          final isNew = now.difference(nearbyUser.foundAt).inSeconds < 60;
+          final isRecentlyActive = mins < 5;
 
           return RepaintBoundary(
             child: ProfessionalUserCard(

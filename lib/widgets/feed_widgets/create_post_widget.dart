@@ -1307,7 +1307,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
                       .withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
                   border: Border.all(
-                    color: theme.colorScheme.outline.withValues(alpha: 0.2),
+                    color: theme.dividerColor,
                     width: 1,
                   ),
                 ),
@@ -1667,7 +1667,7 @@ class _CreatePostWidgetState extends State<CreatePostWidget> {
               theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
           border: Border.all(
-            color: theme.colorScheme.outline.withValues(alpha: 0.2),
+            color: theme.dividerColor,
           ),
         ),
         child: Row(

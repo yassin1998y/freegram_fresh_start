@@ -2,7 +2,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:freegram/models/lounge_user.dart';
-import 'package:freegram/theme/design_tokens.dart'; // Ensure this matches your project structure
+import 'package:freegram/theme/app_theme.dart';
+import 'package:freegram/theme/design_tokens.dart';
 
 class UserGridItem extends StatefulWidget {
   final LoungeUser user;
@@ -59,6 +60,7 @@ class _UserGridItemState extends State<UserGridItem>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return AnimatedBuilder(
       animation: _scaleAnimation,
       builder: (context, child) {
@@ -73,9 +75,12 @@ class _UserGridItemState extends State<UserGridItem>
         onTapCancel: _handleTapCancel,
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF161618), // Dark Surface
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF2A2A2C), width: 1.0),
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+            border: Border.all(
+              color: theme.dividerColor.withValues(alpha: 0.1),
+              width: 1.0,
+            ),
           ),
           clipBehavior: Clip.antiAlias,
           child: Stack(
@@ -88,7 +93,9 @@ class _UserGridItemState extends State<UserGridItem>
                   imageUrl: widget.user.imageUrl,
                   fit: BoxFit.cover,
                   placeholder: (context, url) => Container(
-                    decoration: Containers.glassDecoration(context),
+                    decoration: BoxDecoration(
+                      gradient: DesignTokens.glassmorphicGradient(context),
+                    ),
                     child: const Center(
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white24),
@@ -123,7 +130,7 @@ class _UserGridItemState extends State<UserGridItem>
                   children: [
                     Text(
                       "${widget.user.flagEmoji} ${widget.user.name}",
-                      style: const TextStyle(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 15,
@@ -134,7 +141,7 @@ class _UserGridItemState extends State<UserGridItem>
                     const SizedBox(height: 4),
                     Text(
                       "${widget.user.age} • ${widget.user.distance ?? 'Nearby'}",
-                      style: TextStyle(
+                      style: theme.textTheme.bodySmall?.copyWith(
                         color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -156,11 +163,11 @@ class _UserGridItemState extends State<UserGridItem>
                       height: 10,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: SemanticColors.success,
+                        color: SonarPulseTheme.primaryAccent,
                         boxShadow: [
                           BoxShadow(
-                            color: SemanticColors.success
-                                .withValues(alpha: 0.6 * _pulseController.value),
+                            color: SonarPulseTheme.primaryAccent.withValues(
+                                alpha: 0.6 * _pulseController.value),
                             blurRadius: 8 * _pulseController.value,
                             spreadRadius: 2 * _pulseController.value,
                           ),
@@ -205,14 +212,18 @@ class _UserGridItemSkeletonState extends State<UserGridItemSkeleton>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
         return Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF161618),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF2A2A2C), width: 1.0),
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+            border: Border.all(
+              color: theme.dividerColor.withValues(alpha: 0.1),
+              width: 1.0,
+            ),
           ),
           child: Stack(
             children: [
@@ -220,7 +231,7 @@ class _UserGridItemSkeletonState extends State<UserGridItemSkeleton>
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
                     gradient: LinearGradient(
                       colors: [
                         Colors.white.withValues(alpha: 0.05),

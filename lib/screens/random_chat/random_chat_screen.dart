@@ -9,10 +9,13 @@ import 'package:freegram/blocs/interaction/interaction_bloc.dart';
 import 'package:freegram/screens/random_chat/match_tab.dart';
 import 'package:freegram/screens/random_chat/lounge_tab.dart';
 import 'package:freegram/screens/random_chat/history_tab.dart';
+import 'package:freegram/theme/app_theme.dart';
 import 'package:freegram/utils/memory_manager.dart';
+import 'package:freegram/theme/design_tokens.dart';
 
 class RandomChatScreen extends StatefulWidget {
-  const RandomChatScreen({super.key});
+  final bool isVisible;
+  const RandomChatScreen({super.key, this.isVisible = true});
 
   @override
   State<RandomChatScreen> createState() => _RandomChatScreenState();
@@ -25,12 +28,26 @@ class _RandomChatScreenState extends State<RandomChatScreen>
   @override
   void initState() {
     super.initState();
-    _enableSecureMode();
+    if (widget.isVisible) {
+      _enableSecureMode();
+    }
+  }
+
+  @override
+  void didUpdateWidget(RandomChatScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isVisible != oldWidget.isVisible) {
+      if (widget.isVisible) {
+        _enableSecureMode();
+      } else {
+        _disableSecureMode();
+      }
+    }
   }
 
   @override
   void dispose() {
-    evictResources(); // Task 3: Aggressive eviction when leaving Random Chat
+    evictResources();
     _disableSecureMode();
     super.dispose();
   }
@@ -62,21 +79,25 @@ class _RandomChatScreenState extends State<RandomChatScreen>
     showDialog(
       context: context,
       builder: (dialogContext) {
+        final theme = Theme.of(context);
         return AlertDialog(
-          backgroundColor: Colors.grey[900],
-          title:
-              const Text("Admin Access", style: TextStyle(color: Colors.white)),
+          backgroundColor: theme.colorScheme.surface,
+          title: Text("Admin Access",
+              style: TextStyle(color: theme.colorScheme.onSurface)),
           content: TextField(
             controller: passwordController,
             obscureText: true,
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
+            style: TextStyle(color: theme.colorScheme.onSurface),
+            decoration: InputDecoration(
               hintText: "Enter Admin Password",
-              hintStyle: TextStyle(color: Colors.white54),
+              hintStyle: TextStyle(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.54)),
               enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.white54)),
-              focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.deepPurpleAccent)),
+                  borderSide: BorderSide(
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.54))),
+              focusedBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: SonarPulseTheme.primaryAccent)),
             ),
           ),
           actions: [
@@ -132,6 +153,7 @@ class _RandomChatScreenState extends State<RandomChatScreen>
               }
 
               // Normal UI when NOT gated
+              final theme = Theme.of(context);
               return Scaffold(
                 resizeToAvoidBottomInset: false,
                 appBar: AppBar(
@@ -144,37 +166,33 @@ class _RandomChatScreenState extends State<RandomChatScreen>
                     LoungeTab(onUserTap: () {
                       setState(() => _currentIndex = 1);
                     }),
-                    const MatchTab(),
+                    MatchTab(isVisible: widget.isVisible && _currentIndex == 1),
                     const HistoryTab(),
                   ],
                 ),
-                bottomNavigationBar: Theme(
-                  data: Theme.of(context).copyWith(
-                    canvasColor: Colors.black,
-                  ),
-                  child: BottomNavigationBar(
-                    currentIndex: _currentIndex,
-                    backgroundColor: Colors.black,
-                    selectedItemColor: Colors.deepPurpleAccent,
-                    unselectedItemColor: Colors.white54,
-                    onTap: (index) {
-                      setState(() => _currentIndex = index);
-                    },
-                    items: const [
-                      BottomNavigationBarItem(
-                        icon: Icon(Icons.grid_view),
-                        label: "Lounge",
-                      ),
-                      BottomNavigationBarItem(
-                        icon: Icon(Icons.video_chat),
-                        label: "Match",
-                      ),
-                      BottomNavigationBarItem(
-                        icon: Icon(Icons.history),
-                        label: "History",
-                      ),
-                    ],
-                  ),
+                bottomNavigationBar: BottomNavigationBar(
+                  currentIndex: _currentIndex,
+                  backgroundColor: theme.colorScheme.surface,
+                  selectedItemColor: SonarPulseTheme.primaryAccent,
+                  unselectedItemColor:
+                      theme.colorScheme.onSurface.withValues(alpha: 0.54),
+                  onTap: (index) {
+                    setState(() => _currentIndex = index);
+                  },
+                  items: const [
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.grid_view),
+                      label: "Lounge",
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.video_chat),
+                      label: "Match",
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.history),
+                      label: "History",
+                    ),
+                  ],
                 ),
               );
             },
@@ -194,37 +212,72 @@ class _GatedPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // CRITICAL: Explicit background color to prevent black screen
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.lock_outline, size: 80, color: Colors.grey),
-              const SizedBox(height: 24),
-              const Text(
-                'Feature Under Construction',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
+          padding: const EdgeInsets.all(DesignTokens.spaceXXL),
+          child: Container(
+            padding: const EdgeInsets.all(DesignTokens.spaceXXXL),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
+              border: Border.all(
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+                width: 1.0,
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'We are building a secure and amazing random chat experience. Stay tuned!',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 40),
-              TextButton.icon(
-                onPressed: onAdminTap,
-                icon: const Icon(Icons.admin_panel_settings_outlined),
-                label: const Text("Admin Access"),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.grey,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(DesignTokens.spaceXL),
+                  decoration: BoxDecoration(
+                    color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.lock_person_outlined,
+                    size: DesignTokens.iconXXL,
+                    color: SonarPulseTheme.primaryAccent,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: DesignTokens.spaceXL),
+                Text(
+                  'Exclusive Access',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        fontSize: DesignTokens.fontSizeXXL,
+                        letterSpacing: DesignTokens.letterSpacingTight,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: DesignTokens.spaceMD),
+                Text(
+                  'Random Match is currently in private beta for selected regions. Join the waitlist for early access.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).textTheme.bodySmall?.color,
+                        fontSize: DesignTokens.fontSizeMD,
+                        height: DesignTokens.lineHeightNormal,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: DesignTokens.spaceXXL),
+                TextButton.icon(
+                  onPressed: onAdminTap,
+                  icon: const Icon(Icons.admin_panel_settings_outlined,
+                      size: DesignTokens.iconSM),
+                  label: const Text("Admin Access"),
+                  style: TextButton.styleFrom(
+                    foregroundColor:
+                        Theme.of(context).textTheme.bodySmall?.color,
+                    textStyle: const TextStyle(
+                      fontSize: DesignTokens.fontSizeSM,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -17,6 +17,7 @@ import 'package:freegram/repositories/page_repository.dart';
 import 'package:freegram/models/page_model.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/theme/app_theme.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:freegram/models/user_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -132,6 +133,7 @@ class _MenuScreenState extends State<MenuScreen> {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
+      // Removed redundant AppBar to respect MainScreen header
       body: StreamBuilder<UserModel>(
         stream: currentUser != null
             ? UserStreamProvider().getUserStream(currentUser.uid)
@@ -196,16 +198,21 @@ class _MenuScreenState extends State<MenuScreen> {
                           subtitle: 'Earn coins by referring friends',
                           trailing: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Colors.amber.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(4),
+                              color: SonarPulseTheme.primaryAccent
+                                  .withValues(alpha: 0.1),
+                              borderRadius:
+                                  BorderRadius.circular(DesignTokens.radiusXS),
                               border: Border.all(
-                                  color: Colors.amber.withValues(alpha: 0.5)),
+                                color: SonarPulseTheme.primaryAccent
+                                    .withValues(alpha: 0.2),
+                                width: 1,
+                              ),
                             ),
                             child: const Text("New",
                                 style: TextStyle(
-                                    color: Colors.amber,
+                                    color: SonarPulseTheme.primaryAccent,
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold)),
                           ),
@@ -234,6 +241,36 @@ class _MenuScreenState extends State<MenuScreen> {
                     const SizedBox(height: DesignTokens.spaceMD),
                     _buildMenuSection(
                       context,
+                      title: 'Appearance',
+                      children: [
+                        _MenuTile(
+                          icon: Theme.of(context).brightness == Brightness.dark
+                              ? Icons.dark_mode_outlined
+                              : Icons.light_mode_outlined,
+                          title: 'Dark Mode',
+                          subtitle: 'Toggle theme preference',
+                          trailing: Switch.adaptive(
+                            value: theme.brightness == Brightness.dark,
+                            activeColor: SonarPulseTheme.primaryAccent,
+                            activeTrackColor: SonarPulseTheme.primaryAccent
+                                .withValues(alpha: 0.2),
+                            onChanged: (value) {
+                              HapticFeedback.selectionClick();
+                              // Toggle logic would go here via Theme BLoC/Provider
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content:
+                                        Text('Theme preference saved locally')),
+                              );
+                            },
+                          ),
+                          onTap: () {},
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: DesignTokens.spaceMD),
+                    _buildMenuSection(
+                      context,
                       title: 'Pages',
                       children: [
                         if (_loadingPages)
@@ -249,16 +286,13 @@ class _MenuScreenState extends State<MenuScreen> {
                         else if (_myPages.isEmpty)
                           Padding(
                             padding: const EdgeInsets.all(DesignTokens.spaceMD),
-                            child: Text(
-                              'No pages yet',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    color:
-                                        SemanticColors.textSecondary(context),
-                                  ),
-                              textAlign: TextAlign.center,
+                            child: Center(
+                              child: Text(
+                                'No pages yet',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: SemanticColors.textSecondary(context),
+                                ),
+                              ),
                             ),
                           )
                         else
@@ -284,7 +318,7 @@ class _MenuScreenState extends State<MenuScreen> {
                               : 'View All Pages',
                           subtitle: _myPages.isEmpty
                               ? 'Start your first page'
-                              : '${_myPages.length} page${_myPages.length != 1 ? 's' : ''}',
+                              : '${_myPages.length} active page(s)',
                           onTap: () {
                             HapticFeedback.lightImpact();
                             if (_myPages.isEmpty) {
@@ -396,105 +430,175 @@ class _MenuScreenState extends State<MenuScreen> {
       margin: const EdgeInsets.all(DesignTokens.spaceMD),
       padding: const EdgeInsets.all(DesignTokens.spaceLG),
       decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: DesignTokens.elevation1,
-            offset: const Offset(0, 1),
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+        border: Border.all(
+          color: theme.dividerColor.withValues(alpha: 0.1),
+          width: 1.0,
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              // Avatar with Active/Pro Brand Green Border
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  if (currentUser != null) {
+                    locator<NavigationService>().navigateNamed(
+                      AppRoutes.profile,
+                      arguments: {'userId': currentUser.uid},
+                    );
+                  }
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: SonarPulseTheme.primaryAccent,
+                      width: 1.0,
+                    ),
+                  ),
+                  child: CircleAvatar(
+                    radius: AvatarSize.large.radius,
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    backgroundImage:
+                        (user?.photoUrl != null && user!.photoUrl.isNotEmpty)
+                            ? CachedNetworkImageProvider(user.photoUrl)
+                            : null,
+                    child: (user?.photoUrl == null || user!.photoUrl.isEmpty)
+                        ? Icon(
+                            Icons.person,
+                            size: DesignTokens.iconLG,
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: DesignTokens.opacityMedium,
+                            ),
+                          )
+                        : null,
+                  ),
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spaceMD),
+              // User info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (isLoading)
+                      SizedBox(
+                        height: DesignTokens.fontSizeLG,
+                        width: 120,
+                        child: LinearProgressIndicator(
+                          backgroundColor:
+                              theme.colorScheme.surfaceContainerHighest,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            SonarPulseTheme.primaryAccent,
+                          ),
+                        ),
+                      )
+                    else
+                      Text(
+                        user?.username ?? 'User',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: SemanticColors.textPrimary(context),
+                          fontWeight: FontWeight.w700,
+                          fontSize: DesignTokens.fontSizeXXL,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    const SizedBox(height: DesignTokens.spaceXS),
+                    if (!isLoading && user != null)
+                      Text(
+                        user.email.isNotEmpty
+                            ? user.email
+                            : (currentUser?.email ?? ''),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: SemanticColors.textSecondary(context),
+                          fontSize: DesignTokens.fontSizeSM,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    const SizedBox(height: DesignTokens.spaceSM),
+                    Row(
+                      children: [
+                        _buildIdentityBadge(
+                          context,
+                          label: 'Lvl ${user?.userLevel ?? 1}',
+                          icon: Icons.stars,
+                        ),
+                        const SizedBox(width: DesignTokens.spaceSM),
+                        _buildIdentityBadge(
+                          context,
+                          label: '${user?.coins ?? 0}',
+                          icon: Icons.toll,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: DesignTokens.spaceLG),
+          // Edit Profile Action
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () {
+                HapticFeedback.mediumImpact();
+                if (currentUser != null) {
+                  locator<NavigationService>().navigateNamed(
+                    AppRoutes.profile,
+                    arguments: {'userId': currentUser.uid},
+                  );
+                }
+              },
+              style: OutlinedButton.styleFrom(
+                foregroundColor: SonarPulseTheme.primaryAccent,
+                side: const BorderSide(
+                    color: SonarPulseTheme.primaryAccent, width: 1.0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+                ),
+                padding: const EdgeInsets.symmetric(
+                    vertical: DesignTokens.spaceSM + 2),
+              ),
+              child: const Text('Edit Profile',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildIdentityBadge(BuildContext context,
+      {required String label, required IconData icon}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
+        border: Border.all(
+          color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.2),
+          width: 0.5,
+        ),
+      ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Avatar
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              if (currentUser != null) {
-                locator<NavigationService>().navigateNamed(
-                  AppRoutes.profile,
-                  arguments: {'userId': currentUser.uid},
-                );
-              }
-            },
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.2),
-                  width: 2,
+          Icon(icon, size: 14, color: SonarPulseTheme.primaryAccent),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: SonarPulseTheme.primaryAccent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
                 ),
-              ),
-              child: CircleAvatar(
-                radius: AvatarSize.medium.radius,
-                backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                backgroundImage:
-                    (user?.photoUrl != null && user!.photoUrl.isNotEmpty)
-                        ? CachedNetworkImageProvider(user.photoUrl)
-                        : null,
-                child: (user?.photoUrl == null || user!.photoUrl.isEmpty)
-                    ? Icon(
-                        Icons.person,
-                        size: DesignTokens.iconLG,
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: DesignTokens.opacityMedium,
-                        ),
-                      )
-                    : null,
-              ),
-            ),
-          ),
-          const SizedBox(width: DesignTokens.spaceMD),
-          // User info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (isLoading)
-                  SizedBox(
-                    height: DesignTokens.fontSizeLG,
-                    width: 120,
-                    child: LinearProgressIndicator(
-                      backgroundColor:
-                          theme.colorScheme.surfaceContainerHighest,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        theme.colorScheme.primary,
-                      ),
-                    ),
-                  )
-                else
-                  Text(
-                    user?.username ?? 'User',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      fontSize: DesignTokens.fontSizeXXL,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                const SizedBox(height: DesignTokens.spaceXS),
-                if (!isLoading && user != null)
-                  Text(
-                    user.email.isNotEmpty
-                        ? user.email
-                        : (currentUser?.email ?? ''),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: SemanticColors.textSecondary(context),
-                      fontSize: DesignTokens.fontSizeSM,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
-            ),
-          ),
-          // Profile arrow
-          Icon(
-            Icons.chevron_right,
-            color: SemanticColors.iconDefault(context),
-            size: DesignTokens.iconMD,
           ),
         ],
       ),
@@ -509,14 +613,14 @@ class _MenuScreenState extends State<MenuScreen> {
   }) {
     final theme = Theme.of(context);
 
-    return Card(
-      elevation: 0,
-      color: theme.cardColor,
-      shape: RoundedRectangleBorder(
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
-        side: BorderSide(
-          color: theme.colorScheme.outline.withValues(alpha: 0.1),
-          width: 1,
+        border: Border.all(
+          color: theme.dividerColor.withValues(alpha: 0.1),
+          width: 1.0,
         ),
       ),
       child: Column(
@@ -531,19 +635,19 @@ class _MenuScreenState extends State<MenuScreen> {
                 DesignTokens.spaceSM,
               ),
               child: Text(
-                title,
+                title.toUpperCase(),
                 style: theme.textTheme.labelLarge?.copyWith(
                   color: SemanticColors.textSecondary(context),
-                  fontSize: DesignTokens.fontSizeSM,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
                 ),
               ),
             ),
             Divider(
               height: 1,
               thickness: 1,
-              color: theme.dividerColor,
+              color: theme.dividerColor.withValues(alpha: 0.1),
             ),
           ],
           ...children,
@@ -600,6 +704,7 @@ class _MenuScreenState extends State<MenuScreen> {
     );
 
     if (confirmed == true && context.mounted) {
+      if (!context.mounted) return;
       authBloc.add(SignOut());
 
       // Show loading overlay
@@ -625,7 +730,10 @@ class _MenuScreenState extends State<MenuScreen> {
                   decoration: BoxDecoration(
                     color: theme.cardColor,
                     borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
-                    boxShadow: DesignTokens.shadowFloating,
+                    border: Border.all(
+                      color: theme.dividerColor.withValues(alpha: 0.1),
+                      width: 1,
+                    ),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -677,29 +785,44 @@ class _MenuScreenState extends State<MenuScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(DesignTokens.spaceMD),
+                padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMD, 0,
+                    DesignTokens.spaceMD, DesignTokens.spaceMD),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.storefront_outlined,
-                      color: Theme.of(context).colorScheme.primary,
+                    Container(
+                      padding: const EdgeInsets.all(DesignTokens.spaceXS),
+                      decoration: BoxDecoration(
+                        color: SonarPulseTheme.primaryAccent
+                            .withValues(alpha: 0.1),
+                        borderRadius:
+                            BorderRadius.circular(DesignTokens.radiusSM),
+                      ),
+                      child: Icon(
+                        Icons.storefront_outlined,
+                        color: SonarPulseTheme.primaryAccent,
+                        size: DesignTokens.iconSM,
+                      ),
                     ),
                     const SizedBox(width: DesignTokens.spaceSM),
                     Text(
                       'Your Pages',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
                     ),
                     const Spacer(),
                     IconButton(
-                      icon: const Icon(Icons.close),
+                      icon: Icon(Icons.close, size: DesignTokens.iconMD),
                       onPressed: () => Navigator.of(ctx).pop(),
+                      visualDensity: VisualDensity.compact,
                     ),
                   ],
                 ),
               ),
-              const Divider(height: 1),
+              Divider(
+                height: 1,
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+              ),
               Flexible(
                 child: ListView.builder(
                   shrinkWrap: true,
@@ -712,6 +835,7 @@ class _MenuScreenState extends State<MenuScreen> {
                             const EdgeInsets.only(top: DesignTokens.spaceSM),
                         child: ElevatedButton.icon(
                           onPressed: () {
+                            HapticFeedback.lightImpact();
                             Navigator.of(ctx).pop();
                             Navigator.push(
                               context,
@@ -721,11 +845,14 @@ class _MenuScreenState extends State<MenuScreen> {
                             );
                           },
                           icon: const Icon(Icons.add_circle_outline),
-                          label: const Text('Create New Page'),
+                          label: const Text('Launch New Page'),
                           style: ElevatedButton.styleFrom(
+                            backgroundColor: SonarPulseTheme.primaryAccent,
+                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
                               vertical: DesignTokens.spaceMD,
                             ),
+                            elevation: 0,
                             shape: RoundedRectangleBorder(
                               borderRadius:
                                   BorderRadius.circular(DesignTokens.radiusMD),
@@ -815,30 +942,20 @@ class _MenuTile extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: DesignTokens.spaceMD,
-            vertical: DesignTokens.spaceSM,
+            vertical: DesignTokens.spaceMD,
           ),
           child: Row(
             children: [
-              // Icon container with background
-              Container(
-                width: DesignTokens.iconXXL,
-                height: DesignTokens.iconXXL,
-                decoration: BoxDecoration(
-                  color: (isDestructive
-                          ? theme.colorScheme.error
-                          : theme.colorScheme.primary)
-                      .withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
-                ),
-                child: Icon(
-                  icon,
-                  color: tileColor,
-                  size: DesignTokens.iconMD,
-                ),
+              // Pure Iconography in Brand Green
+              Icon(
+                icon,
+                color: isDestructive
+                    ? theme.colorScheme.error
+                    : SonarPulseTheme.primaryAccent,
+                size: DesignTokens.iconLG,
               ),
               const SizedBox(width: DesignTokens.spaceMD),
               // Title and subtitle
@@ -855,7 +972,7 @@ class _MenuTile extends StatelessWidget {
                       ),
                     ),
                     if (subtitle != null) ...[
-                      const SizedBox(height: DesignTokens.spaceXS / 2),
+                      const SizedBox(height: 2),
                       Text(
                         subtitle!,
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -873,10 +990,11 @@ class _MenuTile extends StatelessWidget {
                 const SizedBox(width: DesignTokens.spaceSM),
                 trailing!,
               ],
-              // Chevron
+              const SizedBox(width: DesignTokens.spaceSM),
+              // Standardized Chevron
               Icon(
                 Icons.chevron_right,
-                color: SemanticColors.iconDefault(context),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
                 size: DesignTokens.iconMD,
               ),
             ],

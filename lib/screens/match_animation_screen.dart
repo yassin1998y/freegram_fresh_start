@@ -5,6 +5,7 @@ import 'package:freegram/locator.dart';
 import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/chat_repository.dart';
 import 'package:freegram/screens/improved_chat_screen.dart';
+import 'package:freegram/theme/app_theme.dart';
 
 class MatchAnimationScreen extends StatefulWidget {
   final UserModel currentUser;
@@ -172,10 +173,10 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
                             return LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: const [
+                              colors: [
                                 Colors.pinkAccent,
                                 Colors.purpleAccent,
-                                Colors.blueAccent,
+                                SonarPulseTheme.primaryAccent,
                                 Colors.pinkAccent,
                               ],
                               stops: [
@@ -323,8 +324,8 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
                                       borderRadius: BorderRadius.circular(30),
                                     ),
                                     elevation: 8,
-                                    shadowColor:
-                                        Colors.pinkAccent.withValues(alpha: 0.5),
+                                    shadowColor: Colors.pinkAccent
+                                        .withValues(alpha: 0.5),
                                   ),
                                 ),
                                 const SizedBox(height: 16),
@@ -386,8 +387,8 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.pinkAccent
-                      .withValues(alpha: 0.5 + (_shimmerController.value * 0.3)),
+                  color: Colors.pinkAccent.withValues(
+                      alpha: 0.5 + (_shimmerController.value * 0.3)),
                   blurRadius: 20 + (_shimmerController.value * 10),
                   spreadRadius: 2,
                 ),

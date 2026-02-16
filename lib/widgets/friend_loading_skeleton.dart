@@ -44,6 +44,14 @@ class _FriendLoadingSkeletonState extends State<FriendLoadingSkeleton>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final baseColor = theme.brightness == Brightness.dark
+        ? SemanticColors.gray800(context)
+        : SemanticColors.gray300(context);
+    final highlightColor = theme.brightness == Brightness.dark
+        ? SemanticColors.gray600(context)
+        : SemanticColors.gray200(context);
+
     return ListView.separated(
       padding: const EdgeInsets.all(DesignTokens.spaceMD),
       itemCount: widget.itemCount,
@@ -55,15 +63,12 @@ class _FriendLoadingSkeletonState extends State<FriendLoadingSkeleton>
           builder: (context, child) {
             return Container(
               decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                border: Border.all(
+                  color: theme.dividerColor.withValues(alpha: 0.1),
+                  width: 1.0,
+                ),
               ),
               padding: const EdgeInsets.all(DesignTokens.spaceMD),
               child: Row(
@@ -71,9 +76,11 @@ class _FriendLoadingSkeletonState extends State<FriendLoadingSkeleton>
                   // Avatar skeleton
                   _buildShimmer(
                     context,
-                    child: const CircleAvatar(
-                      radius: 28,
-                      backgroundColor: Colors.grey,
+                    baseColor: baseColor,
+                    highlightColor: highlightColor,
+                    child: CircleAvatar(
+                      radius: AvatarSize.medium.radius,
+                      backgroundColor: Colors.white,
                     ),
                   ),
                   const SizedBox(width: DesignTokens.spaceMD),
@@ -84,11 +91,13 @@ class _FriendLoadingSkeletonState extends State<FriendLoadingSkeleton>
                       children: [
                         _buildShimmer(
                           context,
+                          baseColor: baseColor,
+                          highlightColor: highlightColor,
                           child: Container(
                             height: 16,
                             width: double.infinity,
                             decoration: BoxDecoration(
-                              color: Colors.grey.shade300,
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -96,11 +105,13 @@ class _FriendLoadingSkeletonState extends State<FriendLoadingSkeleton>
                         const SizedBox(height: DesignTokens.spaceXS),
                         _buildShimmer(
                           context,
+                          baseColor: baseColor,
+                          highlightColor: highlightColor,
                           child: Container(
                             height: 12,
                             width: 120,
                             decoration: BoxDecoration(
-                              color: Colors.grey.shade300,
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -117,7 +128,10 @@ class _FriendLoadingSkeletonState extends State<FriendLoadingSkeleton>
     );
   }
 
-  Widget _buildShimmer(BuildContext context, {required Widget child}) {
+  Widget _buildShimmer(BuildContext context,
+      {required Widget child,
+      required Color baseColor,
+      required Color highlightColor}) {
     return ShaderMask(
       blendMode: BlendMode.srcATop,
       shaderCallback: (bounds) {
@@ -126,9 +140,9 @@ class _FriendLoadingSkeletonState extends State<FriendLoadingSkeleton>
           end: Alignment.centerRight,
           stops: const [0.0, 0.5, 1.0],
           colors: [
-            Colors.grey.shade300,
-            Colors.grey.shade100,
-            Colors.grey.shade300,
+            baseColor,
+            highlightColor,
+            baseColor,
           ],
           transform: _SlidingGradientTransform(_animation.value),
         ).createShader(bounds);

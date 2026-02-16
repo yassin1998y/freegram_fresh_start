@@ -265,7 +265,7 @@ class _ProfileScreenViewState extends State<_ProfileScreenView>
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
                                   colors: [
-                                    SonarPulseTheme.socialAccent
+                                    SonarPulseTheme.primaryAccent
                                         .withValues(alpha: 0.15),
                                     Theme.of(context).scaffoldBackgroundColor,
                                   ],
@@ -293,14 +293,14 @@ class _ProfileScreenViewState extends State<_ProfileScreenView>
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
                                           border: Border.all(
-                                            color: SonarPulseTheme.socialAccent
+                                            color: SonarPulseTheme.primaryAccent
                                                 .withValues(alpha: 0.3),
                                             width: 1,
                                           ),
                                           boxShadow: [
                                             BoxShadow(
                                               color: SonarPulseTheme
-                                                  .socialAccent
+                                                  .primaryAccent
                                                   .withValues(alpha: 0.2),
                                               blurRadius: 20,
                                               spreadRadius: 2,
@@ -363,7 +363,7 @@ class _ProfileScreenViewState extends State<_ProfileScreenView>
                                                         FontWeight.bold),
                                               ),
                                               backgroundColor:
-                                                  SonarPulseTheme.socialAccent,
+                                                  SonarPulseTheme.primaryAccent,
                                               behavior:
                                                   SnackBarBehavior.floating,
                                               shape: RoundedRectangleBorder(
@@ -384,7 +384,7 @@ class _ProfileScreenViewState extends State<_ProfileScreenView>
                                             boxShadow: [
                                               BoxShadow(
                                                 color: SonarPulseTheme
-                                                    .socialAccent
+                                                    .primaryAccent
                                                     .withValues(alpha: 0.6),
                                                 blurRadius: 10,
                                                 spreadRadius: 1,
@@ -393,7 +393,7 @@ class _ProfileScreenViewState extends State<_ProfileScreenView>
                                             gradient: const LinearGradient(
                                               colors: [
                                                 Colors.tealAccent,
-                                                SonarPulseTheme.socialAccent,
+                                                SonarPulseTheme.primaryAccent,
                                               ],
                                             ),
                                           ),
@@ -453,7 +453,7 @@ class _ProfileScreenViewState extends State<_ProfileScreenView>
                                 .scaffoldBackgroundColor
                                 .withValues(alpha: 0.5),
                             border: Border.all(
-                                color: SonarPulseTheme.socialAccent
+                                color: SonarPulseTheme.primaryAccent
                                     .withValues(alpha: 0.3),
                                 width: 1),
                           ),
@@ -888,7 +888,7 @@ class _ProfileContent extends StatelessWidget {
           shape: BoxShape.circle,
           color: Theme.of(context).scaffoldBackgroundColor,
           border: Border.all(
-            color: SonarPulseTheme.socialAccent.withValues(alpha: 0.3),
+            color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.3),
             width: 1,
           ),
           boxShadow: [
@@ -899,7 +899,7 @@ class _ProfileContent extends StatelessWidget {
             )
           ],
         ),
-        child: Icon(icon, color: SonarPulseTheme.socialAccent, size: 22),
+        child: Icon(icon, color: SonarPulseTheme.primaryAccent, size: 22),
       ),
     );
   }
@@ -979,7 +979,7 @@ class _ProfileContent extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
-          backgroundColor: SonarPulseTheme.socialAccent,
+          backgroundColor: SonarPulseTheme.primaryAccent,
           foregroundColor: Colors.white,
           elevation: 0,
           shape:
@@ -1151,7 +1151,7 @@ class _GiftCard extends StatelessWidget {
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: SonarPulseTheme.socialAccent.withValues(alpha: 0.1),
+          color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.1),
           width: 1,
         ),
         boxShadow: [

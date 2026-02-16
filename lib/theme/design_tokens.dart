@@ -149,8 +149,8 @@ class DesignTokens {
   static const double blurMedium = 15.0;
   static const double blurHeavy = 20.0;
 
-  // ===== SHADOW DEFINITIONS =====
-  @Deprecated('Use Borders.subtle instead')
+  // ===== SHADOW DEFINITIONS (DEPRECATED: Use Borders.standard instead) =====
+  @Deprecated('Use Borders.standard instead for the 1px border rule')
   static List<BoxShadow> get shadowLight => [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.05),
@@ -159,7 +159,7 @@ class DesignTokens {
         ),
       ];
 
-  @Deprecated('Use Borders.subtle instead')
+  @Deprecated('Use Borders.standard instead for the 1px border rule')
   static List<BoxShadow> get shadowMedium => [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.1),
@@ -168,16 +168,6 @@ class DesignTokens {
         ),
       ];
 
-  @Deprecated('Use Borders.subtle instead')
-  static List<BoxShadow> get shadowHeavy => [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.15),
-          blurRadius: elevation3,
-          offset: const Offset(0, 4),
-        ),
-      ];
-
-  @Deprecated('Use Borders.subtle instead')
   static List<BoxShadow> get shadowFloating => [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.2),
@@ -205,119 +195,95 @@ class DesignTokens {
         ],
       );
 
-  static LinearGradient get glassmorphicGradient => LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Colors.white.withValues(alpha: 0.25),
-          Colors.white.withValues(alpha: 0.1),
-        ],
-      );
+  static LinearGradient glassmorphicGradient(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        (isDark ? Colors.black : Colors.white).withValues(alpha: 0.25),
+        (isDark ? Colors.black : Colors.white).withValues(alpha: 0.1),
+      ],
+    );
+  }
 }
 
-// ===== BORDERS =====
+// ===== BORDERS & CONTAINERS =====
 class Borders {
+  /// The 1px Border Rule: 1.0px width, dividerColor, 16.0px radius
+  static BorderSide standard(BuildContext context) => BorderSide(
+        color: Theme.of(context).dividerColor,
+        width: 1.0,
+      );
+
+  static BorderRadius radius16 = BorderRadius.circular(16.0);
+
+  @Deprecated('Use standard(context) instead')
   static BorderSide get subtle => BorderSide(
         color: Colors.grey.withValues(alpha: 0.2),
         width: 1,
       );
 
-  static BorderSide get focused => const BorderSide(
+  static BorderSide focused(BuildContext context) => const BorderSide(
         color: SonarPulseTheme.primaryAccent,
-        width: 2,
+        width: 1.0,
       );
 }
 
-// ===== CONTAINERS =====
 class Containers {
+  /// Standard interactive container decoration (1px Border Rule)
+  static BoxDecoration cardDecoration(BuildContext context) => BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: Borders.radius16,
+        border: Border.fromBorderSide(Borders.standard(context)),
+      );
+
   static BoxDecoration iconBox(Color color) => BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       );
 
+  // Unified 1px Border Rule Implementation
   static BoxDecoration glassCard(BuildContext context) => BoxDecoration(
         color: Theme.of(context).brightness == Brightness.dark
-            ? Colors.grey[900]
+            ? const Color(0xFF1E1E1E)
             : Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
         border: Border.all(
-          color: Colors.grey.withValues(alpha: 0.1),
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+          width: DesignTokens.borderWidthThin, // 1px border
         ),
       );
 
-  static BoxDecoration glassDecoration(BuildContext context) => BoxDecoration(
-        border: Border.all(color: Colors.white24),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white10,
-            Colors.white12,
-          ],
-        ),
-      );
+  // Added for VideoCallOverlay
+  static BoxDecoration glassDecoration(BuildContext context) =>
+      glassCard(context);
 }
 
 /// Animation Tokens
-
-/// Standardized animation durations and curves for consistent motion
 class AnimationTokens {
   // ===== DURATIONS =====
-  static const Duration fast =
-      Duration(milliseconds: 200); // Quick interactions
-  static const Duration normal =
-      Duration(milliseconds: 300); // Standard transitions
-  static const Duration snappy =
-      Duration(milliseconds: 400); // Snappy interactions
-  static const Duration slow = Duration(milliseconds: 500); // Macro animations
-  static const Duration verySlow =
-      Duration(milliseconds: 800); // Complex animations
-
-  // Legacy durations (kept for backward compatibility)
-  @Deprecated('Use AnimationTokens.fast instead')
-  static const Duration durationFast = Duration(milliseconds: 150);
-  @Deprecated('Use AnimationTokens.normal instead')
-  static const Duration durationNormal = Duration(milliseconds: 300);
-  @Deprecated('Use AnimationTokens.slow instead')
-  static const Duration durationSlow = Duration(milliseconds: 500);
-  @Deprecated('Use AnimationTokens.verySlow instead')
-  static const Duration durationVerySlow = Duration(milliseconds: 800);
+  static const Duration fast = Duration(milliseconds: 200);
+  static const Duration normal = Duration(milliseconds: 300);
+  static const Duration snappy = Duration(milliseconds: 400);
+  static const Duration slow = Duration(milliseconds: 500);
+  static const Duration verySlow = Duration(milliseconds: 800);
 
   // ===== CURVES =====
-  // Basic curves
   static const Curve easeIn = Curves.easeIn;
   static const Curve easeOut = Curves.easeOut;
   static const Curve easeInOut = Curves.easeInOut;
   static const Curve snappyCurve = Curves.easeOutQuart;
-
-  // Cubic curves (smoother, more natural)
   static const Curve easeOutCubic = Curves.easeOutCubic;
   static const Curve easeInOutCubic = Curves.easeInOutCubic;
-
-  // Back curves (overshoot effect)
   static const Curve easeInBack = Curves.easeInBack;
   static const Curve easeOutBack = Curves.easeOutBack;
-
-  // Other curves
   static const Curve fastOutSlowIn = Curves.fastOutSlowIn;
   static const Curve elasticOut = Curves.elasticOut;
   static const Curve easeInQuad = Curves.easeInQuad;
-
-  // Legacy curves (kept for backward compatibility)
-  @Deprecated('Use AnimationTokens.easeIn instead')
-  static const Curve curveEaseIn = Curves.easeIn;
-  @Deprecated('Use AnimationTokens.easeOut instead')
-  static const Curve curveEaseOut = Curves.easeOut;
-  @Deprecated('Use AnimationTokens.easeInOut instead')
-  static const Curve curveEaseInOut = Curves.easeInOut;
-  @Deprecated('Use AnimationTokens.fastOutSlowIn instead')
-  static const Curve curveFastOutSlowIn = Curves.fastOutSlowIn;
-  @Deprecated('Use AnimationTokens.elasticOut instead')
-  static const Curve curveElasticOut = Curves.elasticOut;
 }
 
 /// Avatar Size Tokens
-/// Standardized avatar sizes with radius calculations
 enum AvatarSize {
   small(32.0),
   medium(40.0),
@@ -326,10 +292,7 @@ enum AvatarSize {
   final double size;
   const AvatarSize(this.size);
 
-  /// Get the radius (half of size)
   double get radius => size / 2;
-
-  /// Get memory cache dimensions (2x for retina displays)
   int get memCacheWidth => (size * 2).round();
   int get memCacheHeight => (size * 2).round();
 }
@@ -337,118 +300,67 @@ enum AvatarSize {
 /// Semantic Colors
 /// Theme-aware semantic colors that adapt to light/dark mode
 class SemanticColors {
-  // Prevent instantiation
   SemanticColors._();
 
-  // ===== STATUS COLORS =====
-  static const Color success = Color(0xFF10B981); // Green
-  static const Color warning = Color(0xFFF59E0B); // Orange
-  static const Color error = Color(0xFFEF4444); // Red
-  static const Color info = Color(0xFF3B82F6); // Blue
-  static const Color neutral = Color(0xFF6B7280); // Gray
+  // ===== DYNAMIC TOKENS =====
+  static Color primary(BuildContext context) =>
+      Theme.of(context).colorScheme.primary;
+  static Color background(BuildContext context) =>
+      Theme.of(context).scaffoldBackgroundColor;
+  static Color surface(BuildContext context) =>
+      Theme.of(context).colorScheme.surface;
+  static Color cardColor(BuildContext context) =>
+      Theme.of(context).colorScheme.surface;
+  static Color divider(BuildContext context) => Theme.of(context).dividerColor;
+  static Color surfaceDivider(BuildContext context) =>
+      Theme.of(context).dividerColor;
 
-  // ===== REACTION COLORS =====
-  /// Like/Reaction color - matches primary accent for consistency
-  /// Used for liked posts, comments, and reaction buttons throughout the app
+  // ===== STATUS COLORS =====
+  static const Color success = Color(0xFF10B981);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color error = Color(0xFFEF4444);
+  static const Color info = Color(0xFF3B82F6);
+  static const Color neutral = Color(0xFF6B7280);
+
   static Color get reactionLiked => SonarPulseTheme.primaryAccent;
 
   // ===== TEXT COLORS (Theme-aware) =====
-  /// Primary text color (adapts to theme)
-  static Color textPrimary(BuildContext context) {
-    final theme = Theme.of(context);
-    return theme.brightness == Brightness.dark
-        ? const Color(0xFFE8E8E8) // darkTextPrimary
-        : const Color(0xFF1D1D1F); // lightTextPrimary
-  }
-
-  /// Secondary text color (adapts to theme)
-  static Color textSecondary(BuildContext context) {
-    final theme = Theme.of(context);
-    return theme.brightness == Brightness.dark
-        ? const Color(0xFF8A8A8E) // darkTextSecondary
-        : const Color(0xFF6E6E73); // lightTextSecondary
-  }
-
-  /// Tertiary text color (adapts to theme)
-  static Color textTertiary(BuildContext context) {
-    final theme = Theme.of(context);
-    return theme.brightness == Brightness.dark
-        ? const Color(0xFF8A8A8E).withValues(alpha: 0.6)
-        : const Color(0xFF6E6E73).withValues(alpha: 0.6);
-  }
-
-  // ===== SURFACE COLORS (Theme-aware) =====
-  /// Background color (adapts to theme)
-  static Color surfaceBackground(BuildContext context) {
-    final theme = Theme.of(context);
-    return theme.brightness == Brightness.dark
-        ? const Color(0xFF0A0A0B) // darkBackground
-        : const Color(0xFFF5F5F7); // lightBackground
-  }
-
-  /// Surface color for cards/dialogs (adapts to theme)
-  static Color surfaceCard(BuildContext context) {
-    final theme = Theme.of(context);
-    return theme.brightness == Brightness.dark
-        ? const Color(0xFF161618) // darkSurface
-        : Colors.white; // lightSurface
-  }
-
-  /// Divider color (adapts to theme)
-  static Color surfaceDivider(BuildContext context) {
-    final theme = Theme.of(context);
-    return theme.brightness == Brightness.dark
-        ? const Color(0xFF2C2C2E) // darkDivider
-        : const Color(0xFFE5E5EA); // lightDivider
-  }
+  static Color textPrimary(BuildContext context) =>
+      Theme.of(context).textTheme.bodyLarge?.color ??
+      (Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFFE8E8E8)
+          : const Color(0xFF1D1D1F));
+  static Color textSecondary(BuildContext context) =>
+      Theme.of(context).textTheme.bodySmall?.color ??
+      (Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF8A8A8E)
+          : const Color(0xFF6E6E73));
 
   // ===== ICON COLORS (Theme-aware) =====
-  /// Icon color (adapts to theme)
-  static Color iconDefault(BuildContext context) {
-    final theme = Theme.of(context);
-    return theme.brightness == Brightness.dark
-        ? const Color(0xFF9E9E9E) // darkIcon
-        : const Color(0xFF8A8A8E); // lightIcon
-  }
+  static Color iconDefault(BuildContext context) =>
+      Theme.of(context).iconTheme.color ??
+      (Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF9E9E9E)
+          : const Color(0xFF8A8A8E));
 
-  // ===== GRAY SCALE (Theme-aware) =====
-  /// Gray 200 (light) / Gray 800 (dark)
-  static Color gray200(BuildContext context) {
-    final theme = Theme.of(context);
-    return theme.brightness == Brightness.dark
-        ? Colors.grey[800]!
-        : Colors.grey[200]!;
-  }
-
-  /// Gray 300 (light) / Gray 700 (dark)
-  static Color gray300(BuildContext context) {
-    final theme = Theme.of(context);
-    return theme.brightness == Brightness.dark
-        ? Colors.grey[700]!
-        : Colors.grey[300]!;
-  }
-
-  /// Gray 400 (light) / Gray 600 (dark)
-  static Color gray400(BuildContext context) {
-    final theme = Theme.of(context);
-    return theme.brightness == Brightness.dark
-        ? Colors.grey[600]!
-        : Colors.grey[400]!;
-  }
-
-  /// Gray 600 (light) / Gray 400 (dark)
-  static Color gray600(BuildContext context) {
-    final theme = Theme.of(context);
-    return theme.brightness == Brightness.dark
-        ? Colors.grey[400]!
-        : Colors.grey[600]!;
-  }
-
-  /// Gray 800 (light) / Gray 200 (dark)
-  static Color gray800(BuildContext context) {
-    final theme = Theme.of(context);
-    return theme.brightness == Brightness.dark
-        ? Colors.grey[200]!
-        : Colors.grey[800]!;
-  }
+  static Color gray800(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? Colors.grey[200]!
+          : Colors.grey[800]!;
+  static Color gray600(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? Colors.grey[400]!
+          : Colors.grey[600]!;
+  static Color gray400(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? Colors.grey[600]!
+          : Colors.grey[400]!;
+  static Color gray300(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? Colors.grey[700]!
+          : Colors.grey[300]!;
+  static Color gray200(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? Colors.grey[800]!
+          : Colors.grey[200]!;
 }

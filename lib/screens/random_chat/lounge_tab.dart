@@ -3,6 +3,9 @@ import 'package:freegram/locator.dart';
 import 'package:freegram/models/lounge_user.dart';
 import 'package:freegram/repositories/lounge_repository.dart';
 import 'package:freegram/screens/random_chat/widgets/user_grid_item.dart';
+import 'package:freegram/widgets/responsive_system.dart';
+import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/theme/app_theme.dart';
 
 class LoungeTab extends StatefulWidget {
   final VoidCallback onUserTap;
@@ -36,72 +39,82 @@ class _LoungeTabState extends State<LoungeTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: CustomScrollView(
+    final theme = Theme.of(context);
+    return Container(
+      color: theme.scaffoldBackgroundColor,
+      child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          // 1. App Bar
-          SliverAppBar(
-            floating: true,
-            backgroundColor: Colors.black,
-            title: const Text(
-              "Discover Live",
-              style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.filter_list, color: Colors.white),
-                onPressed: () {
-                  // TODO: Filter logic
-                },
+          // 1. App Bar / Header
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(DesignTokens.spaceLG),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(DesignTokens.spaceSM),
+                    decoration: BoxDecoration(
+                      color:
+                          SonarPulseTheme.primaryAccent.withValues(alpha: 0.1),
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusSM),
+                    ),
+                    child: const Icon(
+                      Icons.live_tv,
+                      color: SonarPulseTheme.primaryAccent,
+                      size: DesignTokens.iconSM,
+                    ),
+                  ),
+                  const SizedBox(width: DesignTokens.spaceSM),
+                  Text(
+                    "Discover Live",
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: DesignTokens.letterSpacingTight,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: Icon(Icons.filter_list,
+                        color: theme.colorScheme.onSurface,
+                        size: DesignTokens.iconSM),
+                    onPressed: () {},
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
 
           // 2. Grid Content
           if (_isLoading)
-            SliverPadding(
-              padding: const EdgeInsets.all(8.0),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.75,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) => const UserGridItemSkeleton(),
-                  childCount: 6,
-                ),
+            SliverFillRemaining(
+              child: ProfessionalResponsiveGrid(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: DesignTokens.spaceLG),
+                children:
+                    List.generate(6, (index) => const UserGridItemSkeleton()),
               ),
             )
           else
-            SliverPadding(
-              padding: const EdgeInsets.all(8.0),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.75,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final user = _users[index];
-                    return _StaggeredEntryItem(
-                      index: index,
-                      child: UserGridItem(
-                        user: user,
-                        onTap: widget.onUserTap,
-                      ),
-                    );
-                  },
-                  childCount: _users.length,
-                ),
+            SliverToBoxAdapter(
+              child: ProfessionalResponsiveGrid(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: DesignTokens.spaceLG),
+                children: _users.map((user) {
+                  return _StaggeredEntryItem(
+                    index: _users.indexOf(user),
+                    child: UserGridItem(
+                      user: user,
+                      onTap: widget.onUserTap,
+                    ),
+                  );
+                }).toList(),
               ),
             ),
+
+          // Bottom padding
+          SliverPadding(
+              padding: EdgeInsets.only(bottom: DesignTokens.spaceXXXL)),
         ],
       ),
     );

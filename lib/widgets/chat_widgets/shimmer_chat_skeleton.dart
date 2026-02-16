@@ -43,6 +43,13 @@ class _ShimmerChatSkeletonState extends State<ShimmerChatSkeleton>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final baseColor = theme.brightness == Brightness.dark
+        ? SemanticColors.gray800(context)
+        : SemanticColors.gray300(context);
+    final highlightColor = theme.brightness == Brightness.dark
+        ? SemanticColors.gray600(context)
+        : SemanticColors.gray200(context);
     final random = Random();
 
     return ListView.builder(
@@ -58,7 +65,7 @@ class _ShimmerChatSkeletonState extends State<ShimmerChatSkeleton>
               opacity: value,
               child: Transform.translate(
                 offset: Offset(0, 20 * (1 - value)),
-                child: _buildSkeletonItem(random),
+                child: _buildSkeletonItem(random, baseColor, highlightColor),
               ),
             );
           },
@@ -67,7 +74,8 @@ class _ShimmerChatSkeletonState extends State<ShimmerChatSkeleton>
     );
   }
 
-  Widget _buildSkeletonItem(Random random) {
+  Widget _buildSkeletonItem(
+      Random random, Color baseColor, Color highlightColor) {
     final messageWidth = 100.0 + random.nextDouble() * 150;
 
     return Container(
@@ -76,10 +84,11 @@ class _ShimmerChatSkeletonState extends State<ShimmerChatSkeleton>
         vertical: DesignTokens.spaceSM,
       ),
       decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
         border: Border(
           bottom: BorderSide(
-            color: Colors.grey.withValues(alpha: 0.1),
-            width: 0.5,
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+            width: 1.0,
           ),
         ),
       ),
@@ -93,6 +102,8 @@ class _ShimmerChatSkeletonState extends State<ShimmerChatSkeleton>
                 width: 56,
                 height: 56,
                 radius: 28,
+                baseColor: baseColor,
+                highlightColor: highlightColor,
               );
             },
           ),
@@ -112,6 +123,8 @@ class _ShimmerChatSkeletonState extends State<ShimmerChatSkeleton>
                       width: 120,
                       height: 16,
                       radius: 4,
+                      baseColor: baseColor,
+                      highlightColor: highlightColor,
                     );
                   },
                 ),
@@ -126,6 +139,8 @@ class _ShimmerChatSkeletonState extends State<ShimmerChatSkeleton>
                       width: messageWidth,
                       height: 14,
                       radius: 4,
+                      baseColor: baseColor,
+                      highlightColor: highlightColor,
                     );
                   },
                 ),
@@ -143,6 +158,8 @@ class _ShimmerChatSkeletonState extends State<ShimmerChatSkeleton>
                 width: 40,
                 height: 12,
                 radius: 4,
+                baseColor: baseColor,
+                highlightColor: highlightColor,
               );
             },
           ),
@@ -155,6 +172,8 @@ class _ShimmerChatSkeletonState extends State<ShimmerChatSkeleton>
     required double width,
     required double height,
     required double radius,
+    required Color baseColor,
+    required Color highlightColor,
   }) {
     return Container(
       width: width,
@@ -165,9 +184,9 @@ class _ShimmerChatSkeletonState extends State<ShimmerChatSkeleton>
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
           colors: [
-            Colors.grey[300]!,
-            Colors.grey[100]!,
-            Colors.grey[300]!,
+            baseColor,
+            highlightColor,
+            baseColor,
           ],
           stops: [
             0.0,
@@ -179,28 +198,3 @@ class _ShimmerChatSkeletonState extends State<ShimmerChatSkeleton>
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:freegram/theme/app_theme.dart';
 import 'dart:math' as math;
 
 class RadarScanAnimation extends StatefulWidget {
@@ -8,7 +9,7 @@ class RadarScanAnimation extends StatefulWidget {
   const RadarScanAnimation({
     super.key,
     this.size = 200,
-    this.color = const Color(0xFF00BFA5),
+    this.color = SonarPulseTheme.primaryAccent,
   });
 
   @override

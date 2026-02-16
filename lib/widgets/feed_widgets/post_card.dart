@@ -33,7 +33,7 @@ import 'package:freegram/services/mention_service.dart';
 import 'package:freegram/screens/hashtag_explore_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/screens/gift_send_selection_screen.dart'; // Import GiftSendSelectionScreen
-import 'package:freegram/theme/app_theme.dart';
+// Removed unused app_theme.dart import
 
 class PostCard extends StatefulWidget {
   final FeedItem item;
@@ -123,93 +123,93 @@ class _PostCardState extends State<PostCard> {
     PostModel post,
     PostDisplayType displayType,
   ) {
+    final theme = Theme.of(context);
+    final isTextOnly = post.mediaItems.isEmpty && post.mediaUrls.isEmpty;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: SonarPulseTheme.darkSurface,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
         border: Border.all(
-          color: const Color(0xFF2A2A2C),
+          color: theme.dividerColor.withValues(alpha: 0.1),
           width: 1.0,
         ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // HEADER
-          Padding(
-            padding: const EdgeInsets.all(DesignTokens.postHeaderPadding),
-            child: PostHeader(
-              post: post,
-              displayType: displayType,
-              isNew: widget.isNew,
-              onProfileTap: () => _navigateToProfile(context, post),
-              onMenuSelected: (value) =>
-                  _handleMenuAction(context, post, value),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // HEADER
+            Padding(
+              padding: const EdgeInsets.all(DesignTokens.postHeaderPadding),
+              child: PostHeader(
+                post: post,
+                displayType: displayType,
+                isNew: widget.isNew,
+                onProfileTap: () => _navigateToProfile(context, post),
+                onMenuSelected: (value) =>
+                    _handleMenuAction(context, post, value),
+              ),
             ),
-          ),
 
-          // CAPTION
-          if (post.content.isNotEmpty)
+            // CAPTION
+            if (post.content.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.only(
+                  left: DesignTokens.postCaptionPadding,
+                  right: DesignTokens.postCaptionPadding,
+                  top: DesignTokens.spaceXS,
+                  bottom:
+                      isTextOnly ? DesignTokens.spaceMD : DesignTokens.spaceSM,
+                ),
+                child: _buildCaption(context),
+              ),
+
+            // MEDIA
+            if (!isTextOnly)
+              RepaintBoundary(
+                child: PostMedia(
+                  post: post,
+                  loadMedia: widget.loadMedia,
+                  isVisible: widget.isVisible,
+                ),
+              ),
+
+            // UNIFIED ACTIONS (Single call as per objective)
             Padding(
               padding: const EdgeInsets.symmetric(
-                horizontal: DesignTokens.postCaptionPadding,
-                vertical: DesignTokens.spaceSM,
+                horizontal: DesignTokens.postCaptionPadding - 8,
+                vertical: DesignTokens.spaceXS,
               ),
-              child: _buildCaption(context),
+              child: PostActions(
+                post: post,
+                onReactionCountChanged: _onReactionCountChanged,
+                onGiftTap: () => _navigateToGiftSelection(context, post),
+                isFloating: false,
+              ),
             ),
 
-          // MEDIA + FLOATING ACTIONS
-          if (post.mediaItems.isNotEmpty || post.mediaUrls.isNotEmpty)
+            // FOOTER (metadata and boost only)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              child: Stack(
-                alignment: Alignment.bottomCenter,
-                children: [
-                  // MEDIA with nested radius 12px
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12.0),
-                    child: RepaintBoundary(
-                      child: PostMedia(
-                        post: post,
-                        loadMedia: widget.loadMedia,
-                        isVisible: widget.isVisible,
-                      ),
-                    ),
-                  ),
-
-                  // FLOATING GLASS ACTIONS
-                  Positioned(
-                    bottom: 12,
-                    left: 12,
-                    right: 12,
-                    child: PostActions(
-                      post: post,
-                      onReactionCountChanged: _onReactionCountChanged,
-                      onGiftTap: () => _navigateToGiftSelection(context, post),
-                      isFloating: true,
-                    ),
-                  ),
-                ],
+              padding: const EdgeInsets.only(
+                left: DesignTokens.postCaptionPadding,
+                right: DesignTokens.postCaptionPadding,
+                bottom: DesignTokens.spaceSM,
+              ),
+              child: PostFooter(
+                post: post,
+                reactionCount: _localReactionCount,
+                showCaption: false,
+                isTextOnly: isTextOnly,
+                onBoostTap: () => _navigateToBoostPost(context, post),
+                onInsightsTap: () => _navigateToBoostInsights(context, post),
               ),
             ),
-
-          // FOOTER (engagement stats only)
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: DesignTokens.postCaptionPadding,
-              vertical: DesignTokens.spaceSM,
-            ),
-            child: PostFooter(
-              post: post,
-              reactionCount: _localReactionCount,
-              showCaption: false,
-              onBoostTap: () => _navigateToBoostPost(context, post),
-              onInsightsTap: () => _navigateToBoostInsights(context, post),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

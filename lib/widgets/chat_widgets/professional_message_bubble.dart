@@ -65,11 +65,12 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
       vsync: this,
     );
 
+    // Use a fixed color for highlight that feels theme-aware
     _highlightAnimation = ColorTween(
       begin: Colors.transparent,
       end: widget.isMe
-          ? Colors.blue.withValues(alpha: 0.3)
-          : Colors.grey.withValues(alpha: 0.3),
+          ? Colors.teal.withValues(alpha: 0.2)
+          : Colors.grey.withValues(alpha: 0.1),
     ).animate(CurvedAnimation(
       parent: _highlightController,
       curve: Curves.easeInOut,
@@ -323,11 +324,11 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
                         child: widget.message.status == MessageStatus.sending
                             ? Shimmer.fromColors(
                                 baseColor: widget.isMe
-                                    ? SonarPulseTheme.socialAccent
+                                    ? SonarPulseTheme.primaryAccent
                                         .withValues(alpha: 0.7)
                                     : Colors.grey.withValues(alpha: 0.1),
                                 highlightColor: widget.isMe
-                                    ? SonarPulseTheme.socialAccent
+                                    ? SonarPulseTheme.primaryAccent
                                         .withValues(alpha: 0.4)
                                     : Colors.grey.withValues(alpha: 0.05),
                                 child: _buildMessageContent(context),
@@ -378,28 +379,19 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      SonarPulseTheme.socialAccent,
-                      SonarPulseTheme.socialAccent.withValues(alpha: 0.85),
+                      SonarPulseTheme.primaryAccent,
+                      SonarPulseTheme.primaryAccent.withValues(alpha: 0.85),
                     ],
                   )
                 : null,
             color: widget.isMe
-                ? null
-                : theme.colorScheme.surface.withValues(alpha: 0.1),
+                ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                : theme.colorScheme.surface,
             borderRadius: _getBubbleBorderRadius(),
-            border: widget.isMe
-                ? null
-                : Border.all(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    width: 0.5,
-                  ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            border: Border.all(
+              color: theme.dividerColor.withValues(alpha: 0.1),
+              width: 1.0,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -425,15 +417,20 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
                       Icon(
                         Icons.edit,
                         size: DesignTokens.iconXS,
-                        color: widget.isMe ? Colors.white70 : Colors.grey[600],
+                        color: widget.isMe
+                            ? Colors.white70
+                            : theme.colorScheme.onSurface
+                                .withValues(alpha: 0.6),
                       ),
                       const SizedBox(width: 2),
                       Text(
                         'Edited',
                         style: TextStyle(
                           fontSize: DesignTokens.fontSizeXS,
-                          color:
-                              widget.isMe ? Colors.white70 : Colors.grey[600],
+                          color: widget.isMe
+                              ? Colors.white70
+                              : theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.6),
                           fontStyle: FontStyle.italic,
                         ),
                       ),
@@ -621,9 +618,9 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
           border: Border(
             left: BorderSide(
               color: widget.isMe
-                  ? Colors.white
+                  ? Theme.of(context).colorScheme.onPrimary
                   : Theme.of(context).colorScheme.primary,
-              width: 3,
+              width: 2.0,
             ),
           ),
         ),
@@ -748,7 +745,7 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
       widget.message.text ?? '',
       style: TextStyle(
         color: widget.isMe
-            ? Colors.white
+            ? Theme.of(context).colorScheme.onSurface
             : Theme.of(context).colorScheme.onSurface,
         fontSize: DesignTokens.fontSizeMD,
         height: DesignTokens.lineHeightNormal,
@@ -789,7 +786,7 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
           statusWidget = const Icon(
             Icons.done_all,
             size: 16,
-            color: SonarPulseTheme.socialAccent,
+            color: SonarPulseTheme.primaryAccent,
           );
           break;
         case MessageStatus.error:

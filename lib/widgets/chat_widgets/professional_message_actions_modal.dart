@@ -113,24 +113,18 @@ class _ProfessionalMessageActionsModalState
   void _handleReaction(String emoji) {
     HapticFeedback.lightImpact();
 
-    // Show success animation
-    setState(() {
-      // Trigger success feedback
-    });
-
     widget.onReaction(emoji);
 
     // Delay closing to show animation
     Future.delayed(const Duration(milliseconds: 200), () {
-      if (mounted) {
-        Navigator.of(context).pop();
-        // Show island popup confirmation
-        showIslandPopup(
-          context: context,
-          message: 'Reaction added!',
-          icon: Icons.check_circle,
-        );
-      }
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      // Show island popup confirmation
+      showIslandPopup(
+        context: context,
+        message: 'Reaction added!',
+        icon: Icons.check_circle,
+      );
     });
   }
 
@@ -168,7 +162,12 @@ class _ProfessionalMessageActionsModalState
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(DesignTokens.radiusXXL),
                       ),
-                      boxShadow: DesignTokens.shadowFloating,
+                      border: Border.all(
+                        color: Theme.of(context)
+                            .dividerColor
+                            .withValues(alpha: 0.1),
+                        width: 1.0,
+                      ),
                     ),
                     child: SingleChildScrollView(
                       controller: scrollController,
@@ -224,8 +223,15 @@ class _ProfessionalMessageActionsModalState
       ),
       padding: const EdgeInsets.all(DesignTokens.spaceMD),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: Theme.of(context)
+            .colorScheme
+            .surfaceContainerHighest
+            .withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+          width: 1.0,
+        ),
       ),
       child: Row(
         children: [
@@ -505,8 +511,16 @@ class _ProfessionalMessageActionsModalState
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+                side: BorderSide(
+                  color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+                  width: 1.0,
+                ),
+              ),
             ),
             child: const Text('Delete'),
           ),
@@ -567,15 +581,12 @@ class _ReactionButtonState extends State<_ReactionButton>
           width: 52,
           height: 52,
           decoration: BoxDecoration(
-            color: Colors.grey[100],
+            color: Theme.of(context).colorScheme.surface,
             shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: DesignTokens.elevation1,
-                offset: const Offset(0, 1),
-              ),
-            ],
+            border: Border.all(
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+              width: 1.0,
+            ),
           ),
           child: Center(
             child: Text(

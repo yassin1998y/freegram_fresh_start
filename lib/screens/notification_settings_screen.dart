@@ -1,5 +1,6 @@
 // lib/screens/notification_settings_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/models/notification_preferences.dart';
@@ -8,6 +9,7 @@ import 'package:freegram/services/fcm_token_service.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/widgets/island_popup.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/theme/app_theme.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -218,24 +220,30 @@ class _NotificationSettingsScreenState
   Widget _buildSectionHeader(ThemeData theme, String title) {
     return Padding(
       padding: const EdgeInsets.only(
-        left: DesignTokens.spaceSM,
+        left: 4,
         bottom: DesignTokens.spaceSM,
       ),
       child: Text(
-        title,
-        style: theme.textTheme.titleSmall?.copyWith(
-          fontWeight: FontWeight.bold,
-          color: theme.colorScheme.secondary,
+        title.toUpperCase(),
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: SemanticColors.textSecondary(context),
+          fontWeight: FontWeight.w900,
+          fontSize: 10,
+          letterSpacing: 1.5,
         ),
       ),
     );
   }
 
   Widget _buildStatusCard(ThemeData theme) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+        border: Border.all(
+          color: theme.dividerColor.withValues(alpha: 0.1),
+          width: 1.0,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(DesignTokens.spaceMD),
@@ -243,10 +251,10 @@ class _NotificationSettingsScreenState
           children: [
             Icon(
               _notificationsEnabled
-                  ? Icons.notifications_active
-                  : Icons.notifications_off,
+                  ? Icons.notifications_active_outlined
+                  : Icons.notifications_off_outlined,
               color: _notificationsEnabled
-                  ? theme.colorScheme.primary
+                  ? SonarPulseTheme.primaryAccent
                   : theme.colorScheme.error,
               size: DesignTokens.iconXXL,
             ),
@@ -257,21 +265,23 @@ class _NotificationSettingsScreenState
                 children: [
                   Text(
                     _notificationsEnabled
-                        ? 'Notifications Enabled'
-                        : 'Notifications Disabled',
+                        ? 'Notifications Active'
+                        : 'Notifications Restricted',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: _notificationsEnabled
-                          ? theme.colorScheme.primary
+                          ? SonarPulseTheme.primaryAccent
                           : theme.colorScheme.error,
                     ),
                   ),
-                  const SizedBox(height: DesignTokens.spaceSM),
+                  const SizedBox(height: 4),
                   Text(
                     _notificationsEnabled
-                        ? 'You will receive push notifications'
-                        : 'Enable notifications in your device settings',
-                    style: theme.textTheme.bodySmall,
+                        ? 'System notifications are currently enabled'
+                        : 'Enable notifications in device settings',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: SemanticColors.textSecondary(context),
+                    ),
                   ),
                 ],
               ),
@@ -283,46 +293,59 @@ class _NotificationSettingsScreenState
   }
 
   Widget _buildMasterSwitch(ThemeData theme) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+        border: Border.all(
+          color: theme.dividerColor.withValues(alpha: 0.1),
+          width: 1.0,
+        ),
       ),
-      child: SwitchListTile(
+      child: SwitchListTile.adaptive(
         title: Text(
-          'All Notifications',
-          style: theme.textTheme.titleMedium?.copyWith(
+          'Master Shield',
+          style: theme.textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.bold,
           ),
         ),
         subtitle: Text(
-          'Enable or disable all push notifications',
-          style: theme.textTheme.bodySmall,
+          'Enable or disable all notifications',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: SemanticColors.textSecondary(context),
+          ),
         ),
         value: _allNotifications,
         onChanged: _notificationsEnabled
             ? (value) {
+                HapticFeedback.selectionClick();
                 setState(() => _allNotifications = value);
                 _savePreferences();
               }
             : null,
-        activeThumbColor: theme.colorScheme.primary,
+        activeColor: SonarPulseTheme.primaryAccent,
+        activeTrackColor: SonarPulseTheme.primaryAccent.withValues(alpha: 0.2),
       ),
     );
   }
 
   Widget _buildSocialSection(ThemeData theme) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+        border: Border.all(
+          color: theme.dividerColor.withValues(alpha: 0.1),
+          width: 1.0,
+        ),
       ),
       child: Column(
         children: [
           _buildNotificationTile(
-            icon: Icons.person_add,
+            icon: Icons.person_add_outlined,
             title: 'Friend Requests',
-            subtitle: 'New friend requests',
+            subtitle: 'New incoming friend requests',
             value: _friendRequests,
             onChanged: (value) {
               setState(() => _friendRequests = value);
@@ -330,10 +353,10 @@ class _NotificationSettingsScreenState
             },
             theme: theme,
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: theme.dividerColor.withValues(alpha: 0.1)),
           _buildNotificationTile(
-            icon: Icons.check_circle,
-            title: 'Friend Accepted',
+            icon: Icons.check_circle_outline,
+            title: 'Request Accepted',
             subtitle: 'When someone accepts your request',
             value: _friendAccepted,
             onChanged: (value) {
@@ -342,10 +365,10 @@ class _NotificationSettingsScreenState
             },
             theme: theme,
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: theme.dividerColor.withValues(alpha: 0.1)),
           _buildNotificationTile(
-            icon: Icons.message,
-            title: 'Messages',
+            icon: Icons.chat_bubble_outline,
+            title: 'Direct Messages',
             subtitle: 'New private messages',
             value: _messages,
             onChanged: (value) {
@@ -354,11 +377,11 @@ class _NotificationSettingsScreenState
             },
             theme: theme,
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: theme.dividerColor.withValues(alpha: 0.1)),
           _buildNotificationTile(
             icon: Icons.radar,
             title: 'Nearby Waves',
-            subtitle: 'When someone waves at you',
+            subtitle: 'When someone waves at you nearby',
             value: _nearbyWaves,
             onChanged: (value) {
               setState(() => _nearbyWaves = value);
@@ -366,9 +389,9 @@ class _NotificationSettingsScreenState
             },
             theme: theme,
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: theme.dividerColor.withValues(alpha: 0.1)),
           _buildNotificationTile(
-            icon: Icons.favorite,
+            icon: Icons.favorite_outline,
             title: 'Super Likes',
             subtitle: 'When someone super likes you',
             value: _superLikes,
@@ -384,15 +407,20 @@ class _NotificationSettingsScreenState
   }
 
   Widget _buildPostsSection(ThemeData theme) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+        border: Border.all(
+          color: theme.dividerColor.withValues(alpha: 0.1),
+          width: 1.0,
+        ),
       ),
       child: Column(
         children: [
           _buildNotificationTile(
-            icon: Icons.thumb_up,
+            icon: Icons.thumb_up_outlined,
             title: 'Likes',
             subtitle: 'Likes on your posts',
             value: _likesEnabled,
@@ -402,9 +430,9 @@ class _NotificationSettingsScreenState
             },
             theme: theme,
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: theme.dividerColor.withValues(alpha: 0.1)),
           _buildNotificationTile(
-            icon: Icons.comment,
+            icon: Icons.mode_comment_outlined,
             title: 'Comments',
             subtitle: 'Comments on your posts',
             value: _commentsEnabled,
@@ -414,11 +442,11 @@ class _NotificationSettingsScreenState
             },
             theme: theme,
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: theme.dividerColor.withValues(alpha: 0.1)),
           _buildNotificationTile(
             icon: Icons.alternate_email,
             title: 'Mentions',
-            subtitle: 'When you are mentioned in a post',
+            subtitle: 'When tagged in a post',
             value: _mentionsEnabled,
             onChanged: (value) {
               setState(() => _mentionsEnabled = value);
@@ -432,15 +460,20 @@ class _NotificationSettingsScreenState
   }
 
   Widget _buildReelsSection(ThemeData theme) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+        border: Border.all(
+          color: theme.dividerColor.withValues(alpha: 0.1),
+          width: 1.0,
+        ),
       ),
       child: Column(
         children: [
           _buildNotificationTile(
-            icon: Icons.favorite_border,
+            icon: Icons.video_library_outlined,
             title: 'Reel Likes',
             subtitle: 'Likes on your reels',
             value: _reelLikesEnabled,
@@ -450,9 +483,9 @@ class _NotificationSettingsScreenState
             },
             theme: theme,
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: theme.dividerColor.withValues(alpha: 0.1)),
           _buildNotificationTile(
-            icon: Icons.comment_bank,
+            icon: Icons.comment_bank_outlined,
             title: 'Reel Comments',
             subtitle: 'Comments on your reels',
             value: _reelCommentsEnabled,
@@ -468,26 +501,25 @@ class _NotificationSettingsScreenState
   }
 
   Widget _buildAdvancedSection(ThemeData theme) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+        border: Border.all(
+          color: theme.dividerColor.withValues(alpha: 0.1),
+          width: 1.0,
+        ),
       ),
-      child: Column(
-        children: [
-          _buildNotificationTile(
-            icon: Icons.group_work,
-            title: 'Smart Batching',
-            subtitle:
-                'Group notifications to reduce spam (e.g. "5 people liked...")',
-            value: _batchingEnabled,
-            onChanged: (value) {
-              setState(() => _batchingEnabled = value);
-              _savePreferences();
-            },
-            theme: theme,
-          ),
-        ],
+      child: _buildNotificationTile(
+        icon: Icons.auto_awesome_outlined,
+        title: 'Smart Digest',
+        subtitle: 'Batch notifications to reduce frequency',
+        value: _batchingEnabled,
+        onChanged: (value) {
+          setState(() => _batchingEnabled = value);
+          _savePreferences();
+        },
+        theme: theme,
       ),
     );
   }
@@ -502,26 +534,38 @@ class _NotificationSettingsScreenState
   }) {
     final isEnabled = _allNotifications && _notificationsEnabled;
 
-    return SwitchListTile(
+    return SwitchListTile.adaptive(
       secondary: Icon(
         icon,
-        color: isEnabled ? theme.colorScheme.primary : theme.disabledColor,
+        color: isEnabled ? SonarPulseTheme.primaryAccent : theme.disabledColor,
+        size: DesignTokens.iconLG,
       ),
       title: Text(
         title,
         style: theme.textTheme.bodyLarge?.copyWith(
           color: isEnabled ? null : theme.disabledColor,
+          fontWeight: FontWeight.w600,
+          fontSize: DesignTokens.fontSizeMD,
         ),
       ),
       subtitle: Text(
         subtitle,
         style: theme.textTheme.bodySmall?.copyWith(
-          color: isEnabled ? null : theme.disabledColor,
+          color: isEnabled
+              ? SemanticColors.textSecondary(context)
+              : theme.disabledColor,
+          fontSize: DesignTokens.fontSizeXS,
         ),
       ),
       value: value,
-      onChanged: isEnabled ? onChanged : null,
-      activeThumbColor: theme.colorScheme.primary,
+      onChanged: isEnabled
+          ? (val) {
+              HapticFeedback.lightImpact();
+              onChanged(val);
+            }
+          : null,
+      activeColor: SonarPulseTheme.primaryAccent,
+      activeTrackColor: SonarPulseTheme.primaryAccent.withValues(alpha: 0.2),
     );
   }
 

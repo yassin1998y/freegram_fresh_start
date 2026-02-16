@@ -467,46 +467,38 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
               label: 'User profile card for ${widget.username}',
               hint: 'Double tap to view actions and profile details',
               button: true,
-              child: Material(
-                elevation: DesignTokens.elevation2,
-                borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
-                shadowColor: Colors.black.withValues(alpha: 0.1),
-                child: GestureDetector(
-                  onTapDown: _handleTapDown,
-                  onTapUp: _handleTapUp,
-                  onTapCancel: _handleTapCancel,
-                  onTap: () => _showUserActions(context),
-                  child: AnimatedContainer(
-                    duration: AnimationTokens.fast,
-                    curve: AnimationTokens.easeInOut,
-                    decoration: BoxDecoration(
-                      borderRadius:
-                          BorderRadius.circular(DesignTokens.radiusLG),
-                      border: Border.all(
-                        color: _hasFocus
-                            ? Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withValues(alpha: 0.5)
-                            : Colors.transparent,
-                        width: 2,
-                      ),
+              child: GestureDetector(
+                onTapDown: _handleTapDown,
+                onTapUp: _handleTapUp,
+                onTapCancel: _handleTapCancel,
+                onTap: () => _showUserActions(context),
+                child: AnimatedContainer(
+                  duration: AnimationTokens.fast,
+                  curve: AnimationTokens.easeInOut,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                    border: Border.all(
+                      color: _hasFocus
+                          ? theme.colorScheme.primary.withValues(alpha: 0.5)
+                          : theme.dividerColor.withValues(alpha: 0.1),
+                      width: _hasFocus ? 2.0 : 1.0,
                     ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius:
+                        BorderRadius.circular(DesignTokens.radiusMD - 1),
                     child: AspectRatio(
                       aspectRatio: 0.75,
                       child: Stack(
                         children: [
                           // Main Content
-                          ClipRRect(
-                            borderRadius:
-                                BorderRadius.circular(DesignTokens.radiusLG),
+                          Positioned.fill(
                             child: widget.photoUrl != null &&
                                     widget.photoUrl!.isNotEmpty
                                 ? CachedNetworkImage(
                                     imageUrl: widget.photoUrl!,
                                     fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    height: double.infinity,
                                     placeholder: (context, url) =>
                                         _buildGenderPlaceholder(),
                                     errorWidget: (context, url, error) =>
@@ -1007,13 +999,10 @@ class _UserActionsModalState extends State<_UserActionsModal>
     return Container(
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+          width: 1.0,
+        ),
       ),
       child: CircleAvatar(
         radius: DesignTokens.spaceXXXL,
@@ -1086,16 +1075,9 @@ class _UserActionsModalState extends State<_UserActionsModal>
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
         border: Border.all(
-          color: Theme.of(context).dividerColor,
-          width: 0.5,
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+          width: 1.0,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: DesignTokens.elevation1,
-            offset: const Offset(0, 1),
-          ),
-        ],
       ),
       child: Row(
         children: [
@@ -1129,16 +1111,9 @@ class _UserActionsModalState extends State<_UserActionsModal>
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
         border: Border.all(
-          color: Theme.of(context).dividerColor,
-          width: 0.5,
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+          width: 1.0,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: DesignTokens.elevation1,
-            offset: const Offset(0, 1),
-          ),
-        ],
       ),
       child: Row(
         children: [
@@ -1182,16 +1157,9 @@ class _UserActionsModalState extends State<_UserActionsModal>
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
         border: Border.all(
-          color: Theme.of(context).dividerColor,
-          width: 0.5,
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+          width: 1.0,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: DesignTokens.elevation1,
-            offset: const Offset(0, 1),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1598,20 +1566,9 @@ class _ProfessionalActionButtonsState extends State<_ProfessionalActionButtons>
                     : Theme.of(context).dividerColor.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
                 border: Border.all(
-                  color: isOnline
-                      ? Theme.of(context).dividerColor
-                      : Theme.of(context).dividerColor.withValues(alpha: 0.3),
-                  width: 0.5,
+                  color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+                  width: 1.0,
                 ),
-                boxShadow: isOnline
-                    ? [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: DesignTokens.elevation1,
-                          offset: const Offset(0, 1),
-                        ),
-                      ]
-                    : null,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,

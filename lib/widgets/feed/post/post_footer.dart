@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/models/post_model.dart';
 import 'package:freegram/theme/design_tokens.dart';
-import 'package:freegram/widgets/feed_widgets/liked_by_list.dart';
 import 'package:freegram/services/mention_service.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/repositories/user_repository.dart';
@@ -21,6 +20,7 @@ class PostFooter extends StatefulWidget {
   final PostModel post;
   final int reactionCount; // Use local count for optimistic updates
   final bool showCaption; // Whether to show caption (moved to top in PostCard)
+  final bool isTextOnly; // Whether the post is text-only
   final VoidCallback? onBoostTap; // Boost button callback
   final VoidCallback? onInsightsTap; // Insights button callback
 
@@ -29,6 +29,7 @@ class PostFooter extends StatefulWidget {
     required this.post,
     required this.reactionCount,
     this.showCaption = true, // Default to true for backward compatibility
+    this.isTextOnly = false,
     this.onBoostTap,
     this.onInsightsTap,
   });
@@ -43,8 +44,6 @@ class _PostFooterState extends State<PostFooter> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasEngagement =
-        widget.reactionCount > 0 || widget.post.commentCount > 0;
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     final isOwner = currentUserId == widget.post.authorId;
 
@@ -64,7 +63,7 @@ class _PostFooterState extends State<PostFooter> {
             color: theme.colorScheme.primary,
           ),
           label: Text(
-            'View Insights',
+            'Analytics',
             style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.primary,
             ),
@@ -72,8 +71,8 @@ class _PostFooterState extends State<PostFooter> {
           style: TextButton.styleFrom(
             foregroundColor: theme.colorScheme.primary,
             padding: const EdgeInsets.symmetric(
-              horizontal: DesignTokens.spaceSM,
-              vertical: DesignTokens.spaceXS,
+              horizontal: 8,
+              vertical: 4,
             ),
             minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -96,8 +95,8 @@ class _PostFooterState extends State<PostFooter> {
           style: TextButton.styleFrom(
             foregroundColor: theme.colorScheme.primary,
             padding: const EdgeInsets.symmetric(
-              horizontal: DesignTokens.spaceSM,
-              vertical: DesignTokens.spaceXS,
+              horizontal: 8,
+              vertical: 4,
             ),
             minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -106,90 +105,41 @@ class _PostFooterState extends State<PostFooter> {
       }
     }
 
+    // Simplified layout for text-only (only boost button if owner)
+    if (widget.isTextOnly) {
+      if (boostButton != null) {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [boostButton],
+        );
+      }
+      return const SizedBox.shrink();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Engagement section (Likes count, comments) with Boost button on right
-        if (hasEngagement || boostButton != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: DesignTokens.spaceMD,
-              vertical: DesignTokens.spaceXS,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Left side: Likes and comments
-                if (hasEngagement)
-                  Row(
-                    children: [
-                      if (widget.reactionCount > 0)
-                        GestureDetector(
-                          onTap: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) => LikedByList(
-                                postId: widget.post.id,
-                                totalLikes: widget.reactionCount,
-                              ),
-                            );
-                          },
-                          child: Text(
-                            '${widget.reactionCount} ${widget.reactionCount == 1 ? 'like' : 'likes'}',
-                            style: theme.textTheme.labelLarge?.copyWith(
-                              color: theme.colorScheme.onSurface.withValues(alpha: 
-                                DesignTokens.opacityMedium,
-                              ),
-                            ),
-                          ),
-                        ),
-                      if (widget.reactionCount > 0 &&
-                          widget.post.commentCount > 0)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: DesignTokens.spaceSM),
-                          child: Text(
-                            '•',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurface.withValues(alpha: 
-                                DesignTokens.opacityMedium,
-                              ),
-                            ),
-                          ),
-                        ),
-                      if (widget.post.commentCount > 0)
-                        Text(
-                          '${widget.post.commentCount} ${widget.post.commentCount == 1 ? 'comment' : 'comments'}',
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(alpha: 
-                              DesignTokens.opacityMedium,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                // Right side: Boost/Insights button (opposite to likes/comments)
-                if (boostButton != null) boostButton,
-              ],
-            ),
+        // Meta-actions row (Boost button on right if exists)
+        if (boostButton != null)
+          Align(
+            alignment: Alignment.centerRight,
+            child: boostButton,
           ),
 
         // Caption section (only if showCaption is true)
         if (widget.showCaption && widget.post.content.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
+            padding: const EdgeInsets.only(top: DesignTokens.spaceXS),
             child: _buildCaption(context),
           ),
 
         // Hashtags section
         if (widget.post.hashtags.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: DesignTokens.spaceMD,
-              vertical: DesignTokens.spaceSM,
-            ),
+            padding: const EdgeInsets.only(top: DesignTokens.spaceSM),
             child: Wrap(
-              spacing: DesignTokens.spaceSM,
+              spacing: 6,
+              runSpacing: 6,
               children: widget.post.hashtags.map((tag) {
                 final normalizedTag =
                     tag.startsWith('#') ? tag.substring(1) : tag;
@@ -204,17 +154,22 @@ class _PostFooterState extends State<PostFooter> {
                       ),
                     );
                   },
-                  borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
-                  child: Chip(
-                    label: Text(
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusSM),
+                    ),
+                    child: Text(
                       '#$normalizedTag',
-                      style: TextStyle(
+                      style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-                    padding: EdgeInsets.zero,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                 );
               }).toList(),
@@ -227,6 +182,7 @@ class _PostFooterState extends State<PostFooter> {
   Widget _buildCaption(BuildContext context) {
     final theme = Theme.of(context);
     final mentionService = locator<MentionService>();
+    final secondaryTextColor = SemanticColors.textSecondary(context);
 
     final spans = mentionService.formatTextWithMentionsAndHashtags(
       widget.post.content,
@@ -300,9 +256,7 @@ class _PostFooterState extends State<PostFooter> {
               child: Text(
                 'more',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 
-                    DesignTokens.opacityMedium,
-                  ),
+                  color: secondaryTextColor,
                 ),
               ),
             ),

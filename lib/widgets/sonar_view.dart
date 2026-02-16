@@ -1,5 +1,6 @@
-import 'dart:math';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:freegram/theme/app_theme.dart';
 
 class SonarView extends StatefulWidget {
   final bool isScanning;
@@ -76,8 +77,6 @@ class _SonarViewState extends State<SonarView> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return AspectRatio(
       aspectRatio: 1.0,
       child: CustomPaint(
@@ -85,9 +84,9 @@ class _SonarViewState extends State<SonarView> with TickerProviderStateMixin {
           sonarAnimation: _sonarAnimation,
           unleashAnimation: _unleashAnimation,
           discoveryAnimation: _discoveryAnimation,
-          primaryColor: theme.colorScheme.primary,
-          secondaryColor: theme.colorScheme.secondary,
-          discoveryColor: theme.colorScheme.tertiary,
+          primaryColor: SonarPulseTheme.primaryAccent,
+          secondaryColor: SonarPulseTheme.primaryAccentLight,
+          discoveryColor: SonarPulseTheme.primaryAccentDark,
         ),
         child: Stack(
           children: [
@@ -127,7 +126,7 @@ class SonarPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final maxRadius = min(size.width, size.height) / 2;
+    final maxRadius = math.min(size.width, size.height) / 2;
 
     // Draw static circles
     for (int i = 1; i <= 3; i++) {
@@ -139,7 +138,8 @@ class SonarPainter extends CustomPainter {
     // Draw scanning pulse
     if (sonarAnimation.value > 0) {
       _sonarPaint.strokeWidth = 2.5;
-      _sonarPaint.color = primaryColor.withValues(alpha: 1.0 - sonarAnimation.value);
+      _sonarPaint.color =
+          primaryColor.withValues(alpha: 1.0 - sonarAnimation.value);
       canvas.drawCircle(center, maxRadius * sonarAnimation.value, _sonarPaint);
     }
 

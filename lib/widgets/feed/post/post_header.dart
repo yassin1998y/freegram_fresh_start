@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/models/post_model.dart';
 import 'package:freegram/models/feed_item_model.dart' show PostDisplayType;
 import 'package:freegram/theme/design_tokens.dart';
-import 'package:freegram/theme/app_theme.dart';
+// Removed unused app_theme.dart import
 import 'package:freegram/widgets/common/media_header.dart';
 
 /// Post header component
@@ -136,72 +136,68 @@ class PostHeader extends StatelessWidget {
     if (isNew) {
       displayTypeBadge = Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: DesignTokens.spaceXS,
+          horizontal: DesignTokens.spaceXS + 2,
           vertical: DesignTokens.spaceXS / 2,
         ),
         decoration: BoxDecoration(
-          color: theme.colorScheme.primary,
+          color: theme.colorScheme.primary.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
         ),
         child: Text(
-          'New',
+          'NEW',
           style: theme.textTheme.labelSmall?.copyWith(
-            color: Colors.white,
+            color: theme.colorScheme.primary,
             fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
           ),
         ),
       );
     } else if (displayType == PostDisplayType.trending) {
       displayTypeBadge = Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: DesignTokens.spaceXS,
+          horizontal: DesignTokens.spaceXS + 2,
           vertical: DesignTokens.spaceXS / 2,
         ),
         decoration: BoxDecoration(
-          color: Colors.orange,
+          color: theme.colorScheme.primary.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
         ),
-        child: Text(
-          'Trending',
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-    } else if (displayType == PostDisplayType.nearby) {
-      displayTypeBadge = Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: DesignTokens.spaceXS,
-          vertical: DesignTokens.spaceXS / 2,
-        ),
-        decoration: BoxDecoration(
-          color: SonarPulseTheme.primaryAccent,
-          borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
-        ),
-        child: Text(
-          'Near You',
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.trending_up,
+              size: 10,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'TRENDING',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
         ),
       );
     } else if (displayType == PostDisplayType.boosted) {
       displayTypeBadge = Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: DesignTokens.spaceXS,
+          horizontal: DesignTokens.spaceXS + 2,
           vertical: DesignTokens.spaceXS / 2,
         ),
         decoration: BoxDecoration(
-          color: theme.colorScheme.primary,
+          color: theme.colorScheme.primary.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
         ),
         child: Text(
-          'Promoted',
+          'PROMOTED',
           style: theme.textTheme.labelSmall?.copyWith(
-            color: Colors.white,
+            color: theme.colorScheme.primary,
             fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
           ),
         ),
       );
@@ -221,6 +217,13 @@ class PostHeader extends StatelessWidget {
       menuItems: menuItems,
       onMenuSelected: onMenuSelected,
       padding: EdgeInsets.zero, // No padding - handled by parent
+      usernameStyle: theme.textTheme.titleMedium?.copyWith(
+        color: SemanticColors.textPrimary(context),
+        fontWeight: FontWeight.w600,
+      ),
+      timestampStyle: theme.textTheme.bodySmall?.copyWith(
+        color: SemanticColors.textSecondary(context),
+      ),
     );
   }
 }

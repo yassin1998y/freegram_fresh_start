@@ -3,7 +3,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/models/achievement_model.dart';
 import 'package:freegram/repositories/achievement_repository.dart';
+import 'package:freegram/theme/app_theme.dart';
+import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/widgets/island_popup.dart';
+import 'package:flutter/services.dart';
 
 class AchievementsScreen extends StatefulWidget {
   const AchievementsScreen({super.key});
@@ -23,17 +27,18 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final currentUser = FirebaseAuth.instance.currentUser;
+
     if (currentUser == null) {
-      return const Scaffold(
-        body: Center(child: Text("Please log in to view achievements")),
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: const Center(child: Text("Please log in to view achievements")),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Achievements"),
-      ),
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: StreamBuilder<List<AchievementModel>>(
         stream: _achievementRepo.getAchievements(),
         builder: (context, achievementsSnapshot) {
@@ -42,25 +47,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
           }
 
           if (achievementsSnapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text(
-                    "Failed to load achievements",
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton.icon(
-                    onPressed: () => setState(() {}),
-                    icon: const Icon(Icons.refresh),
-                    label: const Text("Retry"),
-                  ),
-                ],
-              ),
-            );
+            return _buildErrorState();
           }
 
           if (!achievementsSnapshot.hasData ||
@@ -88,40 +75,84 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                     .add(achievement);
               }
 
-              return ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _buildStatsCard(progressMap, achievements),
-                  const SizedBox(height: 16),
+              return CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  // Header / AppBar
+                  SliverAppBar(
+                    floating: true,
+                    pinned: true,
+                    backgroundColor: theme.scaffoldBackgroundColor,
+                    elevation: 0,
+                    title: Text(
+                      "Achievements",
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: DesignTokens.letterSpacingTight,
+                      ),
+                    ),
+                  ),
+
+                  // Stats Dashboard
+                  SliverPadding(
+                    padding: const EdgeInsets.all(DesignTokens.spaceLG),
+                    sliver: SliverToBoxAdapter(
+                      child: _buildStatsDashboard(progressMap, achievements),
+                    ),
+                  ),
+
+                  // Achievement Categories
                   ...grouped.entries.map((entry) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Text(
-                            _getCategoryName(entry.key),
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                    return SliverMainAxisGroup(
+                      slivers: [
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(
+                            DesignTokens.spaceLG,
+                            DesignTokens.spaceLG,
+                            DesignTokens.spaceLG,
+                            DesignTokens.spaceMD,
+                          ),
+                          sliver: SliverToBoxAdapter(
+                            child: Text(
+                              _getCategoryName(entry.key).toUpperCase(),
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                color: theme.colorScheme.onSurface
+                                    .withValues(alpha: 0.5),
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.5,
+                              ),
+                            ),
                           ),
                         ),
-                        ...entry.value.map((achievement) {
-                          final progress = progressMap[achievement.id];
-                          return _AchievementCard(
-                            achievement: achievement,
-                            progress: progress,
-                            onClaim: () =>
-                                _claimReward(currentUser.uid, achievement.id),
-                          );
-                        }),
-                        const SizedBox(height: 16),
+                        SliverPadding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: DesignTokens.spaceLG),
+                          sliver: SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                                final achievement = entry.value[index];
+                                final progress = progressMap[achievement.id];
+                                return Padding(
+                                  padding: const EdgeInsets.only(
+                                      bottom: DesignTokens.spaceMD),
+                                  child: _AchievementCard(
+                                    achievement: achievement,
+                                    progress: progress,
+                                    onClaim: () => _claimReward(
+                                        currentUser.uid, achievement.id),
+                                  ),
+                                );
+                              },
+                              childCount: entry.value.length,
+                            ),
+                          ),
+                        ),
                       ],
                     );
                   }),
+
+                  const SliverPadding(
+                      padding: EdgeInsets.only(bottom: DesignTokens.spaceXXXL)),
                 ],
               );
             },
@@ -131,34 +162,121 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
     );
   }
 
-  Widget _buildStatsCard(
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 64, color: Colors.red),
+          const SizedBox(height: 16),
+          Text("Failed to load achievements",
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          ElevatedButton.icon(
+            onPressed: () => setState(() {}),
+            icon: const Icon(Icons.refresh),
+            label: const Text("Retry"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: SonarPulseTheme.primaryAccent,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsDashboard(
     Map<String, UserAchievementProgress> progressMap,
     List<AchievementModel> achievements,
   ) {
+    final theme = Theme.of(context);
     final completed = progressMap.values.where((p) => p.isCompleted).length;
     final total = achievements.length;
+    final progressVal = total > 0 ? (completed / total) : 0.0;
 
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _StatItem(
-              icon: Icons.emoji_events,
-              label: "Completed",
-              value: "$completed/$total",
-              color: Colors.amber,
-            ),
-            _StatItem(
-              icon: Icons.trending_up,
-              label: "Progress",
-              value: "${((completed / total) * 100).toStringAsFixed(0)}%",
-              color: Colors.blue,
-            ),
-          ],
+    return Container(
+      padding: const EdgeInsets.all(DesignTokens.spaceLG),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
+        border: Border.all(
+          color: theme.dividerColor.withValues(alpha: 0.1),
+          width: 1.0,
         ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Total Progress",
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  Text(
+                    "$completed completed",
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spaceMD,
+                  vertical: DesignTokens.spaceXS,
+                ),
+                decoration: BoxDecoration(
+                  color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+                ),
+                child: Text(
+                  "${(progressVal * 100).toStringAsFixed(0)}%",
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: SonarPulseTheme.primaryAccent,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: DesignTokens.spaceLG),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
+            child: LinearProgressIndicator(
+              value: progressVal,
+              minHeight: 8,
+              backgroundColor: theme.dividerColor.withValues(alpha: 0.1),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                  SonarPulseTheme.primaryAccent),
+            ),
+          ),
+          const SizedBox(height: DesignTokens.spaceLG),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _StatItem(
+                icon: Icons.emoji_events_outlined,
+                label: "Unlocked",
+                value: "$completed",
+                color: SonarPulseTheme.primaryAccent,
+              ),
+              _StatItem(
+                icon: Icons.auto_awesome_outlined,
+                label: "Remaining",
+                value: "${total - completed}",
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -180,21 +298,22 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
 
   Future<void> _claimReward(String userId, String achievementId) async {
     try {
+      HapticFeedback.mediumImpact();
       await _achievementRepo.claimReward(userId, achievementId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Reward claimed successfully!"),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      if (!mounted) return;
+
+      showIslandPopup(
+        context: context,
+        message: "Reward claimed! 🎉",
+        icon: Icons.celebration,
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to claim reward: $e")),
-        );
-      }
+      if (!mounted) return;
+      showIslandPopup(
+        context: context,
+        message: "Error: $e",
+        icon: Icons.error_outline,
+      );
     }
   }
 }
@@ -216,19 +335,23 @@ class _StatItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Icon(icon, size: 32, color: color),
-        const SizedBox(height: 8),
+        Icon(icon, size: DesignTokens.iconLG, color: color),
+        const SizedBox(height: DesignTokens.spaceXS),
         Text(
           value,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
         ),
         Text(
           label,
-          style: TextStyle(color: Colors.grey[600]),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.5),
+              ),
         ),
       ],
     );
@@ -248,124 +371,195 @@ class _AchievementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final currentValue = progress?.currentValue ?? 0;
     final progressPercent =
         progress?.getProgress(achievement.targetValue) ?? 0.0;
     final isCompleted = progress?.isCompleted ?? false;
     final rewardClaimed = progress?.rewardClaimed ?? false;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    final isLocked = !isCompleted;
+
+    return RepaintBoundary(
+      child: Container(
+        padding: const EdgeInsets.all(DesignTokens.spaceLG),
+        decoration: Containers.glassCard(context).copyWith(
+          border: Border.all(
+            color: isCompleted
+                ? SonarPulseTheme.primaryAccent.withValues(alpha: 0.3)
+                : theme.dividerColor.withValues(alpha: 0.1),
+            width: 1.0,
+          ),
+          boxShadow: isCompleted && !rewardClaimed
+              ? [
+                  BoxShadow(
+                    color:
+                        SonarPulseTheme.primaryAccent.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                  )
+                ]
+              : null,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                _buildTierIcon(),
-                const SizedBox(width: 12),
+                _buildTierIcon(context, isLocked),
+                const SizedBox(width: DesignTokens.spaceLG),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         achievement.name,
-                        style: const TextStyle(
-                          fontSize: 16,
+                        style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
+                          color: isLocked
+                              ? SemanticColors.textPrimary(context)
+                                  .withValues(alpha: 0.6)
+                              : SemanticColors.textPrimary(context),
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
                         achievement.description,
-                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: SemanticColors.textSecondary(context),
+                        ),
                       ),
                     ],
                   ),
                 ),
                 if (isCompleted && !rewardClaimed)
-                  ElevatedButton(
-                    onPressed: onClaim,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber,
-                      foregroundColor: Colors.black,
-                    ),
-                    child: const Text("Claim"),
-                  )
+                  _buildClaimButton()
                 else if (rewardClaimed)
-                  const Icon(Icons.check_circle, color: Colors.green, size: 32),
+                  const Icon(
+                    Icons.check_circle,
+                    color: SonarPulseTheme.primaryAccent,
+                    size: DesignTokens.iconMD,
+                  ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: DesignTokens.spaceLG),
             Row(
               children: [
                 Expanded(
-                  child: LinearProgressIndicator(
-                    value: progressPercent,
-                    backgroundColor: Colors.grey[300],
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      isCompleted ? Colors.green : Colors.blue,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
+                    child: LinearProgressIndicator(
+                      value: progressPercent,
+                      minHeight: 6,
+                      backgroundColor:
+                          theme.dividerColor.withValues(alpha: 0.1),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        isCompleted
+                            ? SonarPulseTheme.primaryAccent
+                            : SonarPulseTheme.primaryAccent
+                                .withValues(alpha: 0.5),
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: DesignTokens.spaceLG),
                 Text(
                   "$currentValue/${achievement.targetValue}",
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: isLocked
+                        ? theme.colorScheme.onSurface.withValues(alpha: 0.4)
+                        : theme.colorScheme.onSurface,
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.monetization_on,
-                    size: 16, color: Colors.amber),
-                const SizedBox(width: 4),
-                Text(
-                  "${achievement.rewardCoins} coins",
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                if (achievement.rewardBadgeId != null) ...[
-                  const SizedBox(width: 12),
-                  const Icon(Icons.badge, size: 16, color: Colors.purple),
-                  const SizedBox(width: 4),
-                  const Text("+ Badge"),
-                ],
-              ],
-            ),
+            const SizedBox(height: DesignTokens.spaceMD),
+            _buildRewardSection(theme),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTierIcon() {
+  Widget _buildClaimButton() {
+    return ElevatedButton(
+      onPressed: onClaim,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: SonarPulseTheme.primaryAccent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+        ),
+      ),
+      child: const Text(
+        "Claim",
+        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+      ),
+    );
+  }
+
+  Widget _buildRewardSection(ThemeData theme) {
+    return Row(
+      children: [
+        Icon(Icons.monetization_on, size: 14, color: Colors.amber.shade700),
+        const SizedBox(width: 4),
+        Text(
+          "${achievement.rewardCoins} coins",
+          style: theme.textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+          ),
+        ),
+        if (achievement.rewardBadgeId != null) ...[
+          const SizedBox(width: 16),
+          Icon(Icons.shield_outlined,
+              size: 14, color: SonarPulseTheme.primaryAccent),
+          const SizedBox(width: 4),
+          Text(
+            "Badge Unlocked",
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: SonarPulseTheme.primaryAccent,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildTierIcon(BuildContext context, bool isLocked) {
     Color color;
-    IconData icon = Icons.emoji_events;
+    IconData icon = Icons.emoji_events_rounded;
 
     switch (achievement.tier) {
       case AchievementTier.bronze:
-        color = Colors.brown;
+        color = const Color(0xFFCD7F32);
         break;
       case AchievementTier.silver:
-        color = Colors.grey;
+        color = const Color(0xFFC0C0C0);
         break;
       case AchievementTier.gold:
-        color = Colors.amber;
+        color = const Color(0xFFFFD700);
         break;
       case AchievementTier.platinum:
-        color = Colors.cyan;
+        color = const Color(0xFFE5E4E2);
         break;
     }
 
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(DesignTokens.spaceMD),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.2),
+        color: (isLocked ? Colors.grey : color).withValues(alpha: 0.1),
         shape: BoxShape.circle,
       ),
-      child: Icon(icon, color: color, size: 32),
+      child: Icon(
+        icon,
+        color: isLocked ? Colors.grey.withValues(alpha: 0.4) : color,
+        size: DesignTokens.iconLG,
+      ),
     );
   }
 }

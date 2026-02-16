@@ -29,6 +29,7 @@ class SonarController {
   StreamSubscription? _statusSubscription;
   bool _isInitialized = false;
   bool _isRunning = false; // Tracks if Sonar *should* be running
+  bool get isRunning => _isRunning;
 
   String? _currentUserShortId;
   int? _currentUserGender;

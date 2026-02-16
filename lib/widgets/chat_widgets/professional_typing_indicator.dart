@@ -103,8 +103,8 @@ class _BouncingDotsState extends State<_BouncingDots>
                 width: 4,
                 height: 4,
                 margin: const EdgeInsets.symmetric(horizontal: 1),
-                decoration: const BoxDecoration(
-                  color: Colors.grey,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
                   shape: BoxShape.circle,
                 ),
               ),

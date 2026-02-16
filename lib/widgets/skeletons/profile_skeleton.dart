@@ -12,6 +12,13 @@ class ProfileSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final baseColor = theme.brightness == Brightness.dark
+        ? SemanticColors.gray800(context)
+        : SemanticColors.gray300(context);
+    final highlightColor = theme.brightness == Brightness.dark
+        ? SemanticColors.gray600(context)
+        : SemanticColors.gray200(context);
     final screenWidth = MediaQuery.of(context).size.width;
 
     return CustomScrollView(
@@ -27,14 +34,14 @@ class ProfileSkeleton extends StatelessWidget {
                   children: [
                     // Profile Photo
                     Shimmer.fromColors(
-                      baseColor: Colors.grey[300]!,
-                      highlightColor: Colors.grey[100]!,
+                      baseColor: baseColor,
+                      highlightColor: highlightColor,
                       child: Container(
                         width: 100,
                         height: 100,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.grey[300],
+                          color: Colors.white,
                         ),
                       ),
                     ),
@@ -44,9 +51,9 @@ class ProfileSkeleton extends StatelessWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          _buildStatSkeleton(),
-                          _buildStatSkeleton(),
-                          _buildStatSkeleton(),
+                          _buildStatSkeleton(baseColor, highlightColor),
+                          _buildStatSkeleton(baseColor, highlightColor),
+                          _buildStatSkeleton(baseColor, highlightColor),
                         ],
                       ),
                     ),
@@ -55,8 +62,8 @@ class ProfileSkeleton extends StatelessWidget {
                 const SizedBox(height: DesignTokens.spaceMD),
                 // Username and Bio
                 Shimmer.fromColors(
-                  baseColor: Colors.grey[300]!,
-                  highlightColor: Colors.grey[100]!,
+                  baseColor: baseColor,
+                  highlightColor: highlightColor,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -64,7 +71,7 @@ class ProfileSkeleton extends StatelessWidget {
                         width: 150,
                         height: 20,
                         decoration: BoxDecoration(
-                          color: Colors.grey[300],
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
@@ -73,7 +80,7 @@ class ProfileSkeleton extends StatelessWidget {
                         width: double.infinity,
                         height: 16,
                         decoration: BoxDecoration(
-                          color: Colors.grey[300],
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
@@ -82,7 +89,7 @@ class ProfileSkeleton extends StatelessWidget {
                         width: screenWidth * 0.7,
                         height: 16,
                         decoration: BoxDecoration(
-                          color: Colors.grey[300],
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
@@ -95,12 +102,12 @@ class ProfileSkeleton extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Shimmer.fromColors(
-                        baseColor: Colors.grey[300]!,
-                        highlightColor: Colors.grey[100]!,
+                        baseColor: baseColor,
+                        highlightColor: highlightColor,
                         child: Container(
                           height: 40,
                           decoration: BoxDecoration(
-                            color: Colors.grey[300],
+                            color: Colors.white,
                             borderRadius:
                                 BorderRadius.circular(DesignTokens.radiusMD),
                           ),
@@ -109,13 +116,13 @@ class ProfileSkeleton extends StatelessWidget {
                     ),
                     const SizedBox(width: DesignTokens.spaceSM),
                     Shimmer.fromColors(
-                      baseColor: Colors.grey[300]!,
-                      highlightColor: Colors.grey[100]!,
+                      baseColor: baseColor,
+                      highlightColor: highlightColor,
                       child: Container(
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: Colors.grey[300],
+                          color: Colors.white,
                           borderRadius:
                               BorderRadius.circular(DesignTokens.radiusMD),
                         ),
@@ -139,11 +146,11 @@ class ProfileSkeleton extends StatelessWidget {
             delegate: SliverChildBuilderDelegate(
               (context, index) {
                 return Shimmer.fromColors(
-                  baseColor: Colors.grey[300]!,
-                  highlightColor: Colors.grey[100]!,
+                  baseColor: baseColor,
+                  highlightColor: highlightColor,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.grey[300],
+                      color: Colors.white,
                       borderRadius:
                           BorderRadius.circular(DesignTokens.radiusSM),
                     ),
@@ -158,17 +165,17 @@ class ProfileSkeleton extends StatelessWidget {
     );
   }
 
-  Widget _buildStatSkeleton() {
+  Widget _buildStatSkeleton(Color baseColor, Color highlightColor) {
     return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
+      baseColor: baseColor,
+      highlightColor: highlightColor,
       child: Column(
         children: [
           Container(
             width: 30,
             height: 18,
             decoration: BoxDecoration(
-              color: Colors.grey[300],
+              color: Colors.white,
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -177,7 +184,7 @@ class ProfileSkeleton extends StatelessWidget {
             width: 40,
             height: 12,
             decoration: BoxDecoration(
-              color: Colors.grey[300],
+              color: Colors.white,
               borderRadius: BorderRadius.circular(4),
             ),
           ),

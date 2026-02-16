@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:freegram/theme/app_theme.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/services/session_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Splash screen that displays during app initialization
 /// Task 4: Upgraded with FadeTransition and Cyber-Violet pulse
@@ -81,10 +82,35 @@ class _SplashScreenState extends State<SplashScreen>
     _startUnifiedLoadingSequence();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Warm-up cache for next screen assets
+    precacheImage(const AssetImage('assets/freegram_logo_no_bg.png'), context);
+    // Add other critical assets here if they are images
+  }
+
   void _startUnifiedLoadingSequence() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final bool hasSeenSplash = prefs.getBool('has_seen_splash') ?? false;
+
+      // Start the actual background initialization immediately
       _runAppInitialization();
-      await _animateInitialSteps();
+
+      if (!hasSeenSplash) {
+        // FIRST TIME INSTALL: Brand impact mode
+        await _animateInitialSteps();
+        await prefs.setBool('has_seen_splash', true);
+      } else {
+        // RETURNING USER: Instant skip
+        // Still need to wait for minimal app init sync
+        int waitTime = 0;
+        while (!_appInitComplete && mounted && waitTime < 5000) {
+          await Future.delayed(const Duration(milliseconds: 50));
+          waitTime += 50;
+        }
+      }
 
       if (!mounted) return;
       setState(() {
@@ -101,28 +127,13 @@ class _SplashScreenState extends State<SplashScreen>
         _currentStep = 'Ready!';
       });
 
-      // Task 4: Modern Cyber-Violet Pulse Transition
-      await Future.delayed(const Duration(milliseconds: 800));
-
-      if (mounted && widget.onComplete != null) {
-        final appWidget = widget.onComplete!(_initializationResult);
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => appWidget,
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-              return FadeTransition(
-                opacity: animation,
-                child: Container(
-                  color: const Color(0xFF1A0B2E)
-                      .withValues(alpha: 1.0 - animation.value),
-                  child: child,
-                ),
-              );
-            },
-            transitionDuration: const Duration(milliseconds: 800),
-          ),
-        );
+      if (hasSeenSplash) {
+        // Instant transition for returning users
+        _navigateToNext(instant: true);
+      } else {
+        // Task 4: Modern Cyber-Violet Pulse Transition for first-timers
+        await Future.delayed(const Duration(milliseconds: 800));
+        _navigateToNext(instant: false);
       }
     } catch (e) {
       debugPrint('Loading sequence error: $e');
@@ -133,6 +144,30 @@ class _SplashScreenState extends State<SplashScreen>
           _currentStep = 'Initialization failed';
         });
       }
+    }
+  }
+
+  void _navigateToNext({bool instant = false}) {
+    if (mounted && widget.onComplete != null) {
+      final appWidget = widget.onComplete!(_initializationResult);
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => appWidget,
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            if (instant) return child;
+            return FadeTransition(
+              opacity: animation,
+              child: Container(
+                color: const Color(0xFF1A0B2E)
+                    .withValues(alpha: 1.0 - animation.value),
+                child: child,
+              ),
+            );
+          },
+          transitionDuration:
+              instant ? Duration.zero : const Duration(milliseconds: 800),
+        ),
+      );
     }
   }
 

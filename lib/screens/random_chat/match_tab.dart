@@ -15,7 +15,8 @@ import 'package:freegram/theme/design_tokens.dart'; // Added
 import 'package:freegram/widgets/guided_overlay.dart';
 
 class MatchTab extends StatefulWidget {
-  const MatchTab({super.key});
+  final bool isVisible;
+  const MatchTab({super.key, this.isVisible = true});
 
   @override
   State<MatchTab> createState() => _MatchTabState();
@@ -50,11 +51,26 @@ class _MatchTabState extends State<MatchTab>
       duration: const Duration(seconds: 1),
       lowerBound: 1.0,
       upperBound: 1.1,
-    )..repeat(reverse: true);
+    );
 
-    // Defer renderer initialization until ungated
-    // _initRenderers();
-    context.read<RandomChatBloc>().add(RandomChatJoinQueue());
+    if (widget.isVisible) {
+      _pulseController.repeat(reverse: true);
+      context.read<RandomChatBloc>().add(RandomChatJoinQueue());
+    }
+  }
+
+  @override
+  void didUpdateWidget(MatchTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isVisible != oldWidget.isVisible) {
+      if (widget.isVisible) {
+        _pulseController.repeat(reverse: true);
+        context.read<RandomChatBloc>().add(RandomChatJoinQueue());
+      } else {
+        _pulseController.stop();
+        context.read<RandomChatBloc>().add(RandomChatLeaveMatchTab());
+      }
+    }
   }
 
   Future<void> _initRenderers() async {
@@ -88,34 +104,37 @@ class _MatchTabState extends State<MatchTab>
   }
 
   void _showPremiumFilterSheet() {
+    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.star, color: Colors.amber, size: 48),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               "Upgrade to Filter?",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              style: theme.textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               "You need 50 coins or a Filter Pass to use Gender/Region filters.",
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.black54),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
+                backgroundColor: SonarPulseTheme.primaryAccent,
                 minimumSize: const Size(double.infinity, 50),
               ),
               onPressed: () {
@@ -138,8 +157,9 @@ class _MatchTabState extends State<MatchTab>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: BlocConsumer<RandomChatBloc, RandomChatState>(
         listenWhen: (previous, current) {
           return previous.status != current.status ||
@@ -311,17 +331,12 @@ class _MatchTabState extends State<MatchTab>
       width: 100,
       height: 140,
       decoration: BoxDecoration(
-        color: Colors.black,
+        color: Theme.of(context).colorScheme.surface,
         // Squircle Style: Radius 16 + Border
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD), // 16.0
         border: Border.all(
-            color: Colors.white, width: DesignTokens.borderWidthThin),
-        boxShadow: [
-          if (!isDragging)
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.5),
-                blurRadius: DesignTokens.elevation2),
-        ],
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+            width: 1.0),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD - 1),
@@ -351,14 +366,17 @@ class _MatchTabState extends State<MatchTab>
           ),
         ),
         const SizedBox(height: 20),
-        const Text("Finding Match...",
+        Text("Finding Match...",
             style: TextStyle(
-                color: Colors.white, fontSize: 24, fontWeight: FontWeight.w300))
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 24,
+                fontWeight: FontWeight.w300))
       ]))
     ]);
   }
 
   Widget _buildMatchingOverlay() {
+    final theme = Theme.of(context);
     // 1.5s Shimmer during "matching" state before connection
     return Stack(children: [
       BackdropFilter(
@@ -367,19 +385,20 @@ class _MatchTabState extends State<MatchTab>
       ),
       Center(
         child: Shimmer.fromColors(
-          baseColor: Colors.white70,
-          highlightColor: Colors.white,
-          child: const Column(
+          baseColor: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+          highlightColor: SonarPulseTheme.primaryAccent,
+          child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.lock_outline, size: 80, color: Colors.white),
-              SizedBox(height: 20),
+              Icon(Icons.lock_outline,
+                  size: 80, color: theme.colorScheme.onSurface),
+              const SizedBox(height: 20),
               Text(
                 "Securing Connection...",
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
             ],

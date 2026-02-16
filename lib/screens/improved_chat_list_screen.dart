@@ -145,45 +145,44 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(
-        DesignTokens.spaceMD,
-        DesignTokens.spaceSM,
-        DesignTokens.spaceMD,
-        DesignTokens.spaceSM,
+      padding: const EdgeInsets.symmetric(
+        horizontal: DesignTokens.spaceMD,
+        vertical: DesignTokens.spaceSM,
       ),
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
         border: Border(
           bottom: BorderSide(
             color: theme.dividerColor.withValues(alpha: 0.1),
-            width: 1,
+            width: 1.0,
           ),
         ),
       ),
       child: TextField(
         controller: _searchController,
+        cursorColor: theme.colorScheme.primary,
         decoration: InputDecoration(
           hintText: 'Search chats...',
-          hintStyle: TextStyle(
+          hintStyle: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-            fontSize: DesignTokens.fontSizeMD,
           ),
           prefixIcon: Icon(
             Icons.search_rounded,
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+            color: theme.colorScheme.primary,
             size: DesignTokens.iconLG,
           ),
           suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: Icon(
-                    Icons.clear_rounded,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                    size: DesignTokens.iconMD,
-                  ),
-                  onPressed: () {
+              ? InkWell(
+                  onTap: () {
                     HapticFeedback.lightImpact();
                     _searchController.clear();
                   },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Icon(
+                    Icons.cancel_rounded,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                    size: 20,
+                  ),
                 )
               : IconButton(
                   icon: Icon(
@@ -204,20 +203,27 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
                   },
                 ),
           filled: true,
-          fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-          border: OutlineInputBorder(
+          fillColor: theme.colorScheme.surface,
+          enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
-            borderSide: BorderSide.none,
+            borderSide: BorderSide(
+              color: theme.dividerColor.withValues(alpha: 0.1),
+              width: 1.0,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+            borderSide: BorderSide(
+              color: theme.colorScheme.primary,
+              width: 1.0,
+            ),
           ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: DesignTokens.spaceMD,
-            vertical: DesignTokens.spaceMD,
+            vertical: 12,
           ),
         ),
-        style: TextStyle(
-          fontSize: DesignTokens.fontSizeMD,
-          color: theme.colorScheme.onSurface,
-        ),
+        style: theme.textTheme.bodyLarge,
       ),
     );
   }
@@ -273,10 +279,11 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
     required bool isActive,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(context);
     return Material(
       color: isActive
-          ? Theme.of(context).colorScheme.primary
-          : Theme.of(context).colorScheme.surfaceContainerHighest,
+          ? theme.colorScheme.primary.withValues(alpha: 0.1)
+          : theme.colorScheme.surface,
       borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
       child: InkWell(
         onTap: onTap,
@@ -290,11 +297,9 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
             borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
             border: Border.all(
               color: isActive
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.outline.withValues(alpha: 
-                        DesignTokens.opacityMedium,
-                      ),
-              width: 1,
+                  ? theme.colorScheme.primary
+                  : theme.dividerColor.withValues(alpha: 0.1),
+              width: 1.0,
             ),
           ),
           child: Row(
@@ -302,20 +307,20 @@ class _ImprovedChatListScreenState extends State<ImprovedChatListScreen>
             children: [
               Icon(
                 icon,
-                size: DesignTokens.iconSM,
+                size: 16,
                 color: isActive
-                    ? Theme.of(context).colorScheme.onPrimary
+                    ? theme.colorScheme.primary
                     : SemanticColors.textSecondary(context),
               ),
               const SizedBox(width: DesignTokens.spaceXS),
               Text(
                 label,
-                style: TextStyle(
+                style: theme.textTheme.labelMedium?.copyWith(
                   color: isActive
-                      ? Theme.of(context).colorScheme.onPrimary
+                      ? theme.colorScheme.primary
                       : SemanticColors.textSecondary(context),
-                  fontSize: DesignTokens.fontSizeSM,
                   fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
                 ),
               ),
             ],

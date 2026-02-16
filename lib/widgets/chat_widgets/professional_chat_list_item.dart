@@ -125,9 +125,10 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
               return false;
             }
           },
-          onDismissed: (direction) {
+          onDismissed: (direction) async {
             if (direction == DismissDirection.endToStart) {
-              chatRepository.deleteChat(widget.chat.id);
+              await chatRepository.deleteChat(widget.chat.id);
+              if (!context.mounted) return;
               showIslandPopup(
                 context: context,
                 message: '$otherUsername chat deleted',
@@ -136,15 +137,17 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
             }
           },
           background: _buildSwipeBackground(
+            context: context,
             alignment: Alignment.centerLeft,
-            color: Colors.blue,
-            icon: Icons.archive,
+            color: SemanticColors.success,
+            icon: Icons.archive_rounded,
             label: 'Archive',
           ),
           secondaryBackground: _buildSwipeBackground(
+            context: context,
             alignment: Alignment.centerRight,
-            color: Colors.red,
-            icon: Icons.delete_forever,
+            color: Theme.of(context).colorScheme.error,
+            icon: Icons.delete_outline_rounded,
             label: 'Delete',
           ),
           child: Material(
@@ -163,24 +166,31 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: DesignTokens.spaceMD,
-                  vertical: DesignTokens.spaceSM,
+                  vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: isUnread
-                      ? Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.05)
-                      : Colors.transparent,
+                  color: Colors.transparent, // Pure surface approach
                   border: Border(
                     bottom: BorderSide(
-                      color: Colors.grey.withValues(alpha: 0.1),
-                      width: 0.5,
+                      color:
+                          Theme.of(context).dividerColor.withValues(alpha: 0.1),
+                      width: 1.0,
                     ),
                   ),
                 ),
                 child: Row(
                   children: [
+                    // Unread vertical accent indicator
+                    if (isUnread)
+                      Container(
+                        width: 3,
+                        height: 40,
+                        margin: const EdgeInsets.only(right: 12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
                     // Avatar with status
                     _buildAvatar(
                       photoUrl,
@@ -219,6 +229,11 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
                                             ? FontWeight.bold
                                             : FontWeight.w600,
                                         fontSize: DesignTokens.fontSizeMD,
+                                        color: isUnread
+                                            ? Theme.of(context)
+                                                .colorScheme
+                                                .primary
+                                            : null,
                                       ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -322,36 +337,44 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
           // Avatar with hero animation
           Hero(
             tag: 'avatar_$userId',
-            child: Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: DesignTokens.elevation1,
-                    offset: const Offset(0, 1),
+            child: StreamBuilder<PresenceData>(
+              stream: presenceStream,
+              builder: (context, snapshot) {
+                final isOnline = snapshot.data?.isOnline ?? false;
+                return Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: isOnline
+                        ? Border.all(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 1.0,
+                          )
+                        : null,
                   ),
-                ],
-              ),
-              child: CircleAvatar(
-                radius: 28,
-                backgroundColor: Colors.grey[200],
-                backgroundImage: photoUrl.isNotEmpty
-                    ? CachedNetworkImageProvider(photoUrl) as ImageProvider
-                    : null,
-                child: photoUrl.isEmpty
-                    ? Text(
-                        username.isNotEmpty ? username[0].toUpperCase() : '?',
-                        style: TextStyle(
-                          fontSize: DesignTokens.fontSizeXL,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[600],
-                        ),
-                      )
-                    : null,
-              ),
+                  child: CircleAvatar(
+                    radius: 28,
+                    backgroundColor:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                    backgroundImage: photoUrl.isNotEmpty
+                        ? CachedNetworkImageProvider(photoUrl) as ImageProvider
+                        : null,
+                    child: photoUrl.isEmpty
+                        ? Text(
+                            username.isNotEmpty
+                                ? username[0].toUpperCase()
+                                : '?',
+                            style: TextStyle(
+                              fontSize: DesignTokens.fontSizeXL,
+                              fontWeight: FontWeight.bold,
+                              color: SemanticColors.textSecondary(context),
+                            ),
+                          )
+                        : null,
+                  ),
+                );
+              },
             ),
           ),
 
@@ -388,21 +411,12 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
         return Transform.scale(
           scale: scale,
           child: Container(
-            constraints: const BoxConstraints(minWidth: 20),
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            width: 20,
+            height: 20,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.primary,
-              borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
-              boxShadow: [
-                BoxShadow(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primary
-                      .withValues(alpha: 0.4),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              shape: BoxShape.circle,
             ),
             child: Text(
               count > 99 ? '99+' : count.toString(),
@@ -420,6 +434,7 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
   }
 
   Widget _buildSwipeBackground({
+    required BuildContext context,
     required Alignment alignment,
     required Color color,
     required IconData icon,
@@ -432,14 +447,15 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Colors.white, size: DesignTokens.iconLG),
+          Icon(icon, color: Colors.white, size: 28),
           const SizedBox(height: 4),
           Text(
             label,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: DesignTokens.fontSizeXS,
+              fontSize: 10,
               fontWeight: FontWeight.bold,
+              letterSpacing: 0.2,
             ),
           ),
         ],
@@ -465,8 +481,9 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
+                backgroundColor: Theme.of(context).colorScheme.error,
                 foregroundColor: Colors.white,
+                elevation: 0,
               ),
               child: const Text('Delete'),
             ),

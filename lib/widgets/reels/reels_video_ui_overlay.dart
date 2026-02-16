@@ -234,7 +234,7 @@ class _ReelsVideoUIOverlayState extends State<ReelsVideoUIOverlay> {
                 label: "Gift",
                 child: _GlassIconButton(
                   icon: Icons.card_giftcard,
-                  color: SonarPulseTheme.socialAccent,
+                  color: SonarPulseTheme.primaryAccent,
                   onTap: () => _handleGiftTap(context),
                 ),
               ),

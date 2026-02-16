@@ -61,7 +61,7 @@ class _TrendingReelsCarouselWidgetState
               Icon(
                 Icons.local_fire_department,
                 size: DesignTokens.iconMD,
-                color: theme.colorScheme.error,
+                color: theme.colorScheme.primary,
               ),
               const SizedBox(width: DesignTokens.spaceSM),
               Text(
@@ -148,11 +148,15 @@ class TrendingReelCard extends StatelessWidget {
         height: 160,
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: Colors.grey[200],
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+            color: SonarPulseTheme.darkSurface,
+            border: Border.all(
+              color: Theme.of(context).dividerColor,
+              width: 1.0,
+            ),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
             child: Stack(
               fit: StackFit.expand,
               children: [

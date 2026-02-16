@@ -210,72 +210,73 @@ class _PostActionsState extends State<PostActions>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final currentUser = FirebaseAuth.instance.currentUser;
     final isSelfPost =
         currentUser != null && widget.post.authorId == currentUser.uid;
 
     Widget actionsRow = Row(
+      mainAxisAlignment: MainAxisAlignment.start,
       children: [
         // Like button
-        Expanded(
-          child: _buildActionButton(
-            onTap: _toggleLike,
-            icon: _isLiked ? Icons.favorite : Icons.favorite_border,
-            color: _isLiked ? SemanticColors.reactionLiked : Colors.white,
-            label:
-                _localReactionCount > 0 ? _localReactionCount.toString() : null,
-            isLottie: _isLiked,
-          ),
+        _buildActionButton(
+          onTap: _toggleLike,
+          icon: _isLiked ? Icons.favorite : Icons.favorite_border,
+          color: _isLiked ? theme.colorScheme.primary : theme.iconTheme.color!,
+          label:
+              _localReactionCount > 0 ? _localReactionCount.toString() : null,
+          isLottie: _isLiked,
         ),
+        const SizedBox(width: DesignTokens.spaceXS),
 
         // Comment button
-        Expanded(
-          child: _buildActionButton(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              if (widget.onCommentTap != null) {
-                widget.onCommentTap!();
-              } else {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (context) => CommentsSheet(post: widget.post),
-                );
-              }
-            },
-            icon: Icons.comment_outlined,
-            color: Colors.white,
-            label: widget.post.commentCount > 0
-                ? widget.post.commentCount.toString()
-                : null,
-          ),
+        _buildActionButton(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            if (widget.onCommentTap != null) {
+              widget.onCommentTap!();
+            } else {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => CommentsSheet(post: widget.post),
+              );
+            }
+          },
+          icon: Icons.chat_bubble_outline,
+          color: theme.iconTheme.color!,
+          label: widget.post.commentCount > 0
+              ? widget.post.commentCount.toString()
+              : null,
+          labelColor: widget.post.commentCount > 0
+              ? SemanticColors.textSecondary(context)
+              : null,
         ),
+        const SizedBox(width: DesignTokens.spaceXS),
+
+        // Share button
+        _buildActionButton(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            _sharePost();
+          },
+          icon: Icons.share_outlined,
+          color: theme.iconTheme.color!,
+        ),
+
+        const Spacer(),
 
         // Gift button
         if (!isSelfPost)
-          Expanded(
-            child: _buildActionButton(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                widget.onGiftTap?.call();
-              },
-              icon: Icons.card_giftcard,
-              color: Colors.white,
-            ),
-          ),
-
-        // Share button
-        Expanded(
-          child: _buildActionButton(
+          _buildActionButton(
             onTap: () {
               HapticFeedback.lightImpact();
-              _sharePost();
+              widget.onGiftTap?.call();
             },
-            icon: Icons.share_outlined,
-            color: Colors.white,
+            icon: Icons.card_giftcard,
+            color: theme.iconTheme.color!,
           ),
-        ),
       ],
     );
 
@@ -285,24 +286,30 @@ class _PostActionsState extends State<PostActions>
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
-            height: 52,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.3),
+              color: Colors.black.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(100),
               border: Border.all(
                 color: Colors.white.withValues(alpha: 0.1),
-                width: 0.5,
+                width: 1.0,
               ),
             ),
-            child: actionsRow,
+            child: IconTheme(
+              data: theme.iconTheme.copyWith(color: Colors.white),
+              child: DefaultTextStyle(
+                style: const TextStyle(color: Colors.white),
+                child: actionsRow,
+              ),
+            ),
           ),
         ),
       );
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSM),
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: actionsRow,
     );
   }
@@ -312,51 +319,69 @@ class _PostActionsState extends State<PostActions>
     required IconData icon,
     required Color color,
     String? label,
+    Color? labelColor,
     bool isLottie = false,
   }) {
+    final theme = Theme.of(context);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(100),
-      child: Container(
-        height: 44,
-        alignment: Alignment.center,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isLottie)
-              ScaleTransition(
-                scale: _heartScaleAnimation,
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: Lottie.network(
-                    'https://assets9.lottiefiles.com/packages/lf20_lY397y.json', // Red heart pulse
-                    controller: _heartAnimationController,
-                    onLoaded: (composition) {
-                      _heartAnimationController.duration = composition.duration;
-                    },
+      borderRadius: BorderRadius.circular(22),
+      splashColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+      highlightColor: theme.colorScheme.primary.withValues(alpha: 0.05),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              isLottie
+                  ? ScaleTransition(
+                      scale: _heartScaleAnimation,
+                      child: SizedBox(
+                        width: DesignTokens.iconMD,
+                        height: DesignTokens.iconMD,
+                        child: Lottie.network(
+                          'https://assets9.lottiefiles.com/packages/lf20_lY397y.json',
+                          controller: _heartAnimationController,
+                          onLoaded: (composition) {
+                            _heartAnimationController.duration =
+                                composition.duration;
+                          },
+                          delegates: LottieDelegates(
+                            values: [
+                              ValueDelegate.color(
+                                const ['**', 'Fill 1'],
+                                value: theme.colorScheme.primary,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  : ScaleTransition(
+                      scale: (icon == Icons.favorite ||
+                              icon == Icons.favorite_border)
+                          ? _heartScaleAnimation
+                          : const AlwaysStoppedAnimation(1.0),
+                      child:
+                          Icon(icon, size: DesignTokens.iconMD, color: color),
+                    ),
+              if (label != null) ...[
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: widget.isFloating
+                        ? Colors.white
+                        : (labelColor ?? color),
+                    letterSpacing: -0.2,
                   ),
                 ),
-              )
-            else
-              ScaleTransition(
-                scale: (icon == Icons.favorite || icon == Icons.favorite_border)
-                    ? _heartScaleAnimation
-                    : const AlwaysStoppedAnimation(1.0),
-                child: Icon(icon, size: 22, color: color),
-              ),
-            if (label != null) ...[
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

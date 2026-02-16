@@ -184,8 +184,6 @@ class StoriesTrayWidget extends StatelessWidget {
   }
 
   Widget _buildLoadingSkeleton(BuildContext context) {
-    final theme = Theme.of(context);
-
     return ListView.builder(
       scrollDirection: Axis.horizontal,
       physics: const ClampingScrollPhysics(),
@@ -193,20 +191,18 @@ class StoriesTrayWidget extends StatelessWidget {
       itemCount: 5,
       itemBuilder: (context, index) {
         return Padding(
-          padding: EdgeInsets.only(
-            left: index == 0 ? DesignTokens.spaceMD : DesignTokens.spaceSM,
+          padding: const EdgeInsets.only(
+            right: DesignTokens.spaceSM,
           ),
-          child: SizedBox(
+          child: Container(
             width: 110,
-            child: Card(
-              clipBehavior: Clip.antiAlias,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
-              ),
-              child: Container(
-                color:
-                    theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              ),
+            height: 160,
+            decoration: BoxDecoration(
+              color: Theme.of(context)
+                  .colorScheme
+                  .surfaceContainerHighest
+                  .withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
             ),
           ),
         );

@@ -52,7 +52,7 @@ class FeedLoadingSkeleton extends StatelessWidget {
     );
   }
 
-  /// Stories tray skeleton - horizontal scrollable circles
+  /// Stories tray skeleton - horizontal scrollable rectangular cards
   Widget _buildStoriesTraySkeleton(
       BuildContext context, Color baseColor, Color highlightColor) {
     return Container(
@@ -70,27 +70,13 @@ class FeedLoadingSkeleton extends StatelessWidget {
               padding: const EdgeInsets.only(
                 right: DesignTokens.spaceSM,
               ),
-              child: Column(
-                children: [
-                  Container(
-                    width: 110,
-                    height: 110,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white,
-                        width: 3,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: DesignTokens.spaceXS),
-                  Container(
-                    width: 70,
-                    height: 10,
-                    color: Colors.white,
-                  ),
-                ],
+              child: Container(
+                width: 110,
+                height: 160,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+                ),
               ),
             );
           },
@@ -241,6 +227,7 @@ class FeedLoadingSkeleton extends StatelessWidget {
   /// Trending Reels section skeleton - horizontal scrollable cards
   Widget _buildTrendingReelsSkeleton(
       BuildContext context, Color baseColor, Color highlightColor) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -255,13 +242,10 @@ class FeedLoadingSkeleton extends StatelessWidget {
             period: const Duration(milliseconds: 1200),
             child: Row(
               children: [
-                Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    color: baseColor,
-                    borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
-                  ),
+                Icon(
+                  Icons.local_fire_department,
+                  size: DesignTokens.iconMD,
+                  color: theme.colorScheme.primary,
                 ),
                 const SizedBox(width: DesignTokens.spaceSM),
                 Container(
@@ -277,7 +261,7 @@ class FeedLoadingSkeleton extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: 200,
+          height: 160,
           child: Shimmer.fromColors(
             baseColor: baseColor,
             highlightColor: highlightColor,
@@ -292,18 +276,14 @@ class FeedLoadingSkeleton extends StatelessWidget {
                   padding: const EdgeInsets.only(
                     right: DesignTokens.spaceMD,
                   ),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 140,
-                        height: 180,
-                        decoration: BoxDecoration(
-                          color: baseColor,
-                          borderRadius:
-                              BorderRadius.circular(DesignTokens.radiusMD),
-                        ),
-                      ),
-                    ],
+                  child: Container(
+                    width: 220,
+                    height: 160,
+                    decoration: BoxDecoration(
+                      color: baseColor,
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusMD),
+                    ),
                   ),
                 );
               },
