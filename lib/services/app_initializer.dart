@@ -20,6 +20,7 @@ import 'package:freegram/services/professional_notification_manager.dart';
 import 'package:freegram/services/sonar/notification_service.dart'
     as LocalNotificationService;
 import 'package:freegram/services/gift_notification_service.dart';
+import 'package:freegram/services/reel_upload_manager.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -80,7 +81,11 @@ class AppInitializer {
       await locator<GiftNotificationService>().initialize();
       debugPrint('✅ AppInitializer: Gift notification service initialized');
 
-      // 10. Configure System UI
+      // 10. Recover pending uploads
+      unawaited(locator<ReelUploadManager>().recoverUploads());
+      debugPrint('✅ AppInitializer: Upload recovery triggered');
+
+      // 11. Configure System UI
       _configureSystemUI();
       debugPrint('✅ AppInitializer: System UI configured');
 
@@ -157,6 +162,7 @@ class AppInitializer {
     await Hive.openBox<WaveRecord>('pendingWaves');
     await Hive.openBox<FriendRequestRecord>('pendingFriendRequests');
     await Hive.openBox('action_queue');
+    await Hive.openBox('story_drafts');
   }
 
   /// Configure System UI overlays and orientation

@@ -72,10 +72,10 @@ class StoryUserHeader extends StatelessWidget {
             ),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha:  0.3),
+                color: Colors.black.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha:  0.1),
+                  color: Colors.white.withValues(alpha: 0.1),
                   width: 1,
                 ),
               ),
@@ -107,7 +107,7 @@ class StoryUserHeader extends StatelessWidget {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: Colors.white.withValues(alpha:  0.3),
+                              color: Colors.white.withValues(alpha: 0.3),
                               width: 2.0,
                             ),
                           ),
@@ -124,7 +124,7 @@ class StoryUserHeader extends StatelessWidget {
                                 ? Icon(
                                     Icons.person,
                                     size: DesignTokens.iconMD,
-                                    color: Colors.white.withValues(alpha:  0.8),
+                                    color: Colors.white.withValues(alpha: 0.8),
                                   )
                                 : null,
                           ),
@@ -151,7 +151,7 @@ class StoryUserHeader extends StatelessWidget {
                                 Text(
                                   _formatTimestamp(timestamp!),
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: Colors.white.withValues(alpha:  0.7),
+                                    color: Colors.white.withValues(alpha: 0.7),
                                     fontSize: DesignTokens.fontSizeXS,
                                   ),
                                 ),
@@ -215,7 +215,7 @@ class StoryUserHeader extends StatelessWidget {
               right: index < stories.length - 1 ? DesignTokens.spaceXS : 0,
             ),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha:  0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
             ),
             child: Stack(
@@ -238,13 +238,13 @@ class StoryUserHeader extends StatelessWidget {
                                     colors: [
                                       SemanticColors.warning,
                                       SemanticColors.warning
-                                          .withValues(alpha:  0.8),
+                                          .withValues(alpha: 0.8),
                                     ],
                                   )
                                 : LinearGradient(
                                     colors: [
                                       Colors.white,
-                                      Colors.white.withValues(alpha:  0.9),
+                                      Colors.white.withValues(alpha: 0.9),
                                     ],
                                   ),
                             borderRadius:

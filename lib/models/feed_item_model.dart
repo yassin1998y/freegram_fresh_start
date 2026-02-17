@@ -26,6 +26,51 @@ class PostFeedItem extends FeedItem {
   List<Object?> get props => [post, displayType];
 }
 
+/// Represents an optimistic "ghost" post that is currently uploading
+class GhostPostFeedItem extends FeedItem {
+  final String uploadId;
+  final String? filePath; // Local path to media
+  final String? caption;
+  final String mediaType; // 'image' or 'video'
+  final DateTime createdAt;
+  final double progress;
+  final String? statusText;
+
+  const GhostPostFeedItem({
+    required this.uploadId,
+    this.filePath,
+    this.caption,
+    required this.mediaType,
+    required this.createdAt,
+    this.progress = 0.0,
+    this.statusText,
+  });
+
+  @override
+  List<Object?> get props =>
+      [uploadId, filePath, caption, mediaType, createdAt, progress, statusText];
+
+  GhostPostFeedItem copyWith({
+    String? uploadId,
+    String? filePath,
+    String? caption,
+    String? mediaType,
+    DateTime? createdAt,
+    double? progress,
+    String? statusText,
+  }) {
+    return GhostPostFeedItem(
+      uploadId: uploadId ?? this.uploadId,
+      filePath: filePath ?? this.filePath,
+      caption: caption ?? this.caption,
+      mediaType: mediaType ?? this.mediaType,
+      createdAt: createdAt ?? this.createdAt,
+      progress: progress ?? this.progress,
+      statusText: statusText ?? this.statusText,
+    );
+  }
+}
+
 /// Represents an ad in the feed
 /// Note: Using BannerAd from google_mobile_ads instead of AdModel
 class AdFeedItem extends FeedItem {

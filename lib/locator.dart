@@ -57,6 +57,10 @@ import 'package:freegram/services/gallery_service.dart'; // Gallery Service for 
 import 'package:freegram/services/reel_upload_manager.dart'; // Reel Upload Manager
 import 'package:freegram/services/draft_persistence_service.dart'; // Draft Persistence
 import 'package:freegram/services/gift_notification_service.dart'; // Gift Notifications
+import 'package:freegram/services/story_upload_service.dart'; // Story Upload Service
+import 'package:freegram/services/video_upload_service.dart'; // Video Upload Service
+import 'package:freegram/services/upload_notification_service.dart'; // Upload Notifications
+import 'package:freegram/services/upload_progress_service.dart'; // Upload Progress
 import 'package:freegram/services/achievement_service.dart'; // Achievement Service
 import 'package:freegram/services/remote_command_service.dart'; // Remote Commands
 import 'package:freegram/services/webrtc_service.dart'; // Random Chat WebRTC
@@ -122,7 +126,7 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
       () => RemoteCommandService()); // Remote Command Service
 
   // --- Register Blocs ---
-  locator.registerFactory(() => UnifiedFeedBloc(
+  locator.registerLazySingleton<UnifiedFeedBloc>(() => UnifiedFeedBloc(
         postRepository: locator<PostRepository>(),
         userRepository: locator<UserRepository>(),
         friendRepository: locator<FriendRepository>(),
@@ -208,6 +212,15 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
   // Reel Upload Services
   locator.registerLazySingleton(() => ReelUploadManager());
   locator.registerLazySingleton(() => DraftPersistenceService());
+  locator.registerLazySingleton(() => UploadProgressService());
+  locator.registerLazySingleton(() => UploadNotificationService());
+  locator.registerLazySingleton(() => VideoUploadService());
+  locator.registerLazySingleton(() => StoryUploadService(
+        storyRepository: locator<StoryRepository>(),
+        uploadProgressService: locator<UploadProgressService>(),
+        uploadNotificationService: locator<UploadNotificationService>(),
+        videoUploadService: locator<VideoUploadService>(),
+      ));
 
   // Phase 1.3: Intelligent Prefetch Service
   // Note: This service is initialized manually in MainScreenWrapper

@@ -60,6 +60,20 @@ class IslandPopup extends StatefulWidget {
   final VoidCallback onDismiss;
   final VoidCallback? onTap; // NEW: Optional tap callback
 
+  static void show(
+    BuildContext context, {
+    required String message,
+    IconData? icon,
+    VoidCallback? onTap,
+  }) {
+    showIslandPopup(
+      context: context,
+      message: message,
+      icon: icon,
+      onTap: onTap,
+    );
+  }
+
   const IslandPopup({
     super.key,
     required this.message,
@@ -163,8 +177,8 @@ class _IslandPopupState extends State<IslandPopup>
                 ),
               ],
               border: Border.all(
-                color: primaryAccent.withValues(alpha: 0.25),
-                width: 1,
+                color: primaryAccent,
+                width: 1, // 1px Brand Green border as requested
               ),
             ),
             child: Center(

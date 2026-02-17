@@ -1,6 +1,7 @@
 // lib/widgets/common/app_progress_indicator.dart
 
 import 'package:flutter/material.dart';
+import 'package:freegram/widgets/achievements/achievement_progress_bar.dart';
 
 /// Reusable progress indicator widget that follows app theme
 ///
@@ -55,7 +56,8 @@ class AppProgressIndicator extends StatelessWidget {
 
     // Determine background color
     final trackColor = backgroundColor ??
-        (color?.withValues(alpha: 0.2) ?? theme.colorScheme.primary.withValues(alpha: 0.2));
+        (color?.withValues(alpha: 0.2) ??
+            theme.colorScheme.primary.withValues(alpha: 0.2));
 
     // If size is specified, wrap in SizedBox
     if (size != null) {
@@ -95,30 +97,23 @@ class AppLinearProgressIndicator extends StatelessWidget {
   /// Minimum height of the indicator. Defaults to 4.0.
   final double minHeight;
 
+  final bool showPercentage;
+
   const AppLinearProgressIndicator({
     super.key,
     this.color,
     this.backgroundColor,
     this.value,
     this.minHeight = 4.0,
+    this.showPercentage = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    // Determine the color to use
-    final indicatorColor = color ?? theme.colorScheme.primary;
-
-    // Determine background color
-    final trackColor = backgroundColor ??
-        (color?.withValues(alpha: 0.2) ?? theme.colorScheme.primary.withValues(alpha: 0.2));
-
-    return LinearProgressIndicator(
-      value: value,
-      color: indicatorColor,
-      backgroundColor: trackColor,
-      minHeight: minHeight,
+    return AchievementProgressBar(
+      progress: value,
+      color: color,
+      showPercentage: showPercentage,
     );
   }
 }

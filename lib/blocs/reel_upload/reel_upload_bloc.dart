@@ -6,6 +6,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:freegram/services/reel_upload_manager.dart';
 import 'package:freegram/services/draft_persistence_service.dart';
+import 'package:freegram/blocs/unified_feed_bloc.dart';
 
 part 'reel_upload_event.dart';
 part 'reel_upload_state.dart';
@@ -20,15 +21,17 @@ part 'reel_upload_state.dart';
 class ReelUploadBloc extends Bloc<ReelUploadEvent, ReelUploadState> {
   final ReelUploadManager _uploadManager;
   final DraftPersistenceService _draftService;
-
-  StreamSubscription<UploadProgress>? _progressSubscription;
+  final UnifiedFeedBloc _unifiedFeedBloc;
+  StreamSubscription? _progressSubscription;
   String? _currentUploadId;
 
   ReelUploadBloc({
     required ReelUploadManager uploadManager,
     required DraftPersistenceService draftService,
+    required UnifiedFeedBloc unifiedFeedBloc,
   })  : _uploadManager = uploadManager,
         _draftService = draftService,
+        _unifiedFeedBloc = unifiedFeedBloc,
         super(const ReelUploadIdle()) {
     on<StartReelUpload>(_onStartUpload);
     on<UpdateUploadProgress>(_onUpdateProgress);
@@ -50,8 +53,8 @@ class ReelUploadBloc extends Bloc<ReelUploadEvent, ReelUploadState> {
     try {
       debugPrint('[ReelUploadBloc] Starting upload: ${event.videoPath}');
 
-      // Generate unique upload ID
-      _currentUploadId = DateTime.now().millisecondsSinceEpoch.toString();
+      // Use upload ID from event (supports optimistic UI matching)
+      _currentUploadId = event.uploadId;
 
       // Start upload via manager
       final uploadStream = _uploadManager.startUpload(
@@ -61,9 +64,6 @@ class ReelUploadBloc extends Bloc<ReelUploadEvent, ReelUploadState> {
         hashtags: event.hashtags ?? [],
         mentions: event.mentions ?? [],
       );
-
-      // Store the upload future for completion check
-      // Note: We'll check completion via the stream's onDone callback
 
       // Listen to progress updates
       _progressSubscription?.cancel();
@@ -82,25 +82,7 @@ class ReelUploadBloc extends Bloc<ReelUploadEvent, ReelUploadState> {
             shouldSaveAsDraft: true,
           ));
         },
-        onDone: () {
-          // Stream completed
-          // Ensure we check for completion if it hasn't been triggered by progress 1.0
-          if (_currentUploadId != null) {
-            final completedReel =
-                _uploadManager.getCompletedReel(_currentUploadId!);
-            if (completedReel != null) {
-              add(UploadCompleted(
-                uploadId: _currentUploadId!,
-                reelId: completedReel.reelId,
-              ));
-            } else {
-              // Fallback if reel not ready immediately
-              // We don't want to hang forever, but strictly speaking the stream closing *should* mean done or error.
-              // We'll give it a grace period check in `_onUpdateProgress` logic usually,
-              // but here we force a check.
-            }
-          }
-        },
+        onDone: () {},
         cancelOnError: false,
       );
       _progressSubscription = subscription;
@@ -122,48 +104,40 @@ class ReelUploadBloc extends Bloc<ReelUploadEvent, ReelUploadState> {
     }
   }
 
-  void _onUpdateProgress(
+  Future<void> _onUpdateProgress(
     UpdateUploadProgress event,
     Emitter<ReelUploadState> emit,
-  ) {
+  ) async {
     if (state is ReelUploadInProgress) {
       final currentState = state as ReelUploadInProgress;
+      final newState = currentState.copyWith(
+        progress: event.progress,
+        statusText: event.statusText,
+      );
+      emit(newState);
+
+      // NEW: Update ghost post progress in UnifiedFeedBloc
+      try {
+        _unifiedFeedBloc.add(UpdateGhostPostProgressEvent(
+          uploadId: event.uploadId,
+          progress: event.progress,
+          statusText: event.statusText,
+        ));
+      } catch (e) {
+        debugPrint('[ReelUploadBloc] Error updating ghost post progress: $e');
+      }
 
       // Check if upload is complete (progress = 1.0)
       if (event.progress >= 1.0) {
-        // Upload completed - get the reel ID from the manager
+        // Wait a bit for the manager to finalize and provide the reel ID
+        await Future.delayed(const Duration(milliseconds: 500));
         final completedReel = _uploadManager.getCompletedReel(event.uploadId);
         if (completedReel != null) {
-          emit(ReelUploadSuccess(
+          add(UploadCompleted(
             uploadId: event.uploadId,
             reelId: completedReel.reelId,
           ));
-
-          // Auto-transition to idle after delay
-          Future.delayed(const Duration(seconds: 2), () {
-            if (state is ReelUploadSuccess) {
-              emit(const ReelUploadIdle());
-            }
-          });
-        } else {
-          // Reel not found yet, wait a bit
-          Future.delayed(const Duration(milliseconds: 500), () {
-            final reel = _uploadManager.getCompletedReel(event.uploadId);
-            if (reel != null) {
-              add(UploadCompleted(
-                uploadId: event.uploadId,
-                reelId: reel.reelId,
-              ));
-            }
-          });
         }
-      } else {
-        emit(ReelUploadInProgress(
-          uploadId: event.uploadId,
-          progress: event.progress,
-          statusText: event.statusText ?? currentState.statusText,
-          caption: currentState.caption,
-        ));
       }
     }
   }
@@ -176,6 +150,9 @@ class ReelUploadBloc extends Bloc<ReelUploadEvent, ReelUploadState> {
 
     _progressSubscription?.cancel();
     _currentUploadId = null;
+
+    // NEW: Remove ghost post from feed
+    _unifiedFeedBloc.add(RemoveGhostPostEvent(event.uploadId));
 
     emit(ReelUploadSuccess(
       uploadId: event.uploadId,
@@ -233,6 +210,7 @@ class ReelUploadBloc extends Bloc<ReelUploadEvent, ReelUploadState> {
 
       // Retry upload
       add(StartReelUpload(
+        uploadId: event.uploadId,
         videoPath: draft.videoPath,
         caption: draft.caption,
         hashtags: draft.hashtags,

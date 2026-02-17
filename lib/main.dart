@@ -11,6 +11,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:freegram/blocs/auth_bloc.dart';
 import 'package:freegram/blocs/connectivity_bloc.dart';
+import 'package:freegram/blocs/unified_feed_bloc.dart';
 import 'package:freegram/blocs/reel_upload/reel_upload_bloc.dart';
 import 'package:freegram/blocs/achievement/achievement_bloc.dart';
 import 'package:freegram/blocs/notification_bloc/notification_bloc.dart';
@@ -62,6 +63,9 @@ import 'package:freegram/services/user_stream_provider.dart';
 
 import 'package:freegram/theme/app_theme.dart';
 import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/services/upload_progress_service.dart';
+import 'package:freegram/widgets/island_upload_bar.dart';
+import 'package:provider/provider.dart';
 
 // --- START: Firebase Messaging Background Handler ---
 @pragma('vm:entry-point')
@@ -233,11 +237,15 @@ class MyApp extends StatelessWidget {
             authRepository: locator<AuthRepository>(),
           )..add(CheckAuthentication()), // Initial auth check
         ),
+        BlocProvider<UnifiedFeedBloc>(
+          create: (context) => locator<UnifiedFeedBloc>(),
+        ),
         BlocProvider<ReelUploadBloc>(
           // Create ReelUploadBloc for optimistic upload UI
           create: (context) => ReelUploadBloc(
             uploadManager: locator<ReelUploadManager>(),
             draftService: locator<DraftPersistenceService>(),
+            unifiedFeedBloc: context.read<UnifiedFeedBloc>(),
           ),
         ),
         BlocProvider<AchievementBloc>(
@@ -249,6 +257,9 @@ class MyApp extends StatelessWidget {
           create: (context) => NotificationBloc(
             notificationRepository: locator<NotificationRepository>(),
           )..add(LoadNotifications()),
+        ),
+        ChangeNotifierProvider<UploadProgressService>.value(
+          value: locator<UploadProgressService>(),
         ),
       ],
       child: MaterialApp(
@@ -311,6 +322,7 @@ class MyApp extends StatelessWidget {
                   return const SizedBox.shrink();
                 },
               ),
+              const IslandUploadBar(),
             ],
           );
         },

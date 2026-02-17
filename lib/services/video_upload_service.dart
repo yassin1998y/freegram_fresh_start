@@ -3,19 +3,25 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:video_compress/video_compress.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:video_player/video_player.dart';
+import 'package:freegram/services/media/video_processor.dart';
 import 'package:freegram/services/cloudinary_service.dart';
 import 'package:freegram/models/reel_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
+import 'package:freegram/services/network_quality_service.dart';
+import 'package:freegram/services/upload_progress_service.dart';
+import 'package:freegram/models/upload_progress_model.dart';
+import 'package:video_compress/video_compress.dart';
 
 class VideoUploadService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final NetworkQualityService _networkService = NetworkQualityService();
+  final UploadProgressService _progressService = UploadProgressService();
 
   /// Compress and upload video, then create Firestore entry
   /// Returns the created ReelModel on success
@@ -32,20 +38,34 @@ class VideoUploadService {
         throw Exception('User not authenticated');
       }
 
-      // Step 1: Compress video (with progress tracking)
-      debugPrint('VideoUploadService: Starting video compression...');
-      onProgress(0.1);
+      // NEW: Opportunistic Compression Phase (before upload)
+      // Step 1: Compress and optimize (includes LQIP generation)
+      final String uploadId = _progressService.startUpload(
+        currentStep: 'Optimizing...',
+      );
 
-      final compressedVideo = await _compressVideo(
+      final optimizationResult = await processVideoUpload(
         videoFile,
-        onCompressionProgress: (progress) {
-          // Compression takes ~30% of total progress
-          onProgress(0.1 + (progress * 0.3));
+        isReel: true,
+        onProgress: (progress) {
+          _progressService.updateProgress(
+            uploadId: uploadId,
+            state: UploadState.processing,
+            progress: progress * 0.3, // 0-30%
+            currentStep: 'Optimizing...',
+          );
+          onProgress(progress * 0.3);
         },
       );
 
-      if (compressedVideo == null) {
-        throw Exception('Video compression failed');
+      final File compressedVideo = optimizationResult.file;
+      final String? lqip = optimizationResult.lqip;
+
+      if (lqip != null) {
+        _progressService.updateProgress(
+          uploadId: uploadId,
+          placeholderData: lqip,
+        );
       }
 
       onProgress(0.4);
@@ -123,11 +143,14 @@ class VideoUploadService {
 
       await reelRef.set(reelData);
 
-      // Clean up compressed file
+      // Clean up compressed file (and original if it was high-res)
       try {
-        await compressedVideo.delete();
+        if (compressedVideo.path != videoFile.path) {
+          await compressedVideo.delete();
+        }
+        await videoFile.delete(); // Directive: Delete original high-res
       } catch (e) {
-        debugPrint('VideoUploadService: Error deleting compressed file: $e');
+        debugPrint('VideoUploadService: Error deleting files: $e');
       }
 
       if (thumbnailFile != null) {
@@ -138,6 +161,7 @@ class VideoUploadService {
         }
       }
 
+      _progressService.completeUpload(uploadId);
       onProgress(1.0);
 
       debugPrint('VideoUploadService: Reel uploaded successfully!');
@@ -148,48 +172,58 @@ class VideoUploadService {
     }
   }
 
-  Future<File?> _compressVideo(
+  /// Process video with adaptive compression and LQIP generation
+  Future<({File file, String? lqip})> processVideoUpload(
     File videoFile, {
-    required Function(double progress) onCompressionProgress,
+    required bool isReel,
+    required Function(double progress) onProgress,
   }) async {
     try {
-      // Add timeout to prevent infinite loops during compression
-      // The transcoder can get stuck processing audio segments
-      final mediaInfo = await VideoCompress.compressVideo(
-        videoFile.path,
-        quality: VideoQuality.MediumQuality, // Adjust based on needs
-        deleteOrigin: false,
-        includeAudio: true,
-      ).timeout(
-        const Duration(minutes: 5), // 5 minute timeout for compression
-        onTimeout: () {
-          debugPrint('VideoUploadService: Compression timeout after 5 minutes');
-          throw TimeoutException(
-            'Video compression timed out after 5 minutes',
-          );
-        },
-      );
+      onProgress(0.05);
 
-      if (mediaInfo == null ||
-          mediaInfo.path == null ||
-          mediaInfo.path!.isEmpty) {
-        debugPrint(
-            'VideoUploadService: Compression returned null or empty path');
-        return null;
+      // Step 1: Generate LQIP (ultra compressed preview)
+      final lqip = await VideoProcessor.generateLQIP(videoFile);
+      onProgress(0.1);
+
+      // Step 2: Adaptive Compression based on Network
+      final quality = getAdaptiveQuality();
+      debugPrint('VideoUploadService: Using quality $quality based on network');
+
+      File? compressed;
+      if (isReel) {
+        compressed = await VideoProcessor.compressForReel(
+          videoFile,
+          quality: quality,
+          onProgress: (p) => onProgress(0.1 + (p * 0.9)),
+        );
+      } else {
+        compressed = await VideoProcessor.compressForStory(
+          videoFile,
+          quality: quality,
+          onProgress: (p) => onProgress(0.1 + (p * 0.9)),
+        );
       }
 
-      onCompressionProgress(1.0);
-      return File(mediaInfo.path!);
-    } on TimeoutException catch (e) {
-      debugPrint('VideoUploadService: Compression timeout: $e');
-      // If compression times out, return original file
-      onCompressionProgress(1.0);
-      return videoFile;
+      return (file: compressed ?? videoFile, lqip: lqip);
     } catch (e) {
-      debugPrint('VideoUploadService: Compression error: $e');
-      // If compression fails, return original file
-      onCompressionProgress(1.0);
-      return videoFile;
+      debugPrint('VideoUploadService: Optimization failed, falling back: $e');
+      return (file: videoFile, lqip: null);
+    }
+  }
+
+  /// Decide video quality based on current network conditions
+  VideoQuality getAdaptiveQuality() {
+    final quality = _networkService.currentQuality;
+    switch (quality) {
+      case NetworkQuality.excellent:
+        return VideoQuality.Res1920x1080Quality;
+      case NetworkQuality.good:
+        return VideoQuality.Res1280x720Quality;
+      case NetworkQuality.fair:
+      case NetworkQuality.poor:
+        return VideoQuality.LowQuality;
+      default:
+        return VideoQuality.Res1280x720Quality;
     }
   }
 
@@ -254,9 +288,10 @@ class VideoUploadService {
     void Function(double progress)? onProgress,
   }) async {
     try {
-      // Step 1: Upload the original video first
-      debugPrint('VideoUploadService: Uploading original video...');
-      final originalVideoUrl = await CloudinaryService.uploadVideoFromFile(
+      // Step 1: Upload the original video first (Phase 5: Chunked Resumable Upload)
+      debugPrint('VideoUploadService: Uploading original video (chunked)...');
+      final originalVideoUrl =
+          await CloudinaryService.uploadLargeVideoResumable(
         videoFile,
         onProgress: (progress) {
           // Upload takes 50% of the total progress

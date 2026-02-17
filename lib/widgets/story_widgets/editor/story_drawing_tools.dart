@@ -56,12 +56,17 @@ class StoryDrawingTools extends StatelessWidget {
                 horizontal: DesignTokens.spaceLG,
               ),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.7),
+                color: Theme.of(context)
+                    .colorScheme
+                    .surface
+                    .withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
                 border: Border.all(
-                  color:
-                      Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
-                  width: DesignTokens.elevation1,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.1),
+                  width: 1.0,
                 ),
               ),
               child: SingleChildScrollView(
@@ -114,7 +119,7 @@ class StoryDrawingTools extends StatelessWidget {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: SonarPulseTheme.primaryAccent.withValues(alpha:  0.5),
+                    color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.5),
                     blurRadius: 8,
                     spreadRadius: 2,
                   ),

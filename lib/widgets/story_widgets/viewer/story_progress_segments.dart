@@ -65,85 +65,58 @@ class _StoryProgressSegmentsState extends State<StoryProgressSegments>
 
           return Expanded(
             child: Container(
-              height: 4,
+              height: 1, // 1px Progress Segments requirement
               margin: EdgeInsets.only(
                 right: index < widget.stories.length - 1
                     ? DesignTokens.spaceXS
                     : 0,
               ),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
+                color: Colors.white.withValues(alpha: 0.15), // Subtle inactive
+                borderRadius: BorderRadius.circular(1),
               ),
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // Progress fill with smooth curved animation
+                  // Completed segments
+                  if (index < widget.currentStoryIndex)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: SonarPulseTheme.primaryAccent,
+                          borderRadius: BorderRadius.circular(1),
+                        ),
+                      ),
+                    ),
+                  // Progress fill for active segment
                   if (isActive)
                     TweenAnimationBuilder<double>(
                       tween: Tween(begin: 0.0, end: progress.clamp(0.0, 1.0)),
                       duration: const Duration(milliseconds: 100),
-                      curve: Curves.easeOutCubic,
+                      curve: Curves.linear,
                       builder: (context, animatedProgress, child) {
                         return FractionallySizedBox(
                           widthFactor: animatedProgress,
                           alignment: Alignment.centerLeft,
                           child: Container(
                             decoration: BoxDecoration(
-                              gradient: widget.isPaused
-                                  ? LinearGradient(
-                                      colors: [
-                                        SemanticColors.warning,
-                                        SemanticColors.warning.withValues(alpha: 0.8),
-                                      ],
-                                    )
-                                  : LinearGradient(
-                                      colors: [
-                                        SonarPulseTheme.primaryAccent,
-                                        SonarPulseTheme.primaryAccent
-                                            .withValues(alpha: 0.9),
-                                      ],
-                                    ),
-                              borderRadius:
-                                  BorderRadius.circular(DesignTokens.radiusXS),
+                              color: widget.isPaused
+                                  ? SemanticColors.warning
+                                  : SonarPulseTheme.primaryAccent,
+                              borderRadius: BorderRadius.circular(1),
                               boxShadow: [
-                                BoxShadow(
-                                  color: (widget.isPaused
-                                          ? SemanticColors.warning
-                                          : SonarPulseTheme.primaryAccent)
-                                      .withValues(alpha: widget.isPaused ? 0.6 : 0.4),
-                                  blurRadius: widget.isPaused ? 6 : 4,
-                                  spreadRadius: widget.isPaused ? 1.5 : 1,
-                                ),
+                                if (!widget.isPaused)
+                                  BoxShadow(
+                                    color: SonarPulseTheme.primaryAccent
+                                        .withValues(alpha: 0.5),
+                                    blurRadius: 2,
+                                    spreadRadius: 0.5,
+                                  ),
                               ],
                             ),
                           ),
                         );
                       },
-                    ),
-                  // Pulse glow effect for paused state
-                  if (isActive && widget.isPaused)
-                    Positioned.fill(
-                      child: AnimatedBuilder(
-                        animation: _pulseController,
-                        builder: (context, child) {
-                          return Opacity(
-                            opacity: 0.3 + (_pulseController.value * 0.3),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: RadialGradient(
-                                  colors: [
-                                    SemanticColors.warning.withValues(alpha: 0.6),
-                                    Colors.transparent,
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(
-                                    DesignTokens.radiusXS),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
                     ),
                 ],
               ),

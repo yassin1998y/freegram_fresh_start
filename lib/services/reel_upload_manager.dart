@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:freegram/services/video_upload_service.dart';
+import 'package:freegram/services/upload_queue_service.dart';
 import 'package:freegram/models/reel_model.dart';
 
 /// Upload progress data
@@ -26,12 +27,47 @@ class UploadProgress {
 /// - Error handling with retry support
 class ReelUploadManager {
   final VideoUploadService _uploadService = VideoUploadService();
+  final UploadQueueService _queueService = UploadQueueService();
 
   // Active uploads map: uploadId -> StreamController
   final Map<String, StreamController<UploadProgress>> _activeUploads = {};
   final Map<String, Future<ReelModel?>> _uploadFutures = {};
   // Completed uploads: uploadId -> ReelModel
   final Map<String, ReelModel> _completedUploads = {};
+
+  /// Check for and resume any pending uploads after app restart
+  Future<void> recoverUploads() async {
+    final queuedUploads = await _queueService.getQueueList();
+    if (queuedUploads.isEmpty) return;
+
+    debugPrint(
+        '[ReelUploadManager] Recovering ${queuedUploads.length} uploads');
+
+    for (final upload in queuedUploads) {
+      final uploadId = upload['uploadId'] as String;
+      final videoPath = upload['videoPath'] as String;
+      final caption = upload['caption'] as String?;
+      final hashtags = List<String>.from(upload['hashtags'] ?? []);
+      final mentions = List<String>.from(upload['mentions'] ?? []);
+
+      // Check if file still exists
+      if (!await File(videoPath).exists()) {
+        debugPrint(
+            '[ReelUploadManager] Skipping recovery for $uploadId: File missing');
+        await _queueService.removeFromQueue(uploadId);
+        continue;
+      }
+
+      // Resume upload
+      startUpload(
+        uploadId: uploadId,
+        videoPath: videoPath,
+        caption: caption,
+        hashtags: hashtags,
+        mentions: mentions,
+      );
+    }
+  }
 
   /// Start an upload and return a stream of progress updates
   Stream<UploadProgress> startUpload({
@@ -55,9 +91,24 @@ class ReelUploadManager {
       progressController: controller,
     );
 
+    // Persist to queue for recovery
+    _queueService.addToQueue(
+      uploadId: uploadId,
+      uploadData: {
+        'videoPath': videoPath,
+        'caption': caption,
+        'hashtags': hashtags,
+        'mentions': mentions,
+        'timestamp': DateTime.now().toIso8601String(),
+      },
+    );
+
     // Handle completion/error
-    _uploadFutures[uploadId]!.then((reel) {
+    _uploadFutures[uploadId]!.then((reel) async {
       if (reel != null) {
+        // Remove from queue on success
+        await _queueService.removeFromQueue(uploadId);
+
         // Store completed reel for retrieval
         _completedUploads[uploadId] = reel;
         controller

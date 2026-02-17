@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:freegram/models/upload_progress_model.dart';
 import 'package:freegram/theme/app_theme.dart';
 import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/widgets/achievements/achievement_progress_bar.dart';
 
 /// Expandable card showing detailed upload information
 class UploadStatusCard extends StatelessWidget {
@@ -62,6 +63,10 @@ class UploadStatusCard extends StatelessWidget {
       elevation: DesignTokens.elevation2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+        side: BorderSide(
+          color: theme.dividerColor.withValues(alpha: 0.1),
+          width: 1.0,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(DesignTokens.spaceMD),
@@ -105,12 +110,8 @@ class UploadStatusCard extends StatelessWidget {
             const SizedBox(height: DesignTokens.spaceMD),
             // Progress bar
             if (!isCompleted && !isFailed) ...[
-              LinearProgressIndicator(
-                value: progress.progress,
-                backgroundColor: Colors.grey[300],
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                  SonarPulseTheme.primaryAccent,
-                ),
+              AchievementProgressBar(
+                progress: progress.progress,
               ),
               const SizedBox(height: DesignTokens.spaceSM),
             ],
@@ -122,7 +123,8 @@ class UploadStatusCard extends StatelessWidget {
               ),
             ),
             // Details
-            if (progress.bytesUploaded != null && progress.totalBytes != null) ...[
+            if (progress.bytesUploaded != null &&
+                progress.totalBytes != null) ...[
               const SizedBox(height: DesignTokens.spaceSM),
               Row(
                 children: [
@@ -216,4 +218,3 @@ class UploadStatusCard extends StatelessWidget {
     );
   }
 }
-

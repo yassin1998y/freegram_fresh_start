@@ -32,6 +32,20 @@ class ReelUploadInProgress extends ReelUploadState {
 
   @override
   List<Object?> get props => [uploadId, progress, statusText, caption];
+
+  ReelUploadInProgress copyWith({
+    String? uploadId,
+    double? progress,
+    String? statusText,
+    String? caption,
+  }) {
+    return ReelUploadInProgress(
+      uploadId: uploadId ?? this.uploadId,
+      progress: progress ?? this.progress,
+      statusText: statusText ?? this.statusText,
+      caption: caption ?? this.caption,
+    );
+  }
 }
 
 /// Upload completed successfully

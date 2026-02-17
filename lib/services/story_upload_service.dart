@@ -108,12 +108,39 @@ class StoryUploadService {
             await controller.dispose();
           }
 
+          // Optimization phase
+          final optimizationResult =
+              await _videoUploadService.processVideoUpload(
+            mediaFile,
+            isReel: false, // It's a story
+            onProgress: (progress) {
+              final totalProgress = progress * 0.3; // 0-30%
+              onProgress(totalProgress, 'Optimizing...');
+              _uploadProgressService.updateProgress(
+                uploadId: uploadId,
+                state: UploadState.processing,
+                progress: totalProgress,
+                currentStep: 'Optimizing...',
+              );
+            },
+          );
+
+          final File compressedVideo = optimizationResult.file;
+          final String? lqip = optimizationResult.lqip;
+
+          if (lqip != null) {
+            _uploadProgressService.updateProgress(
+              uploadId: uploadId,
+              placeholderData: lqip,
+            );
+          }
+
           // Upload video with multiple qualities
           videoQualities =
               await _videoUploadService.uploadVideoWithMultipleQualities(
-            mediaFile,
+            compressedVideo,
             onProgress: (progress) {
-              final totalProgress = 0.5 + (progress * 0.4); // 50-90%
+              final totalProgress = 0.3 + (progress * 0.6); // 30-90%
               onProgress(totalProgress, 'Uploading to server...');
               _uploadProgressService.updateProgress(
                 uploadId: uploadId,
@@ -133,11 +160,12 @@ class StoryUploadService {
           }
           mediaUrl = videoQualities['videoUrl']!;
 
-          // Generate thumbnail
+          // Step 1.1: Generate thumbnail (while files still exist)
           try {
+            final thumbFile = compressedVideo;
             final thumbnailData =
                 await video_thumbnail.VideoThumbnail.thumbnailData(
-              video: mediaFile.path,
+              video: thumbFile.path,
               imageFormat: video_thumbnail.ImageFormat.JPEG,
               maxWidth: 400,
               quality: 75,
@@ -155,6 +183,16 @@ class StoryUploadService {
             }
           } catch (e) {
             debugPrint('StoryUploadService: Error generating thumbnail: $e');
+          }
+
+          // Cleanup original high-res and compressed
+          try {
+            if (compressedVideo.path != mediaFile.path) {
+              await compressedVideo.delete();
+            }
+            await mediaFile.delete(); // Directive: Delete original high-res
+          } catch (e) {
+            debugPrint('StoryUploadService: Error deleting files: $e');
           }
         } else {
           // Upload image

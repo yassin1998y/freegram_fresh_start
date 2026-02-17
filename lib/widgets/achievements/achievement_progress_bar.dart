@@ -5,21 +5,25 @@ import 'package:freegram/theme/design_tokens.dart';
 /// A high-fidelity "Pure" progress bar for achievements.
 /// Features a 1px border rule, Brand Green fill, and a subtle glow.
 class AchievementProgressBar extends StatelessWidget {
-  final double progress; // 0.0 to 1.0
+  final double? progress; // 0.0 to 1.0 or null for indeterminate
   final bool isCompleted;
   final Widget? trailing;
+  final Color? color;
+  final bool showPercentage;
 
   const AchievementProgressBar({
     super.key,
-    required this.progress,
+    this.progress,
     this.isCompleted = false,
     this.trailing,
+    this.color,
+    this.showPercentage = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    const primaryColor = SonarPulseTheme.primaryAccent;
+    final primaryColor = color ?? SonarPulseTheme.primaryAccent;
 
     return Row(
       children: [
@@ -43,8 +47,9 @@ class AchievementProgressBar extends StatelessWidget {
               // Animated Fill with Glow
               LayoutBuilder(
                 builder: (context, constraints) {
+                  final displayProgress = progress ?? 0.0;
                   final fillWidth =
-                      constraints.maxWidth * progress.clamp(0.0, 1.0);
+                      constraints.maxWidth * displayProgress.clamp(0.0, 1.0);
 
                   return AnimatedContainer(
                     duration: AnimationTokens.normal,
@@ -56,7 +61,7 @@ class AchievementProgressBar extends StatelessWidget {
                           BorderRadius.circular(DesignTokens.radiusXS),
                       color: primaryColor,
                       boxShadow: [
-                        if (progress > 0)
+                        if (displayProgress > 0)
                           BoxShadow(
                             color: primaryColor.withValues(alpha: 0.3),
                             blurRadius: 8,
@@ -77,19 +82,20 @@ class AchievementProgressBar extends StatelessWidget {
               ),
 
               // Percentage Label
-              Positioned(
-                left: 8,
-                child: Text(
-                  "${(progress * 100).toInt()}%",
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: progress > 0.15
-                        ? Colors.white
-                        : theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 10,
+              if (showPercentage && progress != null)
+                Positioned(
+                  left: 8,
+                  child: Text(
+                    "${(progress! * 100).toInt()}%",
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: progress! > 0.15
+                          ? Colors.white
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),

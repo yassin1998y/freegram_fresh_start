@@ -25,6 +25,9 @@ import 'package:freegram/screens/achievements_screen.dart';
 import 'package:freegram/models/user_inventory_model.dart';
 import 'package:freegram/repositories/gift_repository.dart';
 import 'package:freegram/widgets/gifting/owned_gift_visual.dart';
+import 'package:freegram/widgets/achievements/achievement_progress_bar.dart';
+import 'package:freegram/widgets/gifting/gift_picker_sheet.dart';
+import 'package:freegram/widgets/island_popup.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String userId;
@@ -331,73 +334,12 @@ class _ProfileScreenViewState extends State<_ProfileScreenView>
                                         ],
                                       ),
 
-                                      // Glowing Neon Level Bar
                                       const SizedBox(height: 8),
-                                      GestureDetector(
-                                        onTap: () {
-                                          HapticFeedback.lightImpact();
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'Level ${user.level} Progress: ${user.experience}/${user.nextLevelExperience} XP',
-                                                style: const TextStyle(
-                                                    fontWeight:
-                                                        FontWeight.bold),
-                                              ),
-                                              backgroundColor:
-                                                  SonarPulseTheme.primaryAccent,
-                                              behavior:
-                                                  SnackBarBehavior.floating,
-                                              shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          12)),
-                                              duration:
-                                                  const Duration(seconds: 2),
-                                            ),
-                                          );
-                                        },
-                                        child: Container(
-                                          width: 140, // Slightly wider
-                                          height: 6, // Slightly thicker
-                                          decoration: BoxDecoration(
-                                            borderRadius:
-                                                BorderRadius.circular(3),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: SonarPulseTheme
-                                                    .primaryAccent
-                                                    .withValues(alpha: 0.6),
-                                                blurRadius: 10,
-                                                spreadRadius: 1,
-                                              )
-                                            ],
-                                            gradient: const LinearGradient(
-                                              colors: [
-                                                Colors.tealAccent,
-                                                SonarPulseTheme.primaryAccent,
-                                              ],
-                                            ),
-                                          ),
-                                          child: ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(3),
-                                            child: LinearProgressIndicator(
-                                              value: user.nextLevelExperience >
-                                                      0
-                                                  ? user.experience /
-                                                      user.nextLevelExperience
-                                                  : 0.0,
-                                              backgroundColor: Colors.white
-                                                  .withValues(alpha: 0.1),
-                                              valueColor:
-                                                  const AlwaysStoppedAnimation<
-                                                          Color>(
-                                                      Colors.transparent),
-                                            ),
-                                          ),
-                                        ),
+                                      AchievementProgressBar(
+                                        progress: user.nextLevelExperience > 0
+                                            ? user.experience /
+                                                user.nextLevelExperience
+                                            : 0.0,
                                       ),
 
                                       if (user.country.isNotEmpty) ...[
@@ -861,7 +803,8 @@ class _ProfileContent extends StatelessWidget {
   }
 
   Widget _buildCircularAction(
-      BuildContext context, IconData icon, VoidCallback onTap) {
+      BuildContext context, IconData icon, VoidCallback onTap,
+      {Color? backgroundColor, Color? borderColor}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -869,9 +812,10 @@ class _ProfileContent extends StatelessWidget {
         height: 50,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Theme.of(context).scaffoldBackgroundColor,
+          color: backgroundColor ?? Theme.of(context).scaffoldBackgroundColor,
           border: Border.all(
-            color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.3),
+            color: borderColor ??
+                SonarPulseTheme.primaryAccent.withValues(alpha: 0.3),
             width: 1,
           ),
           boxShadow: [
@@ -926,7 +870,17 @@ class _ProfileContent extends StatelessWidget {
                   _startChat(context);
                 }),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 8),
+              // Gift Button (Standardized Flow)
+              _buildCircularAction(
+                context,
+                Icons.card_giftcard_rounded,
+                () => _onSendGiftPressed(context, user),
+                borderColor: SonarPulseTheme.primaryAccent,
+                backgroundColor:
+                    SonarPulseTheme.primaryAccent.withValues(alpha: 0.1),
+              ),
+              const SizedBox(width: 8),
               _buildCircularAction(context, Icons.person_remove_outlined, () {
                 _confirmRemoveFriend(context);
               }),
@@ -947,11 +901,47 @@ class _ProfileContent extends StatelessWidget {
                   context.read<FriendsBloc>().add(SendFriendRequest(user.id));
                 }),
               ),
+              const SizedBox(width: 8),
+              // Gift Button for non-friends too
+              _buildCircularAction(
+                context,
+                Icons.card_giftcard_rounded,
+                () => _onSendGiftPressed(context, user),
+                borderColor: SonarPulseTheme.primaryAccent,
+                backgroundColor:
+                    SonarPulseTheme.primaryAccent.withValues(alpha: 0.1),
+              ),
             ],
           );
         }
-        return const Center(child: CircularProgressIndicator());
+        return const Center(child: AppProgressIndicator());
       },
+    );
+  }
+
+  void _onSendGiftPressed(BuildContext context, UserModel user) {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => GiftPickerSheet(
+        targetUserId: user.id,
+        onGiftSent: (gift) {
+          // Trigger the success loop
+          // IslandPopup might not be available in context if not installed/imported
+          // Using ScaffoldMessenger as fallback if IslandPopup is not found
+          // But prompt specifically asked for IslandPopup
+          try {
+            IslandPopup.show(context,
+                message: "Gift delivered to ${user.username}! 🎁");
+          } catch (e) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Gift delivered to ${user.username}! 🎁")),
+            );
+          }
+        },
+      ),
     );
   }
 
@@ -1032,7 +1022,10 @@ class _ProfileContent extends StatelessWidget {
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2));
+                    child: const AppProgressIndicator(
+                  size: DesignTokens.iconMD,
+                  strokeWidth: 2,
+                ));
               }
               if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return _buildEmptyGifts(context);

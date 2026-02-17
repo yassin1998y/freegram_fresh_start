@@ -23,6 +23,8 @@ class UploadProgress extends Equatable {
   final Duration? estimatedTimeRemaining;
   final String? errorMessage;
 
+  final String? placeholderData; // Base64 ultra-low-res preview (LQIP)
+
   const UploadProgress({
     required this.uploadId,
     required this.state,
@@ -33,6 +35,7 @@ class UploadProgress extends Equatable {
     this.uploadSpeed,
     this.estimatedTimeRemaining,
     this.errorMessage,
+    this.placeholderData,
   });
 
   UploadProgress copyWith({
@@ -45,6 +48,7 @@ class UploadProgress extends Equatable {
     double? uploadSpeed,
     Duration? estimatedTimeRemaining,
     String? errorMessage,
+    String? placeholderData,
   }) {
     return UploadProgress(
       uploadId: uploadId ?? this.uploadId,
@@ -54,8 +58,10 @@ class UploadProgress extends Equatable {
       bytesUploaded: bytesUploaded ?? this.bytesUploaded,
       totalBytes: totalBytes ?? this.totalBytes,
       uploadSpeed: uploadSpeed ?? this.uploadSpeed,
-      estimatedTimeRemaining: estimatedTimeRemaining ?? this.estimatedTimeRemaining,
+      estimatedTimeRemaining:
+          estimatedTimeRemaining ?? this.estimatedTimeRemaining,
       errorMessage: errorMessage ?? this.errorMessage,
+      placeholderData: placeholderData ?? this.placeholderData,
     );
   }
 
@@ -72,4 +78,3 @@ class UploadProgress extends Equatable {
         errorMessage,
       ];
 }
-

@@ -1,5 +1,6 @@
 // lib/screens/story_creator_screen.dart
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -10,7 +11,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:camera/camera.dart';
 import 'package:video_player/video_player.dart';
 import 'package:freegram/locator.dart';
-import 'package:freegram/repositories/story_repository.dart';
 import 'package:freegram/models/text_overlay_model.dart';
 import 'package:freegram/models/drawing_path_model.dart';
 import 'package:freegram/models/sticker_overlay_model.dart';
@@ -32,15 +32,12 @@ import 'package:freegram/widgets/story_widgets/video_trimmer_screen.dart';
 // import 'package:freegram/models/audio_segment_model.dart';
 // import 'package:freegram/services/audio_merger_service.dart';
 // import 'package:freegram/services/audio_trimmer_service.dart';
-import 'package:freegram/services/upload_progress_service.dart';
-import 'package:freegram/services/upload_notification_service.dart';
-import 'package:freegram/services/cloudinary_service.dart';
-import 'package:freegram/services/video_upload_service.dart';
-import 'package:video_thumbnail/video_thumbnail.dart' as video_thumbnail;
-import 'package:freegram/models/upload_progress_model.dart';
+import 'package:freegram/services/story_upload_service.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as path;
+import 'package:freegram/services/gallery_service.dart';
+import 'package:freegram/services/draft_persistence_service.dart';
+import 'package:freegram/widgets/island_popup.dart';
+import 'package:freegram/utils/haptic_helper.dart';
 
 class StoryCreatorScreen extends StatefulWidget {
   final File? preSelectedMedia;
@@ -60,7 +57,8 @@ class StoryCreatorScreen extends StatefulWidget {
 
 class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
   final ImagePicker _imagePicker = ImagePicker();
-  final StoryRepository _storyRepository = locator<StoryRepository>();
+  final _draftService = locator<DraftPersistenceService>();
+  Timer? _autoSaveTimer;
 
   File? _selectedMedia;
   Uint8List? _selectedMediaBytes; // For web platform
@@ -149,6 +147,9 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
             debugPrint(
                 'StoryCreatorScreen: Video preview initialized successfully');
           }
+          if (mounted) {
+            _checkAndRestoreDraft(file.path);
+          }
         } catch (e) {
           debugPrint(
               'StoryCreatorScreen: Error initializing video preview: $e');
@@ -182,6 +183,7 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
               _mediaType = 'image';
             });
             debugPrint('StoryCreatorScreen: Image loaded successfully');
+            _checkAndRestoreDraft(file.path);
           }
         } catch (e) {
           debugPrint('StoryCreatorScreen: Error loading image: $e');
@@ -208,7 +210,77 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
   void dispose() {
     _cameraController?.dispose();
     _videoPreviewController?.dispose();
+    _autoSaveTimer?.cancel();
     super.dispose();
+  }
+
+  void _onEditorChanged() {
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(seconds: 2), () {
+      _saveDraft();
+    });
+  }
+
+  Future<void> _saveDraft() async {
+    final mediaPath =
+        _selectedMedia?.path ?? 'bytes_${_selectedMediaBytes?.length}';
+    if (mediaPath.isEmpty) return;
+
+    await _draftService.saveStoryDraft(
+      mediaPath: mediaPath,
+      mediaType: _mediaType,
+      textOverlays: _textOverlays,
+      stickerOverlays: _stickerOverlays,
+      drawings: _drawings,
+    );
+
+    HapticHelper.lightImpact();
+    debugPrint('[StoryCreator] Auto-save complete');
+  }
+
+  Future<void> _checkAndRestoreDraft(String mediaPath) async {
+    final draft = await _draftService.getStoryDraft(mediaPath);
+    if (draft != null && mounted) {
+      showIslandPopup(
+        context: context,
+        message: 'Draft restored. Tap to clear.',
+        icon: Icons.restore,
+        onTap: () async {
+          await _draftService.deleteStoryDraft(mediaPath);
+          if (mounted) {
+            setState(() {
+              _textOverlays = [];
+              _stickerOverlays = [];
+              _drawings = [];
+            });
+          }
+        },
+      );
+
+      setState(() {
+        if (draft['textOverlays'] != null) {
+          _textOverlays = (draft['textOverlays'] as List)
+              .map((t) => TextOverlay.fromMap(t as Map<String, dynamic>))
+              .toList();
+        }
+        if (draft['stickerOverlays'] != null) {
+          _stickerOverlays = (draft['stickerOverlays'] as List)
+              .map((s) => StickerOverlay.fromMap(s as Map<String, dynamic>))
+              .toList();
+        }
+        if (draft['drawings'] != null) {
+          _drawings = (draft['drawings'] as List).map((d) {
+            final data = d as Map<String, dynamic>;
+            return DrawingPath.fromCompressed(
+              List<double>.from(data['points'] as List),
+              data['color'] as String,
+              (data['strokeWidth'] as num).toDouble(),
+            );
+          }).toList();
+        }
+      });
+      HapticHelper.mediumImpact();
+    }
   }
 
   Future<void> _initializeCamera() async {
@@ -654,320 +726,97 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
       }
     }
 
-    // Initialize upload progress tracking
-    final uploadProgressService = UploadProgressService();
-    final uploadNotificationService = UploadNotificationService();
-    await uploadNotificationService.initialize();
-
-    final uploadId = uploadProgressService.startUpload(
-      currentStep: 'Preparing media...',
-    );
+    // Use StoryUploadService for coordinated upload
+    final storyUploadService = locator<StoryUploadService>();
 
     setState(() {
       _isUploading = true;
     });
 
     try {
-      File? finalMediaFile = mediaFileToUpload;
-      String finalMediaType = _mediaType;
-
-      // Audio merging temporarily disabled - FFmpegKit compatibility issues
-      // Step 1: Merge audio with media if audio is selected (0-50% progress)
-      // if (_selectedAudioPath != null && !kIsWeb && finalMediaFile != null) {
-      //   uploadProgressService.updateProgress(
-      //     uploadId: uploadId,
-      //     state: UploadState.merging,
-      //     progress: 0.1,
-      //     currentStep: 'Merging audio with media...',
-      //   );
-      //   uploadNotificationService.showUploadProgress(
-      //     uploadId: uploadId,
-      //     progress: 0.1,
-      //     currentStep: 'Merging audio...',
-      //   );
-
-      //   final mergedFile = await _mergeAudioWithMedia(finalMediaFile);
-      //   if (mergedFile != null) {
-      //     finalMediaFile = mergedFile;
-      //     // If it was a photo, it's now a video
-      //     if (_mediaType == 'image') {
-      //       finalMediaType = 'video';
-      //     }
-      //   }
-      // }
-
-      // Skip audio merging step - proceed directly to media processing
-
-      uploadProgressService.updateProgress(
-        uploadId: uploadId,
-        state: UploadState.uploading,
-        progress: 0.5,
-        currentStep: 'Uploading to server...',
-      );
-      uploadNotificationService.showUploadProgress(
-        uploadId: uploadId,
-        progress: 0.5,
-        currentStep: 'Uploading...',
-      );
-
-      // Step 2: Upload media to Cloudinary with progress tracking
-      String? mediaUrl;
-      String? thumbnailUrl;
-      Map<String, String>? videoQualities;
-      double? videoDuration;
-      DateTime uploadStartTime = DateTime.now();
-
-      if (kIsWeb && _selectedMediaBytes != null) {
-        // For web, upload directly from bytes (no audio support yet)
-        mediaUrl = await CloudinaryService.uploadImageFromBytes(
-              _selectedMediaBytes!,
-              filename: 'story_${DateTime.now().millisecondsSinceEpoch}.jpg',
-              onProgress: (progress) {
-                final totalProgress = 0.5 + (progress * 0.4); // 50-90%
-                uploadProgressService.updateProgress(
-                  uploadId: uploadId,
-                  progress: totalProgress,
-                  currentStep: 'Uploading to server...',
-                );
-                uploadNotificationService.updateUploadProgress(
-                  uploadId: uploadId,
-                  progress: totalProgress,
-                  currentStep: 'Uploading...',
-                );
-              },
-            ) ??
-            '';
-
-        if (mediaUrl.isEmpty) {
-          throw Exception('Failed to upload image to Cloudinary');
-        }
-      } else if (!kIsWeb && finalMediaFile != null) {
-        // Upload video/image with progress
-        if (finalMediaType == 'video') {
-          // Get video duration
-          final controller = VideoPlayerController.file(finalMediaFile);
-          await controller.initialize();
-          videoDuration = controller.value.duration.inSeconds.toDouble();
-          await controller.dispose();
-
-          // Upload video using VideoUploadService
-          // Note: finalMediaFile is guaranteed to be non-null here due to outer if condition
-          final videoUploadService = VideoUploadService();
-          final videoQualities =
-              await videoUploadService.uploadVideoWithMultipleQualities(
-            finalMediaFile,
-            onProgress: (progress) {
-              final totalProgress = 0.5 + (progress * 0.4); // 50-90%
-              final elapsed = DateTime.now().difference(uploadStartTime);
-              final fileSize = finalMediaFile.lengthSync();
-
-              uploadProgressService.updateUploadMetrics(
-                uploadId: uploadId,
-                bytesUploaded: (fileSize * progress).round(),
-                totalBytes: fileSize,
-                elapsedTime: elapsed,
-              );
-              uploadProgressService.updateProgress(
-                uploadId: uploadId,
-                progress: totalProgress,
-                currentStep: 'Uploading to server...',
-              );
-              uploadNotificationService.updateUploadProgress(
-                uploadId: uploadId,
-                progress: totalProgress,
-                currentStep: 'Uploading...',
-              );
-            },
-          );
-
-          if (videoQualities == null || videoQualities['videoUrl'] == null) {
-            throw Exception('Failed to upload video to Cloudinary');
-          }
-          mediaUrl = videoQualities['videoUrl']!;
-
-          // Generate thumbnail for video
-          try {
-            final thumbnailData =
-                await video_thumbnail.VideoThumbnail.thumbnailData(
-              video: finalMediaFile.path,
-              imageFormat: video_thumbnail.ImageFormat.JPEG,
-              maxWidth: 400,
-              quality: 75,
+      await storyUploadService.uploadStory(
+        userId: currentUser.uid,
+        mediaType: _mediaType,
+        mediaFile: mediaFileToUpload,
+        mediaBytes: _selectedMediaBytes,
+        videoDuration: null, // Service handles it
+        textOverlays: _textOverlays.isNotEmpty ? _textOverlays : null,
+        drawings: _drawings.isNotEmpty ? _drawings : null,
+        stickerOverlays: _stickerOverlays.isNotEmpty ? _stickerOverlays : null,
+        onProgress: (progress, step) {
+          // Progress is handled by underlying services
+        },
+        onError: (error) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error: $error')),
             );
-            if (thumbnailData != null) {
-              final tempDir = await getTemporaryDirectory();
-              final thumbnailFile = File(path.join(
-                tempDir.path,
-                'thumb_${DateTime.now().millisecondsSinceEpoch}.jpg',
-              ));
-              await thumbnailFile.writeAsBytes(thumbnailData);
-              thumbnailUrl =
-                  await CloudinaryService.uploadImageFromFile(thumbnailFile);
-              await thumbnailFile.delete();
-            }
-          } catch (e) {
-            debugPrint('StoryCreatorScreen: Error generating thumbnail: $e');
           }
-        } else {
-          // Upload image
-          mediaUrl = await CloudinaryService.uploadImageFromFile(
-                finalMediaFile,
-                onProgress: (progress) {
-                  final totalProgress = 0.5 + (progress * 0.4); // 50-90%
-                  uploadProgressService.updateProgress(
-                    uploadId: uploadId,
-                    progress: totalProgress,
-                    currentStep: 'Uploading to server...',
-                  );
-                  uploadNotificationService.updateUploadProgress(
-                    uploadId: uploadId,
-                    progress: totalProgress,
-                    currentStep: 'Uploading...',
-                  );
-                },
-              ) ??
-              '';
-        }
+        },
+        onSuccess: () async {
+          // Clear draft on success
+          final mediaPath =
+              _selectedMedia?.path ?? 'bytes_${_selectedMediaBytes?.length}';
+          await _draftService.deleteStoryDraft(mediaPath);
 
-        if (mediaUrl.isEmpty) {
-          throw Exception('Failed to upload media to Cloudinary');
-        }
-      } else {
-        throw Exception('No media available');
-      }
-
-      uploadProgressService.updateProgress(
-        uploadId: uploadId,
-        state: UploadState.finalizing,
-        progress: 0.9,
-        currentStep: 'Finalizing...',
-      );
-
-      // Step 3: Create story in Firestore
-      if (kIsWeb && _selectedMediaBytes != null) {
-        await _storyRepository.createStoryFromBytes(
-          userId: currentUser.uid,
-          mediaBytes: _selectedMediaBytes!,
-          mediaType: _mediaType,
-          textOverlays: _textOverlays.isNotEmpty ? _textOverlays : null,
-          drawings: _drawings.isNotEmpty ? _drawings : null,
-          stickerOverlays:
-              _stickerOverlays.isNotEmpty ? _stickerOverlays : null,
-        );
-      } else if (!kIsWeb) {
-        await _storyRepository.createStory(
-          userId: currentUser.uid,
-          mediaType: finalMediaType,
-          videoDuration: videoDuration,
-          textOverlays: _textOverlays.isNotEmpty ? _textOverlays : null,
-          drawings: _drawings.isNotEmpty ? _drawings : null,
-          stickerOverlays:
-              _stickerOverlays.isNotEmpty ? _stickerOverlays : null,
-          preUploadedMediaUrl: mediaUrl,
-          preUploadedVideoQualities: videoQualities,
-          preUploadedThumbnailUrl: thumbnailUrl,
-        );
-      }
-
-      // Complete upload
-      uploadProgressService.completeUpload(uploadId);
-      uploadNotificationService.showUploadComplete(uploadId: uploadId);
-
-      if (mounted) {
-        final theme = Theme.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Story shared successfully!'),
-            backgroundColor: theme.colorScheme.primary,
-            duration: AnimationTokens.normal,
-          ),
-        );
-
-        // Ask if user wants to post another story
-        final postAnother = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: theme.colorScheme.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(DesignTokens.radiusXL),
-            ),
-            title: Text(
-              'Story Posted!',
-              style: theme.textTheme.titleLarge?.copyWith(
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            content: Text(
-              'Would you like to post another story?',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 
-                  DesignTokens.opacityHigh,
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text(
-                  'Done',
-                  style: TextStyle(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 
-                      DesignTokens.opacityHigh,
+          if (mounted) {
+            HapticHelper.success();
+            final bool? postAnother = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Story Shared!'),
+                content: const Text('Your story has been shared successfully.'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: Text(
+                      'Done',
+                      style: TextStyle(
+                        color:
+                            Theme.of(context).colorScheme.onSurface.withValues(
+                                  alpha: DesignTokens.opacityHigh,
+                                ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text(
-                  'Post Another',
-                  style: TextStyle(
-                    color: SonarPulseTheme.primaryAccent,
-                    fontWeight: FontWeight.bold,
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text(
+                      'Post Another',
+                      style: TextStyle(
+                        color: SonarPulseTheme.primaryAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-        );
+            );
 
-        if (!context.mounted) return;
-
-        if (postAnother == true) {
-          // Reset state for new story
-          setState(() {
-            _selectedMedia = null;
-            _selectedMediaBytes = null;
-            _videoPreviewController?.dispose();
-            _videoPreviewController = null;
-            _textOverlays = [];
-            _drawings = [];
-            _stickerOverlays = [];
-            _activeTool = 'none';
-            _drawingColor = Colors.white; // Default drawing color
-            _drawingStrokeWidth = DesignTokens.spaceXS;
-            // Audio state variables disabled
-            // _selectedAudioPath = null;
-            // _audioStartTime = null;
-            // _audioDuration = null;
-          });
-          // Show media picker again
-          _showMediaPicker();
-        } else {
-          Navigator.of(context).pop();
-        }
-      }
+            if (mounted) {
+              if (postAnother == true) {
+                setState(() {
+                  _selectedMedia = null;
+                  _selectedMediaBytes = null;
+                  _videoPreviewController?.dispose();
+                  _videoPreviewController = null;
+                  _textOverlays = [];
+                  _drawings = [];
+                  _stickerOverlays = [];
+                  _activeTool = 'none';
+                  _drawingColor = Colors.white;
+                  _drawingStrokeWidth = DesignTokens.spaceXS;
+                });
+                _showMediaPicker();
+              } else {
+                Navigator.of(context).pop();
+              }
+            }
+          }
+        },
+      );
     } catch (e) {
       debugPrint('Error sharing story: $e');
-      uploadProgressService.failUpload(uploadId, e.toString());
-      uploadNotificationService.showUploadFailed(
-          uploadId: uploadId, errorMessage: e.toString());
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error sharing story: $e')),
-        );
-      }
     } finally {
       if (mounted) {
         setState(() {
@@ -1043,27 +892,32 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
               setState(() {
                 _drawings = drawings;
               });
+              _onEditorChanged();
             },
             onTextOverlayChanged: (index, overlay) {
               setState(() {
                 _textOverlays[index] = overlay;
               });
+              _onEditorChanged();
             },
             onEditTextOverlay: _editTextOverlay,
             onDeleteTextOverlay: (index) {
               setState(() {
                 _textOverlays.removeAt(index);
               });
+              _onEditorChanged();
             },
             onStickerOverlayChanged: (index, sticker) {
               setState(() {
                 _stickerOverlays[index] = sticker;
               });
+              _onEditorChanged();
             },
             onDeleteStickerOverlay: (index) {
               setState(() {
                 _stickerOverlays.removeAt(index);
               });
+              _onEditorChanged();
             },
             onDrawingColorChanged: (color) {
               setState(() {
@@ -1088,6 +942,8 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
                 _addTextOverlay();
               } else if (tool == 'stickers') {
                 _showStickerPicker();
+              } else if (tool == 'save') {
+                _saveToGallery();
               }
             },
           ),
@@ -1125,10 +981,11 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
       initialOverlay: initialOverlay,
     );
 
-    if (editedOverlay != null && mounted) {
+    if (editedOverlay != null && mounted && context.mounted) {
       setState(() {
         _textOverlays.add(editedOverlay);
       });
+      _onEditorChanged();
     }
   }
 
@@ -1145,6 +1002,7 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
       setState(() {
         _textOverlays[index] = editedOverlay;
       });
+      _onEditorChanged();
     }
   }
 
@@ -1167,9 +1025,56 @@ class _StoryCreatorScreenState extends State<StoryCreatorScreen> {
             );
             _activeTool = 'none';
           });
+          _onEditorChanged();
         },
       ),
     );
+  }
+
+  void _saveToGallery() async {
+    final galleryService = locator<GalleryService>();
+    bool success = false;
+
+    try {
+      if (_mediaType == 'video' && _selectedMedia != null) {
+        final result = await galleryService.saveVideo(_selectedMedia!);
+        success = result != null;
+      } else if (_mediaType == 'image') {
+        if (_selectedMediaBytes != null) {
+          final result = await galleryService.saveImage(_selectedMediaBytes!);
+          success = result != null;
+        } else if (_selectedMedia != null) {
+          final bytes = await _selectedMedia!.readAsBytes();
+          final result = await galleryService.saveImage(bytes);
+          success = result != null;
+        }
+      }
+
+      if (mounted) {
+        if (success) {
+          HapticHelper.lightImpact();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Saved to Gallery')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to save to gallery')),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error saving to gallery: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving: $e')),
+        );
+      }
+    }
+
+    // Reset active tool
+    setState(() {
+      _activeTool = 'none';
+    });
   }
 
   // Audio import feature temporarily disabled - FFmpegKit compatibility issues

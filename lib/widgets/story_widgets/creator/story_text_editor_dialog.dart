@@ -78,8 +78,8 @@ class _StoryTextEditorDialogState extends State<StoryTextEditorDialog> {
               decoration: InputDecoration(
                 hintText: 'Enter text',
                 hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 
-                    DesignTokens.opacityMedium,
+                  color: theme.colorScheme.onSurface.withValues(
+                    alpha: DesignTokens.opacityMedium,
                   ),
                 ),
               ),
@@ -89,8 +89,8 @@ class _StoryTextEditorDialogState extends State<StoryTextEditorDialog> {
             Text(
               'Color:',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 
-                  DesignTokens.opacityHigh,
+                color: theme.colorScheme.onSurface.withValues(
+                  alpha: DesignTokens.opacityHigh,
                 ),
               ),
             ),
@@ -108,8 +108,8 @@ class _StoryTextEditorDialogState extends State<StoryTextEditorDialog> {
             Text(
               'Style:',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 
-                  DesignTokens.opacityHigh,
+                color: theme.colorScheme.onSurface.withValues(
+                  alpha: DesignTokens.opacityHigh,
                 ),
               ),
             ),
@@ -132,8 +132,8 @@ class _StoryTextEditorDialogState extends State<StoryTextEditorDialog> {
           child: Text(
             'Cancel',
             style: TextStyle(
-              color: theme.colorScheme.onSurface.withValues(alpha: 
-                DesignTokens.opacityHigh,
+              color: theme.colorScheme.onSurface.withValues(
+                alpha: DesignTokens.opacityHigh,
               ),
             ),
           ),
@@ -261,8 +261,8 @@ class _StylePicker extends StatelessWidget {
                 border: Border.all(
                   color: isSelected
                       ? SonarPulseTheme.primaryAccent
-                      : theme.colorScheme.onSurface.withValues(alpha: 
-                          DesignTokens.opacityMedium,
+                      : theme.colorScheme.onSurface.withValues(
+                          alpha: DesignTokens.opacityMedium,
                         ),
                   width: DesignTokens.elevation1,
                 ),

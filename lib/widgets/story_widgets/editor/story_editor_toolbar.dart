@@ -34,10 +34,14 @@ class StoryEditorToolbar extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(DesignTokens.spaceXS),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.3),
+              color:
+                  Theme.of(context).colorScheme.surface.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
               border: Border.all(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.1),
                 width: DesignTokens.elevation1,
               ),
             ),
@@ -74,6 +78,14 @@ class StoryEditorToolbar extends StatelessWidget {
                     onToolChanged(newTool);
                   },
                 ),
+                _buildToolButton(
+                  context: context,
+                  icon: Icons.download,
+                  tool: 'save',
+                  onTap: () {
+                    onToolChanged('save');
+                  },
+                ),
               ],
             ),
           ),
@@ -100,15 +112,21 @@ class StoryEditorToolbar extends StatelessWidget {
           height: DesignTokens.buttonHeight,
           decoration: BoxDecoration(
             color: isActive
-                ? SonarPulseTheme.primaryAccent.withValues(alpha:  0.2)
+                ? SonarPulseTheme.primaryAccent.withValues(alpha: 0.2)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
             border: isActive
                 ? Border.all(
                     color: SonarPulseTheme.primaryAccent,
-                    width: 2,
+                    width: 1.0,
                   )
-                : null,
+                : Border.all(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.1),
+                    width: 1.0,
+                  ),
           ),
           child: Icon(
             icon,

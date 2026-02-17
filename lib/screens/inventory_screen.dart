@@ -8,6 +8,7 @@ import 'package:freegram/repositories/gift_repository.dart';
 import 'package:freegram/utils/rarity_helper.dart';
 import 'package:freegram/utils/haptic_helper.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
+import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/navigation/app_routes.dart';
 import 'package:freegram/screens/gift_detail_screen.dart';
 import 'package:freegram/scripts/gift_seeder.dart'; // Temporary import for seeding
@@ -857,7 +858,10 @@ class _GiftDetailSheetState extends State<_GiftDetailSheet> {
                       ? const SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: AppProgressIndicator(
+                            size: DesignTokens.iconMD,
+                            strokeWidth: 2,
+                          ),
                         )
                       : Icon(
                           widget.ownedGift.isDisplayed

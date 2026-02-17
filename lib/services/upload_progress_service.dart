@@ -8,26 +8,29 @@ import 'package:uuid/uuid.dart';
 /// Service to track story upload progress globally
 /// Supports multiple concurrent uploads with detailed progress information
 class UploadProgressService extends ChangeNotifier {
-  static final UploadProgressService _instance = UploadProgressService._internal();
+  static final UploadProgressService _instance =
+      UploadProgressService._internal();
   factory UploadProgressService() => _instance;
   UploadProgressService._internal();
 
   final Map<String, UploadProgress> _uploads = {};
   final Map<String, StreamController<UploadProgress>> _uploadStreams = {};
   final _uuid = const Uuid();
-  
+
   // CRITICAL FIX: Throttle notifications to prevent UI shaking
   Timer? _notificationThrottleTimer;
   bool _pendingNotification = false;
-  static const Duration _throttleInterval = Duration(milliseconds: 150); // Max ~6.6 updates per second
+  static const Duration _throttleInterval =
+      Duration(milliseconds: 150); // Max ~6.6 updates per second
 
   /// Get all active uploads
   Map<String, UploadProgress> get uploads => Map.unmodifiable(_uploads);
 
   /// Get active upload count
-  int get activeUploadCount => _uploads.values.where((u) => 
-    u.state != UploadState.completed && u.state != UploadState.failed
-  ).length;
+  int get activeUploadCount => _uploads.values
+      .where((u) =>
+          u.state != UploadState.completed && u.state != UploadState.failed)
+      .length;
 
   /// Check if any upload is in progress
   bool get hasActiveUploads => activeUploadCount > 0;
@@ -39,7 +42,7 @@ class UploadProgressService extends ChangeNotifier {
     String? currentStep,
   }) {
     final id = uploadId ?? _uuid.v4();
-    
+
     _uploads[id] = UploadProgress(
       uploadId: id,
       state: UploadState.preparing,
@@ -50,14 +53,15 @@ class UploadProgressService extends ChangeNotifier {
     _uploadStreams[id] = StreamController<UploadProgress>.broadcast();
     // CRITICAL FIX: Use throttled notification for UI updates
     _throttledNotifyListeners();
-    
+
     debugPrint('UploadProgressService: Started upload $id');
     return id;
   }
 
   /// CRITICAL FIX: Throttled notification to prevent UI shaking
   void _throttledNotifyListeners() {
-    if (_notificationThrottleTimer != null && _notificationThrottleTimer!.isActive) {
+    if (_notificationThrottleTimer != null &&
+        _notificationThrottleTimer!.isActive) {
       _pendingNotification = true;
       return;
     }
@@ -84,6 +88,7 @@ class UploadProgressService extends ChangeNotifier {
     int? totalBytes,
     double? uploadSpeed,
     Duration? estimatedTimeRemaining,
+    String? placeholderData,
   }) {
     if (!_uploads.containsKey(uploadId)) {
       debugPrint('UploadProgressService: Upload $uploadId not found');
@@ -98,16 +103,19 @@ class UploadProgressService extends ChangeNotifier {
       bytesUploaded: bytesUploaded ?? current.bytesUploaded,
       totalBytes: totalBytes ?? current.totalBytes,
       uploadSpeed: uploadSpeed ?? current.uploadSpeed,
-      estimatedTimeRemaining: estimatedTimeRemaining ?? current.estimatedTimeRemaining,
+      estimatedTimeRemaining:
+          estimatedTimeRemaining ?? current.estimatedTimeRemaining,
+      placeholderData: placeholderData ?? current.placeholderData,
     );
 
     // Emit to stream immediately (streams need real-time updates)
     _uploadStreams[uploadId]?.add(_uploads[uploadId]!);
-    
+
     // CRITICAL FIX: Use throttled notification for UI updates
     _throttledNotifyListeners();
-    
-    debugPrint('UploadProgressService: Updated upload $uploadId - ${_uploads[uploadId]!.progress * 100}% - ${_uploads[uploadId]!.currentStep}');
+
+    debugPrint(
+        'UploadProgressService: Updated upload $uploadId - ${_uploads[uploadId]!.progress * 100}% - ${_uploads[uploadId]!.currentStep}');
   }
 
   /// Complete an upload
@@ -147,7 +155,7 @@ class UploadProgressService extends ChangeNotifier {
     _uploadStreams[uploadId]?.add(_uploads[uploadId]!);
     // CRITICAL FIX: Use throttled notification for UI updates
     _throttledNotifyListeners();
-    
+
     debugPrint('UploadProgressService: Upload $uploadId failed: $errorMessage');
   }
 
@@ -195,18 +203,16 @@ class UploadProgressService extends ChangeNotifier {
 
     final progress = bytesUploaded / totalBytes;
     final secondsElapsed = elapsedTime.inSeconds;
-    
+
     if (secondsElapsed > 0) {
       final bytesPerSecond = bytesUploaded / secondsElapsed;
       final uploadSpeed = bytesPerSecond / (1024 * 1024); // MB/s
-      
+
       final remainingBytes = totalBytes - bytesUploaded;
-      final estimatedSeconds = bytesPerSecond > 0 
-          ? (remainingBytes / bytesPerSecond).round()
-          : null;
-      final estimatedTime = estimatedSeconds != null
-          ? Duration(seconds: estimatedSeconds)
-          : null;
+      final estimatedSeconds =
+          bytesPerSecond > 0 ? (remainingBytes / bytesPerSecond).round() : null;
+      final estimatedTime =
+          estimatedSeconds != null ? Duration(seconds: estimatedSeconds) : null;
 
       updateProgress(
         uploadId: uploadId,
@@ -231,7 +237,7 @@ class UploadProgressService extends ChangeNotifier {
     // CRITICAL FIX: Cancel throttle timer
     _notificationThrottleTimer?.cancel();
     _notificationThrottleTimer = null;
-    
+
     for (final controller in _uploadStreams.values) {
       controller.close();
     }
@@ -240,4 +246,3 @@ class UploadProgressService extends ChangeNotifier {
     super.dispose();
   }
 }
-

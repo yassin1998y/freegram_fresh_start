@@ -450,6 +450,115 @@ class CloudinaryService {
     );
   }
 
+  /// Upload a large video using chunked, resumable uploads (Phase 5).
+  ///
+  /// [videoFile] - The video file to upload
+  /// [onProgress] - Callback for upload progress (0.0 to 1.0)
+  /// [chunkSize] - Size of each chunk in bytes (default 2MB)
+  static Future<String?> uploadLargeVideoResumable(
+    File videoFile, {
+    void Function(double progress)? onProgress,
+    int chunkSize = 2 * 1024 * 1024, // 2MB as per requirements
+  }) async {
+    final cloudName = dotenv.env['CLOUDINARY_CLOUD_NAME'];
+    final uploadPreset = dotenv.env['CLOUDINARY_UPLOAD_PRESET'];
+
+    if (cloudName == null || uploadPreset == null) {
+      _debugLog('Cloudinary credentials not found in .env file');
+      return null;
+    }
+
+    final totalSize = await videoFile.length();
+    final uniqueId =
+        'reel_${DateTime.now().millisecondsSinceEpoch}_${videoFile.path.hashCode}';
+    final url =
+        Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/video/upload');
+
+    _debugLog('Starting chunked upload: $uniqueId, Total size: $totalSize');
+
+    String? secureUrl;
+    int currentStart = 0;
+
+    try {
+      final fileAccess = await videoFile.open();
+
+      while (currentStart < totalSize) {
+        final currentEnd = (currentStart + chunkSize < totalSize)
+            ? currentStart + chunkSize - 1
+            : totalSize - 1;
+
+        final currentChunkSize = currentEnd - currentStart + 1;
+        final chunkBytes = await fileAccess.read(currentChunkSize);
+
+        _debugLog('Uploading chunk: $currentStart-$currentEnd/$totalSize');
+
+        // Multi-attempt chunk upload with exponential backoff
+        int attempt = 0;
+        const maxAttempts = 5;
+        bool chunkSuccess = false;
+
+        while (attempt < maxAttempts && !chunkSuccess) {
+          try {
+            final request = http.MultipartRequest('POST', url);
+            request.fields['upload_preset'] = uploadPreset;
+            request.fields['unique_upload_id'] = uniqueId;
+            request.headers['X-Unique-Upload-Id'] = uniqueId;
+            request.headers['Content-Range'] =
+                'bytes $currentStart-$currentEnd/$totalSize';
+
+            final multipartFile = http.MultipartFile.fromBytes(
+              'file',
+              chunkBytes,
+              filename: videoFile.path.split('/').last,
+            );
+            request.files.add(multipartFile);
+
+            final response =
+                await request.send().timeout(const Duration(seconds: 60));
+            final responseBody = await response.stream.bytesToString();
+
+            if (response.statusCode == 200 || response.statusCode == 201) {
+              if (currentEnd == totalSize - 1) {
+                final jsonMap = jsonDecode(responseBody);
+                secureUrl = jsonMap['secure_url'] as String?;
+              }
+              chunkSuccess = true;
+            } else {
+              _debugLog(
+                  'Chunk attempt ${attempt + 1} failed: ${response.statusCode}');
+              attempt++;
+              if (attempt < maxAttempts) {
+                // Exponential backoff: 2^attempt * 1s
+                await Future.delayed(Duration(seconds: 1 << attempt));
+              }
+            }
+          } catch (e) {
+            _debugLog('Chunk attempt ${attempt + 1} network error: $e');
+            attempt++;
+            if (attempt < maxAttempts) {
+              await Future.delayed(Duration(seconds: 1 << attempt));
+            }
+          }
+        }
+
+        if (!chunkSuccess) {
+          _debugLog('Max attempts reached for chunk $currentStart. Failing.');
+          await fileAccess.close();
+          return null;
+        }
+
+        currentStart += currentChunkSize;
+        onProgress?.call(currentStart / totalSize);
+      }
+
+      await fileAccess.close();
+      return secureUrl;
+    } catch (e) {
+      _debugLog('Error during chunked upload: $e');
+      return null;
+    }
+  }
+
   /// Debug logging helper (only logs in debug mode)
   static void _debugLog(String message) {
     if (kDebugMode) {

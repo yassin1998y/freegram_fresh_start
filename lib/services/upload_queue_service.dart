@@ -20,14 +20,14 @@ class UploadQueueService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final queueJson = prefs.getString(_queueKey);
-      
+
       Map<String, dynamic> queue = {};
       if (queueJson != null) {
         queue = jsonDecode(queueJson) as Map<String, dynamic>;
       }
 
       queue[uploadId] = uploadData;
-      
+
       await prefs.setString(_queueKey, jsonEncode(queue));
       debugPrint('UploadQueueService: Added upload $uploadId to queue');
     } catch (e) {
@@ -40,12 +40,12 @@ class UploadQueueService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final queueJson = prefs.getString(_queueKey);
-      
+
       if (queueJson == null) return;
 
       final queue = jsonDecode(queueJson) as Map<String, dynamic>;
       queue.remove(uploadId);
-      
+
       await prefs.setString(_queueKey, jsonEncode(queue));
       debugPrint('UploadQueueService: Removed upload $uploadId from queue');
     } catch (e) {
@@ -58,7 +58,7 @@ class UploadQueueService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final queueJson = prefs.getString(_queueKey);
-      
+
       if (queueJson == null) return {};
 
       return jsonDecode(queueJson) as Map<String, dynamic>;
@@ -66,6 +66,22 @@ class UploadQueueService {
       debugPrint('UploadQueueService: Error getting queue: $e');
       return {};
     }
+  }
+
+  /// Get all queued uploads as a list
+  Future<List<Map<String, dynamic>>> getQueueList() async {
+    final queue = await getQueuedUploads();
+    return queue.entries.map((e) {
+      final data = Map<String, dynamic>.from(e.value);
+      data['uploadId'] = e.key;
+      return data;
+    }).toList();
+  }
+
+  /// Check if an upload is in the queue
+  Future<bool> isInQueue(String uploadId) async {
+    final queue = await getQueuedUploads();
+    return queue.containsKey(uploadId);
   }
 
   /// Clear upload queue
@@ -79,4 +95,3 @@ class UploadQueueService {
     }
   }
 }
-

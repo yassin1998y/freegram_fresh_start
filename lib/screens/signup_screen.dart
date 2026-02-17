@@ -775,10 +775,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                                           DesignTokens.radiusXS),
                                       child: AppLinearProgressIndicator(
                                         value: _passwordStrength,
-                                        minHeight: 8,
-                                        backgroundColor: Theme.of(context)
-                                            .colorScheme
-                                            .surfaceContainerHighest,
+                                        showPercentage: false,
                                         color: _passwordStrength < 0.4
                                             ? SemanticColors.error
                                             : (_passwordStrength < 0.7

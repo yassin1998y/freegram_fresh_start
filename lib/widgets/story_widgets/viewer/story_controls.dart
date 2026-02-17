@@ -1,8 +1,8 @@
 // lib/widgets/story_widgets/viewer/story_controls.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:freegram/models/story_media_model.dart';
+import 'package:freegram/utils/haptic_helper.dart';
 
 /// Gesture controls for story viewer
 /// Handles tap, swipe, and long-press gestures
@@ -17,6 +17,7 @@ class StoryControls extends StatefulWidget {
   final VoidCallback? onTogglePause;
   final VoidCallback? onClose;
   final VoidCallback? onShowReplyBar;
+  final bool isLastStoryInTray;
 
   const StoryControls({
     Key? key,
@@ -30,6 +31,7 @@ class StoryControls extends StatefulWidget {
     this.onTogglePause,
     this.onClose,
     this.onShowReplyBar,
+    this.isLastStoryInTray = false,
   }) : super(key: key);
 
   @override
@@ -71,8 +73,8 @@ class _StoryControlsState extends State<StoryControls> {
     final screenWidth = MediaQuery.of(context).size.width;
     final tapX = details.globalPosition.dx;
 
-    // Provide refined haptic feedback - lighter for navigation
-    HapticFeedback.selectionClick();
+    // Use HapticHelper.lightImpact() for skips as per optimization plan
+    HapticHelper.lightImpact();
 
     // Left 1/3: Previous story (same user)
     if (tapX < screenWidth / 3) {
@@ -81,10 +83,12 @@ class _StoryControlsState extends State<StoryControls> {
     // Right 2/3: Next story (same user)
     // Note: Using > screenWidth / 3 to cover right 2/3 of screen
     else if (tapX > screenWidth / 3) {
+      if (widget.isLastStoryInTray) {
+        // Distinct haptic for end of tray
+        HapticHelper.heavyImpact();
+      }
       widget.onNextStory?.call();
     }
-    // Note: Center area is now part of right zone for easier navigation
-    // Pause is handled via long press only
   }
 
   void _handleHorizontalSwipe(BuildContext context, DragEndDetails details) {
@@ -97,7 +101,7 @@ class _StoryControlsState extends State<StoryControls> {
     if (details.primaryVelocity == null) return;
 
     // Medium impact for user navigation (switching users)
-    HapticFeedback.mediumImpact();
+    HapticHelper.mediumImpact();
 
     // Swipe left: Next user's reel
     if (details.primaryVelocity! < -500) {
@@ -110,7 +114,6 @@ class _StoryControlsState extends State<StoryControls> {
   }
 
   void _handleVerticalDragUpdate(DragUpdateDetails details) {
-    // Visual feedback can be added here if needed
     // Currently just tracking for swipe detection
   }
 
@@ -123,9 +126,9 @@ class _StoryControlsState extends State<StoryControls> {
 
     if (details.primaryVelocity == null) return;
 
-    HapticFeedback.mediumImpact();
+    HapticHelper.mediumImpact();
 
-    // Swipe up: Focus on reply text field (reply bar is always visible)
+    // Swipe up: Focus on reply text field
     if (details.primaryVelocity! < -500) {
       widget.onShowReplyBar?.call();
     }
@@ -136,27 +139,14 @@ class _StoryControlsState extends State<StoryControls> {
   }
 
   void _handleLongPressStart(BuildContext context) {
-    // CRITICAL FIX: Mark long press as active to prevent tap actions
     _isLongPressing = true;
     _hasHandledLongPress = true;
 
-    // Only pause for video stories - prevent navigation during long press
-    if (widget.currentStory != null &&
-        widget.currentStory!.mediaType == 'video') {
-      // Strong haptic for pause action
-      HapticFeedback.heavyImpact();
-      // Prevent any navigation while pausing
-      widget.onTogglePause?.call();
-    } else if (widget.currentStory != null &&
-        widget.currentStory!.mediaType == 'image') {
-      // CRITICAL FIX: For images, also pause (stop auto-advance)
-      HapticFeedback.heavyImpact();
-      widget.onTogglePause?.call();
-    }
+    HapticHelper.heavyImpact();
+    widget.onTogglePause?.call();
   }
 
   void _handleLongPressEnd(BuildContext context) {
-    // CRITICAL FIX: Reset long press state after a delay to prevent immediate tap
     Future.delayed(const Duration(milliseconds: 100), () {
       if (mounted) {
         setState(() {
@@ -165,19 +155,8 @@ class _StoryControlsState extends State<StoryControls> {
       }
     });
 
-    // Only resume for video stories if paused - prevent navigation
-    if (widget.currentStory != null &&
-        widget.currentStory!.mediaType == 'video' &&
-        widget.isPaused) {
-      // Medium haptic for resume
-      HapticFeedback.mediumImpact();
-      // Resume without navigation
-      widget.onTogglePause?.call();
-    } else if (widget.currentStory != null &&
-        widget.currentStory!.mediaType == 'image' &&
-        widget.isPaused) {
-      // CRITICAL FIX: Resume images too
-      HapticFeedback.mediumImpact();
+    if (widget.isPaused) {
+      HapticHelper.mediumImpact();
       widget.onTogglePause?.call();
     }
   }

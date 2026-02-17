@@ -33,6 +33,31 @@ class DrawingPath extends Equatable {
     };
   }
 
+  /// NEW: Optimized serialization for Hive/Drafts
+  List<double> toCompressedList() {
+    final list = <double>[];
+    for (final point in points) {
+      list.add(point.x);
+      list.add(point.y);
+    }
+    return list;
+  }
+
+  factory DrawingPath.fromCompressed(
+      List<double> compressed, String color, double strokeWidth) {
+    final points = <OffsetPoint>[];
+    for (int i = 0; i < compressed.length; i += 2) {
+      if (i + 1 < compressed.length) {
+        points.add(OffsetPoint(x: compressed[i], y: compressed[i + 1]));
+      }
+    }
+    return DrawingPath(
+      points: points,
+      color: color,
+      strokeWidth: strokeWidth,
+    );
+  }
+
   DrawingPath copyWith({
     List<OffsetPoint>? points,
     String? color,

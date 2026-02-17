@@ -57,6 +57,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
   static const Duration _initializationDebounceDelay =
       Duration(milliseconds: 500);
 
+  // Proactive prefetching and navigation
+  late PageController _pageController;
+  List<StoryMedia> _allStoriesInTray = [];
+  int _prevGlobalIndex = -1;
+
   // CRITICAL FIX: Track prefetch calls to prevent duplicates
   DateTime? _lastPrefetchTime;
   String? _lastHandledStoryId; // Track which story we've already handled
@@ -462,10 +467,36 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
       SystemUiMode.immersiveSticky,
       overlays: [],
     );
+
+    _pageController = PageController();
+    _pageController.addListener(_handleStoryScrollProgression);
+
     // Initialize prefetch, network, and cache services using GetIt
     _prefetchService = locator<MediaPrefetchService>();
     _networkService = locator<NetworkQualityService>();
     _cacheService = locator<CacheManagerService>();
+  }
+
+  void _handleStoryScrollProgression() {
+    if (!_pageController.hasClients || _allStoriesInTray.isEmpty) return;
+
+    final page = _pageController.page ?? 0.0;
+    final index = page.floor();
+    final delta = page - index;
+
+    // Proactive VideoPlayerController initialization for index + 1 (> 15% progression)
+    if (delta > 0.15 && index < _allStoriesInTray.length - 1) {
+      final nextStory = _allStoriesInTray[index + 1];
+      if (nextStory.mediaType == 'video') {
+        // Trigger initialization through prefetch service proactively
+        _prefetchService.prefetchStoryVideos(_allStoriesInTray, index);
+      }
+    }
+
+    // Sync current index track
+    if (index != _prevGlobalIndex) {
+      _prevGlobalIndex = index;
+    }
   }
 
   /// CRITICAL FIX: Sync video playback state without triggering rebuilds
@@ -517,6 +548,8 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
 
   @override
   void dispose() {
+    _pageController.removeListener(_handleStoryScrollProgression);
+    _pageController.dispose();
     // Don't change system UI mode here - let the parent screen manage it
     // Changing it in dispose causes issues with the app bar after closing
     // The main app already sets immersive sticky mode in main.dart
@@ -823,50 +856,83 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
     final currentUser = FirebaseAuth.instance.currentUser;
     final isOwner = currentUser != null && story.authorId == currentUser.uid;
 
+    // Flatten all stories in tray for linear PageView
+    final allStories = <StoryMedia>[];
+    for (final user in state.usersWithStories) {
+      allStories.addAll(state.userStoriesMap[user.userId] ?? []);
+    }
+    _allStoriesInTray = allStories;
+
+    // Calculate current global index
+    int globalIndex = 0;
+    for (int i = 0; i < state.currentUserIndex; i++) {
+      globalIndex +=
+          state.userStoriesMap[state.usersWithStories[i].userId]?.length ?? 0;
+    }
+    globalIndex += state.currentStoryIndex;
+
+    // Sync PageController if needed
+    if (_pageController.hasClients &&
+        _pageController.page?.round() != globalIndex) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_pageController.hasClients) {
+          _pageController.jumpToPage(globalIndex);
+        }
+      });
+    }
+
+    final isLastInTray = globalIndex == allStories.length - 1;
+
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       body: StoryControls(
         currentStory: story,
         isPaused: state.isPaused,
+        isLastStoryInTray: isLastInTray,
         onNextStory: () => context.read<StoryViewerCubit>().nextStory(),
         onPreviousStory: () => context.read<StoryViewerCubit>().previousStory(),
         onNextUser: () => context.read<StoryViewerCubit>().nextUser(),
         onPreviousUser: () => context.read<StoryViewerCubit>().previousUser(),
         onTogglePause: () => _togglePlayPause(context, state),
         onClose: () => Navigator.of(context).pop(),
-        onShowReplyBar: () {
-          // Reply bar is always visible, this is handled by the widget itself
-        },
+        onShowReplyBar: () {},
         child: Stack(
           children: [
-            // Story media - fill screen with smooth transitions
+            // Story media - PageView for zero-latency visual continuity
             Positioned.fill(
-              child: AnimatedSwitcher(
-                duration: AnimationTokens.normal,
-                transitionBuilder: (child, animation) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: child,
+              child: PageView.builder(
+                controller: _pageController,
+                physics:
+                    const NeverScrollableScrollPhysics(), // Managed by tap/swipes in StoryControls
+                itemCount: allStories.length,
+                itemBuilder: (context, index) {
+                  final s = allStories[index];
+                  final isCurrent = index == globalIndex;
+
+                  return AnimatedOpacity(
+                    duration: AnimationTokens.normal,
+                    opacity: isCurrent ? 1.0 : 0.0,
+                    child: s.mediaType == 'image'
+                        ? Hero(
+                            key: ValueKey('story-image-${s.storyId}'),
+                            tag: 'story-${s.storyId}',
+                            child: LQIPImage(
+                              imageUrl: s.mediaUrl,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                            ),
+                          )
+                        : Hero(
+                            key: ValueKey('story-video-${s.storyId}'),
+                            tag: 'story-${s.storyId}',
+                            child: StoryVideoDisplayWidget(
+                              controller: isCurrent ? _videoController : null,
+                              placeholderUrl: s.mediaUrl,
+                            ),
+                          ),
                   );
                 },
-                child: story.mediaType == 'image'
-                    ? Hero(
-                        key: ValueKey('story-image-${story.storyId}'),
-                        tag: 'story-${story.storyId}',
-                        child: LQIPImage(
-                          imageUrl: story.mediaUrl,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                        ),
-                      )
-                    : Hero(
-                        key: ValueKey('story-video-${story.storyId}'),
-                        tag: 'story-${story.storyId}',
-                        child: StoryVideoDisplayWidget(
-                          controller: _videoController,
-                        ),
-                      ),
               ),
             ),
 

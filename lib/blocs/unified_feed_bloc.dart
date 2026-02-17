@@ -59,6 +59,39 @@ class LoadMoreUnifiedFeedEvent extends UnifiedFeedEvent {
   List<Object?> get props => [userId, timeFilter];
 }
 
+class AddGhostPostEvent extends UnifiedFeedEvent {
+  final GhostPostFeedItem ghostPost;
+
+  const AddGhostPostEvent(this.ghostPost);
+
+  @override
+  List<Object?> get props => [ghostPost];
+}
+
+class UpdateGhostPostProgressEvent extends UnifiedFeedEvent {
+  final String uploadId;
+  final double progress;
+  final String? statusText;
+
+  const UpdateGhostPostProgressEvent({
+    required this.uploadId,
+    required this.progress,
+    this.statusText,
+  });
+
+  @override
+  List<Object?> get props => [uploadId, progress, statusText];
+}
+
+class RemoveGhostPostEvent extends UnifiedFeedEvent {
+  final String uploadId;
+
+  const RemoveGhostPostEvent(this.uploadId);
+
+  @override
+  List<Object?> get props => [uploadId];
+}
+
 // States
 abstract class UnifiedFeedState extends Equatable {
   const UnifiedFeedState();
@@ -273,6 +306,9 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
       _onLoadMoreUnifiedFeed,
       transformer: droppable(),
     );
+    on<AddGhostPostEvent>(_onAddGhostPost);
+    on<UpdateGhostPostProgressEvent>(_onUpdateGhostPostProgress);
+    on<RemoveGhostPostEvent>(_onRemoveGhostPost);
     // Initialize cache service
     _feedCacheService.init();
   }
@@ -838,10 +874,53 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
           lastDocument: _lastDocument,
         ));
       } catch (e) {
-        debugPrint('UnifiedFeedBloc: Error loading more unified feed: $e');
-        emit(currentState.copyWith(isLoading: false));
-        emit(UnifiedFeedError(e.toString()));
+        debugPrint('UnifiedFeedBloc: Error loading more: $e');
+        emit(currentState.copyWith(isLoading: false, error: e.toString()));
       }
+    }
+  }
+
+  void _onAddGhostPost(
+    AddGhostPostEvent event,
+    Emitter<UnifiedFeedState> emit,
+  ) {
+    if (state is UnifiedFeedLoaded) {
+      final currentState = state as UnifiedFeedLoaded;
+      final newItems = [event.ghostPost, ...currentState.items];
+      emit(currentState.copyWith(items: newItems));
+    }
+  }
+
+  void _onUpdateGhostPostProgress(
+    UpdateGhostPostProgressEvent event,
+    Emitter<UnifiedFeedState> emit,
+  ) {
+    if (state is UnifiedFeedLoaded) {
+      final currentState = state as UnifiedFeedLoaded;
+      final newItems = currentState.items.map((item) {
+        if (item is GhostPostFeedItem && item.uploadId == event.uploadId) {
+          return item.copyWith(
+            progress: event.progress,
+            statusText: event.statusText,
+          );
+        }
+        return item;
+      }).toList();
+      emit(currentState.copyWith(items: newItems));
+    }
+  }
+
+  void _onRemoveGhostPost(
+    RemoveGhostPostEvent event,
+    Emitter<UnifiedFeedState> emit,
+  ) {
+    if (state is UnifiedFeedLoaded) {
+      final currentState = state as UnifiedFeedLoaded;
+      final newItems = currentState.items
+          .where((item) =>
+              !(item is GhostPostFeedItem && item.uploadId == event.uploadId))
+          .toList();
+      emit(currentState.copyWith(items: newItems));
     }
   }
 }

@@ -103,27 +103,54 @@ class OptimisticUploadButton extends StatelessWidget {
         width: width ?? double.infinity,
         height: height ?? DesignTokens.buttonHeight,
         decoration: BoxDecoration(
-          color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.1),
+          color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
           border: Border.all(
-            color: SonarPulseTheme.primaryAccent,
-            width: 1,
+            color: theme.dividerColor.withValues(alpha: 0.1),
+            width: 1.0, // 1px design system
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
           child: Stack(
             children: [
-              // Progress bar background
-              Positioned.fill(
-                child: LinearProgressIndicator(
-                  value: progress,
-                  backgroundColor: Colors.transparent,
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                    SonarPulseTheme.primaryAccent,
-                  ),
-                  minHeight: height ?? DesignTokens.buttonHeight,
-                ),
+              // Progress Fill (using same style as AchievementProgressBar)
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return AnimatedContainer(
+                    duration: AnimationTokens.normal,
+                    curve: Curves.easeOutCubic,
+                    width: constraints.maxWidth * progress,
+                    height: constraints.maxHeight,
+                    decoration: BoxDecoration(
+                      color: SonarPulseTheme.primaryAccent,
+                      gradient: LinearGradient(
+                        colors: [
+                          SonarPulseTheme.primaryAccent,
+                          SonarPulseTheme.primaryAccent.withValues(alpha: 0.8),
+                        ],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                      boxShadow: [
+                        if (progress > 0)
+                          BoxShadow(
+                            color: SonarPulseTheme.primaryAccent
+                                .withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            spreadRadius: 2,
+                          ),
+                      ],
+                    ),
+                  );
+                },
               ),
               // Content overlay
               Center(
@@ -134,23 +161,14 @@ class OptimisticUploadButton extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const SizedBox(
-                        width: DesignTokens.iconSM,
-                        height: DesignTokens.iconSM,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            SonarPulseTheme.primaryAccent,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: DesignTokens.spaceSM),
                       Flexible(
                         child: Text(
                           '$statusText $percentage%',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: SonarPulseTheme.primaryAccent,
-                            fontWeight: FontWeight.w600,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: progress > 0.5
+                                ? Colors.white
+                                : theme.colorScheme.onSurface,
+                            fontWeight: FontWeight.bold,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

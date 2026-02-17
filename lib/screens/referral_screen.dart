@@ -203,7 +203,10 @@ class _ReferralScreenState extends State<ReferralScreen> {
           ? const SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
+              child: AppProgressIndicator(
+                size: 20,
+                strokeWidth: 2,
+              ),
             )
           : const Icon(Icons.add),
       label: Text(_isGenerating ? "Generating..." : "Generate Referral Code"),
@@ -245,7 +248,10 @@ class _ReferralScreenState extends State<ReferralScreen> {
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: AppProgressIndicator(
+                          size: 20,
+                          strokeWidth: 2,
+                        ),
                       )
                     : const Text("Apply Code"),
               ),

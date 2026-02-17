@@ -10,8 +10,9 @@ class GalleryService {
   Future<List<AssetEntity>> getRecentPhotos({int limit = 20}) async {
     try {
       // Request permission using PhotoManager
-      final PermissionState permissionState = await PhotoManager.requestPermissionExtend();
-      
+      final PermissionState permissionState =
+          await PhotoManager.requestPermissionExtend();
+
       if (!permissionState.isAuth) {
         debugPrint('GalleryService: Photos permission denied');
         return [];
@@ -47,8 +48,9 @@ class GalleryService {
   Future<List<AssetEntity>> getRecentVideos({int limit = 20}) async {
     try {
       // Request permission using PhotoManager
-      final PermissionState permissionState = await PhotoManager.requestPermissionExtend();
-      
+      final PermissionState permissionState =
+          await PhotoManager.requestPermissionExtend();
+
       if (!permissionState.isAuth) {
         debugPrint('GalleryService: Videos permission denied');
         return [];
@@ -85,10 +87,11 @@ class GalleryService {
   /// Handles Android scoped storage by loading bytes if file access fails
   Future<File?> getFileFromAsset(AssetEntity asset) async {
     try {
-      debugPrint('GalleryService: Getting file from asset: ${asset.id}, type: ${asset.type}');
-      
+      debugPrint(
+          'GalleryService: Getting file from asset: ${asset.id}, type: ${asset.type}');
+
       File? file;
-      
+
       // Try to get file directly first
       try {
         file = await asset.file;
@@ -97,9 +100,10 @@ class GalleryService {
           return file;
         }
       } catch (e) {
-        debugPrint('GalleryService: Error getting file directly: $e, trying bytes method');
+        debugPrint(
+            'GalleryService: Error getting file directly: $e, trying bytes method');
       }
-      
+
       // If direct file access fails (e.g., Android scoped storage), load as bytes
       try {
         debugPrint('GalleryService: Loading asset as bytes...');
@@ -108,27 +112,29 @@ class GalleryService {
           debugPrint('GalleryService: Asset bytes are null or empty');
           return null;
         }
-        
+
         // Save to temporary directory
         final tempDir = Directory.systemTemp;
         final extension = asset.type == AssetType.video ? 'mp4' : 'jpg';
-        final tempFile = File('${tempDir.path}/story_${DateTime.now().millisecondsSinceEpoch}_${asset.id}.$extension');
+        final tempFile = File(
+            '${tempDir.path}/story_${DateTime.now().millisecondsSinceEpoch}_${asset.id}.$extension');
         await tempFile.writeAsBytes(bytes);
-        
+
         // Verify the written file
         if (!await tempFile.exists()) {
           debugPrint('GalleryService: Failed to write temp file');
           return null;
         }
-        
+
         final fileSize = await tempFile.length();
         if (fileSize == 0) {
           debugPrint('GalleryService: Temp file is empty');
           await tempFile.delete();
           return null;
         }
-        
-        debugPrint('GalleryService: File copied to temp location: ${tempFile.path} (size: $fileSize bytes)');
+
+        debugPrint(
+            'GalleryService: File copied to temp location: ${tempFile.path} (size: $fileSize bytes)');
         return tempFile;
       } catch (e) {
         debugPrint('GalleryService: Error loading asset as bytes: $e');
@@ -143,7 +149,8 @@ class GalleryService {
   /// Check if photos permission is granted
   Future<bool> hasPhotosPermission() async {
     try {
-      final PermissionState state = await PhotoManager.requestPermissionExtend();
+      final PermissionState state =
+          await PhotoManager.requestPermissionExtend();
       return state.isAuth;
     } catch (e) {
       debugPrint('GalleryService: Error checking permission: $e');
@@ -154,12 +161,43 @@ class GalleryService {
   /// Request photos permission
   Future<bool> requestPhotosPermission() async {
     try {
-      final PermissionState state = await PhotoManager.requestPermissionExtend();
+      final PermissionState state =
+          await PhotoManager.requestPermissionExtend();
       return state.isAuth;
     } catch (e) {
       debugPrint('GalleryService: Error requesting permission: $e');
       return false;
     }
   }
-}
 
+  /// Save image to gallery
+  Future<AssetEntity?> saveImage(Uint8List bytes, {String? title}) async {
+    try {
+      final String filename =
+          'image_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final AssetEntity? image = await PhotoManager.editor.saveImage(
+        bytes,
+        title: title ?? 'Story Image',
+        filename: filename,
+      );
+      return image;
+    } catch (e) {
+      debugPrint('GalleryService: Error saving image: $e');
+      return null;
+    }
+  }
+
+  /// Save video to gallery
+  Future<AssetEntity?> saveVideo(File file, {String? title}) async {
+    try {
+      final AssetEntity? video = await PhotoManager.editor.saveVideo(
+        file,
+        title: title ?? 'Story Video',
+      );
+      return video;
+    } catch (e) {
+      debugPrint('GalleryService: Error saving video: $e');
+      return null;
+    }
+  }
+}

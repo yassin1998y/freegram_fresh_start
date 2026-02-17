@@ -43,28 +43,38 @@ class StoryShareButton extends StatelessWidget {
                 ),
               ),
             )
-          : FilledButton.icon(
-              onPressed: onShare,
-              style: FilledButton.styleFrom(
-                backgroundColor: SonarPulseTheme.primaryAccent,
-                foregroundColor: theme.colorScheme.onPrimary,
+          : GestureDetector(
+              onTap: onShare,
+              child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: DesignTokens.spaceLG,
                   vertical: DesignTokens.spaceMD,
                 ),
-                shape: RoundedRectangleBorder(
+                decoration: BoxDecoration(
+                  color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+                  border: Border.all(
+                    color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.5),
+                    width: 1.0,
+                  ),
                 ),
-                elevation: DesignTokens.elevation2,
-              ),
-              icon: const Icon(
-                Icons.send,
-                size: DesignTokens.iconMD,
-              ),
-              label: Text(
-                'Share',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.send,
+                      size: DesignTokens.iconMD,
+                      color: SonarPulseTheme.primaryAccent,
+                    ),
+                    const SizedBox(width: DesignTokens.spaceSM),
+                    Text(
+                      'Share',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: SonarPulseTheme.primaryAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

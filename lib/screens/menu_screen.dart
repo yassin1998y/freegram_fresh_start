@@ -489,12 +489,9 @@ class _MenuScreenState extends State<MenuScreen> {
                       SizedBox(
                         height: DesignTokens.fontSizeLG,
                         width: 120,
-                        child: LinearProgressIndicator(
-                          backgroundColor:
-                              theme.colorScheme.surfaceContainerHighest,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            SonarPulseTheme.primaryAccent,
-                          ),
+                        child: AppLinearProgressIndicator(
+                          value: null,
+                          color: SonarPulseTheme.primaryAccent,
                         ),
                       )
                     else

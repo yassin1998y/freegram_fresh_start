@@ -73,10 +73,36 @@ class _ReelsFeedScreenState extends State<ReelsFeedScreen>
     final savedIndex = _stateService.getSavedScrollPosition();
     if (savedIndex != null && savedIndex > 0) {
       _currentIndex = savedIndex;
-      // Initialize PageController with saved index
       _pageController = PageController(initialPage: savedIndex);
     } else {
       _pageController = PageController();
+    }
+
+    // Task 1: Proactive PageController listener for zero-latency transitions
+    _pageController.addListener(_handleScrollProgression);
+  }
+
+  void _handleScrollProgression() {
+    if (!_pageController.hasClients) return;
+
+    final page = _pageController.page ?? 0.0;
+    final index = page.floor();
+    final delta = page - index;
+
+    final state = _reelsFeedBloc.state;
+    final maxIndex = state is ReelsFeedLoaded ? state.reels.length - 1 : 0;
+
+    // If we're scrolling towards the next page (> 20% progress)
+    if (delta > 0.2 && index < maxIndex) {
+      if (state is ReelsFeedLoaded) {
+        // Proactively ensure the next video is initializing/prefetched
+        _prefetchService.prefetchReelsVideos(
+          state.reels,
+          index, // Current index
+          isVideoPlaying: true,
+          scrollVelocity: _scrollVelocity,
+        );
+      }
     }
   }
 

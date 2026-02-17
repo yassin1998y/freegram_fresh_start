@@ -32,6 +32,10 @@ class ReelUploadProgressOverlay extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: DesignTokens.opacityHigh),
           borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.1),
+            width: 1.0,
+          ),
         ),
         child: Row(
           children: [
@@ -40,8 +44,8 @@ class ReelUploadProgressOverlay extends StatelessWidget {
               value: uploadProgress,
               strokeWidth: ReelConstants.uploadProgressIndicatorStrokeWidth,
               color: SonarPulseTheme.primaryAccent,
-              backgroundColor: Colors.white.withValues(alpha: 
-                DesignTokens.opacityMedium * 0.5,
+              backgroundColor: Colors.white.withValues(
+                alpha: DesignTokens.opacityMedium * 0.5,
               ),
             ),
             const SizedBox(width: DesignTokens.spaceSM),

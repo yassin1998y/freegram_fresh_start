@@ -1,6 +1,7 @@
 // lib/widgets/feed_widgets/post_card.dart
 // Refactored: Compositional widget that assembles optimized components
 
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Added for HapticFeedback
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,6 +11,7 @@ import 'package:freegram/models/feed_item_model.dart'
         PostDisplayType,
         FeedItem,
         PostFeedItem,
+        GhostPostFeedItem,
         AdFeedItem,
         SuggestionCarouselFeedItem,
         MilestoneFeedItem;
@@ -35,6 +37,9 @@ import 'package:freegram/services/mention_service.dart';
 import 'package:freegram/screens/hashtag_explore_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/screens/gift_send_selection_screen.dart';
+import 'package:freegram/theme/app_theme.dart';
+import 'package:freegram/widgets/core/user_avatar.dart';
+import 'package:freegram/widgets/achievements/achievement_progress_bar.dart';
 
 import 'package:freegram/utils/haptic_helper.dart';
 
@@ -120,6 +125,9 @@ class _PostCardState extends State<PostCard> {
     } else if (widget.item is MilestoneFeedItem) {
       final milestoneItem = widget.item as MilestoneFeedItem;
       return _buildMilestoneCard(context, milestoneItem);
+    } else if (widget.item is GhostPostFeedItem) {
+      final ghostItem = widget.item as GhostPostFeedItem;
+      return _buildGhostPostCard(context, ghostItem);
     }
     return const SizedBox.shrink();
   }
@@ -588,6 +596,117 @@ class _PostCardState extends State<PostCard> {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildGhostPostCard(BuildContext context, GhostPostFeedItem ghost) {
+    final theme = Theme.of(context);
+    final brandGreen = SonarPulseTheme.primaryAccent;
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    return Opacity(
+      opacity: 0.85,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+          border: Border.all(
+            color: theme.dividerColor.withValues(alpha: 0.1),
+            width: 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: brandGreen.withValues(alpha: 0.05),
+              blurRadius: 10,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Ghost Header
+            Padding(
+              padding: const EdgeInsets.all(DesignTokens.postHeaderPadding),
+              child: Row(
+                children: [
+                  UserAvatar(
+                    url: currentUser?.photoURL,
+                    size: AvatarSize.small,
+                  ),
+                  const SizedBox(width: DesignTokens.spaceSM),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          currentUser?.displayName ?? 'You',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          ghost.statusText ?? 'Posting...',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: SemanticColors.textSecondary(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Ghost Media Placeholder
+            Container(
+              height: 250,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.2),
+                image: ghost.filePath != null
+                    ? DecorationImage(
+                        image: FileImage(File(ghost.filePath!)),
+                        fit: BoxFit.cover,
+                        colorFilter: ColorFilter.mode(
+                          Colors.black.withValues(alpha: 0.4),
+                          BlendMode.darken,
+                        ),
+                      )
+                    : null,
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const Icon(Icons.cloud_upload_outlined,
+                      color: Colors.white, size: 48),
+                  Positioned(
+                    bottom: DesignTokens.spaceMD,
+                    left: DesignTokens.spaceMD,
+                    right: DesignTokens.spaceMD,
+                    child: AchievementProgressBar(
+                      progress: ghost.progress,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            if (ghost.caption != null && ghost.caption!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.all(DesignTokens.spaceMD),
+                child: Text(
+                  ghost.caption!,
+                  style: theme.textTheme.bodyMedium,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

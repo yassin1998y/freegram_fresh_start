@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/widgets/common/keyboard_safe_area.dart';
+import 'package:freegram/widgets/core/user_avatar.dart';
 
 /// Enhanced caption input widget for reels with smart features
 /// - Character counter with limit
@@ -103,47 +104,67 @@ class _EnhancedReelCaptionInputWidgetState
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Caption input field
-                TextField(
-                  controller: widget.captionController,
-                  style: const TextStyle(color: Colors.white),
-                  maxLines: 3,
-                  maxLength: widget.maxCharacters,
-                  buildCounter: (context,
-                      {required currentLength, required isFocused, maxLength}) {
-                    // Hide default counter, we'll show custom one
-                    return null;
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Write a caption... #hashtags @mentions',
-                    hintStyle: TextStyle(
-                      color:
-                          Colors.white.withValues(alpha: DesignTokens.opacityMedium),
+                // Caption row with Avatar
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Avatar from Phase 4
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8.0),
+                      child: UserAvatarSmall(
+                          // Future: Get current user url and badge
+                          // url: currentUser.photoUrl,
+                          // badgeUrl: currentUser.currentBadge,
+                          ),
                     ),
-                    filled: true,
-                    fillColor: Colors.white.withValues(alpha: 
-                      DesignTokens.opacityDisabled,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(DesignTokens.radiusMD),
-                      borderSide: BorderSide.none,
-                    ),
-                    errorBorder: isOverLimit
-                        ? OutlineInputBorder(
+                    const SizedBox(width: DesignTokens.spaceSM),
+                    Expanded(
+                      child: TextField(
+                        controller: widget.captionController,
+                        style: const TextStyle(color: Colors.white),
+                        maxLines: 3,
+                        maxLength: widget.maxCharacters,
+                        buildCounter: (context,
+                            {required currentLength,
+                            required isFocused,
+                            maxLength}) {
+                          // Hide default counter, we'll show custom one
+                          return null;
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Write a caption...',
+                          hintStyle: TextStyle(
+                            color: Colors.white
+                                .withValues(alpha: DesignTokens.opacityMedium),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white.withValues(
+                            alpha: DesignTokens.opacityDisabled,
+                          ),
+                          border: OutlineInputBorder(
                             borderRadius:
                                 BorderRadius.circular(DesignTokens.radiusMD),
-                            borderSide: const BorderSide(
-                              color: Colors.red,
-                              width: 2,
-                            ),
-                          )
-                        : null,
-                    contentPadding: const EdgeInsets.all(DesignTokens.spaceMD),
-                  ),
-                  onSubmitted: widget.onSubmitted != null
-                      ? (_) => widget.onSubmitted!()
-                      : null,
+                            borderSide: BorderSide.none,
+                          ),
+                          errorBorder: isOverLimit
+                              ? OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(
+                                      DesignTokens.radiusMD),
+                                  borderSide: const BorderSide(
+                                    color: Colors.red,
+                                    width: 2,
+                                  ),
+                                )
+                              : null,
+                          contentPadding:
+                              const EdgeInsets.all(DesignTokens.spaceMD),
+                        ),
+                        onSubmitted: widget.onSubmitted != null
+                            ? (_) => widget.onSubmitted!()
+                            : null,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: DesignTokens.spaceSM),
                 // Stats row

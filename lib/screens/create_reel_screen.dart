@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
@@ -11,6 +12,8 @@ import 'package:camera/camera.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/reel_upload/reel_upload_bloc.dart';
+import 'package:freegram/blocs/unified_feed_bloc.dart';
+import 'package:freegram/models/feed_item_model.dart';
 import 'package:freegram/widgets/reels/reel_media_picker_dialog.dart';
 import 'package:freegram/widgets/reels/reel_camera_preview_widget.dart';
 import 'package:freegram/widgets/reels/reel_video_preview_widget.dart';
@@ -461,6 +464,7 @@ class _CreateReelScreenState extends State<CreateReelScreen> {
   }
 
   Future<void> _uploadReel() async {
+    HapticFeedback.mediumImpact();
     if (_selectedVideo == null) return;
 
     final currentUser = FirebaseAuth.instance.currentUser;
@@ -487,9 +491,28 @@ class _CreateReelScreenState extends State<CreateReelScreen> {
         .map((match) => match.group(1)!)
         .toList();
 
+    // Generate a temporary upload ID for optimistic logic
+    final tempUploadId = DateTime.now().millisecondsSinceEpoch.toString();
+
+    // NEW: Trigger AddGhostPostEvent in UnifiedFeedBloc for optimistic UX
+    try {
+      final unifiedFeedBloc = context.read<UnifiedFeedBloc>();
+      unifiedFeedBloc.add(AddGhostPostEvent(GhostPostFeedItem(
+        uploadId: tempUploadId,
+        filePath: _selectedVideo!.path,
+        caption: caption.isEmpty ? null : caption,
+        mediaType: 'video',
+        createdAt: DateTime.now(),
+        progress: 0.05, // Initial feedback
+      )));
+    } catch (e) {
+      debugPrint('CreateReelScreen: Could not add ghost post: $e');
+    }
+
     // Trigger upload via BLoC
     context.read<ReelUploadBloc>().add(
           StartReelUpload(
+            uploadId: tempUploadId,
             videoPath: _selectedVideo!.path,
             caption: caption.isEmpty ? null : caption,
             hashtags: hashtags.isEmpty ? null : hashtags,

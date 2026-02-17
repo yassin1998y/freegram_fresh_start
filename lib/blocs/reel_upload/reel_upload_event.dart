@@ -13,12 +13,14 @@ abstract class ReelUploadEvent extends Equatable {
 
 /// Start uploading a reel
 class StartReelUpload extends ReelUploadEvent {
+  final String uploadId;
   final String videoPath;
   final String? caption;
   final List<String>? hashtags;
   final List<String>? mentions;
 
   const StartReelUpload({
+    required this.uploadId,
     required this.videoPath,
     this.caption,
     this.hashtags,
@@ -26,7 +28,7 @@ class StartReelUpload extends ReelUploadEvent {
   });
 
   @override
-  List<Object?> get props => [videoPath, caption, hashtags, mentions];
+  List<Object?> get props => [uploadId, videoPath, caption, hashtags, mentions];
 }
 
 /// Update upload progress

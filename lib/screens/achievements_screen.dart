@@ -293,35 +293,11 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                   ),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: DesignTokens.spaceMD,
-                  vertical: DesignTokens.spaceXS,
-                ),
-                decoration: BoxDecoration(
-                  color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
-                ),
-                child: Text(
-                  "${(progressVal * 100).toStringAsFixed(0)}%",
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: SonarPulseTheme.primaryAccent,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: DesignTokens.spaceLG),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(DesignTokens.radiusXS),
-            child: LinearProgressIndicator(
-              value: progressVal,
-              minHeight: 8,
-              backgroundColor: theme.dividerColor.withValues(alpha: 0.1),
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                  SonarPulseTheme.primaryAccent),
-            ),
+          AchievementProgressBar(
+            progress: progressVal,
           ),
           const SizedBox(height: DesignTokens.spaceLG),
           Row(
