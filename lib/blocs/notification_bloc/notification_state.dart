@@ -5,7 +5,7 @@ abstract class NotificationState extends Equatable {
   const NotificationState();
 
   @override
-  List<Object> get props => [];
+  List<Object?> get props => [];
 }
 
 /// The initial state before any notifications are loaded.
@@ -17,11 +17,13 @@ class NotificationLoading extends NotificationState {}
 /// The state when notifications have been successfully loaded.
 class NotificationLoaded extends NotificationState {
   final List<NotificationModel> notifications;
+  final NotificationModel?
+      lastReceivedGift; // Transient field for overlay trigger
 
-  const NotificationLoaded(this.notifications);
+  const NotificationLoaded(this.notifications, {this.lastReceivedGift});
 
   @override
-  List<Object> get props => [notifications];
+  List<Object?> get props => [notifications, lastReceivedGift];
 }
 
 /// The state when an error occurs while loading notifications.

@@ -213,6 +213,41 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    if (widget.message.isSystemMessage) {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
+        alignment: Alignment.center,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF00E676).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFF00E676).withValues(alpha: 0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.stars, color: Color(0xFF00E676), size: 16),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  widget.message.text ?? '',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF00E676),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return RepaintBoundary(
       child: AnimatedBuilder(
         animation: _highlightAnimation,

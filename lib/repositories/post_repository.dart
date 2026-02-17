@@ -1,5 +1,4 @@
-// lib/repositories/post_repository.dart
-
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:freegram/models/post_model.dart';
@@ -10,8 +9,8 @@ import 'package:freegram/utils/enums.dart';
 import 'package:freegram/services/hashtag_service.dart';
 import 'package:freegram/services/mention_service.dart';
 import 'package:freegram/models/media_item_model.dart';
+import 'package:freegram/models/feed_item_model.dart';
 import 'package:freegram/locator.dart';
-import 'package:freegram/repositories/achievement_repository.dart';
 
 /// Cache entry for feed results
 class _CachedFeedResult {
@@ -30,6 +29,11 @@ class PostRepository {
   final FirebaseFirestore _db;
   final HashtagService _hashtagService;
   final MentionService _mentionService;
+
+  final _postCreatedController =
+      StreamController<({String userId, String postId})>.broadcast();
+  Stream<({String userId, String postId})> get onPostCreated =>
+      _postCreatedController.stream;
 
   // Request deduplication: Track ongoing requests by cache key
   final Map<String, Future<(List<PostModel>, DocumentSnapshot?)>>
@@ -572,13 +576,8 @@ class PostRepository {
         'updatedAt': now,
       });
 
-      // TRIGGER ACHIEVEMENT: First Post
-      try {
-        locator<AchievementRepository>()
-            .updateProgress(userId, 'content_first_post', 1);
-      } catch (e) {
-        debugPrint('PostRepository: Error updating achievement: $e');
-      }
+      // Emit event for achievement tracking
+      _postCreatedController.add((userId: userId, postId: postRef.id));
 
       return postRef.id;
     } catch (e) {
@@ -1734,7 +1733,8 @@ class PostRepository {
 
         // Break if we've reached the desired limit or no more posts
         if (mixedPosts.length >= limit + 10) break;
-        if (fIdx >= followingPosts.length && rIdx >= recommendationQueue.length) {
+        if (fIdx >= followingPosts.length &&
+            rIdx >= recommendationQueue.length) {
           break;
         }
       }
@@ -1873,6 +1873,75 @@ class PostRepository {
     } catch (e) {
       debugPrint('PostRepository: Error getting feed candidates: $e');
       rethrow;
+    }
+  }
+
+  /// Fetches milestone events for the feed.
+  Future<List<MilestoneFeedItem>> getMilestoneEvents({
+    required String userId,
+    required List<String> friendIds,
+    int limit = 5,
+  }) async {
+    if (friendIds.isEmpty) return [];
+
+    try {
+      final now = DateTime.now();
+      final oneDayAgo = now.subtract(const Duration(hours: 24));
+
+      // Fetch Gold/Platinum milestones from friends in the last 24 hours
+      // Batch friendIds because whereIn limit is 30 in some cases, but 10 is safer for Firestore
+      List<MilestoneFeedItem> results = [];
+
+      for (int i = 0; i < friendIds.length; i += 10) {
+        final batch = friendIds.sublist(
+          i,
+          i + 10 > friendIds.length ? friendIds.length : i + 10,
+        );
+
+        final query = _db
+            .collection('milestone_events')
+            .where('userId', whereIn: batch)
+            .where('timestamp', isGreaterThan: Timestamp.fromDate(oneDayAgo))
+            .where('tier', whereIn: ['gold', 'platinum'])
+            .orderBy('timestamp', descending: true)
+            .limit(limit);
+
+        final snapshot = await query.get();
+        results.addAll(snapshot.docs.map((doc) {
+          final data = doc.data();
+          return MilestoneFeedItem(
+            userId: data['userId'],
+            username: data['username'],
+            userPhotoUrl: data['userPhotoUrl'] ?? '',
+            achievementName: data['achievementName'],
+            badgeUrl: data['badgeUrl'],
+            timestamp: (data['timestamp'] as Timestamp).toDate(),
+            tier: data['tier'],
+          );
+        }));
+      }
+
+      return results;
+    } catch (e) {
+      debugPrint('PostRepository: Error fetching milestone events: $e');
+      return [];
+    }
+  }
+
+  /// Records a new milestone event.
+  Future<void> recordMilestoneEvent(MilestoneFeedItem milestone) async {
+    try {
+      await _db.collection('milestone_events').add({
+        'userId': milestone.userId,
+        'username': milestone.username,
+        'userPhotoUrl': milestone.userPhotoUrl,
+        'achievementName': milestone.achievementName,
+        'badgeUrl': milestone.badgeUrl,
+        'timestamp': FieldValue.serverTimestamp(),
+        'tier': milestone.tier,
+      });
+    } catch (e) {
+      debugPrint('PostRepository: Error recording milestone event: $e');
     }
   }
 }

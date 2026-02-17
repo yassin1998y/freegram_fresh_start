@@ -12,8 +12,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/auth_bloc.dart';
 import 'package:freegram/blocs/connectivity_bloc.dart';
 import 'package:freegram/blocs/reel_upload/reel_upload_bloc.dart';
+import 'package:freegram/blocs/achievement/achievement_bloc.dart';
+import 'package:freegram/blocs/notification_bloc/notification_bloc.dart';
+import 'package:freegram/repositories/notification_repository.dart';
 import 'package:freegram/firebase_options.dart';
 import 'package:freegram/locator.dart';
+import 'package:freegram/repositories/achievement_repository.dart';
 import 'package:freegram/services/reel_upload_manager.dart';
 import 'package:freegram/services/draft_persistence_service.dart';
 
@@ -235,6 +239,16 @@ class MyApp extends StatelessWidget {
             uploadManager: locator<ReelUploadManager>(),
             draftService: locator<DraftPersistenceService>(),
           ),
+        ),
+        BlocProvider<AchievementBloc>(
+          create: (context) => AchievementBloc(
+            repository: locator<AchievementRepository>(),
+          ),
+        ),
+        BlocProvider<NotificationBloc>(
+          create: (context) => NotificationBloc(
+            notificationRepository: locator<NotificationRepository>(),
+          )..add(LoadNotifications()),
         ),
       ],
       child: MaterialApp(

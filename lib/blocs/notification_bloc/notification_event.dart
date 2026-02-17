@@ -27,6 +27,8 @@ class MarkNotificationAsRead extends NotificationEvent {
 class MarkAllNotificationsAsRead extends NotificationEvent {}
 // --- END: Added Event ---
 
+/// Event to clear/consume the transient gift receipt state after UI processing.
+class ConsumeGiftNotification extends NotificationEvent {}
 
 /// Internal event used by the BLoC when the notification stream provides updates.
 class _NotificationsUpdated extends NotificationEvent {

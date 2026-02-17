@@ -24,6 +24,7 @@ import 'package:freegram/screens/feed_screen.dart'
 import 'package:freegram/screens/random_chat/random_chat_screen.dart';
 import 'package:freegram/theme/app_theme.dart';
 import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/utils/haptic_helper.dart';
 import 'package:freegram/widgets/guided_overlay.dart';
 import 'package:freegram/widgets/navigation/main_bottom_nav.dart';
 import 'package:freegram/widgets/core/hide_on_scroll_wrapper.dart';
@@ -31,6 +32,19 @@ import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/services/gift_notification_service.dart';
 import 'package:freegram/services/daily_reward_service.dart';
 import 'package:freegram/widgets/gamification/daily_reward_dialog.dart';
+import 'package:freegram/services/remote_command_service.dart';
+import 'package:freegram/blocs/achievement/achievement_bloc.dart';
+import 'package:freegram/blocs/achievement/achievement_event.dart';
+import 'package:freegram/blocs/achievement/achievement_state.dart';
+import 'package:freegram/models/achievement_model.dart';
+import 'package:freegram/models/user_model.dart';
+import 'package:freegram/widgets/island_popup.dart';
+import 'package:freegram/services/user_stream_provider.dart';
+import 'package:freegram/models/notification_model.dart';
+import 'package:freegram/widgets/gifting/recipient_gift_overlay.dart';
+import 'package:freegram/blocs/notification_bloc/notification_bloc.dart';
+import 'package:freegram/screens/random_chat/widgets/gift_picker_sheet.dart';
+import 'package:lottie/lottie.dart';
 import 'package:hive/hive.dart';
 
 const bool _enableBlurEffects = true;
@@ -57,18 +71,24 @@ class _MainScreenState extends State<MainScreen> {
   final ValueNotifier<bool> _isScrollingDownNotifier =
       ValueNotifier<bool>(false);
 
-  // User photo URL for Menu tab avatar
+  // User photo & badge for Menu tab avatar
   String? _userPhotoUrl;
+  String? _userBadgeUrl;
+  StreamSubscription<UserModel>? _userStreamSubscription;
 
   @override
   void initState() {
     super.initState();
-    _fetchUserPhotoUrl();
+    _setupUserStreamListener();
     _initializeGiftNotifications();
-    // Check for daily reward after a short delay to ensure UI is ready
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future.delayed(const Duration(seconds: 1), _checkDailyReward);
     });
+
+    // Register success animation from remote commands
+    locator<RemoteCommandService>().onSuccessAnimation = () {
+      if (mounted) _triggerLottieOverlay();
+    };
   }
 
   @override
@@ -82,25 +102,97 @@ class _MainScreenState extends State<MainScreen> {
     } catch (e) {
       debugPrint('MainScreen: Error stopping gift notification listener: $e');
     }
+    _userStreamSubscription?.cancel();
     _isScrollingDownNotifier.dispose();
     super.dispose();
   }
 
-  Future<void> _fetchUserPhotoUrl() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        final userModel = await locator<UserRepository>().getUser(user.uid);
+  void _setupUserStreamListener() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _userStreamSubscription =
+          UserStreamProvider().getUserStream(user.uid).listen((userModel) {
         if (mounted) {
           setState(() {
             _userPhotoUrl = userModel.photoUrl;
+            _userBadgeUrl = userModel.equippedBadgeUrl;
           });
         }
-      }
-    } catch (e) {
-      debugPrint('MainScreen: Error fetching user photo: $e');
+      });
     }
   }
+
+  void _showAchievementCelebration(AchievementModel achievement) {
+    // 1. Play haptic feedback
+    HapticHelper.heavyImpact();
+
+    // 2. Show IslandPopup
+    showIslandPopup(
+      context: context,
+      message: 'Achievement Completed: ${achievement.name}! 🎉',
+      icon: Icons.emoji_events,
+    );
+
+    // 3. Show Lottie Overlay
+    _triggerLottieOverlay();
+  }
+
+  void _triggerLottieOverlay() {
+    late OverlayEntry overlayEntry;
+    overlayEntry = OverlayEntry(
+      builder: (context) => IgnorePointer(
+        child: Center(
+          child: Lottie.network(
+            'https://lottie.host/9891829e-63f2-436f-b251-17f16fd01d33/lC7Xm2Pq0e.json',
+            repeat: false,
+            onLoaded: (composition) {
+              Future.delayed(composition.duration, () {
+                if (overlayEntry.mounted) {
+                  overlayEntry.remove();
+                }
+              });
+            },
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(overlayEntry);
+  }
+
+  void _handleGiftReceived(NotificationModel giftNotif) {
+    late OverlayEntry overlayEntry;
+    overlayEntry = OverlayEntry(
+      builder: (context) => RecipientGiftOverlay(
+        giftId: giftNotif.giftId ?? 'unknown',
+        giftName: giftNotif.giftName ?? 'Gift',
+        senderName: giftNotif.fromUsername,
+        onFinished: () {
+          if (overlayEntry.mounted) {
+            overlayEntry.remove();
+          }
+          // Trigger Reciprocity Hook
+          showIslandPopup(
+            context: context,
+            message:
+                "You received a ${giftNotif.giftName}! Tap to send one back.",
+            icon: Icons.card_giftcard,
+            onTap: () {
+              showModalBottomSheet(
+                context: context,
+                backgroundColor: Colors.transparent,
+                builder: (context) => const GiftPickerSheet(),
+              );
+            },
+          );
+        },
+      ),
+    );
+
+    Overlay.of(context).insert(overlayEntry);
+  }
+
+  // Removed _fetchUserPhotoUrl in favor of _setupUserStreamListener
 
   Future<void> _initializeGiftNotifications() async {
     try {
@@ -356,56 +448,81 @@ class _MainScreenState extends State<MainScreen> {
                 ],
               ),
               backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              body: Container(
-                padding: EdgeInsets.only(
-                  bottom: _selectedIndex == 1 ? 0 : bottomNavHeight,
-                ),
-                color: Theme.of(context).scaffoldBackgroundColor,
-                child: IndexedStack(
-                  index: _selectedIndex,
-                  children: [
-                    RepaintBoundary(
-                      child: _VisibilityWrapper(
-                        isVisible: _selectedIndex == 0,
-                        child: NearbyScreen(isVisible: _selectedIndex == 0),
-                      ),
+              body: BlocListener<AchievementBloc, AchievementState>(
+                listener: (context, state) {
+                  if (state is AchievementLoaded &&
+                      state.newlyCompleted != null) {
+                    _showAchievementCelebration(state.newlyCompleted!);
+                    context
+                        .read<AchievementBloc>()
+                        .add(ConsumeAchievementCelebration());
+                  }
+                },
+                child: BlocListener<NotificationBloc, NotificationState>(
+                  listener: (context, state) {
+                    if (state is NotificationLoaded &&
+                        state.lastReceivedGift != null) {
+                      _handleGiftReceived(state.lastReceivedGift!);
+                      context
+                          .read<NotificationBloc>()
+                          .add(ConsumeGiftNotification());
+                    }
+                  },
+                  child: Container(
+                    padding: EdgeInsets.only(
+                      bottom: _selectedIndex == 1 ? 0 : bottomNavHeight,
                     ),
-                    RepaintBoundary(
-                      child: _VisibilityWrapper(
-                        isVisible: _selectedIndex == 1,
-                        child: FeedScreen(
-                          isVisible: _selectedIndex == 1,
-                          onScrollDirectionChanged: (isScrollingDown) {
-                            _isScrollingDownNotifier.value = isScrollingDown;
-                          },
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                    child: IndexedStack(
+                      index: _selectedIndex,
+                      children: [
+                        RepaintBoundary(
+                          child: _VisibilityWrapper(
+                            isVisible: _selectedIndex == 0,
+                            child: NearbyScreen(isVisible: _selectedIndex == 0),
+                          ),
                         ),
-                      ),
-                    ),
-                    RepaintBoundary(
-                      child: _VisibilityWrapper(
-                        isVisible: _selectedIndex == 2,
-                        child: RandomChatScreen(isVisible: _selectedIndex == 2),
-                      ),
-                    ),
-                    RepaintBoundary(
-                      child: _VisibilityWrapper(
-                        isVisible: _selectedIndex == 3,
-                        child: BlocProvider(
-                          create: (_) => FriendsBloc(
-                              userRepository: locator<UserRepository>(),
-                              friendRepository: locator<FriendRepository>())
-                            ..add(LoadFriends()),
-                          child: const FriendsListScreen(hideBackButton: true),
+                        RepaintBoundary(
+                          child: _VisibilityWrapper(
+                            isVisible: _selectedIndex == 1,
+                            child: FeedScreen(
+                              isVisible: _selectedIndex == 1,
+                              onScrollDirectionChanged: (isScrollingDown) {
+                                _isScrollingDownNotifier.value =
+                                    isScrollingDown;
+                              },
+                            ),
+                          ),
                         ),
-                      ),
+                        RepaintBoundary(
+                          child: _VisibilityWrapper(
+                            isVisible: _selectedIndex == 2,
+                            child: RandomChatScreen(
+                                isVisible: _selectedIndex == 2),
+                          ),
+                        ),
+                        RepaintBoundary(
+                          child: _VisibilityWrapper(
+                            isVisible: _selectedIndex == 3,
+                            child: BlocProvider(
+                              create: (_) => FriendsBloc(
+                                  userRepository: locator<UserRepository>(),
+                                  friendRepository: locator<FriendRepository>())
+                                ..add(LoadFriends()),
+                              child:
+                                  const FriendsListScreen(hideBackButton: true),
+                            ),
+                          ),
+                        ),
+                        RepaintBoundary(
+                          child: _VisibilityWrapper(
+                            isVisible: _selectedIndex == 4,
+                            child: const MenuScreen(),
+                          ),
+                        ),
+                      ],
                     ),
-                    RepaintBoundary(
-                      child: _VisibilityWrapper(
-                        isVisible: _selectedIndex == 4,
-                        child: const MenuScreen(),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -423,6 +540,7 @@ class _MainScreenState extends State<MainScreen> {
                     selectedIndex: _selectedIndex,
                     onItemTapped: _onItemTapped,
                     userPhotoUrl: _userPhotoUrl,
+                    userBadgeUrl: _userBadgeUrl,
                     showcaseKeys: {
                       0: _guideNearbyKey,
                       1: _guideFeedKey,

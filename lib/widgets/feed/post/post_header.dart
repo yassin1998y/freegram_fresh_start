@@ -7,6 +7,7 @@ import 'package:freegram/models/feed_item_model.dart' show PostDisplayType;
 import 'package:freegram/theme/design_tokens.dart';
 // Removed unused app_theme.dart import
 import 'package:freegram/widgets/common/media_header.dart';
+import 'package:freegram/widgets/achievements/badge_insight_dialog.dart';
 
 /// Post header component
 ///
@@ -205,6 +206,7 @@ class PostHeader extends StatelessWidget {
 
     return MediaHeader(
       avatarUrl: post.pagePhotoUrl ?? post.authorPhotoUrl,
+      avatarBadgeUrl: post.pageBadgeUrl ?? post.authorBadgeUrl,
       username: post.pageName ?? post.authorUsername,
       timestamp: post.timestamp,
       location: post.locationInfo?['placeName'],
@@ -212,6 +214,12 @@ class PostHeader extends StatelessWidget {
       isEdited: post.edited,
       onAvatarTap: onProfileTap,
       onUsernameTap: onProfileTap,
+      onBadgeTap: () {
+        final badgeUrl = post.pageBadgeUrl ?? post.authorBadgeUrl;
+        if (badgeUrl != null) {
+          showBadgeInsight(context, badgeUrl: badgeUrl);
+        }
+      },
       badge: displayTypeBadge,
       actionButton: null, // Moved to footer (opposite to likes/comments)
       menuItems: menuItems,

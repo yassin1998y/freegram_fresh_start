@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:freegram/models/gift_model.dart';
 import 'package:freegram/models/user_inventory_model.dart';
@@ -5,14 +6,27 @@ import 'package:freegram/models/user_model.dart';
 import 'package:freegram/models/wishlist_item_model.dart';
 
 import 'package:freegram/utils/level_calculator.dart';
-import 'package:freegram/locator.dart';
-import 'package:freegram/repositories/achievement_repository.dart';
 
 class GiftRepository {
   final FirebaseFirestore _db;
 
+  final _giftPurchasedController =
+      StreamController<({String userId, String giftId, int price})>.broadcast();
+  Stream<({String userId, String giftId, int price})> get onGiftPurchased =>
+      _giftPurchasedController.stream;
+
+  final _giftSentController = StreamController<
+      ({
+        String senderId,
+        String recipientId,
+        String giftId,
+        int price
+      })>.broadcast();
+  Stream<({String senderId, String recipientId, String giftId, int price})>
+      get onGiftSent => _giftSentController.stream;
+
   GiftRepository({FirebaseFirestore? firestore})
-      : _db = firestore ?? FirebaseFirestore.instance;
+      : _db = firestore ?? FirebaseFirestore.instance {}
 
   /// Helper to generate chat ID from two user IDs
   String _getChatId(String userId1, String userId2) {
@@ -154,19 +168,9 @@ class GiftRepository {
       return ownedGift;
     });
 
-    // TRIGGER ACHIEVEMENT: Spending
-    try {
-      final achievementRepo = locator<AchievementRepository>();
-      // Spending: Count coins spent
-      await achievementRepo.updateProgress(
-          userId, 'spending_100', gift.priceInCoins);
-      await achievementRepo.updateProgress(
-          userId, 'spending_1000', gift.priceInCoins);
-      await achievementRepo.updateProgress(
-          userId, 'spending_10000', gift.priceInCoins);
-    } catch (e) {
-      // Ignore gamification errors
-    }
+    // Emit event for achievement tracking
+    _giftPurchasedController
+        .add((userId: userId, giftId: giftId, price: gift.priceInCoins));
 
     return result;
   }
@@ -319,28 +323,15 @@ class GiftRepository {
           SetOptions(merge: true));
     });
 
-    // TRIGGER ACHIEVEMENTS: Social & Spending
-    // Note: This logic should ideally be triggered by a cloud function or event listener
-    // to ensure consistency, but keeping streamlined for now.
-    // TRIGGER ACHIEVEMENTS: Social & Spending
-    try {
-      final giftDoc = await _db.collection('gifts').doc(giftId).get();
-      final gift = GiftModel.fromDoc(giftDoc);
-      final giftPrice = gift.priceInCoins;
-
-      final achievementRepo = locator<AchievementRepository>();
-      // Social: Count gifts sent
-      achievementRepo.updateProgress(senderId, 'social_first_gift', 1);
-      achievementRepo.updateProgress(senderId, 'social_gift_sender_10', 1);
-      achievementRepo.updateProgress(senderId, 'social_gift_sender_50', 1);
-
-      // Spending: Count coins spent
-      achievementRepo.updateProgress(senderId, 'spending_100', giftPrice);
-      achievementRepo.updateProgress(senderId, 'spending_1000', giftPrice);
-      achievementRepo.updateProgress(senderId, 'spending_10000', giftPrice);
-    } catch (e) {
-      // Non-critical
-    }
+    // Emit event for achievement tracking
+    final giftDocForEvent = await _db.collection('gifts').doc(giftId).get();
+    final giftPriceForEvent = GiftModel.fromDoc(giftDocForEvent).priceInCoins;
+    _giftSentController.add((
+      senderId: senderId,
+      recipientId: recipientId,
+      giftId: giftId,
+      price: giftPriceForEvent
+    ));
 
     // Track recent recipient (outside transaction)
     await trackRecentRecipient(

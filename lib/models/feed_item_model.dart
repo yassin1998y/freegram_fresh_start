@@ -55,6 +55,31 @@ class SuggestionCarouselFeedItem extends FeedItem {
   List<Object?> get props => [type, suggestions];
 }
 
+/// Represents a milestone achievement event in the feed
+class MilestoneFeedItem extends FeedItem {
+  final String userId;
+  final String username;
+  final String userPhotoUrl;
+  final String achievementName;
+  final String? badgeUrl;
+  final DateTime timestamp;
+  final String
+      tier; // Using String to avoid circular dependency or keep it simple
+
+  const MilestoneFeedItem({
+    required this.userId,
+    required this.username,
+    required this.userPhotoUrl,
+    required this.achievementName,
+    this.badgeUrl,
+    required this.timestamp,
+    required this.tier,
+  });
+
+  @override
+  List<Object?> get props => [userId, achievementName, timestamp];
+}
+
 /// Enum for post display types
 enum PostDisplayType {
   organic,

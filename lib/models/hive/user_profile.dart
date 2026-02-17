@@ -48,8 +48,10 @@ class UserProfile extends HiveObject {
 
   @HiveField(13)
   List<String> blockedUsers;
-  // --- END NEW FIELDS ---
 
+  @HiveField(14)
+  String? equippedBadgeUrl;
+  // --- END NEW FIELDS ---
 
   UserProfile({
     required this.profileId,
@@ -68,5 +70,6 @@ class UserProfile extends HiveObject {
     this.friendRequestsSent = const [],
     this.friendRequestsReceived = const [],
     this.blockedUsers = const [],
+    this.equippedBadgeUrl,
   });
 }

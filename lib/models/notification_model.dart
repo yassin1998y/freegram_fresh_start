@@ -17,11 +17,11 @@ class NotificationModel {
   final String fromUserId;
   final String fromUsername;
   final String? fromUserPhotoUrl;
-  final String?
-      postId; // Keep for potential future use or context? Or remove if truly unused.
-  final String?
-      commentId; // Keep for potential future use or context? Or remove if truly unused.
-  final String? message; // Optional: for custom messages like waves
+  final String? postId;
+  final String? commentId;
+  final String? message;
+  final String? giftId;
+  final String? giftName;
   final Timestamp timestamp;
   final bool isRead;
 
@@ -34,6 +34,8 @@ class NotificationModel {
     this.postId,
     this.commentId,
     this.message,
+    this.giftId,
+    this.giftName,
     required this.timestamp,
     this.isRead = false,
   });
@@ -46,25 +48,29 @@ class NotificationModel {
       fromUserId: data['fromUserId'] ?? '',
       fromUsername: data['fromUsername'] ?? '',
       fromUserPhotoUrl: data['fromUserPhotoUrl'],
-      postId: data['postId'], // Keep parsing if field might still exist
-      commentId: data['commentId'], // Keep parsing if field might still exist
+      postId: data['postId'],
+      commentId: data['commentId'],
       message: data['message'],
+      giftId: data['giftId'],
+      giftName: data['giftName'] ?? data['giftId'],
       timestamp: data['timestamp'] ?? Timestamp.now(),
-      isRead: data['read'] ?? false, // Field is stored as 'read' in Firestore
+      isRead: data['read'] ?? false,
     );
   }
 
   Map<String, dynamic> toFirestore() {
     return {
-      'type': type.toString().split('.').last, // Convert enum to string
+      'type': type.toString().split('.').last,
       'fromUserId': fromUserId,
       'fromUsername': fromUsername,
       'fromUserPhotoUrl': fromUserPhotoUrl,
       'postId': postId,
       'commentId': commentId,
       'message': message,
+      'giftId': giftId,
+      'giftName': giftName,
       'timestamp': timestamp,
-      'read': isRead, // Field is stored as 'read' in Firestore
+      'read': isRead,
     };
   }
 
@@ -91,8 +97,6 @@ class NotificationModel {
       case 'mention':
         return NotificationType.mention;
       default:
-        print(
-            'Unknown notification type: $typeStr, defaulting to friendRequest.');
         return NotificationType.friendRequest;
     }
   }

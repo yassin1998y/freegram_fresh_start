@@ -1,9 +1,9 @@
 // lib/widgets/common/media_header.dart
 
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/widgets/common/sonar_verified_badge.dart';
+import 'package:freegram/widgets/core/user_avatar.dart';
 import 'package:intl/intl.dart';
 
 /// Reusable media header widget for posts, reels, stories, etc.
@@ -18,6 +18,9 @@ import 'package:intl/intl.dart';
 class MediaHeader extends StatelessWidget {
   /// Avatar image URL
   final String? avatarUrl;
+
+  /// URL for the achievement badge to display
+  final String? avatarBadgeUrl;
 
   /// Username or display name
   final String username;
@@ -36,6 +39,9 @@ class MediaHeader extends StatelessWidget {
 
   /// Callback when avatar is tapped
   final VoidCallback? onAvatarTap;
+
+  /// Callback when badge is tapped
+  final VoidCallback? onBadgeTap;
 
   /// Callback when username is tapped
   final VoidCallback? onUsernameTap;
@@ -83,11 +89,13 @@ class MediaHeader extends StatelessWidget {
     super.key,
     required this.username,
     this.avatarUrl,
+    this.avatarBadgeUrl,
     this.timestamp,
     this.location,
     this.isVerified = false,
     this.isEdited = false,
     this.onAvatarTap,
+    this.onBadgeTap,
     this.onUsernameTap,
     this.badge,
     this.actionButton,
@@ -109,8 +117,6 @@ class MediaHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final effectivePadding =
         padding ?? const EdgeInsets.all(DesignTokens.spaceMD);
-    // Use AvatarSize.medium (40px) as default, which is 20px radius
-    final effectiveAvatarRadius = avatarRadius ?? AvatarSize.medium.radius;
 
     return Padding(
       padding: effectivePadding,
@@ -119,25 +125,12 @@ class MediaHeader extends StatelessWidget {
             CrossAxisAlignment.center, // Perfect vertical centering
         children: [
           // Avatar - using UserAvatar for consistency and memory optimization
-          GestureDetector(
+          UserAvatarSmall(
+            url: avatarUrl,
+            badgeUrl: avatarBadgeUrl,
             onTap: onAvatarTap,
-            child: CircleAvatar(
-              radius: effectiveAvatarRadius,
-              backgroundColor: avatarBackgroundColor ??
-                  theme.colorScheme.surfaceContainerHighest,
-              backgroundImage: (avatarUrl != null && avatarUrl!.isNotEmpty)
-                  ? CachedNetworkImageProvider(avatarUrl!)
-                  : null,
-              child: (avatarUrl == null || avatarUrl!.isEmpty)
-                  ? Icon(
-                      Icons.person,
-                      size: DesignTokens.iconMD,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 
-                        DesignTokens.opacityMedium,
-                      ),
-                    )
-                  : null,
-            ),
+            onBadgeTap: onBadgeTap,
+            backgroundColor: avatarBackgroundColor,
           ),
           const SizedBox(width: DesignTokens.spaceMD),
 
@@ -189,8 +182,8 @@ class MediaHeader extends StatelessWidget {
                         Icon(
                           Icons.location_on,
                           size: DesignTokens.iconSM,
-                          color: theme.colorScheme.onSurface.withValues(alpha: 
-                            DesignTokens.opacityMedium,
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: DesignTokens.opacityMedium,
                           ),
                         ),
                         const SizedBox(width: DesignTokens.spaceXS),
@@ -199,8 +192,8 @@ class MediaHeader extends StatelessWidget {
                             location!,
                             style: timestampStyle ??
                                 theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface
-                                      .withValues(alpha: DesignTokens.opacityMedium),
+                                  color: theme.colorScheme.onSurface.withValues(
+                                      alpha: DesignTokens.opacityMedium),
                                 ),
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
@@ -211,8 +204,8 @@ class MediaHeader extends StatelessWidget {
                           '•',
                           style: timestampStyle ??
                               theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurface.withValues(alpha: 
-                                  DesignTokens.opacityMedium,
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: DesignTokens.opacityMedium,
                                 ),
                               ),
                         ),
@@ -224,8 +217,8 @@ class MediaHeader extends StatelessWidget {
                             _formatTimestamp(timestamp!),
                             style: timestampStyle ??
                                 theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface
-                                      .withValues(alpha: DesignTokens.opacityMedium),
+                                  color: theme.colorScheme.onSurface.withValues(
+                                      alpha: DesignTokens.opacityMedium),
                                 ),
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
@@ -240,8 +233,8 @@ class MediaHeader extends StatelessWidget {
                             '(Edited)',
                             style: timestampStyle ??
                                 theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface
-                                      .withValues(alpha: DesignTokens.opacityMedium),
+                                  color: theme.colorScheme.onSurface.withValues(
+                                      alpha: DesignTokens.opacityMedium),
                                   fontStyle: FontStyle.italic,
                                 ),
                           ),

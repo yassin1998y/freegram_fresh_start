@@ -1,6 +1,5 @@
 // lib/widgets/chat_widgets/professional_chat_list_item.dart
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,7 +14,9 @@ import 'package:freegram/services/presence_manager.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/widgets/chat_widgets/professional_presence_indicator.dart';
 import 'package:freegram/widgets/chat_widgets/professional_typing_indicator.dart';
+import 'package:freegram/widgets/core/user_avatar.dart';
 import 'package:freegram/widgets/island_popup.dart';
+import 'package:freegram/widgets/achievements/badge_insight_dialog.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 /// Professional Chat List Item with swipe actions and enhanced design
@@ -197,6 +198,7 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
                       presenceStream,
                       otherUsername,
                       otherUserId,
+                      user.equippedBadgeUrl,
                     ),
 
                     const SizedBox(width: DesignTokens.spaceMD),
@@ -322,6 +324,7 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
     Stream<PresenceData> presenceStream,
     String username,
     String userId,
+    String? badgeUrl,
   ) {
     return GestureDetector(
       onTap: () {
@@ -353,24 +356,11 @@ class _ProfessionalChatListItemState extends State<ProfessionalChatListItem>
                           )
                         : null,
                   ),
-                  child: CircleAvatar(
-                    radius: 28,
-                    backgroundColor:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
-                    backgroundImage: photoUrl.isNotEmpty
-                        ? CachedNetworkImageProvider(photoUrl) as ImageProvider
-                        : null,
-                    child: photoUrl.isEmpty
-                        ? Text(
-                            username.isNotEmpty
-                                ? username[0].toUpperCase()
-                                : '?',
-                            style: TextStyle(
-                              fontSize: DesignTokens.fontSizeXL,
-                              fontWeight: FontWeight.bold,
-                              color: SemanticColors.textSecondary(context),
-                            ),
-                          )
+                  child: UserAvatarMedium(
+                    url: photoUrl,
+                    badgeUrl: badgeUrl,
+                    onBadgeTap: badgeUrl != null
+                        ? () => showBadgeInsight(context, badgeUrl: badgeUrl)
                         : null,
                   ),
                 );

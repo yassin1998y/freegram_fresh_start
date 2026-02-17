@@ -1,9 +1,7 @@
 // lib/screens/nearby_screen.dart
 import 'dart:async';
 import 'dart:io'; // For Platform check
-// For ImageFilter and BackdropFilter
 import 'package:app_settings/app_settings.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter/material.dart';
@@ -34,6 +32,7 @@ import 'package:freegram/screens/profile_screen.dart';
 // Widgets
 import 'package:freegram/widgets/sonar_view.dart';
 import 'package:freegram/widgets/professional_components.dart';
+import 'package:freegram/widgets/core/user_avatar.dart';
 import 'package:freegram/widgets/responsive_system.dart';
 import 'package:freegram/theme/app_theme.dart'; // For SonarPulseTheme
 import 'package:freegram/theme/design_tokens.dart';
@@ -80,7 +79,6 @@ class _NearbyScreenView extends StatefulWidget {
 class _NearbyScreenViewState extends State<_NearbyScreenView>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   // Get service instances via locator
-  // Get service instances via locator
   late final SonarController _sonarController;
   late final LocalCacheService _localCacheService;
   final UserRepository _userRepository = locator<UserRepository>();
@@ -97,6 +95,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
   late AnimationController
       _radarRotationController; // Animation for rotating radar glow
   String? _currentUserPhotoUrl; // For the center avatar
+  String? _currentUserBadgeUrl; // For the center avatar
   final bool _isWeb = kIsWeb; // Check if running on web
   StreamSubscription?
       _statusSubscription; // Subscription to shared BluetoothStatusService
@@ -232,13 +231,28 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
       try {
         final server_user_model.UserModel userModel =
             await _userRepository.getUser(user.uid);
-        if (mounted) setState(() => _currentUserPhotoUrl = userModel.photoUrl);
+        if (mounted) {
+          setState(() {
+            _currentUserPhotoUrl = userModel.photoUrl;
+            _currentUserBadgeUrl = userModel.equippedBadgeUrl;
+          });
+        }
       } catch (e) {
         debugPrint("NearbyScreen: Error fetching current user photo: $e");
-        if (mounted) setState(() => _currentUserPhotoUrl = ''); // Fallback
+        if (mounted) {
+          setState(() {
+            _currentUserPhotoUrl = '';
+            _currentUserBadgeUrl = null;
+          });
+        }
       }
     } else {
-      if (mounted) setState(() => _currentUserPhotoUrl = ''); // Fallback
+      if (mounted) {
+        setState(() {
+          _currentUserPhotoUrl = '';
+          _currentUserBadgeUrl = null;
+        });
+      }
     }
   }
 
@@ -691,10 +705,11 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                   blurRadius: DesignTokens.elevation2,
                   offset: const Offset(0, 2),
                 )
-              ], // Standard subtle shadow
+              ],
       ),
       child: Stack(
         alignment: Alignment.center,
+        clipBehavior: Clip.none,
         children: [
           // Scanning Glow (Rotating)
           if (isScanningActive)
@@ -718,57 +733,14 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
               ),
             ),
 
-          // Enhanced glassmorphic border
-          Container(
-            width: AvatarSize.large.size,
-            height: AvatarSize.large.size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: DesignTokens.glassmorphicGradient(context),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.4),
-                width: 2,
-              ),
-            ),
-            child: Center(
-              child: ClipOval(
-                child: _currentUserPhotoUrl != null &&
-                        _currentUserPhotoUrl!.isNotEmpty
-                    ? Image(
-                        image:
-                            CachedNetworkImageProvider(_currentUserPhotoUrl!),
-                        width: AvatarSize.large.size - 8,
-                        height: AvatarSize.large.size - 8,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          width: AvatarSize.large.size - 8,
-                          height: AvatarSize.large.size - 8,
-                          color: Theme.of(context).colorScheme.surface,
-                          child: Icon(
-                            Icons.person,
-                            size: DesignTokens.iconXL,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.6),
-                          ),
-                        ),
-                      )
-                    : Container(
-                        width: AvatarSize.large.size - 8,
-                        height: AvatarSize.large.size - 8,
-                        color: Theme.of(context).colorScheme.surface,
-                        child: Icon(
-                          Icons.person,
-                          size: DesignTokens.iconXL,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.6),
-                        ),
-                      ),
-              ),
-            ),
+          // Use the standardized UserAvatar widget
+          UserAvatar(
+            url: _currentUserPhotoUrl,
+            badgeUrl: _currentUserBadgeUrl,
+            size: AvatarSize.large,
+            borderWidth: 2,
+            borderColor: Colors.white.withValues(alpha: 0.4),
+            backgroundColor: Theme.of(context).colorScheme.surface,
           ),
         ],
       ),
@@ -937,22 +909,14 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
                             width: DesignTokens.spaceXXXL,
                             height: DesignTokens.spaceXXXL,
                             child: Stack(
+                              clipBehavior: Clip.none,
                               children: [
-                                CircleAvatar(
-                                  radius: DesignTokens.spaceXXXL / 2,
+                                UserAvatar(
+                                  url: userProfile?.photoUrl,
+                                  badgeUrl: userProfile?.equippedBadgeUrl,
+                                  size: AvatarSize.medium,
                                   backgroundColor:
                                       Theme.of(context).colorScheme.surface,
-                                  backgroundImage:
-                                      userProfile?.photoUrl != null &&
-                                              userProfile!.photoUrl.isNotEmpty
-                                          ? CachedNetworkImageProvider(
-                                              userProfile.photoUrl)
-                                          : null,
-                                  child: userProfile?.photoUrl == null ||
-                                          userProfile!.photoUrl.isEmpty
-                                      ? _buildGenderPlaceholderIcon(
-                                          size: DesignTokens.spaceXXXL / 2)
-                                      : null,
                                 ),
                                 // Online Pulse (Brand Green)
                                 if (isProfileSynced)
@@ -1145,29 +1109,19 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
   // Show found users bottom sheet with professional design
   void _showFoundUsersBottomSheet(BuildContext context) {
     showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (modalContext) {
-        return BlocProvider.value(
-          value: BlocProvider.of<FriendsBloc>(context),
-          child: _ProfessionalFoundUsersModal(
-            localCacheService: _localCacheService,
-            onDeleteUser: _deleteFoundUser,
-            onStartScanning: () => _handleSonarToggle(false),
-          ),
-        );
-      },
-    );
-  }
-
-  // Build gender placeholder icon
-  Widget _buildGenderPlaceholderIcon({double size = 40}) {
-    return Icon(
-      Icons.person_outline,
-      size: size,
-      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-    );
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (modalContext) {
+          return BlocProvider.value(
+            value: BlocProvider.of<FriendsBloc>(context),
+            child: _ProfessionalFoundUsersModal(
+              localCacheService: _localCacheService,
+              onDeleteUser: _deleteFoundUser,
+              onStartScanning: () => _handleSonarToggle(false),
+            ),
+          );
+        });
   }
 
   Widget _ProfessionalUserCardWrapper({
@@ -1204,6 +1158,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
           lastFreeSuperLike: DateTime.now(),
           lastNearbyDiscoveryDate: DateTime.now(),
           lastDailyRewardClaim: DateTime(1970),
+          equippedBadgeUrl: userProfile?.equippedBadgeUrl,
         );
 
         final now = DateTime.now();
@@ -1233,6 +1188,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
           isProfileSynced: isProfileSynced,
           rssi: estimatedRssi,
           userModel: displayUser,
+          badgeUrl: displayUser.equippedBadgeUrl,
           onTap: () => locator<NavigationService>().navigateTo(
               ProfileScreen(userId: displayUser.id),
               transition: PageTransition.slide),
@@ -1950,6 +1906,7 @@ class _ProfessionalFoundUsersModalState
             lastFreeSuperLike: DateTime.now(),
             lastNearbyDiscoveryDate: DateTime.now(),
             lastDailyRewardClaim: DateTime(1970),
+            equippedBadgeUrl: userProfile?.equippedBadgeUrl,
           );
 
           final now = DateTime.now();
@@ -1978,6 +1935,7 @@ class _ProfessionalFoundUsersModalState
               isProfileSynced: isProfileSynced,
               rssi: estimatedRssi,
               userModel: displayUser,
+              badgeUrl: displayUser.equippedBadgeUrl,
               onTap: () => locator<NavigationService>().navigateTo(
                   ProfileScreen(userId: displayUser.id),
                   transition: PageTransition.slide),

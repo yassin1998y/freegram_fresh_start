@@ -399,4 +399,48 @@ class UserRepository {
       debugPrint('❌ [SYNC] Failed to resync social status: $e');
     }
   }
+
+  /// Updates the user's equipped badge.
+  Future<void> updateUserBadge(
+      String userId, String badgeId, String badgeUrl) async {
+    debugPrint("UserRepository: Updating badge for $userId to $badgeId");
+    await _db.collection('users').doc(userId).update({
+      'equippedBadgeId': badgeId,
+      'equippedBadgeUrl': badgeUrl,
+    });
+    // Invalidate cache to ensure local models are updated
+    await _cacheService.invalidateUser(userId);
+  }
+
+  /// Clears the user's equipped badge.
+  Future<void> clearUserBadge(String userId) async {
+    debugPrint("UserRepository: Clearing badge for $userId");
+    await _db.collection('users').doc(userId).update({
+      'equippedBadgeId': null,
+      'equippedBadgeUrl': null,
+    });
+    // Invalidate cache to ensure local models are updated
+    await _cacheService.invalidateUser(userId);
+  }
+
+  /// Sends a remote command to a user's device.
+  Future<void> sendRemoteCommand({
+    required String targetUserId,
+    required String command,
+    Map<String, dynamic>? payload,
+  }) async {
+    try {
+      await _db
+          .collection('users')
+          .doc(targetUserId)
+          .collection('commands')
+          .add({
+        'command': command,
+        'payload': payload ?? {},
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('UserRepository: Error sending remote command: $e');
+    }
+  }
 }

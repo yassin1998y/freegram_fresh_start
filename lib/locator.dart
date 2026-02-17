@@ -57,6 +57,8 @@ import 'package:freegram/services/gallery_service.dart'; // Gallery Service for 
 import 'package:freegram/services/reel_upload_manager.dart'; // Reel Upload Manager
 import 'package:freegram/services/draft_persistence_service.dart'; // Draft Persistence
 import 'package:freegram/services/gift_notification_service.dart'; // Gift Notifications
+import 'package:freegram/services/achievement_service.dart'; // Achievement Service
+import 'package:freegram/services/remote_command_service.dart'; // Remote Commands
 import 'package:freegram/services/webrtc_service.dart'; // Random Chat WebRTC
 import 'package:freegram/repositories/lounge_repository.dart'; // RandomChat Discovery
 import 'package:freegram/repositories/match_history_repository.dart'; // RandomChat History
@@ -114,6 +116,10 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
       () => AnalyticsRepository()); // Gamification - Analytics
   locator.registerLazySingleton(
       () => GiftNotificationService()); // Gift Notifications
+  locator
+      .registerLazySingleton(() => AchievementService()); // Achievement Service
+  locator.registerLazySingleton(
+      () => RemoteCommandService()); // Remote Command Service
 
   // --- Register Blocs ---
   locator.registerFactory(() => UnifiedFeedBloc(
@@ -213,6 +219,8 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
   locator<FriendCacheService>().init();
   locator<FriendRequestRateLimiter>().init();
   locator<FriendActionRetryService>().initialize();
+  locator<AchievementService>().init();
+  locator<RemoteCommandService>().init();
   // Note: PresenceManager.initialize() called in main.dart after auth
 
   // --- Register SONAR Services (Condition for Non-Web) ---

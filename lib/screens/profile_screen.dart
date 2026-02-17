@@ -13,7 +13,7 @@ import 'package:freegram/screens/improved_chat_screen.dart';
 import 'package:freegram/screens/edit_profile_screen.dart';
 import 'package:freegram/theme/app_theme.dart';
 import 'package:freegram/theme/design_tokens.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:freegram/widgets/core/user_avatar.dart';
 import 'package:freegram/repositories/post_repository.dart';
 import 'package:freegram/models/post_model.dart';
 import 'package:freegram/widgets/feed_widgets/post_card.dart';
@@ -307,26 +307,9 @@ class _ProfileScreenViewState extends State<_ProfileScreenView>
                                             )
                                           ],
                                         ),
-                                        child: CircleAvatar(
-                                          radius: 64,
-                                          backgroundImage:
-                                              user.photoUrl.isNotEmpty
-                                                  ? CachedNetworkImageProvider(
-                                                      user.photoUrl)
-                                                  : null,
-                                          backgroundColor: Theme.of(context)
-                                              .colorScheme
-                                              .surfaceContainerHighest,
-                                          child: user.photoUrl.isEmpty
-                                              ? Text(
-                                                  user.username.isNotEmpty
-                                                      ? user.username[0]
-                                                          .toUpperCase()
-                                                      : '?',
-                                                  style: const TextStyle(
-                                                      fontSize: 40),
-                                                )
-                                              : null,
+                                        child: UserAvatarLarge(
+                                          url: user.photoUrl,
+                                          badgeUrl: user.equippedBadgeUrl,
                                         ),
                                       ),
                                       const SizedBox(height: 16),

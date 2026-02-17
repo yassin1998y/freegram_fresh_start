@@ -66,6 +66,10 @@ class AuthRepository {
       lastDailyRewardClaim: DateTime.fromMillisecondsSinceEpoch(0),
     );
     final userMap = newUser.toMap();
+    // Refinement: Use server-side timestamps for initial creation
+    userMap['createdAt'] = FieldValue.serverTimestamp();
+    userMap['lastSeen'] = FieldValue.serverTimestamp();
+
     _debugLog("Creating user document for UID: $uid");
     return _db.collection('users').doc(uid).set(userMap);
   }

@@ -7,13 +7,28 @@ class HapticHelper {
     HapticFeedback.lightImpact();
   }
 
+  /// Alias for light()
+  static void lightImpact() {
+    HapticFeedback.lightImpact();
+  }
+
   /// Medium impact - for standard button presses
   static void medium() {
     HapticFeedback.mediumImpact();
   }
 
+  /// Alias for medium()
+  static void mediumImpact() {
+    HapticFeedback.mediumImpact();
+  }
+
   /// Heavy impact - for important actions like confirmations
   static void heavy() {
+    HapticFeedback.heavyImpact();
+  }
+
+  /// Alias for heavy() as requested by implementation specs
+  static void heavyImpact() {
     HapticFeedback.heavyImpact();
   }
 

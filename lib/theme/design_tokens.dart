@@ -284,17 +284,30 @@ class AnimationTokens {
 }
 
 /// Avatar Size Tokens
-enum AvatarSize {
-  small(32.0),
-  medium(40.0),
-  large(64.0);
-
+class AvatarSize {
   final double size;
   const AvatarSize(this.size);
+
+  static const AvatarSize small = AvatarSize(32.0);
+  static const AvatarSize medium = AvatarSize(40.0);
+  static const AvatarSize large = AvatarSize(64.0);
+  static const AvatarSize extraLarge = AvatarSize(96.0);
+
+  factory AvatarSize.custom(double size) => AvatarSize(size);
 
   double get radius => size / 2;
   int get memCacheWidth => (size * 2).round();
   int get memCacheHeight => (size * 2).round();
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AvatarSize &&
+          runtimeType == other.runtimeType &&
+          size == other.size;
+
+  @override
+  int get hashCode => size.hashCode;
 }
 
 /// Semantic Colors

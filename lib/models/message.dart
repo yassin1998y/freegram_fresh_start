@@ -35,6 +35,10 @@ class Message {
   final bool isGiftMessage;
   final String? giftId;
 
+  // Milestone/System information
+  final bool isSystemMessage;
+  final String? milestoneName;
+
   // Client-side status for Optimistic UI
   final MessageStatus status;
 
@@ -61,6 +65,8 @@ class Message {
     this.storyAuthorUsername,
     this.isGiftMessage = false,
     this.giftId,
+    this.isSystemMessage = false,
+    this.milestoneName,
     this.status = MessageStatus.sent, // Default to sent
   });
 
@@ -119,6 +125,8 @@ class Message {
       storyAuthorUsername: data['storyAuthorUsername'],
       isGiftMessage: data['isGiftMessage'] ?? false,
       giftId: data['giftId'],
+      isSystemMessage: data['isSystemMessage'] ?? false,
+      milestoneName: data['milestoneName'],
       status: currentStatus,
     );
   }
@@ -146,6 +154,8 @@ class Message {
       'storyAuthorUsername': storyAuthorUsername,
       'isGiftMessage': isGiftMessage,
       'giftId': giftId,
+      'isSystemMessage': isSystemMessage,
+      'milestoneName': milestoneName,
       'status': status.name,
     };
   }

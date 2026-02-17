@@ -171,6 +171,7 @@ class ProfessionalUserCard extends StatefulWidget {
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
   final UserModel? userModel;
+  final String? badgeUrl;
 
   const ProfessionalUserCard({
     super.key,
@@ -185,6 +186,7 @@ class ProfessionalUserCard extends StatefulWidget {
     this.onTap,
     this.onDelete,
     this.userModel,
+    this.badgeUrl,
   });
 
   @override
@@ -617,6 +619,42 @@ class _ProfessionalUserCardState extends State<ProfessionalUserCard>
                                           alpha: _waveAnimation.value),
                                       size: DesignTokens.iconXXL,
                                     ),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                          // Global Badge Overlay
+                          if (widget.badgeUrl != null &&
+                              widget.badgeUrl!.isNotEmpty)
+                            Positioned(
+                              top: DesignTokens.spaceXL,
+                              left: DesignTokens.spaceSM,
+                              child: Container(
+                                width: 24,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color:
+                                          Colors.black.withValues(alpha: 0.15),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipOval(
+                                  child: CachedNetworkImage(
+                                    imageUrl: widget.badgeUrl!,
+                                    fit: BoxFit.contain,
+                                    errorWidget: (context, url, error) =>
+                                        const SizedBox.shrink(),
                                   ),
                                 ),
                               ),

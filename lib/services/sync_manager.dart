@@ -283,6 +283,7 @@ class SyncManager {
             friendRequestsSent: userModel.friendRequestsSent,
             friendRequestsReceived: userModel.friendRequestsReceived,
             blockedUsers: userModel.blockedUsers,
+            equippedBadgeUrl: userModel.equippedBadgeUrl,
           );
 
           // Collect write operations to batch execute

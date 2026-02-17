@@ -494,45 +494,48 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
       List<ReelModel> trendingReelsList = [];
       List<UserModel> friendSuggestionsList = [];
       List<PageModel> pageSuggestionsList = [];
+      List<MilestoneFeedItem> milestoneEventsList = [];
 
       try {
-        // Fetch trending reels
-        final reelRepo = _reelRepository;
-        if (reelRepo != null) {
-          trendingReelsList = await reelRepo
-              .getTrendingReels(limit: 10)
-              .timeout(const Duration(seconds: 5), onTimeout: () => []);
+        // Get friends list for milestone events and suggestions
+        final List<String> friends = [];
+        if (_userRepository != null) {
+          final user = await _userRepository.getUser(event.userId);
+          friends.addAll(List<String>.from(user.toMap()['friends'] ?? []));
         }
 
-        // Fetch friend suggestions
-        final friendRepo = _friendRepository; // Use FriendRepository
-        if (friendRepo != null) {
-          friendSuggestionsList = await friendRepo
-              .getFriendSuggestions(event.userId, limit: 10)
-              .timeout(const Duration(seconds: 5), onTimeout: () => []);
+        // Fetch everything in parallel to reduce load time
+        final futureReels = _reelRepository?.getTrendingReels(limit: 10);
+        final futureFriends =
+            _friendRepository?.getFriendSuggestions(event.userId, limit: 10);
+        final futurePages =
+            _pageRepository?.getPageSuggestions(event.userId, limit: 10);
+        final futureMilestones = _postRepository.getMilestoneEvents(
+            userId: event.userId, friendIds: friends);
 
-          // NUX: If no friend suggestions (no mutuals), fetch recommended users
-          if (friendSuggestionsList.isEmpty) {
-            debugPrint(
-                'UnifiedFeedBloc: No friend suggestions, fetching recommended users for NUX');
-            // We need UserDiscoveryRepository for this, but it's not injected yet.
-            // For now, we'll skip this or rely on what we have.
-            // Ideally, we should inject UserDiscoveryRepository.
-            // Assuming we can't easily change injection right now without more code,
-            // we'll leave this empty, but the global trending posts will help.
-          }
-        }
+        final results = await Future.wait([
+          futureReels ?? Future.value(<ReelModel>[]),
+          futureFriends ?? Future.value(<UserModel>[]),
+          futurePages ?? Future.value(<PageModel>[]),
+          futureMilestones,
+        ], eagerError: false)
+            .timeout(const Duration(seconds: 5),
+                onTimeout: () => [[], [], [], []]);
 
-        // Fetch page suggestions
-        final pageRepo = _pageRepository;
-        if (pageRepo != null) {
-          pageSuggestionsList = await pageRepo
-              .getPageSuggestions(event.userId, limit: 10)
-              .timeout(const Duration(seconds: 5), onTimeout: () => []);
-        }
+        trendingReelsList = results[0] as List<ReelModel>;
+        friendSuggestionsList = results[1] as List<UserModel>;
+        pageSuggestionsList = results[2] as List<PageModel>;
+        milestoneEventsList = results[3] as List<MilestoneFeedItem>;
       } catch (e) {
         debugPrint('UnifiedFeedBloc: Error fetching feed sections: $e');
         // Continue with feed even if sections fail
+      }
+
+      // Insert milestones at the top (or near top)
+      if (milestoneEventsList.isNotEmpty) {
+        // Insert at index 0 or after user's own recent posts
+        final insertIndex = userOwnRecent.length;
+        regularPosts.insertAll(insertIndex, milestoneEventsList);
       }
 
       // Insert ads every 8 posts in regular feed (after boosted posts section)

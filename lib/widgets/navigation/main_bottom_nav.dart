@@ -33,6 +33,9 @@ class MainBottomNav extends StatelessWidget {
   /// Optional: User photo URL for profile/menu tab (index 4)
   final String? userPhotoUrl;
 
+  /// Optional: User badge URL for profile/menu tab (index 4)
+  final String? userBadgeUrl;
+
   /// Optional: Showcase keys for guided overlay
   final Map<int, GlobalKey>? showcaseKeys;
 
@@ -44,6 +47,7 @@ class MainBottomNav extends StatelessWidget {
     required this.selectedIndex,
     required this.onItemTapped,
     this.userPhotoUrl,
+    this.userBadgeUrl,
     this.showcaseKeys,
     this.enableBlurEffects = true,
   });
@@ -114,6 +118,7 @@ class MainBottomNav extends StatelessWidget {
                 onTap: () => onItemTapped(4),
                 // Use UserAvatar if photo URL is provided
                 avatarUrl: userPhotoUrl,
+                badgeUrl: userBadgeUrl,
               ),
             ],
           ),
@@ -130,6 +135,7 @@ class _BottomNavIcon extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
   final String? avatarUrl; // Optional: Use avatar instead of icon
+  final String? badgeUrl; // Optional: Badge for the avatar
 
   const _BottomNavIcon({
     super.key,
@@ -138,6 +144,7 @@ class _BottomNavIcon extends StatelessWidget {
     required this.isSelected,
     required this.onTap,
     this.avatarUrl,
+    this.badgeUrl,
   });
 
   @override
@@ -180,6 +187,7 @@ class _BottomNavIcon extends StatelessWidget {
                   child: avatarUrl != null && avatarUrl!.isNotEmpty
                       ? UserAvatar(
                           url: avatarUrl,
+                          badgeUrl: badgeUrl,
                           size: AvatarSize.small,
                         )
                       : Icon(

@@ -18,10 +18,12 @@ class PostModel extends Equatable {
   final String authorId;
   final String authorUsername;
   final String authorPhotoUrl;
+  final String? authorBadgeUrl; // Denormalized equipped badge URL
   // Page fields (if post is created by a page)
   final String? pageId;
   final String? pageName;
   final String? pagePhotoUrl;
+  final String? pageBadgeUrl; // Denormalized equipped badge URL for page
   final bool pageIsVerified; // Denormalized verification status
   final String content;
   final List<MediaItem> mediaItems;
@@ -76,9 +78,11 @@ class PostModel extends Equatable {
     required this.authorId,
     required this.authorUsername,
     required this.authorPhotoUrl,
+    this.authorBadgeUrl,
     this.pageId,
     this.pageName,
     this.pagePhotoUrl,
+    this.pageBadgeUrl,
     this.pageIsVerified = false,
     required this.content,
     this.mediaItems = const [],
@@ -237,9 +241,11 @@ class PostModel extends Equatable {
       authorId: data['authorId'] ?? '',
       authorUsername: data['authorUsername'] ?? 'Anonymous',
       authorPhotoUrl: data['authorPhotoUrl'] ?? '',
+      authorBadgeUrl: data['authorBadgeUrl'],
       pageId: data['pageId'] as String?,
       pageName: data['pageName'] as String?,
       pagePhotoUrl: data['pagePhotoUrl'] as String?,
+      pageBadgeUrl: data['pageBadgeUrl'],
       pageIsVerified: data['pageIsVerified'] ?? false,
       content: data['content'] ?? '',
       mediaItems: mediaItems,
@@ -282,9 +288,11 @@ class PostModel extends Equatable {
       'authorId': authorId,
       'authorUsername': authorUsername,
       'authorPhotoUrl': authorPhotoUrl,
+      'authorBadgeUrl': authorBadgeUrl,
       'pageId': pageId,
       'pageName': pageName,
       'pagePhotoUrl': pagePhotoUrl,
+      'pageBadgeUrl': pageBadgeUrl,
       'pageIsVerified': pageIsVerified,
       'content': content,
       'mediaItems': mediaItems.map((item) => item.toMap()).toList(),
@@ -333,9 +341,11 @@ class PostModel extends Equatable {
     String? authorId,
     String? authorUsername,
     String? authorPhotoUrl,
+    String? authorBadgeUrl,
     String? pageId,
     String? pageName,
     String? pagePhotoUrl,
+    String? pageBadgeUrl,
     bool? pageIsVerified,
     String? content,
     List<MediaItem>? mediaItems,
@@ -375,9 +385,11 @@ class PostModel extends Equatable {
       authorId: authorId ?? this.authorId,
       authorUsername: authorUsername ?? this.authorUsername,
       authorPhotoUrl: authorPhotoUrl ?? this.authorPhotoUrl,
+      authorBadgeUrl: authorBadgeUrl ?? this.authorBadgeUrl,
       pageId: pageId ?? this.pageId,
       pageName: pageName ?? this.pageName,
       pagePhotoUrl: pagePhotoUrl ?? this.pagePhotoUrl,
+      pageBadgeUrl: pageBadgeUrl ?? this.pageBadgeUrl,
       pageIsVerified: pageIsVerified ?? this.pageIsVerified,
       content: content ?? this.content,
       mediaItems: mediaItems ?? this.mediaItems,
@@ -529,9 +541,11 @@ class PostModel extends Equatable {
         authorId,
         authorUsername,
         authorPhotoUrl,
+        authorBadgeUrl,
         pageId,
         pageName,
         pagePhotoUrl,
+        pageBadgeUrl,
         pageIsVerified,
         content,
         mediaItems,

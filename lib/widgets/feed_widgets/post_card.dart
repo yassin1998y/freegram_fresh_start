@@ -2,6 +2,7 @@
 // Refactored: Compositional widget that assembles optimized components
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Added for HapticFeedback
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:freegram/models/post_model.dart';
 import 'package:freegram/models/feed_item_model.dart'
@@ -10,7 +11,8 @@ import 'package:freegram/models/feed_item_model.dart'
         FeedItem,
         PostFeedItem,
         AdFeedItem,
-        SuggestionCarouselFeedItem;
+        SuggestionCarouselFeedItem,
+        MilestoneFeedItem;
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/widgets/feed/post/post_header.dart';
 import 'package:freegram/widgets/feed/post/post_media.dart';
@@ -32,8 +34,9 @@ import 'package:freegram/services/boost_analytics_service.dart';
 import 'package:freegram/services/mention_service.dart';
 import 'package:freegram/screens/hashtag_explore_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:freegram/screens/gift_send_selection_screen.dart'; // Import GiftSendSelectionScreen
-// Removed unused app_theme.dart import
+import 'package:freegram/screens/gift_send_selection_screen.dart';
+
+import 'package:freegram/utils/haptic_helper.dart';
 
 class PostCard extends StatefulWidget {
   final FeedItem item;
@@ -114,8 +117,143 @@ class _PostCardState extends State<PostCard> {
         type: suggestionItem.type,
         suggestions: suggestionItem.suggestions,
       );
+    } else if (widget.item is MilestoneFeedItem) {
+      final milestoneItem = widget.item as MilestoneFeedItem;
+      return _buildMilestoneCard(context, milestoneItem);
     }
     return const SizedBox.shrink();
+  }
+
+  Widget _buildMilestoneCard(
+      BuildContext context, MilestoneFeedItem milestone) {
+    final theme = Theme.of(context);
+    final isGold = milestone.tier.toLowerCase() == 'gold';
+    final isPlatinum = milestone.tier.toLowerCase() == 'platinum';
+
+    // Aesthetic: Brand Green Identity (Primary)
+    final accentColor = isPlatinum
+        ? const Color(0xFFE5E4E2)
+        : (isGold ? const Color(0xFFFFD700) : theme.colorScheme.primary);
+    final brandGreen = const Color(0xFF00E676); // High-intensity Brand Green
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(DesignTokens.spaceMD),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+        border: Border.all(
+          color: brandGreen.withValues(alpha: 0.3),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: brandGreen.withValues(alpha: 0.1),
+            blurRadius: 10,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundImage: milestone.userPhotoUrl.isNotEmpty
+                    ? NetworkImage(milestone.userPhotoUrl)
+                    : null,
+                radius: 20,
+              ),
+              const SizedBox(width: DesignTokens.spaceSM),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      milestone.username,
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      'Just reached a new milestone!',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          color: SemanticColors.textSecondary(context)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: DesignTokens.spaceMD),
+          Container(
+            padding: const EdgeInsets.all(DesignTokens.spaceLG),
+            decoration: BoxDecoration(
+              color: brandGreen.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+            ),
+            child: Column(
+              children: [
+                if (milestone.badgeUrl != null &&
+                    milestone.badgeUrl!.isNotEmpty)
+                  Image.network(milestone.badgeUrl!, height: 80, width: 80),
+                const SizedBox(height: DesignTokens.spaceSM),
+                Text(
+                  milestone.achievementName,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: brandGreen,
+                  ),
+                ),
+                Text(
+                  '${milestone.tier.toUpperCase()} BADGE',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    letterSpacing: 1.2,
+                    color: accentColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: DesignTokens.spaceMD),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _ActionButton(
+                icon: Icons.favorite_border,
+                label: 'React',
+                color: brandGreen,
+                onTap: () {
+                  HapticHelper.lightImpact();
+                  locator<UserRepository>().sendRemoteCommand(
+                    targetUserId: milestone.userId,
+                    command: 'haptic_reciprocity',
+                  );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Reaction sent!')),
+                  );
+                },
+              ),
+              _ActionButton(
+                icon: Icons.celebration,
+                label: 'Congratulate',
+                color: brandGreen,
+                onTap: () {
+                  HapticHelper.mediumImpact();
+                  locator<UserRepository>().sendRemoteCommand(
+                    targetUserId: milestone.userId,
+                    command: 'success_animation',
+                  );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Congratulated!')),
+                  );
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildPostCard(
@@ -450,6 +588,42 @@ class _PostCardState extends State<PostCard> {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: DesignTokens.spaceMD, vertical: DesignTokens.spaceXS),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(width: DesignTokens.spaceXS),
+            Text(
+              label,
+              style: TextStyle(color: color, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

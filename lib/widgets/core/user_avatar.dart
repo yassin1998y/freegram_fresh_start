@@ -25,11 +25,17 @@ class UserAvatar extends StatelessWidget {
   /// Image URL (can be null for fallback)
   final String? url;
 
+  /// URL for the achievement badge to display
+  final String? badgeUrl;
+
   /// Avatar size (small: 32px, medium: 40px, large: 64px)
   final AvatarSize size;
 
   /// Optional tap callback
   final VoidCallback? onTap;
+
+  /// Optional badge tap callback
+  final VoidCallback? onBadgeTap;
 
   /// Optional border width
   final double? borderWidth;
@@ -46,8 +52,10 @@ class UserAvatar extends StatelessWidget {
   const UserAvatar({
     super.key,
     this.url,
+    this.badgeUrl,
     this.size = AvatarSize.medium,
     this.onTap,
+    this.onBadgeTap,
     this.borderWidth,
     this.borderColor,
     this.backgroundColor,
@@ -62,7 +70,8 @@ class UserAvatar extends StatelessWidget {
     final effectiveBackgroundColor =
         backgroundColor ?? theme.colorScheme.surfaceContainerHighest;
     final effectiveIconColor = iconColor ??
-        theme.colorScheme.onSurface.withValues(alpha: DesignTokens.opacityMedium);
+        theme.colorScheme.onSurface
+            .withValues(alpha: DesignTokens.opacityMedium);
 
     // Validate URL
     final isValidUrl =
@@ -136,6 +145,57 @@ class UserAvatar extends StatelessWidget {
       );
     }
 
+    // Overlay Badge if provided
+    if (badgeUrl != null && badgeUrl!.isNotEmpty) {
+      final badgeSize = size.size * 0.35; // Badge is 35% of avatar size
+      avatarContent = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          avatarContent,
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: GestureDetector(
+              onTap: onBadgeTap,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: badgeSize,
+                height: badgeSize,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: ClipOval(
+                  child: CachedNetworkImage(
+                    imageUrl: CloudinaryService.getOptimizedImageUrl(
+                      badgeUrl!,
+                      width: badgeSize.toInt(),
+                      height: badgeSize.toInt(),
+                      quality: ImageQuality.thumbnail,
+                    ),
+                    fit: BoxFit.contain,
+                    errorWidget: (context, url, error) =>
+                        const SizedBox.shrink(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     // Add tap handler if provided
     if (onTap != null) {
       return GestureDetector(
@@ -151,7 +211,9 @@ class UserAvatar extends StatelessWidget {
 /// Convenience widget for small avatars (32px)
 class UserAvatarSmall extends StatelessWidget {
   final String? url;
+  final String? badgeUrl;
   final VoidCallback? onTap;
+  final VoidCallback? onBadgeTap;
   final double? borderWidth;
   final Color? borderColor;
   final Color? backgroundColor;
@@ -160,7 +222,9 @@ class UserAvatarSmall extends StatelessWidget {
   const UserAvatarSmall({
     super.key,
     this.url,
+    this.badgeUrl,
     this.onTap,
+    this.onBadgeTap,
     this.borderWidth,
     this.borderColor,
     this.backgroundColor,
@@ -171,8 +235,10 @@ class UserAvatarSmall extends StatelessWidget {
   Widget build(BuildContext context) {
     return UserAvatar(
       url: url,
+      badgeUrl: badgeUrl,
       size: AvatarSize.small,
       onTap: onTap,
+      onBadgeTap: onBadgeTap,
       borderWidth: borderWidth,
       borderColor: borderColor,
       backgroundColor: backgroundColor,
@@ -184,7 +250,9 @@ class UserAvatarSmall extends StatelessWidget {
 /// Convenience widget for medium avatars (40px)
 class UserAvatarMedium extends StatelessWidget {
   final String? url;
+  final String? badgeUrl;
   final VoidCallback? onTap;
+  final VoidCallback? onBadgeTap;
   final double? borderWidth;
   final Color? borderColor;
   final Color? backgroundColor;
@@ -193,7 +261,9 @@ class UserAvatarMedium extends StatelessWidget {
   const UserAvatarMedium({
     super.key,
     this.url,
+    this.badgeUrl,
     this.onTap,
+    this.onBadgeTap,
     this.borderWidth,
     this.borderColor,
     this.backgroundColor,
@@ -204,8 +274,10 @@ class UserAvatarMedium extends StatelessWidget {
   Widget build(BuildContext context) {
     return UserAvatar(
       url: url,
+      badgeUrl: badgeUrl,
       size: AvatarSize.medium,
       onTap: onTap,
+      onBadgeTap: onBadgeTap,
       borderWidth: borderWidth,
       borderColor: borderColor,
       backgroundColor: backgroundColor,
@@ -217,7 +289,9 @@ class UserAvatarMedium extends StatelessWidget {
 /// Convenience widget for large avatars (64px)
 class UserAvatarLarge extends StatelessWidget {
   final String? url;
+  final String? badgeUrl;
   final VoidCallback? onTap;
+  final VoidCallback? onBadgeTap;
   final double? borderWidth;
   final Color? borderColor;
   final Color? backgroundColor;
@@ -226,7 +300,9 @@ class UserAvatarLarge extends StatelessWidget {
   const UserAvatarLarge({
     super.key,
     this.url,
+    this.badgeUrl,
     this.onTap,
+    this.onBadgeTap,
     this.borderWidth,
     this.borderColor,
     this.backgroundColor,
@@ -237,8 +313,10 @@ class UserAvatarLarge extends StatelessWidget {
   Widget build(BuildContext context) {
     return UserAvatar(
       url: url,
+      badgeUrl: badgeUrl,
       size: AvatarSize.large,
       onTap: onTap,
+      onBadgeTap: onBadgeTap,
       borderWidth: borderWidth,
       borderColor: borderColor,
       backgroundColor: backgroundColor,

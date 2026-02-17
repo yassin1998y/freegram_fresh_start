@@ -9,6 +9,7 @@ import 'package:freegram/locator.dart';
 import 'package:freegram/repositories/gift_repository.dart';
 import 'package:freegram/widgets/gifting/message_template_selector.dart';
 import 'package:freegram/widgets/gifting/gift_sent_banner.dart';
+import 'package:freegram/widgets/island_popup.dart';
 import 'package:confetti/confetti.dart';
 
 /// Message composer screen for gift sending
@@ -178,11 +179,7 @@ class _GiftSendComposerScreenState extends State<GiftSendComposerScreen> {
                     color: rarityColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    Icons.card_giftcard,
-                    size: 32,
-                    color: rarityColor,
-                  ),
+                  child: _buildGiftPreview(widget.gift, rarityColor),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -506,6 +503,11 @@ class _GiftSendComposerScreenState extends State<GiftSendComposerScreen> {
     // Navigate back immediately
     if (mounted) {
       Navigator.popUntil(context, (route) => route.isFirst);
+      showIslandPopup(
+        context: context,
+        message: "Gift Sent! 🎁",
+        icon: Icons.card_giftcard,
+      );
     }
 
     // Remove overlay after animation completes
@@ -515,6 +517,34 @@ class _GiftSendComposerScreenState extends State<GiftSendComposerScreen> {
       overlayEntry.remove();
       confettiController.dispose();
     });
+  }
+
+  Widget _buildGiftPreview(GiftModel gift, Color rarityColor) {
+    final giftId = gift.id.toLowerCase();
+    final giftName = gift.name.toLowerCase();
+
+    if (giftId.contains('teddy') || giftName.contains('teddy')) {
+      return Image.asset('assets/seed_data/teddy_bear.gif',
+          width: 40, height: 40);
+    } else if (giftId.contains('rose') || giftName.contains('rose')) {
+      return Image.asset('assets/seed_data/red_rose_animation.gif',
+          width: 40, height: 40);
+    } else if (giftId.contains('ring') || giftName.contains('ring')) {
+      return Image.asset('assets/seed_data/diamond_ring.gif',
+          width: 40, height: 40);
+    } else if (giftId.contains('balloon') || giftName.contains('balloon')) {
+      return Image.asset('assets/seed_data/heart_balloon.gif',
+          width: 40, height: 40);
+    } else if (giftId.contains('party') || giftName.contains('party')) {
+      return Image.asset('assets/seed_data/party_popper.gif',
+          width: 40, height: 40);
+    }
+
+    return Icon(
+      Icons.card_giftcard,
+      size: 32,
+      color: rarityColor,
+    );
   }
 }
 

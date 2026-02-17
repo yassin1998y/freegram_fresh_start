@@ -80,12 +80,7 @@ class GiftPickerSheet extends StatelessWidget {
                                 color: Colors.white10,
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Text(
-                                gift.thumbnailUrl.isNotEmpty
-                                    ? gift.thumbnailUrl
-                                    : "🎁",
-                                style: const TextStyle(fontSize: 30),
-                              ),
+                              child: _buildGiftPreview(gift),
                             ),
                             const SizedBox(height: 5),
                             Text(
@@ -108,6 +103,33 @@ class GiftPickerSheet extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildGiftPreview(GiftModel gift) {
+    final giftId = gift.id.toLowerCase();
+    final giftName = gift.name.toLowerCase();
+
+    if (giftId.contains('teddy') || giftName.contains('teddy')) {
+      return Image.asset('assets/seed_data/teddy_bear.gif',
+          width: 40, height: 40);
+    } else if (giftId.contains('rose') || giftName.contains('rose')) {
+      return Image.asset('assets/seed_data/red_rose_animation.gif',
+          width: 40, height: 40);
+    } else if (giftId.contains('ring') || giftName.contains('ring')) {
+      return Image.asset('assets/seed_data/diamond_ring.gif',
+          width: 40, height: 40);
+    } else if (giftId.contains('balloon') || giftName.contains('balloon')) {
+      return Image.asset('assets/seed_data/heart_balloon.gif',
+          width: 40, height: 40);
+    } else if (giftId.contains('party') || giftName.contains('party')) {
+      return Image.asset('assets/seed_data/party_popper.gif',
+          width: 40, height: 40);
+    }
+
+    return Text(
+      gift.thumbnailUrl.isNotEmpty ? gift.thumbnailUrl : "🎁",
+      style: const TextStyle(fontSize: 30),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -184,7 +185,7 @@ class ChatRepository {
 
     // Use WriteBatch for atomic operations
     final batch = _db.batch();
-    
+
     // Generate message ID and add to batch
     final messageRef = chatRef.collection('messages').doc();
     batch.set(messageRef, messageData);
@@ -213,6 +214,64 @@ class ChatRepository {
     // --- Removed Gamification/Task calls ---
     // await _gamificationRepository.addXp(senderId, 2, isSeasonal: true);
     // await _taskRepository.updateTaskProgress(senderId, 'send_messages', 1);
+  }
+
+  /// Sends a system milestone message to the chat.
+  Future<void> sendSystemMilestone(
+      String chatId, String achievementName) async {
+    final chatRef = _db.collection('chats').doc(chatId);
+    final chatDoc = await chatRef.get();
+    if (!chatDoc.exists) return;
+
+    final chatData = chatDoc.data() as Map<String, dynamic>;
+    final users = List<String>.from(chatData['users'] ?? []);
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    final messageData = <String, dynamic>{
+      'text':
+          '✨ ${currentUser.displayName ?? 'User'} just earned the $achievementName badge!',
+      'senderId': 'system',
+      'timestamp': FieldValue.serverTimestamp(),
+      'isSeen': false,
+      'isDelivered': true,
+      'isSystemMessage': true,
+      'milestoneName': achievementName,
+    };
+
+    final batch = _db.batch();
+    final messageRef = chatRef.collection('messages').doc();
+    batch.set(messageRef, messageData);
+
+    // Update last message preview
+    batch.update(chatRef, {
+      'lastMessage': '✨ Achievement: $achievementName',
+      'lastMessageTimestamp': FieldValue.serverTimestamp(),
+      'unreadFor': FieldValue.arrayUnion(
+          users.where((u) => u != currentUser.uid).toList()),
+    });
+
+    await batch.commit();
+  }
+
+  /// Broadcasts a system milestone message to active chat sessions.
+  Future<void> broadcastSystemMilestone(
+      String userId, String achievementName) async {
+    try {
+      // Get most recent 5 chats to avoid spamming too many groups but reach active ones
+      final snapshot = await _db
+          .collection('chats')
+          .where('users', arrayContains: userId)
+          .orderBy('lastMessageTimestamp', descending: true)
+          .limit(5)
+          .get();
+
+      for (final doc in snapshot.docs) {
+        await sendSystemMilestone(doc.id, achievementName);
+      }
+    } catch (e) {
+      debugPrint('ChatRepository: Error broadcasting milestone: $e');
+    }
   }
 
   // editMessage remains the same
@@ -268,13 +327,14 @@ class ChatRepository {
     // Use transaction for atomic read-modify-write
     await _db.runTransaction((transaction) async {
       final doc = await transaction.get(messageRef);
-      
+
       if (!doc.exists) {
         throw Exception(ErrorMessages.messageNotFound);
       }
 
-      final reactions = Map<String, String>.from(doc.data()?['reactions'] ?? {});
-      
+      final reactions =
+          Map<String, String>.from(doc.data()?['reactions'] ?? {});
+
       // If user already reacted with the same emoji, remove reaction
       if (reactions[userId] == emoji) {
         reactions.remove(userId);
@@ -282,7 +342,7 @@ class ChatRepository {
         // Otherwise, add/update reaction
         reactions[userId] = emoji;
       }
-      
+
       transaction.update(messageRef, {'reactions': reactions});
     });
   }

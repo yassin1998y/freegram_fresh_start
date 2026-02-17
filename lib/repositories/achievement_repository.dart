@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:freegram/models/achievement_model.dart';
+import 'dart:async';
 
 class AchievementRepository {
   final FirebaseFirestore _db;
@@ -30,8 +31,38 @@ class AchievementRepository {
             .toList());
   }
 
+  /// Get single achievement by ID
+  Future<AchievementModel?> getAchievementById(String id) async {
+    final doc = await _db.collection('achievements').doc(id).get();
+    if (!doc.exists) return null;
+    return AchievementModel.fromDoc(doc);
+  }
+
+  /// Get achievement by its reward badge ID
+  Future<AchievementModel?> getAchievementByBadgeId(String badgeId) async {
+    final snapshot = await _db
+        .collection('achievements')
+        .where('rewardBadgeId', isEqualTo: badgeId)
+        .limit(1)
+        .get();
+    if (snapshot.docs.isEmpty) return null;
+    return AchievementModel.fromDoc(snapshot.docs.first);
+  }
+
+  /// Get achievement by its icon URL
+  Future<AchievementModel?> getAchievementByBadgeUrl(String badgeUrl) async {
+    final snapshot = await _db
+        .collection('achievements')
+        .where('iconUrl', isEqualTo: badgeUrl)
+        .limit(1)
+        .get();
+    if (snapshot.docs.isEmpty) return null;
+    return AchievementModel.fromDoc(snapshot.docs.first);
+  }
+
   /// Update achievement progress
-  Future<void> updateProgress(
+  /// Returns true if the achievement was just completed during this increment
+  Future<bool> updateProgress(
     String userId,
     String achievementId,
     int increment,
@@ -44,20 +75,25 @@ class AchievementRepository {
 
     final achievement =
         await _db.collection('achievements').doc(achievementId).get();
-    if (!achievement.exists) return;
+    if (!achievement.exists) return false;
 
     final achievementData = AchievementModel.fromDoc(achievement);
 
-    await _db.runTransaction((transaction) async {
+    return await _db.runTransaction((transaction) async {
       final progressDoc = await transaction.get(progressRef);
 
       int currentValue = 0;
+      bool alreadyCompleted = false;
       if (progressDoc.exists) {
         currentValue = progressDoc.data()?['currentValue'] ?? 0;
+        alreadyCompleted = progressDoc.data()?['isCompleted'] ?? false;
       }
 
       final newValue = currentValue + increment;
       final isCompleted = newValue >= achievementData.targetValue;
+      final newlyCompleted = isCompleted && !alreadyCompleted;
+
+      final progressData = progressDoc.exists ? progressDoc.data() : null;
 
       transaction.set(
         progressRef,
@@ -65,13 +101,17 @@ class AchievementRepository {
           'achievementId': achievementId,
           'currentValue': newValue,
           'isCompleted': isCompleted,
-          'completedAt': isCompleted && !progressDoc.exists
+          'completedAt': newlyCompleted
               ? FieldValue.serverTimestamp()
-              : progressDoc.data()?['completedAt'],
-          'rewardClaimed': progressDoc.data()?['rewardClaimed'] ?? false,
+              : (progressData != null ? progressData['completedAt'] : null),
+          'rewardClaimed': progressData != null
+              ? (progressData['rewardClaimed'] ?? false)
+              : false,
         },
         SetOptions(merge: true),
       );
+
+      return newlyCompleted;
     });
   }
 

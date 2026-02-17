@@ -49,4 +49,12 @@ class AnalyticsRepository {
 
     return [];
   }
+
+  /// Track badge interaction
+  Future<void> trackBadgeClick(String badgeId) async {
+    await _db.collection('analytics').doc('badges').collection('clicks').add({
+      'badgeId': badgeId,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
 }

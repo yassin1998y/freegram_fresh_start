@@ -51,6 +51,7 @@ class UserModel extends Equatable {
   final int userLevel; // Calculated from spending
   final String? equippedBorderId; // Currently equipped border
   final String? equippedBadgeId; // Currently equipped badge
+  final String? equippedBadgeUrl; // URL for the equipped badge
 
   // Inventory stats
   final int totalGiftsReceived;
@@ -107,6 +108,7 @@ class UserModel extends Equatable {
     this.userLevel = 1,
     this.equippedBorderId,
     this.equippedBadgeId,
+    this.equippedBadgeUrl,
     this.totalGiftsReceived = 0,
     this.totalGiftsSent = 0,
     this.uniqueGiftsCollected = 0,
@@ -125,17 +127,14 @@ class UserModel extends Equatable {
 
   // _toDateTime, _getList, _getIntList remain the same
   static DateTime _toDateTime(dynamic timestamp, [String? fieldName]) {
-    // Handle null timestamps
     if (timestamp == null) {
-      if (fieldName != null &&
-          (fieldName == 'lastDailyRewardClaim' ||
-              fieldName == 'lastNearbyDiscoveryDate' ||
-              fieldName == 'lastFreeSuperLike')) {
-        // These are expected to be null for new users, so be silent or less alarming
-        // debugPrint("UserModel: Optional field '$fieldName' is missing/null, defaulting to Epoch.");
-      } else {
+      if (fieldName == 'createdAt') {
         debugPrint(
-            "UserModel: Null timestamp encountered ${fieldName != null ? "for field '$fieldName'" : ""}, using epoch as fallback");
+            'DEVELOPER WARNING: createdAt is null for user. Initializing with DateTime.now()');
+        return DateTime.now();
+      }
+      if (fieldName == 'lastSeen') {
+        return DateTime.now();
       }
       return DateTime.fromMillisecondsSinceEpoch(0);
     }
@@ -241,8 +240,9 @@ class UserModel extends Equatable {
       // Gamification
       lifetimeCoinsSpent: data['lifetimeCoinsSpent'] ?? 0,
       userLevel: data['userLevel'] ?? 1,
-      equippedBorderId: data['equippedBorderId'],
-      equippedBadgeId: data['equippedBadgeId'],
+      equippedBorderId: data['equippedBorderId'] as String?,
+      equippedBadgeId: data['equippedBadgeId'] as String?,
+      equippedBadgeUrl: data['equippedBadgeUrl'] as String?,
       totalGiftsReceived: data['totalGiftsReceived'] ?? 0,
       totalGiftsSent: data['totalGiftsSent'] ?? 0,
       uniqueGiftsCollected: data['uniqueGiftsCollected'] ?? 0,
@@ -303,6 +303,7 @@ class UserModel extends Equatable {
       'userLevel': userLevel,
       'equippedBorderId': equippedBorderId,
       'equippedBadgeId': equippedBadgeId,
+      'equippedBadgeUrl': equippedBadgeUrl,
       'totalGiftsReceived': totalGiftsReceived,
       'totalGiftsSent': totalGiftsSent,
       'uniqueGiftsCollected': uniqueGiftsCollected,
@@ -367,8 +368,97 @@ class UserModel extends Equatable {
         lastNearbyDiscoveryDate,
         sharedMusicTrack, nearbyDataVersion, coins, // Added coins
         lifetimeCoinsSpent, userLevel, equippedBorderId, equippedBadgeId,
+        equippedBadgeUrl,
         totalGiftsReceived, totalGiftsSent, uniqueGiftsCollected,
         lastDailyRewardClaim, dailyLoginStreak,
-        // Removed: level
       ];
+
+  UserModel copyWith({
+    String? id,
+    String? username,
+    String? email,
+    String? photoUrl,
+    int? pictureVersion,
+    String? bio,
+    String? fcmToken,
+    bool? presence,
+    DateTime? lastSeen,
+    String? country,
+    GeoPoint? location,
+    int? age,
+    String? gender,
+    List<String>? interests,
+    DateTime? createdAt,
+    List<String>? friends,
+    List<String>? friendRequestsSent,
+    List<String>? friendRequestsReceived,
+    List<String>? blockedUsers,
+    List<String>? followedPages,
+    Map<String, double>? userAffinities,
+    int? coins,
+    int? superLikes,
+    DateTime? lastFreeSuperLike,
+    int? lifetimeCoinsSpent,
+    int? userLevel,
+    String? equippedBorderId,
+    String? equippedBadgeId,
+    String? equippedBadgeUrl,
+    int? totalGiftsReceived,
+    int? totalGiftsSent,
+    int? uniqueGiftsCollected,
+    DateTime? lastDailyRewardClaim,
+    int? dailyLoginStreak,
+    String? nearbyStatusMessage,
+    String? nearbyStatusEmoji,
+    int? nearbyDiscoveryStreak,
+    DateTime? lastNearbyDiscoveryDate,
+    Map<String, String>? sharedMusicTrack,
+    int? nearbyDataVersion,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      username: username ?? this.username,
+      email: email ?? this.email,
+      photoUrl: photoUrl ?? this.photoUrl,
+      pictureVersion: pictureVersion ?? this.pictureVersion,
+      bio: bio ?? this.bio,
+      fcmToken: fcmToken ?? this.fcmToken,
+      presence: presence ?? this.presence,
+      lastSeen: lastSeen ?? this.lastSeen,
+      country: country ?? this.country,
+      location: location ?? this.location,
+      age: age ?? this.age,
+      gender: gender ?? this.gender,
+      interests: interests ?? this.interests,
+      createdAt: createdAt ?? this.createdAt,
+      friends: friends ?? this.friends,
+      friendRequestsSent: friendRequestsSent ?? this.friendRequestsSent,
+      friendRequestsReceived:
+          friendRequestsReceived ?? this.friendRequestsReceived,
+      blockedUsers: blockedUsers ?? this.blockedUsers,
+      followedPages: followedPages ?? this.followedPages,
+      userAffinities: userAffinities ?? this.userAffinities,
+      coins: coins ?? this.coins,
+      superLikes: superLikes ?? this.superLikes,
+      lastFreeSuperLike: lastFreeSuperLike ?? this.lastFreeSuperLike,
+      lifetimeCoinsSpent: lifetimeCoinsSpent ?? this.lifetimeCoinsSpent,
+      userLevel: userLevel ?? this.userLevel,
+      equippedBorderId: equippedBorderId ?? this.equippedBorderId,
+      equippedBadgeId: equippedBadgeId ?? this.equippedBadgeId,
+      equippedBadgeUrl: equippedBadgeUrl ?? this.equippedBadgeUrl,
+      totalGiftsReceived: totalGiftsReceived ?? this.totalGiftsReceived,
+      totalGiftsSent: totalGiftsSent ?? this.totalGiftsSent,
+      uniqueGiftsCollected: uniqueGiftsCollected ?? this.uniqueGiftsCollected,
+      lastDailyRewardClaim: lastDailyRewardClaim ?? this.lastDailyRewardClaim,
+      dailyLoginStreak: dailyLoginStreak ?? this.dailyLoginStreak,
+      nearbyStatusMessage: nearbyStatusMessage ?? this.nearbyStatusMessage,
+      nearbyStatusEmoji: nearbyStatusEmoji ?? this.nearbyStatusEmoji,
+      nearbyDiscoveryStreak:
+          nearbyDiscoveryStreak ?? this.nearbyDiscoveryStreak,
+      lastNearbyDiscoveryDate:
+          lastNearbyDiscoveryDate ?? this.lastNearbyDiscoveryDate,
+      sharedMusicTrack: sharedMusicTrack ?? this.sharedMusicTrack,
+      nearbyDataVersion: nearbyDataVersion ?? this.nearbyDataVersion,
+    );
+  }
 }
