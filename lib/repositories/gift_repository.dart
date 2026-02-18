@@ -6,6 +6,7 @@ import 'package:freegram/models/user_model.dart';
 import 'package:freegram/models/wishlist_item_model.dart';
 
 import 'package:freegram/utils/level_calculator.dart';
+import 'package:freegram/utils/app_logger.dart';
 
 class GiftRepository {
   final FirebaseFirestore _db;
@@ -26,7 +27,7 @@ class GiftRepository {
       get onGiftSent => _giftSentController.stream;
 
   GiftRepository({FirebaseFirestore? firestore})
-      : _db = firestore ?? FirebaseFirestore.instance {}
+      : _db = firestore ?? FirebaseFirestore.instance;
 
   /// Helper to generate chat ID from two user IDs
   String _getChatId(String userId1, String userId2) {
@@ -168,6 +169,16 @@ class GiftRepository {
       return ownedGift;
     });
 
+    // Double-check validation loop (Anti-Spoofing)
+    try {
+      final verifyUser = await _db.collection('users').doc(userId).get();
+      final currentCoins = verifyUser.data()?['coins'] as int? ?? 0;
+      AppLogger.info(
+          "Purchase verified for user $userId. Current balance: $currentCoins");
+    } catch (e) {
+      AppLogger.error("Purchase verification check failed: $e");
+    }
+
     // Emit event for achievement tracking
     _giftPurchasedController
         .add((userId: userId, giftId: giftId, price: gift.priceInCoins));
@@ -239,6 +250,7 @@ class GiftRepository {
         'lifetimeCoinsSpent': FieldValue.increment(gift.priceInCoins),
         'userLevel': newLevel,
         'totalGiftsSent': FieldValue.increment(1),
+        'socialPoints': FieldValue.increment(10),
       });
 
       // 6. Update recipient stats

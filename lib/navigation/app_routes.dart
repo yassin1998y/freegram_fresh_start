@@ -38,6 +38,8 @@ class AppRoutes {
 
   // Other Routes
   static const String store = '/store';
+  static const String wishlist = '/wishlist';
+  static const String boostPost = '/boostPost';
   static const String inventory = '/inventory';
   static const String referral = '/referral';
   static const String matchAnimation = '/matchAnimation';
@@ -54,6 +56,42 @@ class AppRoutes {
   // Story Routes
   static const String storyCreator = '/storyCreator';
   static const String textStoryCreator = '/textStoryCreator';
+  // Social & Discovery
+  static const String hashtagExplore = '/hashtagExplore';
+  static const String search = '/search';
+  static const String locationPicker = '/locationPicker';
+  static const String mentionedPosts = '/mentionedPosts';
+
+  // Media & Viewer
+  static const String postDetail = '/postDetail';
+  static const String storyViewer = '/storyViewer';
+  static const String imageGallery = '/imageGallery';
+  static const String videoPlayer = '/videoPlayer';
+
+  // Gifting Economy
+  static const String marketplace = '/marketplace';
+  static const String categoryBrowse = '/categoryBrowse';
+  static const String giftHistory = '/giftHistory';
+  static const String giftDetail = '/giftDetail';
+  static const String limitedEditions = '/limitedEditions';
+
+  // Admin & Analytics
+  static const String analyticsDashboard = '/analyticsDashboard';
+  static const String moderationDashboard = '/moderationDashboard';
+  static const String boostAnalytics = '/boostAnalytics';
+  static const String report = '/report';
+
+  // Specialized Hubs
+  static const String leaderboard = '/leaderboard';
+  static const String achievements = '/achievements';
+  static const String dailyRewards = '/dailyRewards';
+  static const String pageProfile = '/pageProfile';
+  static const String pageSettings = '/pageSettings';
+  static const String pageAnalytics = '/pageAnalytics';
+
+  // General Utilities
+  static const String featureDiscovery = '/featureDiscovery';
+  static const String createPage = '/createPage';
 }
 
 /// Type-safe route arguments
@@ -173,4 +211,103 @@ class MatchAnimationArguments {
       matchedPhotoUrl: map?['matchedPhotoUrl'] as String?,
     );
   }
+}
+
+/// Post Detail Arguments
+class PostDetailArguments {
+  final String postId;
+
+  const PostDetailArguments({required this.postId});
+}
+
+/// Hashtag Explore Arguments
+class HashtagExploreArguments {
+  final String hashtag;
+
+  const HashtagExploreArguments({required this.hashtag});
+}
+
+/// Category Browse Arguments
+class CategoryBrowseArguments {
+  final dynamic
+      category; // Using dynamic to avoid circular dependency, usually GiftCategory
+
+  const CategoryBrowseArguments({required this.category});
+}
+
+/// Gift Detail Arguments
+class GiftDetailArguments {
+  final dynamic
+      gift; // Using dynamic to avoid circular dependency, usually GiftModel
+
+  const GiftDetailArguments({required this.gift});
+}
+
+/// Video Player Arguments
+class VideoPlayerArguments {
+  final dynamic mediaItem; // MediaItem model
+  final Duration? initialPosition;
+
+  const VideoPlayerArguments({
+    required this.mediaItem,
+    this.initialPosition,
+  });
+}
+
+/// Image Gallery Arguments
+class ImageGalleryArguments {
+  final List<String> imageUrls;
+  final int initialIndex;
+
+  const ImageGalleryArguments({
+    required this.imageUrls,
+    this.initialIndex = 0,
+  });
+}
+
+/// Report Arguments
+class ReportArguments {
+  final String contentId;
+  final dynamic contentType; // ReportContentType enum
+
+  const ReportArguments({
+    required this.contentId,
+    required this.contentType,
+  });
+}
+
+/// Boost Analytics Arguments
+class BoostAnalyticsArguments {
+  final dynamic post; // PostModel
+
+  const BoostAnalyticsArguments({required this.post});
+}
+
+/// Page Profile Arguments
+class PageProfileArguments {
+  final String pageId;
+
+  const PageProfileArguments({required this.pageId});
+}
+
+/// Page Settings Arguments
+class PageSettingsArguments {
+  final String pageId;
+
+  const PageSettingsArguments({required this.pageId});
+}
+
+/// Story Viewer Arguments
+class StoryViewerArguments {
+  final String startingUserId;
+
+  const StoryViewerArguments({
+    required this.startingUserId,
+  });
+}
+
+class BoostPostArguments {
+  final dynamic post; // PostModel
+
+  const BoostPostArguments({required this.post});
 }

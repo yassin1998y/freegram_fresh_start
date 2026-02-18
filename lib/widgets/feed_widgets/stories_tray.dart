@@ -31,15 +31,8 @@ class StoriesTrayWidget extends StatelessWidget {
 
     return Container(
       height: 160,
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
+      decoration: const BoxDecoration(
+        color: Colors.transparent,
       ),
       padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSM),
       child: NotificationListener<ScrollNotification>(
@@ -168,8 +161,7 @@ class StoriesTrayWidget extends StatelessWidget {
                 return ListView.builder(
                   scrollDirection: Axis.horizontal,
                   physics: const ClampingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: DesignTokens.spaceMD),
+                  padding: EdgeInsets.zero,
                   itemCount: storyWidgets.length,
                   itemBuilder: (context, index) {
                     return storyWidgets[index];

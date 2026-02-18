@@ -243,15 +243,13 @@ class Containers {
         borderRadius: BorderRadius.circular(12),
       );
 
-  // Unified 1px Border Rule Implementation
+  // Unified 1px Border Rule Implementation (Pure Design)
   static BoxDecoration glassCard(BuildContext context) => BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark
-            ? const Color(0xFF1E1E1E)
-            : Colors.white,
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
         border: Border.all(
-          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
-          width: DesignTokens.borderWidthThin, // 1px border
+          color: const Color(0xFF00BFA5).withValues(alpha: 0.05),
+          width: 1.0,
         ),
       );
 
@@ -332,6 +330,7 @@ class SemanticColors {
   static const Color success = Color(0xFF10B981);
   static const Color warning = Color(0xFFF59E0B);
   static const Color error = Color(0xFFEF4444);
+  static const Color highPriority = Color(0xFFEF5350); // Pulsing Red
   static const Color info = Color(0xFF3B82F6);
   static const Color neutral = Color(0xFF6B7280);
 

@@ -1,13 +1,12 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:freegram/theme/app_theme.dart';
+import 'package:flutter/services.dart';
 
 class SonarView extends StatefulWidget {
   final bool isScanning;
   final List<Widget> foundUserAvatars;
   final Widget centerAvatar;
   final AnimationController unleashController;
-  // **NEW**: A controller for the "user found" ripple effect.
   final AnimationController discoveryController;
 
   const SonarView({
@@ -27,8 +26,10 @@ class _SonarViewState extends State<SonarView> with TickerProviderStateMixin {
   late AnimationController _sonarController;
   late Animation<double> _sonarAnimation;
   late Animation<double> _unleashAnimation;
-  // **NEW**: Animation for the discovery ripple.
   late Animation<double> _discoveryAnimation;
+
+  // Track last value to detect cycle completion for haptic feedback
+  double _lastHapticValue = 0.0;
 
   @override
   void initState() {
@@ -37,6 +38,17 @@ class _SonarViewState extends State<SonarView> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(seconds: 3),
     );
+
+    // Haptic Heartbeat Integration
+    _sonarController.addListener(() {
+      if (widget.isScanning) {
+        // Trigger haptic when the loop restarts (value wraps near 0)
+        if (_sonarController.value < 0.05 && _lastHapticValue > 0.95) {
+          HapticFeedback.lightImpact();
+        }
+        _lastHapticValue = _sonarController.value;
+      }
+    });
 
     _sonarAnimation = CurvedAnimation(
       parent: _sonarController,
@@ -48,7 +60,6 @@ class _SonarViewState extends State<SonarView> with TickerProviderStateMixin {
       curve: Curves.fastOutSlowIn,
     );
 
-    // **NEW**: Set up the discovery animation.
     _discoveryAnimation = CurvedAnimation(
       parent: widget.discoveryController,
       curve: Curves.easeInOut,
@@ -79,20 +90,24 @@ class _SonarViewState extends State<SonarView> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return AspectRatio(
       aspectRatio: 1.0,
-      child: CustomPaint(
-        painter: SonarPainter(
-          sonarAnimation: _sonarAnimation,
-          unleashAnimation: _unleashAnimation,
-          discoveryAnimation: _discoveryAnimation,
-          primaryColor: SonarPulseTheme.primaryAccent,
-          secondaryColor: SonarPulseTheme.primaryAccentLight,
-          discoveryColor: SonarPulseTheme.primaryAccentDark,
-        ),
-        child: Stack(
-          children: [
-            Center(child: widget.centerAvatar),
-            ...widget.foundUserAvatars,
-          ],
+      // OPTIMIZATION: RepaintBoundary prevents full screen repaints during animation
+      child: RepaintBoundary(
+        child: CustomPaint(
+          painter: SonarPainter(
+            sonarAnimation: _sonarAnimation,
+            unleashAnimation: _unleashAnimation,
+            discoveryAnimation: _discoveryAnimation,
+            // Brand Green: 0xFF00BFA5
+            primaryColor: const Color(0xFF00BFA5),
+            secondaryColor: const Color(0xFF00BFA5).withValues(alpha: 0.5),
+            discoveryColor: const Color(0xFF00BFA5),
+          ),
+          child: Stack(
+            children: [
+              Center(child: widget.centerAvatar),
+              ...widget.foundUserAvatars,
+            ],
+          ),
         ),
       ),
     );
@@ -102,7 +117,6 @@ class _SonarViewState extends State<SonarView> with TickerProviderStateMixin {
 class SonarPainter extends CustomPainter {
   final Animation<double> sonarAnimation;
   final Animation<double> unleashAnimation;
-  // **NEW**: The discovery animation is now a parameter.
   final Animation<double> discoveryAnimation;
   final Paint _sonarPaint;
   final Color primaryColor;
@@ -128,10 +142,10 @@ class SonarPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final maxRadius = math.min(size.width, size.height) / 2;
 
-    // Draw static circles
+    // Draw static circles with Brand Green low opacity
     for (int i = 1; i <= 3; i++) {
       _sonarPaint.strokeWidth = 1.0;
-      _sonarPaint.color = primaryColor.withValues(alpha: 0.3);
+      _sonarPaint.color = primaryColor.withValues(alpha: 0.1);
       canvas.drawCircle(center, maxRadius * (i / 3), _sonarPaint);
     }
 

@@ -94,6 +94,7 @@ class MainBottomNav extends StatelessWidget {
                 icon: Icons.whatshot_outlined,
                 label: 'Match',
                 isSelected: selectedIndex == 2,
+                useMediumHaptic: true, // Boutique/Match needs medium impact
                 onTap: () => onItemTapped(2),
               ),
               _GlassmorphicCenterButton(
@@ -145,7 +146,10 @@ class _BottomNavIcon extends StatelessWidget {
     required this.onTap,
     this.avatarUrl,
     this.badgeUrl,
+    this.useMediumHaptic = false,
   });
+
+  final bool useMediumHaptic;
 
   @override
   Widget build(BuildContext context) {
@@ -162,7 +166,11 @@ class _BottomNavIcon extends StatelessWidget {
         type: MaterialType.transparency,
         child: InkWell(
           onTap: () {
-            HapticFeedback.lightImpact();
+            if (useMediumHaptic) {
+              HapticFeedback.mediumImpact();
+            } else {
+              HapticFeedback.lightImpact();
+            }
             onTap();
           },
           child: Padding(

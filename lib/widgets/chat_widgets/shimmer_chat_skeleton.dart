@@ -65,7 +65,8 @@ class _ShimmerChatSkeletonState extends State<ShimmerChatSkeleton>
               opacity: value,
               child: Transform.translate(
                 offset: Offset(0, 20 * (1 - value)),
-                child: _buildSkeletonItem(random, baseColor, highlightColor),
+                child: _buildSkeletonItem(
+                    random, index, baseColor, highlightColor),
               ),
             );
           },
@@ -75,95 +76,51 @@ class _ShimmerChatSkeletonState extends State<ShimmerChatSkeleton>
   }
 
   Widget _buildSkeletonItem(
-      Random random, Color baseColor, Color highlightColor) {
-    final messageWidth = 100.0 + random.nextDouble() * 150;
+      Random random, int index, Color baseColor, Color highlightColor) {
+    final isMe = index % 2 == 0;
+    final width = 150.0 + random.nextDouble() * 100.0;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: DesignTokens.spaceMD,
-        vertical: DesignTokens.spaceSM,
-      ),
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        border: Border(
-          bottom: BorderSide(
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        width: width,
+        height: 60,
+        margin: const EdgeInsets.symmetric(
+          horizontal: DesignTokens.spaceMD,
+          vertical: DesignTokens.spaceXS,
+        ),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          border: Border.all(
             color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
             width: 1.0,
           ),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(DesignTokens.radiusLG),
+            topRight: Radius.circular(
+                isMe ? DesignTokens.radiusXS : DesignTokens.radiusLG),
+            bottomLeft: Radius.circular(
+                isMe ? DesignTokens.radiusLG : DesignTokens.radiusXS),
+            bottomRight: const Radius.circular(DesignTokens.radiusLG),
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          // Avatar
-          AnimatedBuilder(
-            animation: _shimmerAnimation,
-            builder: (context, child) {
-              return _buildShimmerContainer(
-                width: 56,
-                height: 56,
-                radius: 28,
-                baseColor: baseColor,
-                highlightColor: highlightColor,
-              );
-            },
+        child: ClipRRect(
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(DesignTokens.radiusLG),
+            topRight: Radius.circular(
+                isMe ? DesignTokens.radiusXS : DesignTokens.radiusLG),
+            bottomLeft: Radius.circular(
+                isMe ? DesignTokens.radiusLG : DesignTokens.radiusXS),
+            bottomRight: const Radius.circular(DesignTokens.radiusLG),
           ),
-
-          const SizedBox(width: DesignTokens.spaceMD),
-
-          // Content
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Username
-                AnimatedBuilder(
-                  animation: _shimmerAnimation,
-                  builder: (context, child) {
-                    return _buildShimmerContainer(
-                      width: 120,
-                      height: 16,
-                      radius: 4,
-                      baseColor: baseColor,
-                      highlightColor: highlightColor,
-                    );
-                  },
-                ),
-
-                const SizedBox(height: DesignTokens.spaceSM),
-
-                // Message preview
-                AnimatedBuilder(
-                  animation: _shimmerAnimation,
-                  builder: (context, child) {
-                    return _buildShimmerContainer(
-                      width: messageWidth,
-                      height: 14,
-                      radius: 4,
-                      baseColor: baseColor,
-                      highlightColor: highlightColor,
-                    );
-                  },
-                ),
-              ],
-            ),
+          child: _buildShimmerContainer(
+            width: width,
+            height: 60,
+            radius: 0, // Radius handled by parent
+            baseColor: baseColor,
+            highlightColor: highlightColor,
           ),
-
-          const SizedBox(width: DesignTokens.spaceSM),
-
-          // Time
-          AnimatedBuilder(
-            animation: _shimmerAnimation,
-            builder: (context, child) {
-              return _buildShimmerContainer(
-                width: 40,
-                height: 12,
-                radius: 4,
-                baseColor: baseColor,
-                highlightColor: highlightColor,
-              );
-            },
-          ),
-        ],
+        ),
       ),
     );
   }

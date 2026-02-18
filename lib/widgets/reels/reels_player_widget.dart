@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:video_player/video_player.dart';
@@ -225,11 +226,16 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
       }
 
       // CRITICAL FIX: Cache-first strategy - ALWAYS check cache first, download if needed
+      // WEB FIX: Flutter Web must streaming directly from URL; it cannot use byte-cache
       final videoUrl = widget.reel.getVideoUrlForQuality(initialQuality);
       VideoPlayerController? controller;
       File? cachedFile;
 
-      if (useCache) {
+      if (kIsWeb) {
+        debugPrint(
+            'ReelsPlayerWidget: Web detected, using network URL directly');
+        controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
+      } else if (useCache) {
         try {
           // Step 1: Try to get cached file
           cachedFile = await _cacheService.videoManager.getSingleFile(videoUrl);
@@ -264,7 +270,7 @@ class _ReelsPlayerWidgetState extends State<ReelsPlayerWidget>
 
       // Step 3: If no cached file, download to cache FIRST, then create controller from cached file
       if (controller == null) {
-        if (useCache) {
+        if (useCache && !kIsWeb) {
           try {
             // CRITICAL FIX: Download to cache FIRST, then use cached file
             debugPrint(

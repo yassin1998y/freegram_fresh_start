@@ -51,6 +51,9 @@ class UserProfile extends HiveObject {
 
   @HiveField(14)
   String? equippedBadgeUrl;
+
+  @HiveField(15)
+  Map<String, dynamic> privacySettings;
   // --- END NEW FIELDS ---
 
   UserProfile({
@@ -71,5 +74,6 @@ class UserProfile extends HiveObject {
     this.friendRequestsReceived = const [],
     this.blockedUsers = const [],
     this.equippedBadgeUrl,
+    this.privacySettings = const {},
   });
 }

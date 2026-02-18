@@ -1,150 +1,185 @@
-# Freegram - Project Master Document
+# Freegram - Project Master Document (Golden Master V1.0)
 
-## 1. Project Description
+## 1. Project Description: The Nearby-First Pivot
 
-**Freegram** is a comprehensive social media platform built with Flutter (v3.2.6+) that combines traditional social networking features with innovative mechanics like virtual gifting, location-based discovery ("Sonar"), and rich multimedia content sharing (Reels, Stories).
+**Freegram** is a **Nearby-First Social Discovery Ecosystem** built with Flutter. Unlike traditional social networks that prioritize algorithmic feeds, Freegram's core philosophy is physical proximity and real-time presence. It bridges the digital and physical worlds by allowing users to discover, interact with, and gift unique virtual items to people around them, creating a gamified "Gifting Economy" layered over the real world.
 
-*   **Platform:** Cross-platform (iOS, Android, Web, Desktop)
-*   **Architecture:** Clean Architecture with BLoC Pattern
-*   **Backend:** Firebase Ecosystem (Firestore, Auth, Storage, Functions, Realtime DB)
-*   **State Management:** flutter_bloc
-*   **Key Differentiator:** A gamified "Gifting Economy" and "Nearby Discovery" system.
+The application is architected as a Local-First experience, prioritizing immediate interactivity and offline resilience through the **GlobalCacheCoordinator**.
 
 ---
 
-## 2. Features
+## 2. The Sonar Nearby System (Primary Core)
 
-### Core Features (Implemented)
-*   **Virtual Gifting System:**
-    *   Virtual currency (Coins) and Marketplace.
-    *   Animated gifts (Lottie) with rarity tiers (Common, Rare, Epic, Legendary).
-    *   Gift sending in chat and on profiles.
-    *   User inventory and gift history.
-*   **Advanced Chat System:**
-    *   Real-time 1-on-1 messaging (Firebase Realtime DB/Firestore).
-    *   Rich media support (Images, Video, Audio, GIFs).
-    *   "Random Chat" feature with "Azar-style" video discovery (swipe to skip).
-    *   **3-State UI:** Searching, Connected, Peer Left states for seamless UX.
-    *   **Safety Features:** Instant reporting (Nudity/Harassment/Spam) and blocking.
-    *   **Monetization:** Filter locking (Gender/Region) behind a Paywall.
-*   **Reels (Short-Form Video):**
-    *   TikTok-style vertical feed.
-    *   Video recording, basic trimming, and uploading.
-    *   Engagement (Like, Comment, Share).
-*   **Stories:**
-    *   24-hour ephemeral content (Photo/Video/Text).
-    *   Story tray with viewed/unviewed indicators.
-*   **Social Networking:**
-    *   Friend system (Request/Accept/Block).
-    *   User Profiles with stats, posts, and gift showcases.
-    *   Unified Feed with algorithmic ranking (basic implementation).
-*   **Nearby Discovery:**
-    *   Bluetooth Low Energy (BLE) & Geolocation based matching.
-    *   "Sonar" radar visualization for nearby users.
-*   **Pages (Business/Creator):**
-    *   Separate entity for businesses/creators.
-    *   Verification system with Admin approval (see Operations section).
-*   **Gamification System (Expanded):**
-    *   **Enhanced Store Catalog:** Expansion of coin packages, 20+ new animated gifts, and profile customization items. (Live)
-    *   **Daily Rewards:** Login streak system with increasing rewards. (Implemented)
-    *   **Achievements & Quests:** System for tracking user milestones (e.g., "Big Spender", "Social Butterfly") with rewards. (Implemented)
-    *   **Referral System:** Unique codes, invite links, and dual-sided rewards. (Implemented)
-    *   **Transaction History:** Detailed logs of all economy actions. (Implemented)
+The **Sonar System** is the heartbeat of Freegram, enabling the "Nearby-First" experience. It governs how users detect each other and visualization of that presence.
 
-### Planned / In-Progress Features
-*(Derived from `.plans/` directory)*
-
-#### A. Phase 2: Unified Media Engine (Planned)
-*   **Description:** Consolidate video compression, editing, and thumbnail generation into a single robust pipeline using Google-standard and LGPL-compliant tools.
-*   **Target Stack:**
-    *   **Playback:** `video_player` (Keep).
-    *   **Engine:** `ffmpeg_kit_flutter_min` (LGPL version, replaces `video_compress`).
-    *   **Editing UI:** `video_editor`.
-*   **System Requirement:** Upgrade Android `minSdkVersion` to 24.
-
-#### B. Reel Creation Improvements (Phase 2)
-*   **Advanced Video Editing:** Precise timeline trimming, frame previews using `video_editor` package. (*Status: Planned*)
-*   **Audio/Music Integration:** Music picker, audio mixing, and volume controls. (*Status: Planned*)
-*   **Recording Enhancements:** Flash control, countdown timer, grid overlay, camera switching. (*Status: Planned*)
-*   **Video Compression:** FFmpeg integration for optimized uploads (High/Medium/Low quality presets). (*Status: Planned*)
+### Core Mechanisms
+*   **BLE Advertising/Scanning Loops:**
+    *   The app runs a continuous background service (foreground notification pinned) that toggles between advertising the user's encrypted `uid` via Bluetooth Low Energy (BLE) and scanning for packets from other devices.
+    *   **Advertiser:** Broadcasts a UUID-masked packet containing critical social signals (Interest Hash, Avatar Hash).
+    *   **Scanner:** Filters discovered packets by RSSI (Signal Strength) to estimate distance (Immediate, Near, Far).
+*   **Presence Persistence (Hive-backed):**
+    *   **Discovery Event:** When a device is found, it is immediately upserted into the `nearby_users` Hive box.
+    *   **Offline/Online Logic:** A "Last Seen" timestamp is updated on every packet receipt. If a user is not seen for >30 seconds, they are marked "Ghost/Offline" in the UI but retained in the persistency layer to prevent UI flickering.
+    *   **Truth:** The `GlobalCacheCoordinator` streams the Hive box state to the UI, ensuring that the visual list is always stable, even if the BLE scan cycle is intermittent.
+*   **60FPS Radar Visualization:**
+    *   **Engine:** Custom `Canvas`-based render loop.
+    *   **Logic:** Users are mapped to polar coordinates (`distance`, `angle`) on the radar. The `angle` is randomized (visual only) while `distance` is derived from RSSI.
+    *   **Interpolation:** Avatar positions are interpolated to ensure smooth movement (60fps) even if BLE updates arrive at 1Hz.
+    *   **Pulse Effect:** A radial shader effect propagates from the center, synchronized with the scanning cycle.
 
 ---
 
-## 3. System Architecture
+## 3. Complete Screen Registry (57+ Screens)
 
-The project follows a modular **Clean Architecture** approach.
+All screens adhere to the **1px Border Rule** (using `DesignTokens.borders`) and **SWR (Stale-While-Revalidate)** caching strategies. Every screen is registered in `AppRoutes` and accessible via named navigation.
 
-### Directory Structure
-*   `lib/blocs`: Business Logic Components (State Management).
-*   `lib/repositories`: Data abstraction layer (talking to Firebase/APIs).
-*   `lib/services`: Feature-specific logic (e.g., `AudioService`, `BluetoothService`).
-*   `lib/models`: Data models (Freezed/JSON Serializable).
-*   `lib/screens`: UI screens grouped by feature.
-*   `lib/widgets`: Reusable UI components.
-*   `lib/utils`: Helpers and extensions.
+### A. Authentication & Onboarding (3 screens)
+1. **LoginScreen** (`/login`) - Email/password authentication with social login options
+2. **SignUpScreen** (`/signup`) - Multi-step registration with profile setup
+3. **MultiStepOnboardingScreen** (`/onboarding`) - Interactive tutorial and preference collection
 
-### Key Technical Components
-*   **State Management:** BLoC (Business Logic Component) is used strictly.
-    *   Major BLoCs: `AuthBloc`, `ChatBloc`, `FeedBloc`, `ReelUploadBloc`.
-*   **Dependency Injection:** `get_it` used in `lib/locator.dart` to manage singletons (Repositories, Services).
-*   **Navigation:** Centralized `NavigationService` with named routes.
-*   **Local Storage:** `Hive` (NoSQL) for heavy caching, `SharedPreferences` for flags.
-*   **Media Handling:** Cloudinary (via `CloudinaryService`) for image optimization.
+### B. Main Navigation Hub (7 screens)
+4. **MainScreen** (`/main`) - Bottom navigation container with 5 tabs
+5. **NearbyScreen** (`/nearby`) - Sonar radar with BLE-based user discovery
+6. **FeedScreen** (`/feed`) - Unified social feed with posts and stories
+7. **CreatePostScreen** (`/createPost`) - Multi-media post composer
+8. **MatchScreen** (`/match`) - Swipe-based discovery interface
+9. **FriendsListScreen** (`/friends`) - Friend management and requests
+10. **MenuScreen** (`/menu`) - Settings and profile access hub
 
-### Dependencies
-*   **WebRTC:** `flutter_webrtc` for video calls (Random Chat).
-*   **FFmpeg:** `ffmpeg_kit_flutter` (Note: Pending implementation for video editing).
-*   **Firebase:** Heavily reliant on Firebase features.
-*   **Socket.IO:** `socket_io_client` for real-time WebRTC signaling.
+### C. Social Content & Discovery (11 screens)
+11. **ProfileScreen** (`/profile`) - User profile with posts, reels, and stats
+12. **PostDetailScreen** (`/postDetail`) - Full post view with comments
+13. **HashtagExploreScreen** (`/hashtagExplore`) - Hashtag-based content discovery
+14. **SearchScreen** (`/search`) - Global user and content search
+15. **MentionedPostsScreen** (`/mentionedPosts`) - Posts where user is mentioned
+16. **ReelsFeedScreen** (`/reels`) - Vertical short-form video feed
+17. **CreateReelScreen** (`/createReel`) - Reel recording and editing
+18. **StoryCreatorScreen** (`/storyCreator`) - Photo/video story creation
+19. **TextStoryCreatorScreen** (`/textStoryCreator`) - Text-based story creation
+20. **StoryViewerScreen** (`/storyViewer`) - Immersive story viewing experience
+21. **LocationPickerScreen** (`/locationPicker`) - Map-based location selection
 
-### WebRTC System Overhaul (2026-01-18)
-The Random Chat system was completely rebuilt for stability.
+### D. Communication (6 screens)
+22. **ImprovedChatListScreen** (`/chatList`) - Direct message inbox
+23. **ImprovedChatScreen** (`/chat`) - One-on-one messaging interface
+24. **NearbyChatListScreen** (`/nearbyChatList`) - Nearby users chat discovery
+25. **NearbyChatScreen** (`/nearbyChat`) - Proximity-based chat interface
+26. **NotificationsScreen** (`/notifications`) - Activity and interaction feed
+27. **NotificationSettingsScreen** (`/notificationSettings`) - Notification preferences
 
-**1. Signaling Server (`/signaling_server`):**
-*   Node.js + Socket.IO server deployed on Google Cloud Run.
-*   Handles `find_random_match` logic with queue management.
-*   Supports Private Calls (`join_private_call`).
+### E. Economy & Gifting (13 screens)
+28. **StoreScreen** (`/store`) - Main store hub with tabs (Coins, Boosts, Gifts, Profile, Marketplace)
+29. **MarketplaceScreen** (`/marketplace`) - User-to-user item trading
+30. **CategoryBrowseScreen** (`/categoryBrowse`) - Gift category exploration
+31. **GiftDetailScreen** (`/giftDetail`) - Individual gift item details
+32. **GiftHistoryScreen** (`/giftHistory`) - Sent and received gift log
+33. **GiftSendSelectionScreen** (`/giftSendSelection`) - Gift selection interface
+34. **GiftSendComposerScreen** (`/gift-send-composer`) - Gift message composition
+35. **GiftSendFriendPickerScreen** (`/gift-send-friend-picker`) - Recipient selection
+36. **InventoryScreen** (`/inventory`) - User's owned items vault
+37. **LimitedEditionsScreen** (`/limitedEditions`) - Time-limited exclusive items
+38. **WishlistScreen** (`/wishlist`) - Saved items for future purchase
+39. **BoostPostScreen** (`/boostPost`) - Post promotion with targeting options
+40. **BoostAnalyticsScreen** (`/boostAnalytics`) - Boost campaign performance metrics
 
-**2. WebRTC Service (`webrtc_service.dart`):**
-*   **Codec Enforcement:** Forces VP8 codec to resolve one-way video issues.
-*   **Race Guards:** Prevents duplicate offers/answers and signaling crashes (`InvalidStateError`).
-*   **Watchdog Timer:** Auto-resets calls if connection hangs for >10s.
-*   **Permissions:** Graceful handling of Cam/Mic denials.
+### F. Pages & Communities (4 screens)
+41. **PageProfileScreen** (`/pageProfile`) - Public page/community profile
+42. **PageSettingsScreen** (`/pageSettings`) - Page management and configuration
+43. **PageAnalyticsScreen** (`/pageAnalytics`) - Page growth and engagement metrics
+44. **CreatePageScreen** (`/createPage`) - New page creation wizard
 
-**3. Random Chat UI (`random_chat_screen.dart`):**
-*   **Smart Background:** Uses `AnimatedSwitcher` to transition between connection states.
-*   **Visual Feedback:** "Pulse" avatar animation when searching or when remote video is off.
-*   **Draggable Preview:** Local user video PiP is movable.
-*   **Robust Image Handling:** Fallback components for 429 errors on avatar loading.
+### G. Gamification & Progression (4 screens)
+45. **AchievementsScreen** (`/achievements`) - Badge and milestone showcase
+46. **LeaderboardScreen** (`/leaderboard`) - Global and local rankings
+47. **DailyGiftScreen** (`/dailyRewards`) - Daily login reward collection
+48. **ReferralScreen** (`/referral`) - Referral program and tracking
+
+### H. User Management (4 screens)
+49. **EditProfileScreen** (`/editProfile`) - Profile editing and customization
+50. **SettingsScreen** (`/settings`) - App settings and preferences
+51. **QrDisplayScreen** (`/qrDisplay`) - Personal QR code for quick connections
+52. **MatchAnimationScreen** (`/matchAnimation`) - Celebration screen for mutual matches
+
+### I. Media Viewers (3 screens)
+53. **ImageGalleryScreen** (`/imageGallery`) - Full-screen image viewer with zoom
+54. **VideoPlayerScreen** (`/videoPlayer`) - Dedicated video playback interface
+55. **FeatureDiscoveryScreen** (`/featureDiscovery`) - App feature tutorials
+
+### J. Administration & Moderation (3 screens)
+56. **AnalyticsDashboardScreen** (`/analyticsDashboard`) - Platform-wide analytics
+57. **ModerationDashboardScreen** (`/moderationDashboard`) - Content moderation tools
+58. **ReportScreen** (`/report`) - User/content reporting interface
+
+### K. Random Chat Module (13 screens in `/screens/random_chat/`)
+59. **RandomChatHomeScreen** - Main random chat hub
+60. **RandomChatSearchingScreen** - Peer discovery with pulse animation
+61. **RandomChatConnectedScreen** - Active WebRTC video chat
+62. **RandomChatEndedScreen** - Post-chat feedback and actions
+63. **RandomChatReportScreen** - In-chat reporting
+64. **RandomChatSettingsScreen** - Chat preferences (gender, age filters)
+65. **RandomChatHistoryScreen** - Past chat sessions
+66. **RandomChatBlockedUsersScreen** - Blocked user management
+67. **RandomChatCoinsScreen** - Chat-specific coin purchases
+68. **RandomChatGiftsScreen** - In-chat gift sending
+69. **RandomChatProfileScreen** - Peer profile preview
+70. **RandomChatFeedbackScreen** - Chat quality feedback
+71. **RandomChatTutorialScreen** - First-time user guide
 
 ---
 
-## 4. Deployment & Operations
+## 4. Navigation Architecture
 
-### Page Verification System Setup
-1.  **Cloud Functions:** Ensure `approvePageVerification` and `rejectPageVerification` are deployed.
-2.  **SMTP Configuration:** Required for email notifications on verification status.
-    *   Set Firebase Environment Variables: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`.
-3.  **Admin Access:**
-    *   Users must have `role: "admin"` or `isAdmin: true` in their Firestore `users/{uid}` document to approve requests.
-    *   Action: Use Firestore Console or Admin SDK to promote users.
+### Route Registration
+- **Central Registry:** All routes defined in `lib/navigation/app_routes.dart`
+- **Type-Safe Arguments:** Dedicated argument classes for complex data passing
+- **Route Handler:** `main.dart` `onGenerateRoute` callback handles all navigation
+- **Navigation Service:** Centralized `NavigationService` for programmatic navigation
 
-### Environment Variables
-*   Managed via `.env` file (ensure this is not committed to public repos).
+### Accessibility Standards
+- **Maximum Depth:** All screens reachable within 3 taps from MainScreen
+- **Hub Screens:** Store, Menu, and Main act as navigation hubs
+- **Deep Linking:** All routes support deep link activation
+- **State Preservation:** Navigation state persisted across app restarts
 
 ---
 
-## 5. Diagnostic Summary (2026-01-12)
+## 5. The 'Pure' Identity Appendix (Maintainer Registry)
 
-*   **Health:** The codebase is well-structured and follows consistent patterns.
-*   **Recent Change Log / Stability Updates:**
-    *   **Fixed:** Critical WebRTC Race Conditions & "Ghost" Offers (Signaling Guard implemented).
-    *   **Fixed:** One-Way Video issues by enforcing VP8 Codec.
-    *   **Fixed:** MainScreen "Ghost Task" freezing issue.
-    *   **Overhaul:** Complete "Azar-style" Random Chat UI with 3-state logic (Searching/Connected/PeerLeft).
-    *   **Added:** Safety Reporting & Filter Paywall in Random Chat.
-    *   **Added:** Achievement Triggers (Post, Gift, Streak) & Profile Trophies UI.
-    *   **Added:** Referral System Entry in Menu.
-*   **Active Issues:**
-    *   **FFmpeg Compatibility:** Planned Unified Media Engine will require careful configuration of `ffmpeg_kit_flutter` (LGPL) and bumping `minSdkVersion` to 24.
-*   **Cleanup:** Redundant documentation files (`APP_OVERVIEW.md`, `.plans/*`) have been consolidated into this Master Document and removed.
+This section defines the inviolable rules of the ecosystem.
+
+### A. Color Sanctity
+*   **Brand Green (`0xFF00BFA5`):** The ONLY color for success, growth, primary actions, and "online" status. Never use standard `Colors.green`.
+*   **Pulsing Red (`0xFFEF5350`):** The ONLY color for errors, admin flags, blocks, and "offline" status. Never use standard `Colors.red`.
+*   **Glass/Neutral:** All containers use white with alpha transparency (e.g., `0.05` to `0.1`) and `1px` borders (`alpha: 0.1` to `0.2`).
+
+### B. Interaction Rules (The Three-Tier Haptic System)
+1.  **Light (`HapticFeedback.lightImpact()`):**
+    *   Tab switches.
+    *   Scrolling ticks (pickers).
+    *   Generic button taps.
+2.  **Medium (`HapticFeedback.mediumImpact()`):**
+    *   Refreshing a feed (Pull-to-refresh).
+    *   Toggling Sonar/Radar.
+    *   Sending a message.
+3.  **Heavy (`HapticFeedback.heavyImpact()`):**
+    *   **Match Success.**
+    *   Unlocking a Rare/Legendary Item.
+    *   Admin Ban actions.
+    *   Error states.
+
+### C. Architecture: The Local-First Truth
+*   **Single Source of Truth:** `GlobalCacheCoordinator`.
+*   **Rule:** UI **NEVER** waits for the network.
+    *   **Read:** UI requests data -> Coordinator serves Hive data immediately -> Coordinator fetches Network -> Coordinator updates Hive -> UI updates via Stream.
+    *   **Write:** UI sends action -> Coordinator optimistically updates Hive (visible immediately) -> Coordinator queues Network req -> Reverts if Network fails.
+
+---
+
+## 6. System Architecture & Tech Stack
+
+*   **Framework:** Flutter (v3.2.6+)
+*   **Architecture:** Clean Architecture + BLoC
+*   **Local DB:** Hive (NoSQL) - *The Brain*
+*   **Remote DB:** Firebase Firestore/Realtime DB - *The Cloud*
+*   **Media:** Cloudinary (Images), WebRTC (Live Video)

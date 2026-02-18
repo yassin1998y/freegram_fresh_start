@@ -48,6 +48,22 @@ class GiftVisual extends StatelessWidget {
       content = _buildThumbnailOrPlaceholder(rarityColor);
     }
 
+    // Apply 3D shadow to the asset itself (Boutique 3D Depth)
+    content = Container(
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            offset: const Offset(0, 8),
+            blurRadius: 16,
+            spreadRadius:
+                -4, // Tweak to make it look like "floating" rather than just a drop shadow
+          ),
+        ],
+      ),
+      child: content,
+    );
+
     // 3. Wrap with rarity background if requested
     if (showRarityBackground) {
       return Container(

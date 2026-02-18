@@ -35,10 +35,11 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/friends_bloc/friends_bloc.dart';
 import 'package:freegram/blocs/connectivity_bloc.dart';
-import 'profile_screen.dart';
+import 'package:freegram/screens/profile_screen.dart';
 import 'package:hive/hive.dart';
 import 'package:freegram/widgets/chat_widgets/gift_message_banner.dart';
 import 'package:freegram/widgets/chat_widgets/celebration_match_badge.dart';
+import 'package:freegram/widgets/chat_widgets/shimmer_chat_skeleton.dart';
 
 class ImprovedChatScreen extends StatelessWidget {
   final String chatId;
@@ -273,8 +274,11 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
                 server.text == optimistic.text))
             .toList();
 
+        final allMessages = [...optimisticMessages, ...serverMessages];
+        final messagesWithMilestones = _checkAndInjectMilestones(allMessages);
+
         setState(() {
-          _messages = [...optimisticMessages, ...serverMessages];
+          _messages = messagesWithMilestones;
         });
 
         final firstUnread = serverMessages
@@ -292,6 +296,33 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
         _markMessagesAsSeen(snapshot.docs);
       }
     });
+  }
+
+  List<Message> _checkAndInjectMilestones(List<Message> messages) {
+    if (messages.isEmpty) return messages;
+    final List<Message> processed = List.from(messages);
+
+    // Demo: "Welcome to Professional Chat" (Oldest)
+    bool hasWelcome = processed.any(
+        (m) => m.isSystemMessage && m.text == 'Welcome to Professional Chat');
+    if (!hasWelcome && processed.isNotEmpty) {
+      final oldest = processed.last;
+      processed.add(Message(
+        id: 'milestone_welcome',
+        senderId: 'system',
+        text: 'Welcome to Professional Chat',
+        isSystemMessage: true,
+        timestamp: oldest.timestamp != null
+            ? Timestamp.fromMillisecondsSinceEpoch(
+                oldest.timestamp!.millisecondsSinceEpoch - 1000)
+            : Timestamp.now(),
+        status: MessageStatus.seen,
+      ));
+    }
+
+    // Fake milestones removed. Real milestones are now broadcast by AchievementService.
+
+    return processed;
   }
 
   void _markMessagesAsSeen(List<QueryDocumentSnapshot> docs) {
@@ -1454,9 +1485,7 @@ class _ImprovedChatScreenState extends State<_ImprovedChatScreenContent>
         title: widget.otherUsername,
       ),
       body: const SafeArea(
-        child: Center(
-          child: AppProgressIndicator(),
-        ),
+        child: ShimmerChatSkeleton(),
       ),
     );
   }

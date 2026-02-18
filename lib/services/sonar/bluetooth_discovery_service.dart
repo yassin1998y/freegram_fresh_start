@@ -2,14 +2,16 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fbp;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/locator.dart'; // <<<--- ADD locator import
 import 'package:freegram/repositories/user_repository.dart';
-import 'ble_advertiser.dart';
-import 'ble_scanner.dart';
-import 'local_cache_service.dart';
-import 'wave_service.dart'; // Still need to import for type usage later
-import 'bluetooth_service.dart' show NearbyStatus, BluetoothStatusService;
-import 'wave_manager.dart';
+import 'package:freegram/utils/app_logger.dart';
+import 'package:freegram/services/sonar/ble_advertiser.dart';
+import 'package:freegram/services/sonar/ble_scanner.dart';
+import 'package:freegram/services/sonar/local_cache_service.dart';
+import 'package:freegram/services/sonar/wave_service.dart'; // Still need to import for type usage later
+import 'package:freegram/services/sonar/bluetooth_service.dart' show NearbyStatus, BluetoothStatusService;
+import 'package:freegram/services/sonar/wave_manager.dart';
 
 class BluetoothDiscoveryService {
   final BleAdvertiser _advertiser;
@@ -134,30 +136,51 @@ class BluetoothDiscoveryService {
     }
 
     _isRunning = true;
-    debugPrint("BluetoothDiscoveryService: Starting...");
+    AppLogger.info("BluetoothDiscoveryService: Starting...");
 
     // Force reset scanner state before starting (helps with restart issues)
     _scanner.forceReset();
 
     // Ensure wave stream subscription is active BEFORE starting scan
     _listenForWaves();
-    debugPrint("BluetoothDiscoveryService: Wave stream subscription ensured");
+    AppLogger.debug(
+        "BluetoothDiscoveryService: Wave stream subscription ensured");
 
     await _scanner.startScan();
-    debugPrint("BluetoothDiscoveryService: Scanner started");
+    AppLogger.debug("BluetoothDiscoveryService: Scanner started");
 
     if (_statusService.currentStatus != NearbyStatus.error &&
         _statusService.currentStatus != NearbyStatus.adapterOff) {
-      await _advertiser.startAdvertising(
-          _currentUserShortId!, _currentUserGender!);
-      debugPrint("BluetoothDiscoveryService: Advertiser started");
+      // --- Cloaking Mode Check ---
+      bool isCloaked = false;
+      try {
+        final currentId = FirebaseAuth.instance.currentUser?.uid;
+        if (currentId != null) {
+          final profile = _cacheService.getUserProfile(currentId);
+          // Check 'cloaking_mode' (default false)
+          isCloaked = profile?.privacySettings['cloaking_mode'] == true;
+          if (isCloaked) {
+            AppLogger.info(
+                "BluetoothDiscoveryService: Cloaking Mode ENABLED. Skipping advertising.");
+          }
+        }
+      } catch (e) {
+        AppLogger.warning(
+            "BluetoothDiscoveryService: Failed to check privacy settings: $e");
+      }
+
+      if (!isCloaked) {
+        await _advertiser.startAdvertising(
+            _currentUserShortId!, _currentUserGender!);
+        AppLogger.info("BluetoothDiscoveryService: Advertiser started");
+      }
     } else {
-      debugPrint(
+      AppLogger.warning(
           "BluetoothDiscoveryService: Skipping advertising due to scanner/adapter state: ${_statusService.currentStatus}");
       // Don't set _isRunning = false, allow scanning-only mode
-      debugPrint("BluetoothDiscoveryService: Running in scan-only mode");
+      AppLogger.info("BluetoothDiscoveryService: Running in scan-only mode");
     }
-    debugPrint(
+    AppLogger.info(
         "BluetoothDiscoveryService: Start sequence complete. Running: $_isRunning");
   }
 

@@ -20,7 +20,8 @@ import 'package:freegram/repositories/reel_repository.dart';
 import 'package:freegram/repositories/page_repository.dart';
 import 'package:freegram/services/feed_scoring_service.dart';
 import 'package:freegram/services/ad_service.dart';
-import 'package:freegram/services/feed_cache_service.dart';
+import 'package:freegram/services/global_cache_coordinator.dart';
+import 'package:flutter/services.dart';
 import 'package:freegram/utils/enums.dart';
 
 // Events
@@ -275,7 +276,7 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
   final AdService? _adService;
   final ReelRepository? _reelRepository;
   final PageRepository? _pageRepository;
-  final FeedCacheService _feedCacheService;
+  final GlobalCacheCoordinator _globalCacheCoordinator;
   DocumentSnapshot? _lastDocument;
   bool _hasMore = true;
   int _adCounter = 0;
@@ -287,14 +288,15 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
     AdService? adService,
     ReelRepository? reelRepository,
     PageRepository? pageRepository,
-    FeedCacheService? feedCacheService,
+    GlobalCacheCoordinator? globalCacheCoordinator,
   })  : _postRepository = postRepository,
         _userRepository = userRepository,
         _friendRepository = friendRepository, // Initialized field
         _adService = adService,
         _reelRepository = reelRepository,
         _pageRepository = pageRepository,
-        _feedCacheService = feedCacheService ?? FeedCacheService(),
+        _globalCacheCoordinator =
+            globalCacheCoordinator ?? GlobalCacheCoordinator(),
         super(const UnifiedFeedInitial()) {
     // Use droppable() transformer to prevent duplicate requests
     // If user spams "Scroll Down", ignore extra events until first one finishes
@@ -310,7 +312,7 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
     on<UpdateGhostPostProgressEvent>(_onUpdateGhostPostProgress);
     on<RemoveGhostPostEvent>(_onRemoveGhostPost);
     // Initialize cache service
-    _feedCacheService.init();
+    _globalCacheCoordinator.init();
   }
 
   Future<void> _onLoadUnifiedFeed(
@@ -344,23 +346,36 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
       emit(const UnifiedFeedLoading());
     }
 
-    // Try to load from cache first if not refreshing
+    // Implement SWR: Try to load from cache first if not refreshing (or even if refreshing to show something)
+    // SWR dictates showing stale content immediately while validation happens in background
     if (!event.refresh) {
       try {
-        final cachedItems = await _feedCacheService.getCachedFeedItems();
-        if (cachedItems.isNotEmpty && _feedCacheService.isCacheValid()) {
-          // Emit cached data immediately for better UX
+        final cachedPosts =
+            await _globalCacheCoordinator.getCachedItems<PostModel>();
+        if (cachedPosts.isNotEmpty) {
+          // Convert PostModel to FeedItem
+          final cachedFeedItems = cachedPosts
+              .map((post) => PostFeedItem(
+                  post: post, displayType: PostDisplayType.organic))
+              .toList();
+
+          // Emit cached data immediately (within 100ms goal)
           final cachedState = UnifiedFeedLoaded(
-            items: cachedItems,
-            isRefreshing: true, // Still loading fresh data in background
+            items: cachedFeedItems,
+            isRefreshing:
+                true, // Show loading indicator while fetching fresh data
             hasMore: false,
             timeFilter: event.timeFilter,
-            lastUpdateTime: _feedCacheService.getLastCacheTime(),
+            lastUpdateTime:
+                _globalCacheCoordinator.getLastCacheTime<PostModel>(),
           );
           emit(cachedState);
+
+          // Trigger HapticFeedback.lightImpact() as requested
+          HapticFeedback.lightImpact();
         }
       } catch (e) {
-        debugPrint('UnifiedFeedBloc: Error loading from cache: $e');
+        debugPrint('UnifiedFeedBloc: Error loading from global cache: $e');
         // Continue with fresh load
       }
     }
@@ -567,6 +582,9 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
         // Continue with feed even if sections fail
       }
 
+      // UX IMPROVEMENT: Audit - Removed mock data to ensure live data priority.
+      // If trendingReelsList is empty, it stays empty. Fresh fetch is already attempted above.
+
       // Insert milestones at the top (or near top)
       if (milestoneEventsList.isNotEmpty) {
         // Insert at index 0 or after user's own recent posts
@@ -592,9 +610,15 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
 
       // Cache the feed items for offline support
       try {
-        await _feedCacheService.cacheFeedItems(regularPosts);
+        // Extract PostModels from FeedItems
+        final postsToCache = regularPosts
+            .whereType<PostFeedItem>()
+            .map((item) => item.post)
+            .toList();
+
+        await _globalCacheCoordinator.cacheItems<PostModel>(postsToCache);
         debugPrint(
-            '📊 UnifiedFeedBloc: Cached ${regularPosts.length} posts for offline access');
+            '📊 UnifiedFeedBloc: Cached ${postsToCache.length} posts for offline access via GlobalCacheCoordinator');
       } catch (e) {
         debugPrint('UnifiedFeedBloc: Error caching feed: $e');
       }
@@ -620,19 +644,29 @@ class UnifiedFeedBloc extends Bloc<UnifiedFeedEvent, UnifiedFeedState> {
           '❌ UnifiedFeedBloc: Error loading unified feed after ${errorDuration.inMilliseconds}ms: $e');
 
       // Try to load from cache as fallback
+      // Try to load from cache as fallback if we haven't already
+      // NOTE: With SWR, we likely already emitted cached state.
+      // This is a fallback if the initial cache load failed or if we are in an error state after a failed refresh.
       try {
-        final cachedItems = await _feedCacheService.getCachedFeedItems();
-        if (cachedItems.isNotEmpty) {
+        final cachedPosts =
+            await _globalCacheCoordinator.getCachedItems<PostModel>();
+        if (cachedPosts.isNotEmpty) {
           debugPrint('📦 UnifiedFeedBloc: Loading cached feed as fallback');
+          final cachedFeedItems = cachedPosts
+              .map((post) => PostFeedItem(
+                  post: post, displayType: PostDisplayType.organic))
+              .toList();
+
           emit(
             UnifiedFeedLoaded(
-              items: cachedItems,
+              items: cachedFeedItems,
               isLoading: false,
               isRefreshing: false,
               hasMore: false,
               error: 'Using cached content. ${e.toString()}',
               timeFilter: event.timeFilter,
-              lastUpdateTime: _feedCacheService.getLastCacheTime(),
+              lastUpdateTime:
+                  _globalCacheCoordinator.getLastCacheTime<PostModel>(),
             ),
           );
           return;

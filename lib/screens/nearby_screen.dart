@@ -31,7 +31,7 @@ import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/screens/profile_screen.dart';
 // Widgets
 import 'package:freegram/widgets/sonar_view.dart';
-import 'package:freegram/widgets/professional_components.dart';
+import 'package:freegram/widgets/sonar_user_card.dart';
 import 'package:freegram/widgets/core/user_avatar.dart';
 import 'package:freegram/widgets/responsive_system.dart';
 import 'package:freegram/theme/app_theme.dart'; // For SonarPulseTheme
@@ -99,6 +99,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
   final bool _isWeb = kIsWeb; // Check if running on web
   StreamSubscription?
       _statusSubscription; // Subscription to shared BluetoothStatusService
+  int _lastUserCount = 0; // State to track user count for haptic feedback
 
   // Sync-related state
   Timer? _syncTimer; // Timer for auto-sync
@@ -149,6 +150,11 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
 
       // Start connectivity monitoring
       _startConnectivityMonitoring();
+
+      _localCacheService
+          .getNearbyUsersListenable()
+          .addListener(_onNearbyUsersChanged);
+      _lastUserCount = _getUserCount();
     }
   }
 
@@ -164,8 +170,19 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
       _statusSubscription?.cancel(); // Cancel status listener
       _syncTimer?.cancel(); // Cancel auto-sync timer
       _connectivitySubscription?.cancel(); // Cancel connectivity listener
+      _localCacheService
+          .getNearbyUsersListenable()
+          .removeListener(_onNearbyUsersChanged);
     }
     super.dispose();
+  }
+
+  void _onNearbyUsersChanged() {
+    final currentCount = _getUserCount();
+    if (currentCount > _lastUserCount) {
+      HapticFeedback.mediumImpact();
+    }
+    _lastUserCount = currentCount;
   }
 
   // --- App Lifecycle Handling (Simplified) ---
@@ -366,9 +383,9 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
 
   // --- Manual Sync Trigger ---
 
-  // --- Battery Optimization Dialog (MIUI/Redmi Enhanced) ---
   Future<void> _checkAndShowBatteryOptimizationDialog() async {
     if (!mounted ||
+        kIsWeb ||
         !Platform.isAndroid ||
         _settingsBox.get('hasSeenBatteryDialog', defaultValue: false)) {
       return;
@@ -573,7 +590,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
           ),
 
         // 5. Main Discovery Grid (Historical + New)
-        _buildDiscoveredUsersGrid(),
+        _buildDiscoveredUsersGrid(isScanningActive),
 
         // Bottom Padding for Nav
         const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
@@ -613,7 +630,7 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
     return _buildProfessionalCenterAvatar(isScanning);
   }
 
-  Widget _buildDiscoveredUsersGrid() {
+  Widget _buildDiscoveredUsersGrid(bool isScanningActive) {
     return ValueListenableBuilder<Box<NearbyUser>>(
       valueListenable: _localCacheService.getNearbyUsersListenable(),
       builder: (context, nearbyBox, _) {
@@ -621,6 +638,15 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
           ..sort((a, b) => b.lastSeen.compareTo(a.lastSeen));
 
         if (nearbyUsers.isEmpty) {
+          if (isScanningActive) {
+            return SliverToBoxAdapter(
+              child: ProfessionalResponsiveGrid(
+                padding: const EdgeInsets.all(DesignTokens.spaceLG),
+                children:
+                    List.generate(4, (index) => const SonarShimmerUserCard()),
+              ),
+            );
+          }
           return SliverFillRemaining(
             hasScrollBody: false,
             child: _buildEmptyState(),
@@ -713,21 +739,23 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
         children: [
           // Scanning Glow (Rotating)
           if (isScanningActive)
-            RotationTransition(
-              turns: _radarRotationController,
-              child: Container(
-                width: AvatarSize.large.size + 60,
-                height: AvatarSize.large.size + 60,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: SweepGradient(
-                    colors: [
-                      Colors.transparent,
-                      SonarPulseTheme.primaryAccent.withValues(alpha: 0.05),
-                      SonarPulseTheme.primaryAccent.withValues(alpha: 0.3),
-                      Colors.transparent
-                    ],
-                    stops: const [0.0, 0.3, 0.5, 1.0],
+            RepaintBoundary(
+              child: RotationTransition(
+                turns: _radarRotationController,
+                child: Container(
+                  width: AvatarSize.large.size + 60,
+                  height: AvatarSize.large.size + 60,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: SweepGradient(
+                      colors: [
+                        Colors.transparent,
+                        const Color(0xFF00BFA5).withValues(alpha: 0.05),
+                        const Color(0xFF00BFA5).withValues(alpha: 0.3),
+                        Colors.transparent
+                      ],
+                      stops: const [0.0, 0.3, 0.5, 1.0],
+                    ),
                   ),
                 ),
               ),
@@ -1177,12 +1205,14 @@ class _NearbyScreenViewState extends State<_NearbyScreenView>
         final isNew = now.difference(user.foundAt).inSeconds < 60;
         final isRecentlyActive = mins < 5;
 
-        return ProfessionalUserCard(
+        return SonarUserCard(
           key: ValueKey(user.uidShort),
           username: displayUser.username,
           photoUrl: displayUser.photoUrl,
           statusMessage: displayUser.nearbyStatusMessage,
-          genderValue: user.gender,
+          genderValue: user.gender == 1
+              ? 'male'
+              : (user.gender == 2 ? 'female' : 'unknown'),
           isNew: isNew,
           isRecentlyActive: isRecentlyActive,
           isProfileSynced: isProfileSynced,
@@ -1912,9 +1942,9 @@ class _ProfessionalFoundUsersModalState
           final now = DateTime.now();
           int estimatedRssi = -80;
           final mins = now.difference(nearbyUser.lastSeen).inMinutes;
-          if (mins < 1)
+          if (mins < 1) {
             estimatedRssi = -50;
-          else if (mins < 5)
+          } else if (mins < 5)
             estimatedRssi = -60;
           else if (mins < 15) estimatedRssi = -70;
 
@@ -1924,12 +1954,14 @@ class _ProfessionalFoundUsersModalState
           final isRecentlyActive = mins < 5;
 
           return RepaintBoundary(
-            child: ProfessionalUserCard(
+            child: SonarUserCard(
               key: ValueKey(nearbyUser.uidShort),
               username: displayUser.username,
               photoUrl: displayUser.photoUrl,
               statusMessage: displayUser.nearbyStatusMessage,
-              genderValue: nearbyUser.gender,
+              genderValue: nearbyUser.gender == 1
+                  ? 'male'
+                  : (nearbyUser.gender == 2 ? 'female' : 'unknown'),
               isNew: isNew,
               isRecentlyActive: isRecentlyActive,
               isProfileSynced: isProfileSynced,

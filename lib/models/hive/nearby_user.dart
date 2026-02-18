@@ -18,15 +18,20 @@ class NearbyUser extends HiveObject {
   DateTime lastSeen;
 
   @HiveField(4)
-  DateTime get foundAt => _foundAt ?? lastSeen; // Use lastSeen if not provided (for old data migration)
-  
+  DateTime get foundAt =>
+      _foundAt ??
+      lastSeen; // Use lastSeen if not provided (for old data migration)
+
   // Internal field to check if foundAt was set
   DateTime? get internalFoundAt => _foundAt;
-  
+
   DateTime? _foundAt; // when the user was first discovered (for 24h retention)
 
   @HiveField(5)
   String? profileId; // full user id from server (if known)
+
+  @HiveField(6)
+  String? presenceStatus; // e.g. "online", "busy", "offline"
 
   NearbyUser({
     required this.uidShort,
@@ -35,8 +40,9 @@ class NearbyUser extends HiveObject {
     required this.lastSeen,
     DateTime? foundAt,
     this.profileId,
+    this.presenceStatus,
   }) : _foundAt = foundAt;
-  
+
   // Setter for foundAt to allow updates
   set foundAt(DateTime value) {
     _foundAt = value;

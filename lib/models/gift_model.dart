@@ -70,14 +70,20 @@ class GiftModel extends Equatable {
       isLimited: data['isLimited'] ?? false,
       maxQuantity: data['maxQuantity'],
       soldCount: data['soldCount'] ?? 0,
-      availableUntil: data['availableUntil'] != null
-          ? (data['availableUntil'] as Timestamp).toDate()
-          : null,
+      availableUntil: _parseDateTime(data['availableUntil']),
       isTradeable: data['isTradeable'] ?? true,
       canBeUpgraded: data['canBeUpgraded'] ?? false,
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      createdAt: _parseDateTime(data['createdAt']) ?? DateTime.now(),
       metadata: data['metadata'] ?? {},
     );
+  }
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    return null;
   }
 
   Map<String, dynamic> toMap() {

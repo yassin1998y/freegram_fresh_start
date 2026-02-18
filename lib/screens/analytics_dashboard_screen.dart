@@ -1,10 +1,13 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/models/gift_model.dart';
 import 'package:freegram/repositories/analytics_repository.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:freegram/utils/rarity_helper.dart';
+import 'package:freegram/theme/design_tokens.dart';
 
 class AnalyticsDashboardScreen extends StatefulWidget {
   const AnalyticsDashboardScreen({super.key});
@@ -18,6 +21,21 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
   final _analyticsRepo = locator<AnalyticsRepository>();
   final _userId = FirebaseAuth.instance.currentUser?.uid;
 
+  late Future<Map<String, dynamic>> _giftingStatsFuture;
+  late Future<List<GiftModel>> _popularGiftsFuture;
+  late Future<List<Map<String, dynamic>>> _liveReachFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_userId != null) {
+      _giftingStatsFuture = _analyticsRepo.getUserGiftingStats(_userId);
+      _popularGiftsFuture = _analyticsRepo.getPopularGifts();
+      // Preload Live Reach graph
+      _liveReachFuture = _analyticsRepo.getLiveBoostReach(_userId);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_userId == null) {
@@ -28,13 +46,15 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gifting Analytics'),
+        title: const Text('Analytics Dashboard'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildLiveReachSection(),
+            const SizedBox(height: 24),
             _buildOverviewCards(),
             const SizedBox(height: 24),
             Text(
@@ -51,9 +71,74 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
     );
   }
 
+  Widget _buildLiveReachSection() {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _liveReachFuture,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink(); // Hide if no active boost/data
+        }
+
+        final dataPoints = snapshot.data!;
+        // Simple aggregation: Count reach per interval if needed, or just plot cumulative
+        // For zero latency demo, we'll plot a simple rising curve based on count
+
+        return Container(
+          height: 200,
+          padding: const EdgeInsets.all(16),
+          decoration: Containers.glassCard(context),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.show_chart, color: Colors.green),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Live Reach (Active Boost)',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: LineChart(
+                  LineChartData(
+                    gridData: FlGridData(show: false),
+                    titlesData: FlTitlesData(show: false),
+                    borderData: FlBorderData(show: false),
+                    lineBarsData: [
+                      LineChartBarData(
+                        spots: List.generate(dataPoints.length, (index) {
+                          return FlSpot(
+                              index.toDouble(), (index + 1).toDouble());
+                        }), // Cumulative count
+                        isCurved: true,
+                        color: Colors.green,
+                        barWidth: 3,
+                        isStrokeCapRound: true,
+                        dotData: FlDotData(show: false),
+                        belowBarData: BarAreaData(
+                          show: true,
+                          color: Colors.green.withOpacity(0.2),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildOverviewCards() {
     return FutureBuilder<Map<String, dynamic>>(
-      future: _analyticsRepo.getUserGiftingStats(_userId!),
+      future: _giftingStatsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: AppProgressIndicator());
@@ -83,7 +168,7 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
                     'Gifts Received',
                     '${stats['totalReceived'] ?? 0}',
                     Icons.inbox,
-                    Colors.green,
+                    const Color(0xFF00BFA5), // Brand Green
                   ),
                 ),
               ],
@@ -96,7 +181,7 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
                     'Unique Collected',
                     '${stats['uniqueCollected'] ?? 0}',
                     Icons.collections,
-                    Colors.purple,
+                    const Color(0xFF00BFA5), // Brand Green
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -118,48 +203,53 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
 
   Widget _buildStatCard(
       String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return GestureDetector(
+      onTap: () => HapticFeedback.lightImpact(),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: Containers.glassCard(context).copyWith(
+          border: Border.all(
+            color: color.withOpacity(0.2),
+            width: 1.0,
           ),
-        ],
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 24),
             ),
-          ),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
+            const SizedBox(height: 12),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
             ),
-          ),
-        ],
+            Text(
+              title,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withOpacity(0.7),
+                  ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildPopularGifts() {
     return FutureBuilder<List<GiftModel>>(
-      future: _analyticsRepo.getPopularGifts(),
+      future: _popularGiftsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: AppProgressIndicator());
@@ -175,20 +265,21 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
           return const Center(child: Text('No data available'));
         }
 
-        return ListView.builder(
+        return ListView.separated(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: gifts.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final gift = gifts[index];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
+            return Container(
+              decoration: Containers.glassCard(context),
               child: ListTile(
+                onTap: () => HapticFeedback.lightImpact(),
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: RarityHelper.getColor(gift.rarity)
-                        .withValues(alpha: 0.1),
+                    color: RarityHelper.getColor(gift.rarity).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -196,13 +287,32 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
                     color: RarityHelper.getColor(gift.rarity),
                   ),
                 ),
-                title: Text(gift.name),
+                title: Text(
+                  gift.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 subtitle: Text('${gift.soldCount} purchases'),
-                trailing: Text(
-                  '#${index + 1}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                trailing: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color:
+                        Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    '#${index + 1}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                 ),
               ),

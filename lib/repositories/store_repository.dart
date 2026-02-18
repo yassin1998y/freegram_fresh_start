@@ -43,6 +43,34 @@ class StoreRepository {
         'lifetimeCoinsSpent': FieldValue.increment(coinCost),
         'userLevel': newLevel,
       });
+
+      // Growth Sync: Award referral commission (10%)
+      if (user.referredBy != null && user.referredBy!.isNotEmpty) {
+        final referrerId = user.referredBy!;
+        final commission = (coinCost * 0.1).round();
+
+        if (commission > 0) {
+          final referrerRef = _db.collection('users').doc(referrerId);
+
+          transaction.update(referrerRef, {
+            'coins': FieldValue.increment(commission),
+            'referralStats.boutiqueCommission':
+                FieldValue.increment(commission),
+          });
+
+          // Log commission transaction for listener
+          final txRef = _db.collection('coinTransactions').doc();
+          transaction.set(txRef, {
+            'userId': referrerId,
+            'type':
+                'referral_store_commission', // Key for ReferralScreen listener
+            'amount': commission,
+            'sourceUserId': userId,
+            'description': 'Commission from referred user purchase',
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+        }
+      }
     });
   }
 

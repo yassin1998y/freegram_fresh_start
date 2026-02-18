@@ -3,7 +3,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'ad_helper.dart';
+import 'package:freegram/services/ad_helper.dart';
 
 /// Service for loading and caching banner ads styled as native ads for feed integration
 /// Note: Using BannerAd instead of NativeAd to avoid platform-specific factory requirements

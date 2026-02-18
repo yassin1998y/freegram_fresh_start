@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:freegram/theme/design_tokens.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/models/gift_model.dart';
@@ -51,69 +52,67 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gift Marketplace'),
-        centerTitle: true,
-        actions: [
-          // Leaderboard button
-          IconButton(
-            icon: const Icon(Icons.leaderboard, color: Colors.purple),
-            onPressed: () {
-              HapticHelper.medium();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const LeaderboardScreen(),
-                ),
-              );
-            },
-          ),
-          // Coin balance
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Icon(Icons.monetization_on, color: Colors.amber.shade700),
-                const SizedBox(width: 4),
-                Text(
-                  '$_userCoins',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.amber.shade700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
       body: RefreshIndicator(
         onRefresh: () async {
           await _loadUserCoins();
           setState(() {});
         },
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Search bar
-              _buildSearchBar(),
-
-              // Hero banner
-              _buildHeroBanner(),
-
-              // Category grid
-              _buildCategoryGrid(),
-
-              // Trending section
-              _buildTrendingSection(),
-
-              // New arrivals section
-              _buildNewArrivalsSection(),
-
-              const SizedBox(height: 24),
-            ],
-          ),
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              title: const Text('Gift Marketplace'),
+              centerTitle: true,
+              pinned: true,
+              floating: true,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.leaderboard, color: Colors.purple),
+                  onPressed: () {
+                    HapticHelper.medium();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const LeaderboardScreen(),
+                      ),
+                    );
+                  },
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Icon(Icons.monetization_on, color: Colors.amber.shade700),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$_userCoins',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.amber.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            SliverToBoxAdapter(child: _buildSearchBar()),
+            SliverToBoxAdapter(child: _buildHeroBanner()),
+            SliverPadding(
+              padding: const EdgeInsets.all(16),
+              sliver: SliverToBoxAdapter(
+                child: Text(
+                  'Browse by Category',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ),
+            ),
+            _buildCategoryGridSliver(),
+            SliverToBoxAdapter(child: _buildTrendingSection()),
+            SliverToBoxAdapter(child: _buildNewArrivalsSection()),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          ],
         ),
       ),
     );
@@ -159,14 +158,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   Widget _buildHeroBanner() {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
         height: 180,
-        decoration: BoxDecoration(
-          color: Theme.of(context).primaryColor.withValues(alpha:  0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
+        decoration: Containers.glassCard(context),
         child: Stack(
           children: [
             Positioned(
@@ -178,7 +174,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 color: Theme.of(context)
                     .colorScheme
                     .onSurface
-                    .withValues(alpha:  0.05),
+                    .withValues(alpha: 0.05),
               ),
             ),
             Padding(
@@ -223,30 +219,22 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
-  Widget _buildCategoryGrid() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Browse by Category',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          const SizedBox(height: 16),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 4,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            children: GiftCategory.values.map((category) {
-              return _buildCategoryCard(category);
-            }).toList(),
-          ),
-        ],
+  Widget _buildCategoryGridSliver() {
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 4,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final category = GiftCategory.values[index];
+            return _buildCategoryCard(category);
+          },
+          childCount: GiftCategory.values.length,
+        ),
       ),
     );
   }
@@ -265,11 +253,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         );
       },
       child: Container(
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
+        decoration: Containers.glassCard(context),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -448,100 +432,105 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       child: Container(
         width: 150,
         margin: const EdgeInsets.only(right: 12),
-        child: Card(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Gift icon
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: rarityColor.withValues(alpha: 0.1),
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
-                    ),
+        decoration: Containers.glassCard(context),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Gift icon
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: rarityColor.withValues(alpha: 0.1),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
                   ),
-                  child: Stack(
-                    children: [
-                      Center(
+                ),
+                child: Stack(
+                  children: [
+                    Center(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          boxShadow: [
+                            BoxShadow(
+                              color: rarityColor.withValues(alpha: 0.4),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
                         child: Icon(
                           Icons.card_giftcard,
                           size: 48,
                           color: rarityColor,
                         ),
                       ),
-                      // Rarity badge
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: rarityColor,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            gift.rarity.displayName,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 8,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Gift info
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      gift.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.monetization_on,
-                          size: 12,
-                          color:
-                              canAfford ? Colors.amber.shade700 : Colors.grey,
+                    // Rarity badge
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${gift.priceInCoins}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color:
-                                canAfford ? Colors.amber.shade700 : Colors.grey,
+                        decoration: BoxDecoration(
+                          color: rarityColor,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          gift.rarity.displayName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+            // Gift info
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    gift.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.monetization_on,
+                        size: 12,
+                        color: canAfford ? Colors.amber.shade700 : Colors.grey,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${gift.priceInCoins}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color:
+                              canAfford ? Colors.amber.shade700 : Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

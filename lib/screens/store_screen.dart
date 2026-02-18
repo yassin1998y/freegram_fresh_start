@@ -1,12 +1,15 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:freegram/services/navigation_service.dart';
+import 'dart:ui'; // For ImageFilter
 import 'package:freegram/widgets/freegram_app_bar.dart';
-import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/screens/store_tabs/coins_tab.dart';
 import 'package:freegram/screens/store_tabs/boosts_tab.dart';
 import 'package:freegram/screens/store_tabs/gifts_tab.dart';
 import 'package:freegram/screens/store_tabs/profile_tab.dart';
 import 'package:freegram/screens/store_tabs/marketplace_tab.dart';
+import 'package:freegram/navigation/app_routes.dart';
 import 'package:freegram/screens/limited_editions_screen.dart';
 
 import 'package:freegram/locator.dart';
@@ -85,138 +88,161 @@ class _StoreScreenState extends State<StoreScreen> {
     }
 
     return Scaffold(
-      appBar: FreegramAppBar(
-        title: 'Store',
-        showBackButton: true,
-        actions: [
-          // Coin balance display
-          StreamBuilder<UserModel>(
-            stream: locator<UserRepository>().getUserStream(currentUser.uid),
-            builder: (context, snapshot) {
-              // Handle error state
-              if (snapshot.hasError) {
-                return Container(
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  child: const Icon(Icons.error, color: Colors.red),
-                );
-              }
-
-              // Show loading or current balance
-              final coins = snapshot.data?.coins ?? 0;
-              final isLoading =
-                  snapshot.connectionState == ConnectionState.waiting;
-
-              return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: Containers.iconBox(Colors.amber),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.monetization_on,
-                        color: Colors.amber, size: 20),
-                    const SizedBox(width: 6),
-                    isLoading
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.amber),
-                            ),
-                          )
-                        : Text(
-                            coins.toString(),
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
-                          ),
-                  ],
+      body: CustomScrollView(
+        slivers: [
+          // Glassmorphic Sticky Header
+          SliverAppBar(
+            title: const Text('Store',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            centerTitle: false,
+            pinned: true,
+            floating: true,
+            backgroundColor: Theme.of(context)
+                .scaffoldBackgroundColor
+                .withValues(alpha: 0.8),
+            surfaceTintColor: Colors.transparent, // Avoid default surface tint
+            // Glassmorphism effect
+            flexibleSpace: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                child: Container(
+                  color: Colors.transparent,
                 ),
-              );
-            },
-          ),
-          // Daily reward button
-          IconButton(
-            icon: const Icon(Icons.calendar_today, color: Colors.amber),
-            onPressed: () => _showDailyRewardDialog(currentUser.uid),
-            tooltip: "Daily Reward",
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Balance & Stats Card
-          Card(
-            margin: const EdgeInsets.all(12),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: StreamBuilder<UserModel>(
+              ),
+            ),
+            actions: [
+              // Coin Balance with 1px Brand Green Border
+              StreamBuilder<UserModel>(
                 stream:
                     locator<UserRepository>().getUserStream(currentUser.uid),
                 builder: (context, snapshot) {
                   final coins = snapshot.data?.coins ?? 0;
-                  final level = snapshot.data?.userLevel ?? 1;
-                  final streak = snapshot.data?.dailyLoginStreak ?? 0;
+                  final isLoading =
+                      snapshot.connectionState == ConnectionState.waiting;
 
-                  return Row(
-                    children: [
-                      // Coin Balance
-                      Expanded(
-                        child: _BalanceItem(
-                          icon: Icons.monetization_on,
-                          label: "Coins",
-                          value: coins.toString(),
-                        ),
-                      ),
-                      Container(
+                  return Container(
+                    margin:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(
+                          alpha: 0.2), // Slight background for contrast
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFF00BFA5), // Brand Green
                         width: 1,
-                        height: 40,
-                        color: Theme.of(context).dividerColor,
                       ),
-                      // Level
-                      Expanded(
-                        child: _BalanceItem(
-                          icon: Icons.star,
-                          label: "Level",
-                          value: level.toString(),
-                        ),
-                      ),
-                      Container(
-                        width: 1,
-                        height: 40,
-                        color: Theme.of(context).dividerColor,
-                      ),
-                      // Streak
-                      Expanded(
-                        child: _BalanceItem(
-                          icon: Icons.local_fire_department,
-                          label: "Streak",
-                          value: "${streak}d",
-                        ),
-                      ),
-                    ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.monetization_on,
+                            color: Colors.amber, size: 18),
+                        const SizedBox(width: 6),
+                        isLoading
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Color(0xFF00BFA5)),
+                                ),
+                              )
+                            : Text(
+                                coins.toString(),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                      ],
+                    ),
                   );
                 },
+              ),
+              // Daily Reward Button
+              IconButton(
+                icon: const Icon(Icons.calendar_today, color: Colors.amber),
+                onPressed: () => _showDailyRewardDialog(currentUser.uid),
+                tooltip: "Daily Reward",
+              ),
+            ],
+          ),
+
+          // Balance & Stats Card (Sliver Adapter)
+          SliverToBoxAdapter(
+            child: Card(
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              elevation: 4,
+              shadowColor: Colors.black.withValues(alpha: 0.2),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: StreamBuilder<UserModel>(
+                  stream:
+                      locator<UserRepository>().getUserStream(currentUser.uid),
+                  builder: (context, snapshot) {
+                    final coins = snapshot.data?.coins ?? 0;
+                    final level = snapshot.data?.userLevel ?? 1;
+                    final streak = snapshot.data?.dailyLoginStreak ?? 0;
+
+                    return Row(
+                      children: [
+                        // Coin Balance
+                        Expanded(
+                          child: _BalanceItem(
+                            icon: Icons.monetization_on,
+                            label: "Coins",
+                            value: coins.toString(),
+                          ),
+                        ),
+                        Container(
+                          width: 1,
+                          height: 40,
+                          color: Theme.of(context).dividerColor,
+                        ),
+                        // Level
+                        Expanded(
+                          child: _BalanceItem(
+                            icon: Icons.star,
+                            label: "Level",
+                            value: level.toString(),
+                          ),
+                        ),
+                        Container(
+                          width: 1,
+                          height: 40,
+                          color: Theme.of(context).dividerColor,
+                        ),
+                        // Streak
+                        Expanded(
+                          child: _BalanceItem(
+                            icon: Icons.local_fire_department,
+                            label: "Streak",
+                            value: "${streak}d",
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ),
 
-          // Store Grid
-          Expanded(
-            child: GridView.count(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          // Store Grid (Sliver Grid)
+          SliverPadding(
+            padding: const EdgeInsets.all(16),
+            sliver: SliverGrid.count(
               crossAxisCount: 3,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 0.95,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 0.9,
               children: [
                 _CompactStoreCard(
                   title: "Get Coins",
@@ -250,41 +276,59 @@ class _StoreScreenState extends State<StoreScreen> {
                   title: "Trade Market",
                   icon: Icons.storefront,
                   iconColor: Colors.green,
-                  onTap: () => _navigateTo(
-                      context, "Trade Market", const MarketplaceTab()),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    locator<NavigationService>()
+                        .navigateNamed(AppRoutes.marketplace);
+                  },
                 ),
                 _CompactStoreCard(
                   title: "Limited",
                   icon: Icons.timer,
                   iconColor: Colors.deepOrange,
                   badge: "HOT",
-                  onTap: () => _navigateTo(context, "Limited Editions",
-                      const LimitedEditionsScreen()),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    locator<NavigationService>()
+                        .navigateNamed(AppRoutes.limitedEditions);
+                  },
                 ),
                 _CompactStoreCard(
                   title: "Achievements",
                   icon: Icons.emoji_events,
                   iconColor: Colors.amber.shade700,
-                  onTap: () => _navigateTo(
-                      context, "Achievements", const AchievementsScreen()),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    locator<NavigationService>()
+                        .navigateNamed(AppRoutes.achievements);
+                  },
                 ),
                 _CompactStoreCard(
                   title: "Referrals",
                   icon: Icons.people,
                   iconColor: Colors.blue,
-                  onTap: () =>
-                      _navigateTo(context, "Referrals", const ReferralScreen()),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    locator<NavigationService>()
+                        .navigateNamed(AppRoutes.referral);
+                  },
                 ),
                 _CompactStoreCard(
                   title: "My Items",
                   icon: Icons.inventory_2,
                   iconColor: Colors.indigo,
-                  onTap: () => _navigateTo(
-                      context, "My Inventory", const InventoryScreen()),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    locator<NavigationService>()
+                        .navigateNamed(AppRoutes.inventory);
+                  },
                 ),
               ],
             ),
           ),
+
+          // Bottom padding
+          const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
         ],
       ),
     );
@@ -337,7 +381,7 @@ class _BalanceItem extends StatelessWidget {
           label,
           style: TextStyle(
             color:
-                Theme.of(context).colorScheme.onSurface.withValues(alpha:  0.7),
+                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
             fontSize: 11,
           ),
         ),

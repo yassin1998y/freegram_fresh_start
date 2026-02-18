@@ -1,7 +1,9 @@
 // lib/screens/report_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/widgets/common/keyboard_safe_area.dart';
 import 'package:freegram/repositories/report_repository.dart';
@@ -102,6 +104,7 @@ class _ReportScreenState extends State<ReportScreen> {
       );
 
       if (mounted) {
+        HapticFeedback.mediumImpact();
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -161,13 +164,25 @@ class _ReportScreenState extends State<ReportScreen> {
                 final data = entry.value;
                 final isSelected = _selectedCategory == category;
 
-                return Card(
+                return Container(
                   margin: const EdgeInsets.only(bottom: 12.0),
-                  color: isSelected
-                      ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
-                      : null,
+                  decoration: Containers.glassCard(context).copyWith(
+                    color: isSelected
+                        ? Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withValues(alpha: 0.1)
+                        : null,
+                    border: isSelected
+                        ? Border.all(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 1.0)
+                        : null,
+                  ),
                   child: InkWell(
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
                     onTap: () {
+                      HapticFeedback.lightImpact();
                       setState(() {
                         _selectedCategory = category;
                       });

@@ -8,7 +8,7 @@ import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/widgets/feed_widgets/post_video_player.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:freegram/screens/image_gallery_screen.dart';
-import 'package:freegram/widgets/lqip_image.dart';
+
 import 'package:freegram/services/cloudinary_service.dart';
 
 /// Post media component with AutomaticKeepAliveClientMixin
@@ -59,16 +59,11 @@ class _PostMediaState extends State<PostMedia>
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
 
-    if (widget.post.mediaItems.isEmpty && widget.post.mediaUrls.isEmpty) {
+    if (widget.post.mediaItems.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    // Use mediaItems if available, otherwise fall back to mediaUrls
-    if (widget.post.mediaItems.isNotEmpty) {
-      return _buildMediaCarousel();
-    } else {
-      return _buildMediaGrid();
-    }
+    return _buildMediaCarousel();
   }
 
   Widget _buildMediaCarousel() {
@@ -317,97 +312,6 @@ class _PostMediaState extends State<PostMedia>
               ),
             ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildMediaGrid() {
-    if (widget.post.mediaUrls.isEmpty) return const SizedBox.shrink();
-
-    if (widget.post.mediaUrls.length == 1) {
-      return Padding(
-        padding: const EdgeInsets.all(DesignTokens.spaceSM),
-        child: GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ImageGalleryScreen(
-                  imageUrls: widget.post.mediaUrls,
-                  initialIndex: 0,
-                ),
-              ),
-            );
-          },
-          child: Hero(
-            tag: widget.post.mediaUrls.first,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12.0),
-              child: SizedBox(
-                width: double.infinity,
-                height: 300,
-                child: widget.loadMedia
-                    ? LQIPImage(
-                        imageUrl: widget.post.mediaUrls.first,
-                        fit: BoxFit.cover,
-                      )
-                    : Container(
-                        color: Colors.grey[100],
-                        child: const Center(
-                          child: AppProgressIndicator(),
-                        ),
-                      ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    // Multiple images in grid
-    return Padding(
-      padding: const EdgeInsets.all(DesignTokens.spaceSM),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-        ),
-        itemCount: widget.post.mediaUrls.length,
-        itemBuilder: (context, index) {
-          return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ImageGalleryScreen(
-                    imageUrls: widget.post.mediaUrls,
-                    initialIndex: index,
-                  ),
-                ),
-              );
-            },
-            child: Hero(
-              tag: widget.post.mediaUrls[index],
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12.0),
-                child: widget.loadMedia
-                    ? LQIPImage(
-                        imageUrl: widget.post.mediaUrls[index],
-                        fit: BoxFit.cover,
-                      )
-                    : Container(
-                        color: Colors.grey[100],
-                        child: const Center(
-                          child: AppProgressIndicator(),
-                        ),
-                      ),
-              ),
-            ),
-          );
-        },
       ),
     );
   }

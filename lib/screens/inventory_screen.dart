@@ -171,6 +171,7 @@ class _InventoryScreenState extends State<InventoryScreen>
       stream: _giftRepo.getUserInventory(userId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
+          // TODO: Use Skeleton Screen here
           return const Center(child: AppProgressIndicator());
         }
 
@@ -206,27 +207,31 @@ class _InventoryScreenState extends State<InventoryScreen>
 
         final gifts = _applyFiltersAndSort(snapshot.data!);
 
-        return Column(
-          children: [
-            _buildStatsCard(gifts),
-            Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.all(12),
+        return CustomScrollView(
+          key: const PageStorageKey('inventory_gifts'),
+          slivers: [
+            SliverToBoxAdapter(child: _buildStatsCard(gifts)),
+            SliverPadding(
+              padding: const EdgeInsets.all(12),
+              sliver: SliverGrid(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
                   childAspectRatio: 0.75,
                 ),
-                itemCount: gifts.length,
-                itemBuilder: (context, index) {
-                  return _GiftInventoryCard(
-                    ownedGift: gifts[index],
-                    onTap: () => _showGiftDetail(gifts[index]),
-                  );
-                },
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    return _GiftInventoryCard(
+                      ownedGift: gifts[index],
+                      onTap: () => _showGiftDetail(gifts[index]),
+                    );
+                  },
+                  childCount: gifts.length,
+                ),
               ),
             ),
+            const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
           ],
         );
       },
@@ -440,6 +445,7 @@ class _StatItem extends StatelessWidget {
 }
 
 // Gift Inventory Card with Rarity Styling
+// Gift Inventory Card with Boutique Styling (1px Border)
 class _GiftInventoryCard extends StatelessWidget {
   final OwnedGift ownedGift;
   final VoidCallback onTap;
@@ -457,139 +463,145 @@ class _GiftInventoryCard extends StatelessWidget {
         final gift = snapshot.data;
         final rarity = gift?.rarity ?? GiftRarity.common;
 
+        // Boutique 1px Border Rule
+        final borderColor = const Color(0xFF00BFA5).withValues(alpha: 0.1);
+
         return GestureDetector(
           onTap: () {
             HapticHelper.light();
             onTap();
           },
-          child: Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
+          child: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: RarityHelper.getColor(rarity).withValues(alpha: 0.3),
-                width: 1,
-              ),
-            ),
-            child: Stack(
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: RarityHelper.getGradient(rarity),
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(12),
-                          ),
-                        ),
-                        child: Center(
-                          child: gift != null
-                              ? GiftVisual(
-                                  gift: gift,
-                                  size: 80,
-                                  showRarityBackground: false,
-                                  animate: true,
-                                )
-                              : const Icon(
-                                  Icons.card_giftcard,
-                                  size: 48,
-                                  color: Colors.white,
-                                ),
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.vertical(
-                          bottom: Radius.circular(12),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            gift?.name ?? 'Gift',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 11,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              Icon(
-                                RarityHelper.getIcon(rarity),
-                                size: 10,
-                                color: RarityHelper.getColor(rarity),
-                              ),
-                              const SizedBox(width: 2),
-                              Text(
-                                RarityHelper.getDisplayName(rarity),
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  color: RarityHelper.getColor(rarity),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const Spacer(),
-                              const Icon(Icons.monetization_on,
-                                  size: 10, color: Colors.amber),
-                              const SizedBox(width: 2),
-                              Text(
-                                ownedGift.currentMarketValue.toString(),
-                                style: const TextStyle(fontSize: 9),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                if (ownedGift.isDisplayed)
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.green,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.visibility,
-                          size: 12, color: Colors.white),
-                    ),
-                  ),
-                if (rarity == GiftRarity.legendary)
-                  Positioned(
-                    top: 4,
-                    left: 4,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.amber,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        '⭐',
-                        style: TextStyle(fontSize: 10),
-                      ),
-                    ),
-                  ),
+              border: Border.all(color: borderColor, width: 1),
+              // Subtle card shadow
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                )
               ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(11), // Inner radius
+              child: Stack(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            // Keep rarity gradient as background for identity
+                            gradient: LinearGradient(
+                              colors: RarityHelper.getGradient(rarity),
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                          child: Center(
+                            child: gift != null
+                                ? GiftVisual(
+                                    gift: gift,
+                                    size: 80,
+                                    showRarityBackground:
+                                        false, // Background is already applied by container
+                                    animate: true,
+                                  )
+                                : const Icon(
+                                    Icons.card_giftcard,
+                                    size: 48,
+                                    color: Colors.white,
+                                  ),
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        color: Theme.of(context)
+                            .cardColor, // Ensure contrast at bottom
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              gift?.name ?? 'Gift',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Icon(
+                                  RarityHelper.getIcon(rarity),
+                                  size: 10,
+                                  color: RarityHelper.getColor(rarity),
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  RarityHelper.getDisplayName(rarity),
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    color: RarityHelper.getColor(rarity),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const Spacer(),
+                                const Icon(Icons.monetization_on,
+                                    size: 10, color: Colors.amber),
+                                const SizedBox(width: 2),
+                                Text(
+                                  ownedGift.currentMarketValue.toString(),
+                                  style: const TextStyle(fontSize: 9),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (ownedGift.isDisplayed)
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.visibility,
+                            size: 12, color: Colors.white),
+                      ),
+                    ),
+                  if (rarity == GiftRarity.legendary)
+                    Positioned(
+                      top: 4,
+                      left: 4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.amber,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          '⭐',
+                          style: TextStyle(fontSize: 10),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         );

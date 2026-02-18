@@ -140,7 +140,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
     return Container(
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
-        boxShadow: [],
+        boxShadow: const [],
       ),
       child: SafeArea(
         child: Column(
@@ -743,6 +743,11 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
     if (!_voiceRecorderController.isRecording.value) return;
     final shouldCancel = details.offsetFromOrigin.dx < -_cancelDragThreshold;
     if (shouldCancel != _isCancellingRecording) {
+      if (shouldCancel) {
+        HapticFeedback.mediumImpact();
+      } else {
+        HapticFeedback.selectionClick();
+      }
       setState(() => _isCancellingRecording = shouldCancel);
     }
   }
@@ -758,6 +763,7 @@ class _EnhancedMessageInputState extends State<EnhancedMessageInput> {
     if (shouldCancel) {
       await _voiceRecorderController.cancelRecording();
       if (mounted) {
+        HapticFeedback.heavyImpact();
         setState(() => _isCancellingRecording = false);
         showIslandPopup(
           context: context,

@@ -271,6 +271,7 @@ class _MainScreenState extends State<MainScreen> {
       return;
     }
 
+    HapticFeedback.selectionClick();
     setState(() {
       _selectedIndex = index;
       switch (index) {
@@ -340,113 +341,121 @@ class _MainScreenState extends State<MainScreen> {
               extendBody: true,
               resizeToAvoidBottomInset: true,
               extendBodyBehindAppBar: _selectedIndex == 1,
-              appBar: AppBar(
-                automaticallyImplyLeading: false,
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                centerTitle: false,
-                toolbarHeight:
-                    kToolbarHeight + MediaQuery.of(context).padding.top,
-                flexibleSpace: _buildBlurredAppBarBackground(context),
-                title: Padding(
-                  padding: EdgeInsets.only(
-                    top: MediaQuery.of(context).padding.top,
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Freegram',
-                        style:
-                            Theme.of(context).textTheme.displayMedium?.copyWith(
-                                  color: SonarPulseTheme.primaryAccent,
-                                  fontSize: DesignTokens.fontSizeDisplay,
-                                  height: DesignTokens.lineHeightTight,
-                                ),
-                      ),
-                      BlocBuilder<ConnectivityBloc, ConnectivityState>(
-                        builder: (context, state) {
-                          Widget subtitle;
-                          if (state is Offline) {
-                            subtitle = Text(
-                              "Bluetooth Only Mode",
-                              key: const ValueKey('offline_mode'),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    height: DesignTokens.lineHeightTight,
-                                    color: SonarPulseTheme.primaryAccent,
-                                  ),
-                            );
-                          } else {
-                            subtitle = Text(
-                              _currentScreenName,
-                              key: ValueKey(_currentScreenName),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    height: DesignTokens.lineHeightTight,
-                                  ),
-                            );
-                          }
-                          return AnimatedSwitcher(
-                            duration: AnimationTokens.normal,
-                            transitionBuilder: (child, animation) =>
-                                FadeTransition(
-                                    opacity: animation, child: child),
-                            child: subtitle,
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                actions: [
-                  _AppBarAction(
-                    icon: Icons.chat_bubble_outline,
-                    stream: locator<ChatRepository>()
-                        .getUnreadChatCountStream(currentUser.uid),
-                    onPressed: () => locator<NavigationService>().navigateTo(
-                      const ImprovedChatListScreen(),
-                      transition: PageTransition.slide,
-                    ),
-                  ),
-                  _AppBarAction(
-                    icon: Icons.notifications_outlined,
-                    stream: locator<NotificationRepository>()
-                        .getUnreadNotificationCountStream(currentUser.uid),
-                    onPressed: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Theme.of(context).colorScheme.surface,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(DesignTokens.radiusXL)),
+              appBar: _selectedIndex == 1
+                  ? null
+                  : AppBar(
+                      automaticallyImplyLeading: false,
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                      centerTitle: false,
+                      toolbarHeight:
+                          kToolbarHeight + MediaQuery.of(context).padding.top,
+                      flexibleSpace: _buildBlurredAppBarBackground(context),
+                      title: Padding(
+                        padding: EdgeInsets.only(
+                          top: MediaQuery.of(context).padding.top,
                         ),
-                        builder: (modalContext) {
-                          return DraggableScrollableSheet(
-                            initialChildSize: 0.75,
-                            minChildSize: 0.5,
-                            maxChildSize: 0.95,
-                            expand: false,
-                            builder: (_, scrollController) {
-                              return NotificationsScreen(
-                                isModal: true,
-                                scrollController: scrollController,
-                              );
-                            },
-                          );
-                        },
-                      );
-                    },
-                  ),
-                  const SizedBox(width: DesignTokens.spaceSM),
-                ],
-              ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Freegram',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .displayMedium
+                                  ?.copyWith(
+                                    color: SonarPulseTheme.primaryAccent,
+                                    fontSize: DesignTokens.fontSizeDisplay,
+                                    height: DesignTokens.lineHeightTight,
+                                  ),
+                            ),
+                            BlocBuilder<ConnectivityBloc, ConnectivityState>(
+                              builder: (context, state) {
+                                Widget subtitle;
+                                if (state is Offline) {
+                                  subtitle = Text(
+                                    "Bluetooth Only Mode",
+                                    key: const ValueKey('offline_mode'),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          height: DesignTokens.lineHeightTight,
+                                          color: SonarPulseTheme.primaryAccent,
+                                        ),
+                                  );
+                                } else {
+                                  subtitle = Text(
+                                    _currentScreenName,
+                                    key: ValueKey(_currentScreenName),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          height: DesignTokens.lineHeightTight,
+                                        ),
+                                  );
+                                }
+                                return AnimatedSwitcher(
+                                  duration: AnimationTokens.normal,
+                                  transitionBuilder: (child, animation) =>
+                                      FadeTransition(
+                                          opacity: animation, child: child),
+                                  child: subtitle,
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      actions: [
+                        _AppBarAction(
+                          icon: Icons.chat_bubble_outline,
+                          stream: locator<ChatRepository>()
+                              .getUnreadChatCountStream(currentUser.uid),
+                          onPressed: () =>
+                              locator<NavigationService>().navigateTo(
+                            const ImprovedChatListScreen(),
+                            transition: PageTransition.slide,
+                          ),
+                        ),
+                        _AppBarAction(
+                          icon: Icons.notifications_outlined,
+                          stream: locator<NotificationRepository>()
+                              .getUnreadNotificationCountStream(
+                                  currentUser.uid),
+                          onPressed: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.surface,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(
+                                    top:
+                                        Radius.circular(DesignTokens.radiusXL)),
+                              ),
+                              builder: (modalContext) {
+                                return DraggableScrollableSheet(
+                                  initialChildSize: 0.75,
+                                  minChildSize: 0.5,
+                                  maxChildSize: 0.95,
+                                  expand: false,
+                                  builder: (_, scrollController) {
+                                    return NotificationsScreen(
+                                      isModal: true,
+                                      scrollController: scrollController,
+                                    );
+                                  },
+                                );
+                              },
+                            );
+                          },
+                        ),
+                        const SizedBox(width: DesignTokens.spaceSM),
+                      ],
+                    ),
               backgroundColor: Theme.of(context).scaffoldBackgroundColor,
               body: BlocListener<AchievementBloc, AchievementState>(
                 listener: (context, state) {

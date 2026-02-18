@@ -5,7 +5,6 @@ import 'package:freegram/locator.dart';
 import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/chat_repository.dart';
 import 'package:freegram/screens/improved_chat_screen.dart';
-import 'package:freegram/theme/app_theme.dart';
 
 class MatchAnimationScreen extends StatefulWidget {
   final UserModel currentUser;
@@ -91,14 +90,13 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
           x: random.nextDouble(),
           y: -0.1 - (random.nextDouble() * 0.3),
           color: [
-            Colors.red,
-            Colors.pink,
-            Colors.blue,
-            Colors.purple,
-            Colors.yellow,
-            Colors.green,
-            Colors.orange,
-          ][random.nextInt(7)],
+            const Color(0xFF00BFA5), // Brand Green
+            const Color(0xFF00E5FF), // Cyan Accent
+            const Color(0xFF1DE9B6), // Teal Accent
+            Colors.white,
+            const Color(0xFF69F0AE), // Green Accent
+            Colors.lightBlueAccent,
+          ][random.nextInt(6)],
           size: 4.0 + random.nextDouble() * 6,
           rotation: random.nextDouble() * 2 * pi,
           velocity: 0.3 + random.nextDouble() * 0.4,
@@ -173,11 +171,11 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
                             return LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: [
-                                Colors.pinkAccent,
-                                Colors.purpleAccent,
-                                SonarPulseTheme.primaryAccent,
-                                Colors.pinkAccent,
+                              colors: const [
+                                const Color(0xFF00BFA5),
+                                const Color(0xFF00E5FF),
+                                Colors.white,
+                                const Color(0xFF00BFA5),
                               ],
                               stops: [
                                 0.0,
@@ -196,11 +194,11 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
                               shadows: [
                                 Shadow(
                                   blurRadius: 20.0,
-                                  color: Colors.pinkAccent,
+                                  color: Color(0xFF00BFA5),
                                 ),
                                 Shadow(
                                   blurRadius: 30.0,
-                                  color: Colors.purpleAccent,
+                                  color: Color(0xFF00E5FF),
                                 ),
                               ],
                             ),
@@ -236,7 +234,8 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
                           color: Colors.white.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: Colors.pinkAccent.withValues(alpha: 0.3),
+                            color:
+                                const Color(0xFF00BFA5).withValues(alpha: 0.3),
                           ),
                         ),
                         child: Column(
@@ -245,7 +244,7 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 const Icon(Icons.favorite,
-                                    color: Colors.pinkAccent, size: 20),
+                                    color: Color(0xFF00BFA5), size: 20),
                                 const SizedBox(width: 8),
                                 Text(
                                   'You both love',
@@ -261,7 +260,7 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
                             Text(
                               mutualInterests.take(3).join(' • '),
                               style: const TextStyle(
-                                color: Colors.pinkAccent,
+                                color: const Color(0xFF00BFA5),
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -316,7 +315,7 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
                                     ),
                                   ),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.pinkAccent,
+                                    backgroundColor: const Color(0xFF00BFA5),
                                     foregroundColor: Colors.white,
                                     padding: const EdgeInsets.symmetric(
                                         vertical: 18),
@@ -324,7 +323,7 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
                                       borderRadius: BorderRadius.circular(30),
                                     ),
                                     elevation: 8,
-                                    shadowColor: Colors.pinkAccent
+                                    shadowColor: const Color(0xFF00BFA5)
                                         .withValues(alpha: 0.5),
                                   ),
                                 ),
@@ -387,7 +386,7 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.pinkAccent.withValues(
+                  color: const Color(0xFF00BFA5).withValues(
                       alpha: 0.5 + (_shimmerController.value * 0.3)),
                   blurRadius: 20 + (_shimmerController.value * 10),
                   spreadRadius: 2,
@@ -396,7 +395,7 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
             ),
             child: CircleAvatar(
               radius: 60,
-              backgroundColor: Colors.pinkAccent,
+              backgroundColor: const Color(0xFF00BFA5),
               child: CircleAvatar(
                 radius: 56,
                 backgroundImage: user.photoUrl.isNotEmpty

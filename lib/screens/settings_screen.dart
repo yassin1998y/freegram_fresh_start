@@ -97,14 +97,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             _buildSectionHeader(context, 'Account'),
             Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
-                border: Border.all(
-                  color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
-                  width: 1.0,
-                ),
-              ),
+              decoration: Containers.glassCard(context),
               child: Padding(
                 padding: const EdgeInsets.all(DesignTokens.spaceMD),
                 child: Form(
@@ -176,14 +169,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSectionHeader(context, 'Preferences'),
             Container(
               clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
-                border: Border.all(
-                  color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
-                  width: 1.0,
-                ),
-              ),
+              decoration: Containers.glassCard(context),
               child: Column(
                 children: [
                   _SettingsTile(
@@ -220,14 +206,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSectionHeader(context, 'Support & Legal'),
             Container(
               clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
-                border: Border.all(
-                  color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
-                  width: 1.0,
-                ),
-              ),
+              decoration: Containers.glassCard(context),
               child: Column(
                 children: [
                   _SettingsTile(

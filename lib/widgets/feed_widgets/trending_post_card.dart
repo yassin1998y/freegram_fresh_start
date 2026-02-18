@@ -25,7 +25,7 @@ class TrendingPostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final post = item.post;
-    final hasMedia = post.mediaItems.isNotEmpty || post.mediaUrls.isNotEmpty;
+    final hasMedia = post.mediaItems.isNotEmpty;
 
     return GestureDetector(
       onTap: onTap ??
@@ -186,16 +186,7 @@ class TrendingPostCard extends StatelessWidget {
   }
 
   Widget _buildMedia(BuildContext context, PostModel post) {
-    final mediaItem = post.mediaItems.isNotEmpty
-        ? post.mediaItems.first
-        : (post.mediaUrls.isNotEmpty
-            ? MediaItem(
-                url: post.mediaUrls.first,
-                type: post.mediaTypes.isNotEmpty
-                    ? post.mediaTypes.first
-                    : 'image',
-              )
-            : null);
+    final mediaItem = post.mediaItems.isNotEmpty ? post.mediaItems.first : null;
 
     if (mediaItem == null) {
       return _buildPlaceholder(context, post);
@@ -288,9 +279,7 @@ class TrendingPostCard extends StatelessWidget {
 
   Widget _buildPlaceholder(BuildContext context, PostModel post) {
     // If it's a text-only post, show styled background
-    if (post.content.isNotEmpty &&
-        post.mediaItems.isEmpty &&
-        post.mediaUrls.isEmpty) {
+    if (post.content.isNotEmpty && post.mediaItems.isEmpty) {
       return _buildTextPostBackground(context, post);
     }
 

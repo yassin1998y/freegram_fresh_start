@@ -1,6 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -45,7 +46,7 @@ class RichNotificationService {
   }
 
   Future<void> _requestPermissions() async {
-    if (Platform.isIOS) {
+    if (!kIsWeb && Platform.isIOS) {
       await _notifications
           .resolvePlatformSpecificImplementation<
               IOSFlutterLocalNotificationsPlugin>()
@@ -85,7 +86,7 @@ class RichNotificationService {
     );
 
     // Create notification channels (Android)
-    if (Platform.isAndroid) {
+    if (!kIsWeb && Platform.isAndroid) {
       await _createNotificationChannels();
     }
   }
@@ -212,7 +213,7 @@ class RichNotificationService {
     );
 
     // Show summary notification for grouped notifications
-    if (Platform.isAndroid) {
+    if (!kIsWeb && Platform.isAndroid) {
       await _showGroupSummary('gifts', 'New Gifts', 'You have new gifts');
     }
   }

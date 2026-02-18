@@ -17,6 +17,10 @@ import 'package:freegram/models/user_model.dart';
 import 'package:freegram/repositories/user_repository.dart';
 import 'package:freegram/widgets/achievements/achievement_progress_bar.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:freegram/repositories/leaderboard_repository.dart';
+import 'package:freegram/screens/leaderboard_screen.dart';
+import 'package:freegram/services/navigation_service.dart';
+import 'package:freegram/navigation/app_routes.dart';
 
 class AchievementsScreen extends StatefulWidget {
   const AchievementsScreen({super.key});
@@ -141,6 +145,15 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                         ),
                       ),
 
+                      // Global Standing Header
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(DesignTokens.spaceLG,
+                            DesignTokens.spaceLG, DesignTokens.spaceLG, 0),
+                        sliver: SliverToBoxAdapter(
+                          child: _buildGlobalStandingCard(userData),
+                        ),
+                      ),
+
                       // Stats Dashboard
                       SliverPadding(
                         padding: const EdgeInsets.all(DesignTokens.spaceLG),
@@ -221,6 +234,113 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
 
               return const SizedBox.shrink();
             },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGlobalStandingCard(UserModel? user) {
+    if (user == null) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    final leaderboardRepo = locator<LeaderboardRepository>();
+
+    return FutureBuilder<int>(
+      future: leaderboardRepo.getUserRank(user.id, user.socialPoints),
+      builder: (context, snapshot) {
+        final rank = snapshot.data ?? 0;
+        final rankText = rank > 0 ? "#$rank" : "---";
+
+        return Container(
+          padding: const EdgeInsets.all(DesignTokens.spaceLG),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
+            border: Border.all(
+              color:
+                  const Color(0xFF00BFA5).withValues(alpha: 0.5), // Brand Green
+              width: 2.0,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF00BFA5).withValues(alpha: 0.1),
+                blurRadius: 15,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(DesignTokens.spaceMD),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF00BFA5).withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.leaderboard_rounded,
+                  color: Color(0xFF00BFA5),
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spaceLG),
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Global Standing",
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      rankText,
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spaceMD),
+              Expanded(
+                flex: 1,
+                child: ElevatedButton(
+                  onPressed: () {
+                    HapticHelper.mediumImpact();
+                    locator<NavigationService>().navigateNamed(
+                      AppRoutes.leaderboard,
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00BFA5),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusMD),
+                    ),
+                  ),
+                  child: const Text(
+                    "LEADERBOARD",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 10, // Slightly smaller for better fit
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },

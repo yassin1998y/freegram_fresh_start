@@ -3,7 +3,7 @@
 
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Added for HapticFeedback
+// Added for HapticFeedback
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:freegram/models/post_model.dart';
 import 'package:freegram/models/feed_item_model.dart'
@@ -24,6 +24,7 @@ import 'package:freegram/widgets/feed_widgets/ad_card.dart';
 import 'package:freegram/widgets/feed_widgets/suggestion_carousel.dart';
 import 'package:freegram/repositories/post_repository.dart';
 import 'package:freegram/repositories/user_repository.dart';
+import 'package:freegram/repositories/analytics_repository.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/screens/profile_screen.dart';
 import 'package:freegram/screens/page_profile_screen.dart';
@@ -65,7 +66,10 @@ class PostCard extends StatefulWidget {
 
 class _PostCardState extends State<PostCard> {
   final PostRepository _postRepository = locator<PostRepository>();
-  final BoostAnalyticsService _boostAnalytics = BoostAnalyticsService();
+  final BoostAnalyticsService _boostAnalytics =
+      locator<BoostAnalyticsService>();
+  final AnalyticsRepository _analyticsRepository =
+      locator<AnalyticsRepository>();
   final MentionService _mentionService = locator<MentionService>();
   bool _hasTrackedBoostImpression = false;
   int _localReactionCount = 0;
@@ -99,6 +103,10 @@ class _PostCardState extends State<PostCard> {
     if (!_hasTrackedBoostImpression && post.isBoosted) {
       _hasTrackedBoostImpression = true;
       try {
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          await _analyticsRepository.trackBoostReach(post.id, currentUser.uid);
+        }
         await _boostAnalytics.trackBoostImpression(post.id);
         await _postRepository.trackBoostImpression(post.id);
       } catch (e) {
@@ -142,7 +150,7 @@ class _PostCardState extends State<PostCard> {
     final accentColor = isPlatinum
         ? const Color(0xFFE5E4E2)
         : (isGold ? const Color(0xFFFFD700) : theme.colorScheme.primary);
-    final brandGreen = const Color(0xFF00E676); // High-intensity Brand Green
+    const brandGreen = Color(0xFF00E676); // High-intensity Brand Green
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -270,7 +278,7 @@ class _PostCardState extends State<PostCard> {
     PostDisplayType displayType,
   ) {
     final theme = Theme.of(context);
-    final isTextOnly = post.mediaItems.isEmpty && post.mediaUrls.isEmpty;
+    final isTextOnly = post.mediaItems.isEmpty;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -601,7 +609,7 @@ class _PostCardState extends State<PostCard> {
 
   Widget _buildGhostPostCard(BuildContext context, GhostPostFeedItem ghost) {
     final theme = Theme.of(context);
-    final brandGreen = SonarPulseTheme.primaryAccent;
+    const brandGreen = SonarPulseTheme.primaryAccent;
     final currentUser = FirebaseAuth.instance.currentUser;
 
     return Opacity(

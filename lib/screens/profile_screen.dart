@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/widgets/skeletons/profile_skeleton.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freegram/blocs/friends_bloc/friends_bloc.dart';
 import 'package:freegram/locator.dart';
@@ -12,7 +14,7 @@ import 'package:freegram/repositories/friend_repository.dart';
 import 'package:freegram/screens/improved_chat_screen.dart';
 import 'package:freegram/screens/edit_profile_screen.dart';
 import 'package:freegram/theme/app_theme.dart';
-import 'package:freegram/theme/design_tokens.dart';
+// Duplicate import removed
 import 'package:freegram/widgets/core/user_avatar.dart';
 import 'package:freegram/repositories/post_repository.dart';
 import 'package:freegram/models/post_model.dart';
@@ -28,6 +30,7 @@ import 'package:freegram/widgets/gifting/owned_gift_visual.dart';
 import 'package:freegram/widgets/achievements/achievement_progress_bar.dart';
 import 'package:freegram/widgets/gifting/gift_picker_sheet.dart';
 import 'package:freegram/widgets/island_popup.dart';
+import 'package:freegram/repositories/leaderboard_repository.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String userId;
@@ -200,7 +203,7 @@ class _ProfileScreenViewState extends State<_ProfileScreenView>
           if (userSnapshot.connectionState == ConnectionState.waiting) {
             return Scaffold(
               backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              body: const Center(child: AppProgressIndicator()),
+              body: const ProfileSkeleton(),
             );
           }
           if (!userSnapshot.hasData) {
@@ -331,6 +334,8 @@ class _ProfileScreenViewState extends State<_ProfileScreenView>
                                                   letterSpacing: -0.5,
                                                 ),
                                           ),
+                                          const SizedBox(width: 8),
+                                          _RankBadge(user: user),
                                         ],
                                       ),
 
@@ -1022,7 +1027,7 @@ class _ProfileContent extends StatelessWidget {
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(
-                    child: const AppProgressIndicator(
+                    child: AppProgressIndicator(
                   size: DesignTokens.iconMD,
                   strokeWidth: 2,
                 ));
@@ -1206,5 +1211,55 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
     return tabBar != oldDelegate.tabBar;
+  }
+}
+
+class _RankBadge extends StatelessWidget {
+  final UserModel user;
+  const _RankBadge({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<int>(
+      future: locator<LeaderboardRepository>()
+          .getUserRank(user.id, user.socialPoints),
+      builder: (context, snapshot) {
+        final rank = snapshot.data ?? 0;
+        if (rank <= 0 || rank > 100) return const SizedBox.shrink();
+
+        Color badgeColor = const Color(0xFF00BFA5); // Brand Green
+        if (rank == 1) {
+          badgeColor = const Color(0xFFFFD700); // Gold
+        } else if (rank == 2) {
+          badgeColor = const Color(0xFFC0C0C0); // Silver
+        } else if (rank == 3) {
+          badgeColor = const Color(0xFFCD7F32); // Bronze
+        }
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: badgeColor.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusSM),
+            border: Border.all(color: badgeColor, width: 1.5),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.emoji_events, color: badgeColor, size: 12),
+              const SizedBox(width: 4),
+              Text(
+                'Top $rank',
+                style: TextStyle(
+                  color: badgeColor,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

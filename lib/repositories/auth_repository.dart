@@ -47,6 +47,8 @@ class AuthRepository {
                     scopes: ['email', 'profile'],
                   ));
 
+  User? get currentUser => _auth.currentUser;
+
   Future<void> createUser({
     required String uid,
     required String email,

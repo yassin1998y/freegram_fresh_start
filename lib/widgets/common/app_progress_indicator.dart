@@ -2,6 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:freegram/widgets/achievements/achievement_progress_bar.dart';
+import 'package:freegram/theme/design_tokens.dart';
+import 'package:shimmer/shimmer.dart';
 
 /// Reusable progress indicator widget that follows app theme
 ///
@@ -74,11 +76,28 @@ class AppProgressIndicator extends StatelessWidget {
     }
 
     // Default size
-    return CircularProgressIndicator(
-      value: value,
-      color: indicatorColor,
-      backgroundColor: trackColor,
-      strokeWidth: strokeWidth,
+    return _buildPureSkeleton(context, indicatorColor, size);
+  }
+
+  Widget _buildPureSkeleton(BuildContext context, Color color, double? size) {
+    return SizedBox(
+      height: 200, // Provide fixed height to prevent infinite height exception
+      child: Shimmer.fromColors(
+        baseColor: color.withValues(alpha: 0.1),
+        highlightColor: color.withValues(alpha: 0.3),
+        child: Container(
+          width: size ?? double.infinity,
+          height: size ?? double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMD),
+            border: Border.all(
+              color: const Color(0xFF00BFA5).withValues(alpha: 0.05),
+              width: 1.0,
+            ),
+            color: color.withValues(alpha: 0.1),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:freegram/widgets/common/app_progress_indicator.dart';
+// Unused import removed
 
 class ImageGalleryScreen extends StatefulWidget {
   final List<String> imageUrls;
@@ -75,17 +75,35 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
           );
         },
         itemCount: widget.imageUrls.length,
-        loadingBuilder: (context, event) => Center(
-          child: SizedBox(
-            width: 20.0,
-            height: 20.0,
-            child: AppProgressIndicator(
-              value: event == null
-                  ? 0
-                  : event.cumulativeBytesLoaded / event.expectedTotalBytes!,
+        loadingBuilder: (context, event) {
+          if (event == null) return const SizedBox.shrink();
+          final progress = event.expectedTotalBytes != null
+              ? event.cumulativeBytesLoaded / event.expectedTotalBytes!
+              : 0.0;
+          return Center(
+            child: Container(
+              width: 200,
+              height: 4,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(2),
+                border: Border.all(
+                  color: const Color(0xFF00BFA5).withValues(alpha: 0.2),
+                  width: 1,
+                ),
+              ),
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: progress,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00BFA5),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        },
         pageController: _pageController,
         onPageChanged: _onPageChanged,
         backgroundDecoration: const BoxDecoration(color: Colors.black),

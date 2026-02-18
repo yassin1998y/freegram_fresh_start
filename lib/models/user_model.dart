@@ -45,6 +45,7 @@ class UserModel extends Equatable {
   final int coins;
   final int superLikes; // Keep this field
   final DateTime lastFreeSuperLike;
+  final String? referredBy; // ID of the user who referred this user
 
   // --- GAMIFICATION FIELDS ---
   final int lifetimeCoinsSpent; // For level calculation
@@ -57,6 +58,8 @@ class UserModel extends Equatable {
   final int totalGiftsReceived;
   final int totalGiftsSent;
   final int uniqueGiftsCollected;
+  final int totalMessagesSent;
+  final int socialPoints;
 
   // Engagement
   final DateTime lastDailyRewardClaim;
@@ -102,6 +105,7 @@ class UserModel extends Equatable {
     this.coins = 0,
     this.superLikes = 1, // Keep
     required this.lastFreeSuperLike,
+    this.referredBy,
 
     // Gamification defaults
     this.lifetimeCoinsSpent = 0,
@@ -112,6 +116,8 @@ class UserModel extends Equatable {
     this.totalGiftsReceived = 0,
     this.totalGiftsSent = 0,
     this.uniqueGiftsCollected = 0,
+    this.totalMessagesSent = 0,
+    this.socialPoints = 0,
     required this.lastDailyRewardClaim, // Initialize with epoch in factory
     this.dailyLoginStreak = 0,
     // Remove fields from constructor
@@ -128,12 +134,7 @@ class UserModel extends Equatable {
   // _toDateTime, _getList, _getIntList remain the same
   static DateTime _toDateTime(dynamic timestamp, [String? fieldName]) {
     if (timestamp == null) {
-      if (fieldName == 'createdAt') {
-        debugPrint(
-            'DEVELOPER WARNING: createdAt is null for user. Initializing with DateTime.now()');
-        return DateTime.now();
-      }
-      if (fieldName == 'lastSeen') {
+      if (fieldName == 'createdAt' || fieldName == 'lastSeen') {
         return DateTime.now();
       }
       return DateTime.fromMillisecondsSinceEpoch(0);
@@ -236,6 +237,7 @@ class UserModel extends Equatable {
       superLikes: data['superLikes'] ?? 1, // Keep
       lastFreeSuperLike:
           _toDateTime(data['lastFreeSuperLike'], 'lastFreeSuperLike'),
+      referredBy: data['referredBy'] as String?,
 
       // Gamification
       lifetimeCoinsSpent: data['lifetimeCoinsSpent'] ?? 0,
@@ -246,6 +248,8 @@ class UserModel extends Equatable {
       totalGiftsReceived: data['totalGiftsReceived'] ?? 0,
       totalGiftsSent: data['totalGiftsSent'] ?? 0,
       uniqueGiftsCollected: data['uniqueGiftsCollected'] ?? 0,
+      totalMessagesSent: data['totalMessagesSent'] ?? 0,
+      socialPoints: data['socialPoints'] ?? 0,
       lastDailyRewardClaim:
           _toDateTime(data['lastDailyRewardClaim'], 'lastDailyRewardClaim'),
       dailyLoginStreak: data['dailyLoginStreak'] ?? 0,
@@ -297,6 +301,7 @@ class UserModel extends Equatable {
       'coins': coins,
       'superLikes': superLikes, // Keep
       'lastFreeSuperLike': lastFreeSuperLike.millisecondsSinceEpoch,
+      'referredBy': referredBy,
 
       // Gamification
       'lifetimeCoinsSpent': lifetimeCoinsSpent,
@@ -307,6 +312,8 @@ class UserModel extends Equatable {
       'totalGiftsReceived': totalGiftsReceived,
       'totalGiftsSent': totalGiftsSent,
       'uniqueGiftsCollected': uniqueGiftsCollected,
+      'totalMessagesSent': totalMessagesSent,
+      'socialPoints': socialPoints,
       'lastDailyRewardClaim': lastDailyRewardClaim.millisecondsSinceEpoch,
       'dailyLoginStreak': dailyLoginStreak,
       // 'xp': xp, // Removed
@@ -364,12 +371,14 @@ class UserModel extends Equatable {
         followedPages, // Added for equality checks
         userAffinities, // Added for ranking algorithm
         superLikes, // Keep superLikes here if important for equality checks
+        lastFreeSuperLike, referredBy,
         nearbyStatusMessage, nearbyStatusEmoji, nearbyDiscoveryStreak,
         lastNearbyDiscoveryDate,
         sharedMusicTrack, nearbyDataVersion, coins, // Added coins
         lifetimeCoinsSpent, userLevel, equippedBorderId, equippedBadgeId,
         equippedBadgeUrl,
         totalGiftsReceived, totalGiftsSent, uniqueGiftsCollected,
+        totalMessagesSent, socialPoints,
         lastDailyRewardClaim, dailyLoginStreak,
       ];
 
@@ -398,6 +407,7 @@ class UserModel extends Equatable {
     int? coins,
     int? superLikes,
     DateTime? lastFreeSuperLike,
+    String? referredBy,
     int? lifetimeCoinsSpent,
     int? userLevel,
     String? equippedBorderId,
@@ -406,6 +416,8 @@ class UserModel extends Equatable {
     int? totalGiftsReceived,
     int? totalGiftsSent,
     int? uniqueGiftsCollected,
+    int? totalMessagesSent,
+    int? socialPoints,
     DateTime? lastDailyRewardClaim,
     int? dailyLoginStreak,
     String? nearbyStatusMessage,
@@ -441,6 +453,7 @@ class UserModel extends Equatable {
       coins: coins ?? this.coins,
       superLikes: superLikes ?? this.superLikes,
       lastFreeSuperLike: lastFreeSuperLike ?? this.lastFreeSuperLike,
+      referredBy: referredBy ?? this.referredBy,
       lifetimeCoinsSpent: lifetimeCoinsSpent ?? this.lifetimeCoinsSpent,
       userLevel: userLevel ?? this.userLevel,
       equippedBorderId: equippedBorderId ?? this.equippedBorderId,
@@ -449,6 +462,8 @@ class UserModel extends Equatable {
       totalGiftsReceived: totalGiftsReceived ?? this.totalGiftsReceived,
       totalGiftsSent: totalGiftsSent ?? this.totalGiftsSent,
       uniqueGiftsCollected: uniqueGiftsCollected ?? this.uniqueGiftsCollected,
+      totalMessagesSent: totalMessagesSent ?? this.totalMessagesSent,
+      socialPoints: socialPoints ?? this.socialPoints,
       lastDailyRewardClaim: lastDailyRewardClaim ?? this.lastDailyRewardClaim,
       dailyLoginStreak: dailyLoginStreak ?? this.dailyLoginStreak,
       nearbyStatusMessage: nearbyStatusMessage ?? this.nearbyStatusMessage,

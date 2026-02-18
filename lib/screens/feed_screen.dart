@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/blocs/unified_feed_bloc.dart';
+import 'package:freegram/theme/app_theme.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/widgets/feed/feed_item_entrance.dart';
 import 'package:freegram/widgets/feed_widgets/stories_tray.dart';
@@ -129,33 +130,52 @@ class FeedScreenState extends State<FeedScreen>
                 controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
-                  // Top padding to account for fixed MainScreen AppBar
-                  SliverToBoxAdapter(
-                    child: SizedBox(
-                      height:
-                          kToolbarHeight + MediaQuery.of(context).padding.top,
+                  // 1. SliverAppBar (Identity) - Lean version
+                  SliverAppBar(
+                    automaticallyImplyLeading: false,
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    floating: true,
+                    title: Text(
+                      'Freegram',
+                      style:
+                          Theme.of(context).textTheme.displayMedium?.copyWith(
+                                color: SonarPulseTheme.primaryAccent,
+                                fontSize: DesignTokens.fontSizeDisplay,
+                                height: DesignTokens.lineHeightTight,
+                              ),
                     ),
                   ),
 
-                  // 1. Stories Tray
-                  const SliverToBoxAdapter(
-                    child: StoriesTrayWidget(),
+                  // 2. Stories Tray (SliverPadding for 16px margins)
+                  const SliverPadding(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: DesignTokens.spaceMD, vertical: 8.0),
+                    sliver: SliverToBoxAdapter(
+                      child: StoriesTrayWidget(),
+                    ),
                   ),
 
-                  // 2. Create Post Widget
+                  // 3. Create Post Widget (SliverToBoxAdapter)
                   const SliverToBoxAdapter(
-                    child: CreatePostWidget(),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 0.0),
+                      child: CreatePostWidget(),
+                    ),
                   ),
 
-                  // 3. Trending Reels Carousel
-                  if (state.trendingReels.isNotEmpty)
-                    SliverToBoxAdapter(
+                  // 4. Trending Reels Carousel Widget (Discovery Priority - Always Visible)
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: DesignTokens.spaceMD, vertical: 8.0),
+                    sliver: SliverToBoxAdapter(
                       child: TrendingReelsCarouselWidget(
                         reels: state.trendingReels,
                       ),
                     ),
+                  ),
 
-                  // 4. Trending Posts Section
+                  // 5. Unified Feed Content (Main Trending/Friend Posts)
                   if (state.boostedPosts.isNotEmpty)
                     SliverToBoxAdapter(
                       child: TrendingPostsSectionWidget(
@@ -163,7 +183,6 @@ class FeedScreenState extends State<FeedScreen>
                       ),
                     ),
 
-                  // 5. Main Feed Items
                   SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {

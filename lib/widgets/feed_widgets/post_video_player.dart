@@ -2,6 +2,7 @@
 // Video player widget for feed posts
 
 import 'dart:async';
+import 'package:shimmer/shimmer.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -9,7 +10,7 @@ import 'package:freegram/models/media_item_model.dart';
 import 'package:freegram/services/network_quality_service.dart';
 import 'package:freegram/services/cache_manager_service.dart';
 import 'package:freegram/theme/design_tokens.dart';
-import 'package:freegram/widgets/common/app_progress_indicator.dart';
+// Unused import removed
 import 'package:freegram/widgets/lqip_image.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/screens/video_player_screen.dart';
@@ -328,8 +329,30 @@ class _PostVideoPlayerState extends State<PostVideoPlayer> {
               if (_isLoading)
                 Container(
                   color: Colors.black54,
-                  child: const Center(
-                    child: AppProgressIndicator(color: Colors.white),
+                  child: Center(
+                    child: Container(
+                      width: 120,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(2),
+                        border: Border.all(
+                          color: const Color(0xFF00BFA5).withValues(alpha: 0.5),
+                          width: 1,
+                        ),
+                      ),
+                      child: Shimmer.fromColors(
+                        baseColor:
+                            const Color(0xFF00BFA5).withValues(alpha: 0.2),
+                        highlightColor: const Color(0xFF00BFA5),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF00BFA5),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
 

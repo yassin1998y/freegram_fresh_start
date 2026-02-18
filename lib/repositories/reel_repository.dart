@@ -215,17 +215,23 @@ class ReelRepository {
           snapshot.docs.map((doc) => ReelModel.fromDoc(doc)).toList();
 
       // Filter to last 7 days
-      final recentReels =
+      List<ReelModel> trendingReels =
           allReels.where((reel) => reel.createdAt.isAfter(weekAgo)).toList();
 
+      // LOGIC FIX: If no fresh reels (last 7 days), fallback to any available reels
+      // indexed by engagement to ensure discovery trail is never empty.
+      if (trendingReels.isEmpty) {
+        trendingReels = allReels;
+      }
+
       // Calculate engagement score: views * 1 + likes * 5 + comments * 10
-      recentReels.sort((a, b) {
+      trendingReels.sort((a, b) {
         final scoreA = a.viewCount * 1 + a.likeCount * 5 + a.commentCount * 10;
         final scoreB = b.viewCount * 1 + b.likeCount * 5 + b.commentCount * 10;
         return scoreB.compareTo(scoreA);
       });
 
-      return recentReels.take(limit).toList();
+      return trendingReels.take(limit).toList();
     } catch (e) {
       debugPrint('ReelRepository: Error getting trending reels: $e');
       // Fallback: just get recent reels if engagement sorting fails

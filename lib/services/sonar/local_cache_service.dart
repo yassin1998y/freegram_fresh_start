@@ -36,8 +36,8 @@ class LocalCacheService {
   }
 
   // --- Nearby User Management ---
-  Future<void> storeOrUpdateNearby(
-      String uidShort, int gender, double distance) async {
+  Future<void> storeOrUpdateNearby(String uidShort, int gender, double distance,
+      {String? presenceStatus}) async {
     final now = DateTime.now();
     final existingUser = _nearbyUsersBox.get(uidShort);
 
@@ -46,6 +46,9 @@ class LocalCacheService {
       final originalFoundAt = existingUser.foundAt;
       existingUser.distance = distance;
       existingUser.lastSeen = now;
+      if (presenceStatus != null) {
+        existingUser.presenceStatus = presenceStatus;
+      }
 
       // Migration: if foundAt is not set (old data), set it to lastSeen
       if (existingUser.internalFoundAt == null) {
@@ -54,7 +57,7 @@ class LocalCacheService {
 
       await existingUser.save();
       debugPrint(
-          "LocalCacheService: UPDATING existing user $uidShort - foundAt unchanged=$originalFoundAt, lastSeen updated=$now");
+          "LocalCacheService: UPDATING existing user $uidShort - foundAt unchanged=$originalFoundAt, lastSeen updated=$now, presence=${presenceStatus ?? 'unchanged'}");
     } else {
       // Create new user entry - set both foundAt and lastSeen to now
       final newUser = NearbyUser(
@@ -64,10 +67,11 @@ class LocalCacheService {
         lastSeen: now,
         foundAt: now, // Set foundAt when first discovered
         profileId: null, // Starts as null
+        presenceStatus: presenceStatus,
       );
       await _nearbyUsersBox.put(uidShort, newUser);
       debugPrint(
-          "LocalCacheService: NEW user discovered $uidShort with foundAt=$now (put complete)");
+          "LocalCacheService: NEW user discovered $uidShort with foundAt=$now (put complete), presence=$presenceStatus");
 
       // --- START: Profile Sync Delay Fix (#1 & #2) ---
       // ⚠️ STRUCTURE: Circular dependency - LocalCacheService triggers SyncManager

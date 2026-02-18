@@ -162,6 +162,16 @@ class ReferralService {
     return List.generate(6, (index) => chars[random.nextInt(chars.length)])
         .join();
   }
+
+  /// Get stream of referral commission transactions (Growth Sync Listener)
+  Stream<QuerySnapshot> getReferralCommissionStream(String userId) {
+    return _db
+        .collection('coinTransactions')
+        .where('userId', isEqualTo: userId)
+        .where('type', isEqualTo: 'referral_store_commission')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
+  }
 }
 
 class ReferralStats {

@@ -148,7 +148,7 @@ class ProfessionalNotificationManager {
     final messages = _messagesByChat[chatId]!;
     final messageCount = messages.length;
 
-    if (Platform.isAndroid) {
+    if (!kIsWeb && Platform.isAndroid) {
       await _showAndroidMessageNotification(
         notificationId: notificationId,
         chatId: chatId,
@@ -158,7 +158,7 @@ class ProfessionalNotificationManager {
         messageCount: messageCount,
         largeIconPath: largeIconPath,
       );
-    } else if (Platform.isIOS) {
+    } else if (!kIsWeb && Platform.isIOS) {
       await _showIOSMessageNotification(
         notificationId: notificationId,
         senderName: senderName,
@@ -317,14 +317,14 @@ class ProfessionalNotificationManager {
       );
     }
 
-    if (Platform.isAndroid) {
+    if (!kIsWeb && Platform.isAndroid) {
       await _showAndroidFriendRequestNotification(
         notificationId: notificationId,
         fromUserId: fromUserId,
         fromUsername: fromUsername,
         largeIconPath: largeIconPath,
       );
-    } else if (Platform.isIOS) {
+    } else if (!kIsWeb && Platform.isIOS) {
       await _showIOSFriendRequestNotification(
         notificationId: notificationId,
         fromUsername: fromUsername,

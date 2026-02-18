@@ -22,7 +22,7 @@ class ForegroundServiceManager {
   /// Start the foreground service (Android only)
   /// This creates a persistent notification that prevents MIUI from killing the app
   Future<bool> startService() async {
-    if (!Platform.isAndroid) return false;
+    if (kIsWeb || !Platform.isAndroid) return false;
     if (_isServiceRunning) {
       debugPrint(
           'ForegroundServiceManager: Service already running, skipping start');
@@ -51,7 +51,7 @@ class ForegroundServiceManager {
 
   /// Stop the foreground service (Android only)
   Future<bool> stopService() async {
-    if (!Platform.isAndroid) return false;
+    if (kIsWeb || !Platform.isAndroid) return false;
     if (!_isServiceRunning) {
       debugPrint(
           'ForegroundServiceManager: Service not running, skipping stop');
@@ -78,7 +78,7 @@ class ForegroundServiceManager {
     required String title,
     required String content,
   }) async {
-    if (!Platform.isAndroid || !_isServiceRunning) return;
+    if (kIsWeb || !Platform.isAndroid || !_isServiceRunning) return;
 
     try {
       await _channel.invokeMethod('updateNotification', {

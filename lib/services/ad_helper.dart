@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:async';
@@ -61,10 +62,12 @@ class AdHelper {
     if (_useTestAds) {
       // TEST MODE - Using Google's test ad IDs
       debugPrint('📱 AdHelper: Using TEST rewarded ad');
-      return Platform.isAndroid ? _testRewardedAndroid : _testRewardedIOS;
+      return (!kIsWeb && Platform.isAndroid)
+          ? _testRewardedAndroid
+          : _testRewardedIOS;
     } else {
       // PRODUCTION MODE - Using real ad IDs from .env
-      final adId = Platform.isAndroid
+      final adId = (!kIsWeb && Platform.isAndroid)
           ? dotenv.env['ADMOB_REWARDED_ANDROID']
           : dotenv.env['ADMOB_REWARDED_IOS'];
 
@@ -72,7 +75,9 @@ class AdHelper {
         debugPrint(
             '⚠️ WARNING: Production rewarded ad ID not configured in .env!');
         debugPrint('⚠️ Falling back to test ads. Please update .env file.');
-        return Platform.isAndroid ? _testRewardedAndroid : _testRewardedIOS;
+        return (!kIsWeb && Platform.isAndroid)
+            ? _testRewardedAndroid
+            : _testRewardedIOS;
       }
 
       debugPrint('💰 AdHelper: Using PRODUCTION rewarded ad');
@@ -84,10 +89,12 @@ class AdHelper {
     if (_useTestAds) {
       // TEST MODE - Using Google's test ad IDs
       debugPrint('📱 AdHelper: Using TEST banner ad');
-      return Platform.isAndroid ? _testBannerAndroid : _testBannerIOS;
+      return (!kIsWeb && Platform.isAndroid)
+          ? _testBannerAndroid
+          : _testBannerIOS;
     } else {
       // PRODUCTION MODE - Using real ad IDs from .env
-      final adId = Platform.isAndroid
+      final adId = (!kIsWeb && Platform.isAndroid)
           ? dotenv.env['ADMOB_BANNER_ANDROID']
           : dotenv.env['ADMOB_BANNER_IOS'];
 
@@ -95,7 +102,9 @@ class AdHelper {
         debugPrint(
             '⚠️ WARNING: Production banner ad ID not configured in .env!');
         debugPrint('⚠️ Falling back to test ads. Please update .env file.');
-        return Platform.isAndroid ? _testBannerAndroid : _testBannerIOS;
+        return (!kIsWeb && Platform.isAndroid)
+            ? _testBannerAndroid
+            : _testBannerIOS;
       }
 
       debugPrint('💰 AdHelper: Using PRODUCTION banner ad');

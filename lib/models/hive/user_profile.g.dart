@@ -31,13 +31,15 @@ class UserProfileAdapter extends TypeAdapter<UserProfile> {
       friendRequestsSent: (fields[11] as List).cast<String>(),
       friendRequestsReceived: (fields[12] as List).cast<String>(),
       blockedUsers: (fields[13] as List).cast<String>(),
+      equippedBadgeUrl: fields[14] as String?,
+      privacySettings: (fields[15] as Map).cast<String, dynamic>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, UserProfile obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.profileId)
       ..writeByte(1)
@@ -65,7 +67,11 @@ class UserProfileAdapter extends TypeAdapter<UserProfile> {
       ..writeByte(12)
       ..write(obj.friendRequestsReceived)
       ..writeByte(13)
-      ..write(obj.blockedUsers);
+      ..write(obj.blockedUsers)
+      ..writeByte(14)
+      ..write(obj.equippedBadgeUrl)
+      ..writeByte(15)
+      ..write(obj.privacySettings);
   }
 
   @override

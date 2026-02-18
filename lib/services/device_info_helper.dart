@@ -24,7 +24,7 @@ class DeviceInfoHelper {
     if (_manufacturer != null) return; // Already initialized
 
     try {
-      if (Platform.isAndroid) {
+      if (!kIsWeb && Platform.isAndroid) {
         final androidInfo = await _deviceInfo.androidInfo;
         _manufacturer = androidInfo.manufacturer.toLowerCase();
         _model = androidInfo.model.toLowerCase();

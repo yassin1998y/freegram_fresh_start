@@ -146,7 +146,7 @@ class SonarController {
 
     // MIUI/Redmi Critical Fix: Start foreground service BEFORE Bluetooth scanning
     // This prevents MIUI from killing the background process
-    if (Platform.isAndroid) {
+    if (!kIsWeb && Platform.isAndroid) {
       await _deviceInfo.initialize();
       if (_deviceInfo.isXiaomiDevice) {
         debugPrint(
@@ -174,7 +174,7 @@ class SonarController {
       // Stop potentially partially started services
       await _discoveryService.stop();
       // Stop foreground service since we're not scanning
-      if (Platform.isAndroid) {
+      if (!kIsWeb && Platform.isAndroid) {
         await _foregroundService.stopService();
       }
     } else {
@@ -205,7 +205,7 @@ class SonarController {
     _isRunning = false; // Mark as stopped
 
     // MIUI/Redmi Fix: Stop foreground service when Sonar stops
-    if (Platform.isAndroid) {
+    if (!kIsWeb && Platform.isAndroid) {
       await _foregroundService.stopService();
       debugPrint("SonarController: Foreground service stopped.");
     }

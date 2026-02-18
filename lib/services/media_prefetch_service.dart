@@ -483,8 +483,10 @@ class MediaPrefetchService {
   void _enforceMemoryLimitForReels() {
     if (_isDisposed) return;
 
+    // CRITICAL FIX: Add isEmpty check to prevent "Bad state: no element" crash
     // Remove oldest entries (from front of LinkedHashMap) if over limit
-    while (_prefetchedControllers.length >= _maxPrefetchedReelControllers) {
+    while (_prefetchedControllers.isNotEmpty &&
+        _prefetchedControllers.length >= _maxPrefetchedReelControllers) {
       final oldestKey = _prefetchedControllers.keys.first;
       final controller = _prefetchedControllers.remove(oldestKey);
       controller?.dispose();
@@ -499,8 +501,9 @@ class MediaPrefetchService {
   void _enforceMemoryLimitForStories() {
     if (_isDisposed) return;
 
+    // CRITICAL FIX: Add isEmpty check to prevent "Bad state: no element" crash
     // Remove oldest entries (from front of LinkedHashMap) if over limit
-    while (
+    while (_prefetchedStoryControllers.isNotEmpty &&
         _prefetchedStoryControllers.length >= _maxPrefetchedStoryControllers) {
       final oldestKey = _prefetchedStoryControllers.keys.first;
       final controller = _prefetchedStoryControllers.remove(oldestKey);
@@ -517,7 +520,7 @@ class MediaPrefetchService {
   ///
   /// [keepReelIds] - List of reel IDs to keep (current + next few)
   void clearDistantControllers(List<String> keepReelIds) {
-    if (_isDisposed) return;
+    if (_isDisposed || _prefetchedControllers.isEmpty) return;
 
     // Get IDs to remove (not in keep list)
     final reelIdsToRemove = _prefetchedControllers.keys
@@ -543,7 +546,7 @@ class MediaPrefetchService {
   ///
   /// [keepStoryIds] - List of story IDs to keep (current + next few)
   void clearDistantStoryControllers(List<String> keepStoryIds) {
-    if (_isDisposed) return;
+    if (_isDisposed || _prefetchedStoryControllers.isEmpty) return;
 
     // Get IDs to remove (not in keep list)
     final storyIdsToRemove = _prefetchedStoryControllers.keys

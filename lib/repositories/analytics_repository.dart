@@ -57,4 +57,92 @@ class AnalyticsRepository {
       'timestamp': FieldValue.serverTimestamp(),
     });
   }
+
+  /// Global Error Logger
+  Future<void> logError({
+    required String message,
+    String? stackTrace,
+    String? context,
+  }) async {
+    try {
+      await _db.collection('analytics').doc('errors').collection('logs').add({
+        'message': message,
+        'stackTrace': stackTrace,
+        'context': context,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      // Fail silently for analytics
+    }
+  }
+
+  /// Get live reach data for the user's active boosts
+  /// Returns a list of data points (timestamp, reach count) for the graph
+  Future<List<Map<String, dynamic>>> getLiveBoostReach(String userId) async {
+    try {
+      // 1. Get active boosted posts for the user
+      final now = Timestamp.now();
+      final postsSnapshot = await _db
+          .collection('posts')
+          .where('authorId', isEqualTo: userId)
+          .where('isBoosted', isEqualTo: true)
+          .where('boostEndTime', isGreaterThan: now)
+          .orderBy('boostEndTime', descending: true)
+          .limit(1) // Focus on the most recent active boost for the graph
+          .get();
+
+      if (postsSnapshot.docs.isEmpty) {
+        return [];
+      }
+
+      final post = postsSnapshot.docs.first;
+      final postId = post.id;
+
+      // 2. Get reach history from subcollection
+      // Limiting to last 50 data points for performance/graph readability
+      final reachSnapshot = await _db
+          .collection('posts')
+          .doc(postId)
+          .collection('boostReach')
+          .orderBy('timestamp', descending: true)
+          .limit(50)
+          .get();
+
+      // 3. Transform to graph data points
+      // We want cumulative reach over time, or just the events
+      // Let's return raw events, the UI can aggregate or plot them
+      return reachSnapshot.docs.map((doc) {
+        return {
+          'timestamp': (doc['timestamp'] as Timestamp).toDate(),
+          'userId': doc['userId'], // Optional, maybe for uniqueness check
+        };
+      }).toList();
+    } catch (e) {
+      // Fail silently or return empty
+      return [];
+    }
+  }
+
+  /// Track reach for a boosted post
+  Future<void> trackBoostReach(String postId, String viewerId) async {
+    try {
+      final postRef = _db.collection('posts').doc(postId);
+
+      // 1. Log the reach event
+      await postRef.collection('boostReach').add({
+        'userId': viewerId,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      // 2. Increment stats on the post doc
+      // Ideally this would be done in a Cloud Function to avoid write conflicts
+      // but for "Live Reach" zero-latency we do it here or via batch.
+      await postRef.update({
+        'boostStats.reach': FieldValue.increment(1),
+        'boostStats.impressions': FieldValue.increment(1),
+      });
+    } catch (e) {
+      // Fail silently
+    }
+  }
 }

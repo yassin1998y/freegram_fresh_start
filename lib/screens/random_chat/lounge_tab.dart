@@ -113,7 +113,7 @@ class _LoungeTabState extends State<LoungeTab> {
             ),
 
           // Bottom padding
-          SliverPadding(
+          const SliverPadding(
               padding: EdgeInsets.only(bottom: DesignTokens.spaceXXXL)),
         ],
       ),

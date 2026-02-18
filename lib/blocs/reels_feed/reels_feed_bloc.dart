@@ -13,11 +13,14 @@ import 'package:freegram/repositories/reel_repository.dart';
 import 'package:freegram/repositories/user_repository.dart';
 import 'package:freegram/services/reels_scoring_service.dart';
 import 'package:freegram/utils/reels_feed_diversifier.dart';
+import 'package:freegram/services/global_cache_coordinator.dart';
+import 'package:flutter/services.dart';
 
 class ReelsFeedBloc extends Bloc<ReelsFeedEvent, ReelsFeedState> {
   final ReelRepository _reelRepository;
   final UserRepository? _userRepository;
   final ReelsScoringService? _scoringService;
+  final GlobalCacheCoordinator _globalCacheCoordinator;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   DocumentSnapshot? _lastDocument;
   static const int _pageSize = 20;
@@ -34,11 +37,15 @@ class ReelsFeedBloc extends Bloc<ReelsFeedEvent, ReelsFeedState> {
     required ReelRepository reelRepository,
     UserRepository? userRepository,
     ReelsScoringService? scoringService,
+    GlobalCacheCoordinator? globalCacheCoordinator,
     this.usePersonalizedFeed = true, // Enable by default
   })  : _reelRepository = reelRepository,
         _userRepository = userRepository,
         _scoringService = scoringService,
+        _globalCacheCoordinator =
+            globalCacheCoordinator ?? GlobalCacheCoordinator(),
         super(const ReelsFeedInitial()) {
+    _globalCacheCoordinator.init();
     on<LoadReelsFeed>(_onLoadReelsFeed);
     on<LoadMoreReels>(_onLoadMoreReels);
     on<PlayReel>(_onPlayReel);
@@ -60,6 +67,23 @@ class ReelsFeedBloc extends Bloc<ReelsFeedEvent, ReelsFeedState> {
     Emitter<ReelsFeedState> emit,
   ) async {
     emit(const ReelsFeedLoading());
+
+    // SWR: Try to load from cache first
+    try {
+      final cachedReels =
+          await _globalCacheCoordinator.getCachedItems<ReelModel>();
+      if (cachedReels.isNotEmpty) {
+        emit(ReelsFeedLoaded(
+          reels: cachedReels,
+          currentPlayingReelId: cachedReels.first.reelId,
+          hasMore: false,
+        ));
+        // Trigger HapticFeedback.lightImpact() as requested
+        HapticFeedback.lightImpact();
+      }
+    } catch (e) {
+      debugPrint('ReelsFeedBloc: Error loading from global cache: $e');
+    }
 
     try {
       _lastDocument = null;
@@ -93,6 +117,14 @@ class ReelsFeedBloc extends Bloc<ReelsFeedEvent, ReelsFeedState> {
 
       _lastDocument = await _getLastDocument(reels);
 
+      // Cache the fresh reels
+      try {
+        await _globalCacheCoordinator.cacheItems<ReelModel>(reels);
+        debugPrint('ReelsFeedBloc: Cached ${reels.length} reels');
+      } catch (e) {
+        debugPrint('ReelsFeedBloc: Error caching reels: $e');
+      }
+
       emit(ReelsFeedLoaded(
         reels: reels,
         currentPlayingReelId: reels.isNotEmpty ? reels.first.reelId : null,
@@ -100,7 +132,40 @@ class ReelsFeedBloc extends Bloc<ReelsFeedEvent, ReelsFeedState> {
       ));
     } catch (e) {
       debugPrint('ReelsFeedBloc: Error loading reels feed: $e');
-      emit(ReelsFeedError(e.toString()));
+
+      // Fallback to cache if strictly necessary and we failed to load fresh
+      // (Though with SWR we might have already emitted cached content,
+      // but if an error occurred we might want to ensure we stay on cached content or show error)
+      // If we already emitted cached content, we might already be in a Loaded state visually,
+      // but this catch block intercepts the flow.
+      // If we are here, it means fresh load failed.
+
+      if (state is ReelsFeedLoaded &&
+          (state as ReelsFeedLoaded).reels.isNotEmpty) {
+        debugPrint('ReelsFeedBloc: Keeping cached content after error');
+        // Start playing if not already
+        if ((state as ReelsFeedLoaded).currentPlayingReelId == null) {
+          emit((state as ReelsFeedLoaded).copyWith(
+              currentPlayingReelId:
+                  (state as ReelsFeedLoaded).reels.first.reelId));
+        }
+      } else {
+        // If we have nothing, try cache again (redundant maybe but safe)
+        try {
+          final cachedReels =
+              await _globalCacheCoordinator.getCachedItems<ReelModel>();
+          if (cachedReels.isNotEmpty) {
+            emit(ReelsFeedLoaded(
+              reels: cachedReels,
+              currentPlayingReelId: cachedReels.first.reelId,
+              hasMore: false,
+            ));
+            return;
+          }
+        } catch (_) {}
+
+        emit(ReelsFeedError(e.toString()));
+      }
     }
   }
 

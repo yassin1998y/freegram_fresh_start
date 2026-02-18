@@ -55,6 +55,8 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
     with SingleTickerProviderStateMixin {
   late AnimationController _highlightController;
   late Animation<Color?> _highlightAnimation;
+  late AnimationController _glintController;
+  late Animation<double> _glintAnimation;
   bool _isPressed = false;
 
   @override
@@ -63,6 +65,16 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
     _highlightController = AnimationController(
       duration: AnimationTokens.slow,
       vsync: this,
+    );
+
+    _glintController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+
+    _glintAnimation = CurvedAnimation(
+      parent: _glintController,
+      curve: Curves.easeInOut,
     );
 
     // Use a fixed color for highlight that feels theme-aware
@@ -87,6 +99,13 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
     if (widget.shouldHighlight && !oldWidget.shouldHighlight) {
       _triggerHighlight();
     }
+
+    // Trigger Glint when status changes to seen (read)
+    if (widget.message.status == MessageStatus.seen &&
+        oldWidget.message.status != MessageStatus.seen &&
+        widget.isMe) {
+      _glintController.forward(from: 0.0);
+    }
   }
 
   void _triggerHighlight() {
@@ -100,6 +119,7 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
   @override
   void dispose() {
     _highlightController.dispose();
+    _glintController.dispose();
     super.dispose();
   }
 
@@ -214,30 +234,29 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
     final theme = Theme.of(context);
 
     if (widget.message.isSystemMessage) {
-      return Container(
-        margin: const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
-        alignment: Alignment.center,
+      return Center(
         child: Container(
+          margin: const EdgeInsets.symmetric(vertical: DesignTokens.spaceMD),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFF00E676).withValues(alpha: 0.1),
+            color: const Color(0xFF00BFA5).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: const Color(0xFF00E676).withValues(alpha: 0.3),
+              color: const Color(0xFF00BFA5), // Brand Green
               width: 1,
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.stars, color: Color(0xFF00E676), size: 16),
+              const Icon(Icons.stars, color: Color(0xFF00BFA5), size: 16),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
                   widget.message.text ?? '',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF00E676),
+                    color: const Color(0xFF00BFA5),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -250,138 +269,148 @@ class _ProfessionalMessageBubbleState extends State<ProfessionalMessageBubble>
 
     return RepaintBoundary(
       child: AnimatedBuilder(
-        animation: _highlightAnimation,
+        animation: Listenable.merge([_highlightAnimation, _glintController]),
         builder: (context, child) {
-          return GestureDetector(
-            onHorizontalDragStart: (_) {
-              setState(() {
-                _isSwiping = true;
-              });
-            },
-            onHorizontalDragUpdate: (details) {
-              if (!_isSwiping) return;
-
-              // Only allow swipe right for reply, swipe left for delete (own messages)
-              if (details.delta.dx > 0 && !widget.isMe) {
-                // Swipe right to reply (received messages)
+          return CustomPaint(
+            foregroundPainter: _glintController.isAnimating
+                ? _BubbleGlintPainter(
+                    animationValue: _glintAnimation.value,
+                    isMe: widget.isMe,
+                    borderRadius: _getBubbleBorderRadius(),
+                    color: const Color(0xFF00BFA5),
+                  )
+                : null,
+            child: GestureDetector(
+              onHorizontalDragStart: (_) {
                 setState(() {
-                  _swipeOffset =
-                      (_swipeOffset + details.delta.dx).clamp(0.0, 100.0);
+                  _isSwiping = true;
                 });
-              } else if (details.delta.dx < 0 && widget.isMe) {
-                // Swipe left to delete (own messages)
+              },
+              onHorizontalDragUpdate: (details) {
+                if (!_isSwiping) return;
+
+                // Only allow swipe right for reply, swipe left for delete (own messages)
+                if (details.delta.dx > 0 && !widget.isMe) {
+                  // Swipe right to reply (received messages)
+                  setState(() {
+                    _swipeOffset =
+                        (_swipeOffset + details.delta.dx).clamp(0.0, 100.0);
+                  });
+                } else if (details.delta.dx < 0 && widget.isMe) {
+                  // Swipe left to delete (own messages)
+                  setState(() {
+                    _swipeOffset =
+                        (_swipeOffset + details.delta.dx).clamp(-100.0, 0.0);
+                  });
+                }
+              },
+              onHorizontalDragEnd: (details) {
+                if (!_isSwiping) return;
+
                 setState(() {
-                  _swipeOffset =
-                      (_swipeOffset + details.delta.dx).clamp(-100.0, 0.0);
+                  _isSwiping = false;
                 });
-              }
-            },
-            onHorizontalDragEnd: (details) {
-              if (!_isSwiping) return;
 
-              setState(() {
-                _isSwiping = false;
-              });
-
-              // Trigger action if swiped enough
-              if (_swipeOffset > 50 && !widget.isMe) {
-                // Swipe right to reply
+                // Trigger action if swiped enough
+                if (_swipeOffset > 50 && !widget.isMe) {
+                  // Swipe right to reply
+                  HapticFeedback.mediumImpact();
+                  widget
+                      .onLongPress(); // Use long press handler to show actions, which includes reply
+                  _swipeOffset = 0.0;
+                } else if (_swipeOffset < -50 && widget.isMe) {
+                  // Swipe left to delete
+                  HapticFeedback.mediumImpact();
+                  widget.onLongPress(); // Show delete option in actions
+                  _swipeOffset = 0.0;
+                } else {
+                  // Reset position
+                  _swipeOffset = 0.0;
+                }
+              },
+              onLongPress: () {
                 HapticFeedback.mediumImpact();
-                widget
-                    .onLongPress(); // Use long press handler to show actions, which includes reply
-                _swipeOffset = 0.0;
-              } else if (_swipeOffset < -50 && widget.isMe) {
-                // Swipe left to delete
-                HapticFeedback.mediumImpact();
-                widget.onLongPress(); // Show delete option in actions
-                _swipeOffset = 0.0;
-              } else {
-                // Reset position
-                _swipeOffset = 0.0;
-              }
-            },
-            onLongPress: () {
-              HapticFeedback.mediumImpact();
-              widget.onLongPress();
-            },
-            onTap: () {
-              // If there's a custom onTap handler, use it
-              // Otherwise, show timestamp on tap
-              if (widget.onTap != null) {
-                widget.onTap?.call();
-              } else if (widget.message.timestamp != null) {
-                _showTimestamp(context);
-              }
-            },
-            onTapDown: (_) => setState(() => _isPressed = true),
-            onTapUp: (_) => setState(() => _isPressed = false),
-            onTapCancel: () => setState(() => _isPressed = false),
-            child: Transform.translate(
-              offset: Offset(_swipeOffset, 0),
-              child: Container(
-                color: _highlightAnimation.value,
-                padding: EdgeInsets.only(
-                  top: _topPadding,
-                  left: DesignTokens.spaceSM,
-                  right: DesignTokens.spaceSM,
-                  bottom: DesignTokens.spaceXS,
-                ),
-                child: Align(
-                  alignment: widget.isMe
-                      ? Alignment.centerRight
-                      : Alignment.centerLeft,
-                  child: Column(
-                    crossAxisAlignment: widget.isMe
-                        ? CrossAxisAlignment.end
-                        : CrossAxisAlignment.start,
-                    children: [
-                      // Show sender name for first message in cluster (group chats)
-                      if (_isFirstInCluster && !widget.isMe)
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            left: DesignTokens.spaceMD,
-                            bottom: DesignTokens.spaceXS,
-                          ),
-                          child: Text(
-                            widget.otherUsername,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: DesignTokens.fontSizeXS,
+                widget.onLongPress();
+              },
+              onTap: () {
+                // If there's a custom onTap handler, use it
+                // Otherwise, show timestamp on tap
+                if (widget.onTap != null) {
+                  widget.onTap?.call();
+                } else if (widget.message.timestamp != null) {
+                  _showTimestamp(context);
+                }
+              },
+              onTapDown: (_) => setState(() => _isPressed = true),
+              onTapUp: (_) => setState(() => _isPressed = false),
+              onTapCancel: () => setState(() => _isPressed = false),
+              child: Transform.translate(
+                offset: Offset(_swipeOffset, 0),
+                child: Container(
+                  color: _highlightAnimation.value,
+                  padding: EdgeInsets.only(
+                    top: _topPadding,
+                    left: DesignTokens.spaceSM,
+                    right: DesignTokens.spaceSM,
+                    bottom: DesignTokens.spaceXS,
+                  ),
+                  child: Align(
+                    alignment: widget.isMe
+                        ? Alignment.centerRight
+                        : Alignment.centerLeft,
+                    child: Column(
+                      crossAxisAlignment: widget.isMe
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.start,
+                      children: [
+                        // Show sender name for first message in cluster (group chats)
+                        if (_isFirstInCluster && !widget.isMe)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              left: DesignTokens.spaceMD,
+                              bottom: DesignTokens.spaceXS,
+                            ),
+                            child: Text(
+                              widget.otherUsername,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: DesignTokens.fontSizeXS,
+                              ),
                             ),
                           ),
+
+                        // Message bubble
+                        AnimatedScale(
+                          scale: _isPressed ? 0.98 : 1.0,
+                          duration: AnimationTokens.fast,
+                          child: widget.message.status == MessageStatus.sending
+                              ? Shimmer.fromColors(
+                                  baseColor: widget.isMe
+                                      ? SonarPulseTheme.primaryAccent
+                                          .withValues(alpha: 0.7)
+                                      : Colors.grey.withValues(alpha: 0.1),
+                                  highlightColor: widget.isMe
+                                      ? SonarPulseTheme.primaryAccent
+                                          .withValues(alpha: 0.4)
+                                      : Colors.grey.withValues(alpha: 0.05),
+                                  child: _buildMessageContent(context),
+                                )
+                              : _buildMessageContent(context),
                         ),
 
-                      // Message bubble
-                      AnimatedScale(
-                        scale: _isPressed ? 0.98 : 1.0,
-                        duration: AnimationTokens.fast,
-                        child: widget.message.status == MessageStatus.sending
-                            ? Shimmer.fromColors(
-                                baseColor: widget.isMe
-                                    ? SonarPulseTheme.primaryAccent
-                                        .withValues(alpha: 0.7)
-                                    : Colors.grey.withValues(alpha: 0.1),
-                                highlightColor: widget.isMe
-                                    ? SonarPulseTheme.primaryAccent
-                                        .withValues(alpha: 0.4)
-                                    : Colors.grey.withValues(alpha: 0.05),
-                                child: _buildMessageContent(context),
-                              )
-                            : _buildMessageContent(context),
-                      ),
-
-                      // Timestamp and status (shown on last message in cluster)
-                      if (_isLastInCluster)
-                        Padding(
-                          padding: EdgeInsets.only(
-                            top: DesignTokens.spaceXS,
-                            left: widget.isMe ? 0 : DesignTokens.spaceMD,
-                            right: widget.isMe ? DesignTokens.spaceMD : 0,
+                        // Timestamp and status (shown on last message in cluster)
+                        if (_isLastInCluster)
+                          Padding(
+                            padding: EdgeInsets.only(
+                              top: DesignTokens.spaceXS,
+                              left: widget.isMe ? 0 : DesignTokens.spaceMD,
+                              right: widget.isMe ? DesignTokens.spaceMD : 0,
+                            ),
+                            child: _buildMessageStatus(),
                           ),
-                          child: _buildMessageStatus(),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -948,5 +977,60 @@ class _EnhancedImageViewer extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _BubbleGlintPainter extends CustomPainter {
+  final double animationValue;
+  final bool isMe;
+  final BorderRadius borderRadius;
+  final Color color;
+
+  _BubbleGlintPainter({
+    required this.animationValue,
+    required this.isMe,
+    required this.borderRadius,
+    required this.color,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (animationValue <= 0.0 || animationValue >= 1.0) return;
+
+    final rect = Offset.zero & size;
+    final rrect = borderRadius.toRRect(rect);
+
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    // Create a sweeping gradient that moves across the border
+    // The gradient will be transparent -> color -> transparent
+    final gradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        Colors.transparent,
+        color.withValues(alpha: 0.8),
+        Colors.transparent,
+      ],
+      stops: [
+        (animationValue - 0.2).clamp(0.0, 1.0),
+        animationValue.clamp(0.0, 1.0),
+        (animationValue + 0.2).clamp(0.0, 1.0),
+      ],
+    );
+
+    paint.shader = gradient.createShader(rect);
+
+    canvas.drawRRect(rrect, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _BubbleGlintPainter oldDelegate) {
+    return oldDelegate.animationValue != animationValue ||
+        oldDelegate.isMe != isMe ||
+        oldDelegate.borderRadius != borderRadius ||
+        oldDelegate.color != color;
   }
 }

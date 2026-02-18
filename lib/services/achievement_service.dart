@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:freegram/locator.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/repositories/achievement_repository.dart';
 import 'package:freegram/repositories/post_repository.dart';
 import 'package:freegram/repositories/gift_repository.dart';
@@ -57,11 +58,36 @@ class AchievementService {
     _giftSentSubscription = _giftRepo.onGiftSent.listen((event) {
       _handleGiftSent(event.senderId, event.price, event.giftId);
     });
+
+    // 4. Listen for messages sent (Social)
+    _chatRepo.onMessageSent.listen((_) {
+      final user = FirebaseAuth.instance.currentUser?.uid;
+      if (user != null) {
+        _handleMessageSent(user);
+      }
+    });
+  }
+
+  Future<void> _handleMessageSent(String userId) async {
+    try {
+      // Social achievements: Chat Regular
+      const achievementId = 'social_chat_regular';
+      final newlyCompleted = await _achievementRepo.updateProgress(
+        userId,
+        achievementId,
+        1,
+      );
+      if (newlyCompleted) {
+        await _broadcastAchievement(userId, achievementId);
+      }
+    } catch (e) {
+      debugPrint('AchievementService: Error handling message sent: $e');
+    }
   }
 
   Future<void> _handlePostCreated(String userId, String postId) async {
     try {
-      final achievementId = 'content_first_post';
+      const achievementId = 'content_first_post';
       final newlyCompleted = await _achievementRepo.updateProgress(
         userId,
         achievementId,

@@ -207,6 +207,19 @@ class AchievementRepository {
       rewardBadgeId: 'badge_generous',
       createdAt: DateTime.now(),
     ),
+    // Growth Sync Achievement
+    AchievementModel(
+      id: 'referral_first_sale',
+      name: 'Ambassador',
+      description: 'Your referred user made a purchase',
+      iconUrl: 'https://placeholder.com/achievement/ambassador.png',
+      category: AchievementCategory.social,
+      tier: AchievementTier.gold,
+      targetValue: 1,
+      rewardCoins: 500,
+      rewardBadgeId: 'badge_ambassador',
+      createdAt: DateTime.now(),
+    ),
 
     // Spending Achievements
     AchievementModel(

@@ -168,7 +168,7 @@ class _LimitedProfileItemsSection extends StatelessWidget {
   }
 }
 
-class _LimitedItemCard extends StatelessWidget {
+class _LimitedItemCard extends StatefulWidget {
   final String name;
   final int price;
   final String imageUrl;
@@ -182,66 +182,133 @@ class _LimitedItemCard extends StatelessWidget {
   });
 
   @override
+  State<_LimitedItemCard> createState() => _LimitedItemCardState();
+}
+
+class _LimitedItemCardState extends State<_LimitedItemCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 140,
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.orange.withValues(alpha: 0.5), width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.orange.withValues(alpha: 0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return Container(
+            width: 140,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF00BFA5).withValues(alpha: 0.2),
+                  blurRadius: 20,
+                  spreadRadius: -5,
+                  offset: const Offset(0, 10),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(1.5), // Border width
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: const [
+                    Colors.orange,
+                    Colors.white,
+                    Colors.orange,
+                  ],
+                  stops: [
+                    0.0,
+                    _controller.value,
+                    1.0,
+                  ],
+                  transform: GradientRotation(_controller.value * 6.28),
+                ),
+              ),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(10)),
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(10.5),
                 ),
-                child: const Icon(Icons.star,
-                    size: 48, color: Colors.orange), // Placeholder
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.monetization_on,
-                          size: 14, color: Colors.amber),
-                      const SizedBox(width: 4),
-                      Text(
-                        price.toString(),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, color: Colors.amber),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(10.5)),
+                        ),
+                        child: widget.imageUrl.isNotEmpty
+                            ? ClipRRect(
+                                borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(10.5)),
+                                child: Image.network(
+                                  widget.imageUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      const Icon(Icons.broken_image,
+                                          color: Colors.grey),
+                                ),
+                              )
+                            : const Icon(Icons.star,
+                                size: 48, color: Colors.orange),
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.name,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(Icons.monetization_on,
+                                  size: 14, color: Colors.amber),
+                              const SizedBox(width: 4),
+                              Text(
+                                widget.price.toString(),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.amber),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

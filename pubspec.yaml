@@ -12,7 +12,7 @@ dependencies:
     sdk: flutter
 
   # --- BLUETOOTH LIBRARIES CORRECTED FOR HYBRID STRATEGY ---
-  flutter_blue_plus: ^1.31.18
+  flutter_blue_plus: 1.31.18
   flutter_ble_peripheral: ^1.1.0
   vibration: ^3.1.4
   flutter_local_notifications: ^17.0.0
@@ -37,7 +37,7 @@ dependencies:
   flutter_facebook_auth: ^6.0.4
 
   # State Management
-  flutter_bloc: ^8.1.6
+  flutter_bloc: 8.1.6
   bloc: ^8.1.0 # Explicitly added
   meta: ^1.11.0 # Explicitly added
   provider: ^6.1.1 # Keep if used by non-deleted features
@@ -90,7 +90,7 @@ dependencies:
   fl_chart: ^0.66.0 # Charts for analytics
 
   # Local Storage
-  hive: ^2.2.3
+  hive: 2.2.3
   hive_flutter: ^1.1.0
   shared_preferences: ^2.5.4
 

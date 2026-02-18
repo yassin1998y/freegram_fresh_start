@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/theme/app_theme.dart';
 
 /// Shimmer skeleton that mimics the profile header and grid layout
 /// Used while profile data is loading
@@ -13,182 +14,180 @@ class ProfileSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final baseColor = theme.brightness == Brightness.dark
-        ? SemanticColors.gray800(context)
-        : SemanticColors.gray300(context);
-    final highlightColor = theme.brightness == Brightness.dark
-        ? SemanticColors.gray600(context)
-        : SemanticColors.gray200(context);
-    final screenWidth = MediaQuery.of(context).size.width;
+    final isDark = theme.brightness == Brightness.dark;
 
-    return CustomScrollView(
-      slivers: [
-        // Profile Header Skeleton
-        SliverToBoxAdapter(
-          child: Container(
-            padding: const EdgeInsets.all(DesignTokens.spaceMD),
-            child: Column(
-              children: [
-                // Profile Photo and Stats Row
-                Row(
+    // Glassmorphic Colors
+    final baseColor = isDark
+        ? Colors.white.withValues(alpha: 0.05)
+        : Colors.black.withValues(alpha: 0.05);
+    final highlightColor = isDark
+        ? Colors.white.withValues(alpha: 0.1)
+        : Colors.black.withValues(alpha: 0.1);
+
+    final glassDecoration = BoxDecoration(
+      color: theme.colorScheme.surface.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
+      border: Border.all(
+        color: theme.dividerColor.withValues(alpha: 0.1),
+        width: 1.0,
+      ),
+    );
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: Shimmer.fromColors(
+        baseColor: baseColor,
+        highlightColor: highlightColor,
+        child: CustomScrollView(
+          physics: const NeverScrollableScrollPhysics(),
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 320.0,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              flexibleSpace: FlexibleSpaceBar(
+                background: Stack(
+                  fit: StackFit.expand,
                   children: [
-                    // Profile Photo
-                    Shimmer.fromColors(
-                      baseColor: baseColor,
-                      highlightColor: highlightColor,
-                      child: Container(
-                        width: 100,
-                        height: 100,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
+                    // Gradient Background Skeleton
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            SonarPulseTheme.primaryAccent
+                                .withValues(alpha: 0.05),
+                            theme.scaffoldBackgroundColor,
+                          ],
                         ),
                       ),
                     ),
-                    const SizedBox(width: DesignTokens.spaceXL),
-                    // Stats
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          _buildStatSkeleton(baseColor, highlightColor),
-                          _buildStatSkeleton(baseColor, highlightColor),
-                          _buildStatSkeleton(baseColor, highlightColor),
+                          const SizedBox(height: 40),
+                          // Avatar Circle
+                          Container(
+                            width: 100, // AvatarSize.extraLarge approx
+                            height: 100,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white,
+                              border: Border.all(
+                                color: SonarPulseTheme.primaryAccent
+                                    .withValues(alpha: 0.1),
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Name
+                          Container(
+                            width: 150,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius:
+                                  BorderRadius.circular(DesignTokens.radiusSM),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          // Level Bar
+                          Container(
+                            width: 200,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius:
+                                  BorderRadius.circular(DesignTokens.radiusXS),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          // Location
+                          Container(
+                            width: 100,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius:
+                                  BorderRadius.circular(DesignTokens.radiusSM),
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: DesignTokens.spaceMD),
-                // Username and Bio
-                Shimmer.fromColors(
-                  baseColor: baseColor,
-                  highlightColor: highlightColor,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 150,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                      const SizedBox(height: DesignTokens.spaceSM),
-                      Container(
-                        width: double.infinity,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                      const SizedBox(height: DesignTokens.spaceXS),
-                      Container(
-                        width: screenWidth * 0.7,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ],
-                  ),
+              ),
+            ),
+
+            // Stats Row
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: DesignTokens.spaceLG),
+                child: Container(
+                  height: 80,
+                  decoration: glassDecoration,
                 ),
-                const SizedBox(height: DesignTokens.spaceLG),
-                // Action Buttons
-                Row(
+              ),
+            ),
+
+            const SliverPadding(
+                padding: EdgeInsets.only(top: DesignTokens.spaceXL)),
+
+            // Tabs
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: DesignTokens.spaceLG),
+                child: Row(
                   children: [
                     Expanded(
-                      child: Shimmer.fromColors(
-                        baseColor: baseColor,
-                        highlightColor: highlightColor,
-                        child: Container(
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius:
-                                BorderRadius.circular(DesignTokens.radiusMD),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: DesignTokens.spaceSM),
-                    Shimmer.fromColors(
-                      baseColor: baseColor,
-                      highlightColor: highlightColor,
                       child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius:
-                              BorderRadius.circular(DesignTokens.radiusMD),
-                        ),
-                      ),
+                          height: 40,
+                          color: Colors.white.withValues(alpha: 0.1)),
+                    ),
+                    Expanded(
+                      child: Container(
+                          height: 40,
+                          color: Colors.white.withValues(alpha: 0.1)),
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
-        // Posts Grid Skeleton
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMD),
-          sliver: SliverGrid(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: DesignTokens.spaceSM,
-              mainAxisSpacing: DesignTokens.spaceSM,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                return Shimmer.fromColors(
-                  baseColor: baseColor,
-                  highlightColor: highlightColor,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius:
-                          BorderRadius.circular(DesignTokens.radiusSM),
-                    ),
-                  ),
-                );
-              },
-              childCount: 9, // Show 9 grid items
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
-  Widget _buildStatSkeleton(Color baseColor, Color highlightColor) {
-    return Shimmer.fromColors(
-      baseColor: baseColor,
-      highlightColor: highlightColor,
-      child: Column(
-        children: [
-          Container(
-            width: 30,
-            height: 18,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(4),
+            // Grid
+            SliverPadding(
+              padding: const EdgeInsets.all(DesignTokens.spaceSM),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 2,
+                  crossAxisSpacing: 2,
+                  childAspectRatio: 1.0,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          width: 1,
+                        ),
+                      ),
+                    );
+                  },
+                  childCount: 12,
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: DesignTokens.spaceXS),
-          Container(
-            width: 40,
-            height: 12,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

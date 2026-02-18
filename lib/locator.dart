@@ -25,6 +25,7 @@ import 'package:freegram/services/daily_reward_service.dart'; // Gamification
 import 'package:freegram/repositories/achievement_repository.dart'; // Gamification
 import 'package:freegram/repositories/analytics_repository.dart'; // Gamification
 import 'package:freegram/services/referral_service.dart'; // Gamification
+import 'package:freegram/repositories/leaderboard_repository.dart'; // Gamification - Leaderboard
 
 import 'package:freegram/repositories/user_discovery_repository.dart';
 import 'package:freegram/services/sonar/local_cache_service.dart'; // Keep
@@ -39,7 +40,7 @@ import 'package:freegram/services/media_prefetch_service.dart';
 // Note: IntelligentPrefetchService is initialized manually in MainScreenWrapper
 // after SharedPreferences is ready, so we don't import it here
 import 'package:freegram/services/friend_cache_service.dart'; // Friends caching
-import 'package:freegram/services/feed_cache_service.dart'; // Feed caching for offline
+import 'package:freegram/services/global_cache_coordinator.dart'; // Global caching (Feed, Reels, Stories)
 import 'package:freegram/services/friend_request_rate_limiter.dart'; // Rate limiting
 import 'package:freegram/services/friend_action_retry_service.dart'; // Offline retry
 import 'package:freegram/services/fcm_token_service.dart'; // FCM push notifications
@@ -56,6 +57,7 @@ import 'package:freegram/services/ad_service.dart'; // Ad Service
 import 'package:freegram/services/gallery_service.dart'; // Gallery Service for Stories
 import 'package:freegram/services/reel_upload_manager.dart'; // Reel Upload Manager
 import 'package:freegram/services/draft_persistence_service.dart'; // Draft Persistence
+import 'package:freegram/services/boost_analytics_service.dart'; // Boost Analytics
 import 'package:freegram/services/gift_notification_service.dart'; // Gift Notifications
 import 'package:freegram/services/story_upload_service.dart'; // Story Upload Service
 import 'package:freegram/services/video_upload_service.dart'; // Video Upload Service
@@ -119,9 +121,13 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
   locator.registerLazySingleton(
       () => AnalyticsRepository()); // Gamification - Analytics
   locator.registerLazySingleton(
+      () => LeaderboardRepository()); // Gamification - Leaderboard
+  locator.registerLazySingleton(
       () => GiftNotificationService()); // Gift Notifications
   locator
       .registerLazySingleton(() => AchievementService()); // Achievement Service
+  locator
+      .registerLazySingleton(() => BoostAnalyticsService()); // Boost Analytics
   locator.registerLazySingleton(
       () => RemoteCommandService()); // Remote Command Service
 
@@ -133,7 +139,7 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
         adService: locator<AdService>(),
         reelRepository: locator<ReelRepository>(),
         pageRepository: locator<PageRepository>(),
-        feedCacheService: locator<FeedCacheService>(),
+        globalCacheCoordinator: locator<GlobalCacheCoordinator>(),
       ));
 
   // --- Register Repositories with Dependencies ---
@@ -182,8 +188,8 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
   // Friend Cache Service
   locator.registerLazySingleton(() => FriendCacheService());
 
-  // Feed Cache Service
-  locator.registerLazySingleton(() => FeedCacheService());
+  // Global Cache Coordinator (Feed, Reels, Stories)
+  locator.registerLazySingleton(() => GlobalCacheCoordinator());
 
   // Friend Request Rate Limiter
   locator.registerLazySingleton(() => FriendRequestRateLimiter());

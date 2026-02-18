@@ -4,9 +4,9 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart'
     as fbp; // Keep fbp for scanning
-import 'ble_advertiser.dart';
-import 'bluetooth_service.dart'; // Import corrected bluetooth_service.dart
-import 'bluetooth_discovery_service.dart';
+import 'package:freegram/services/sonar/ble_advertiser.dart';
+import 'package:freegram/services/sonar/bluetooth_service.dart'; // Import corrected bluetooth_service.dart
+import 'package:freegram/services/sonar/bluetooth_discovery_service.dart';
 
 typedef UserDetectedCallback = void Function(
     String uidShort, int gender, double distance);

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -33,6 +34,9 @@ class ChatRepository {
         // _gamificationRepository = gamificationRepository, // Removed
         // _taskRepository = taskRepository, // Removed
         _actionQueueRepository = locator<ActionQueueRepository>();
+
+  final _messageSentController = StreamController<void>.broadcast();
+  Stream<void> get onMessageSent => _messageSentController.stream;
 
   // startOrGetChat remains the same
   Future<String> startOrGetChat(
@@ -202,14 +206,22 @@ class ChatRepository {
     } else {
       // Handle case where other user ID couldn't be found (e.g., chat with self?)
       batch.update(chatRef, {
-        'lastMessage': lastMessagePreview,
-        'lastMessageIsImage': imageUrl != null,
         'lastMessageTimestamp': FieldValue.serverTimestamp(),
       });
     }
 
+    // Update user stats
+    final userRef = _db.collection('users').doc(senderId);
+    batch.update(userRef, {
+      'totalMessagesSent': FieldValue.increment(1),
+      'socialPoints': FieldValue.increment(1),
+    });
+
     // Commit batch atomically
     await batch.commit();
+
+    // Trigger onMessageSent stream
+    _messageSentController.add(null);
 
     // --- Removed Gamification/Task calls ---
     // await _gamificationRepository.addXp(senderId, 2, isSeasonal: true);

@@ -105,6 +105,31 @@ class ReportRepository {
     }
   }
 
+  /// Get real-time stream of reports (admin only)
+  Stream<List<ReportModel>> getReportsStream({
+    ReportStatus? status,
+    ReportCategory? category,
+    int limit = 100,
+  }) {
+    Query query = _db.collection('reports');
+
+    if (status != null) {
+      query = query.where('status', isEqualTo: _statusToString(status));
+    }
+
+    if (category != null) {
+      query =
+          query.where('reportCategory', isEqualTo: _categoryToString(category));
+    }
+
+    return query
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => ReportModel.fromDoc(doc)).toList());
+  }
+
   /// Update report status (admin only)
   Future<void> updateReportStatus({
     required String reportId,

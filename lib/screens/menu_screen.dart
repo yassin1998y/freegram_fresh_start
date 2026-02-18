@@ -176,6 +176,17 @@ class _MenuScreenState extends State<MenuScreen> {
                           },
                         ),
                         _MenuTile(
+                          icon: Icons.emoji_events_outlined,
+                          title: 'Achievements',
+                          subtitle: 'Badges, rewards, and global rank',
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            locator<NavigationService>().navigateNamed(
+                              AppRoutes.achievements,
+                            );
+                          },
+                        ),
+                        _MenuTile(
                           icon: Icons.qr_code_2_outlined,
                           title: 'My QR Code',
                           subtitle: 'Share your profile QR code',
@@ -486,7 +497,7 @@ class _MenuScreenState extends State<MenuScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (isLoading)
-                      SizedBox(
+                      const SizedBox(
                         height: DesignTokens.fontSizeLG,
                         width: 120,
                         child: AppLinearProgressIndicator(
@@ -794,7 +805,7 @@ class _MenuScreenState extends State<MenuScreen> {
                         borderRadius:
                             BorderRadius.circular(DesignTokens.radiusSM),
                       ),
-                      child: Icon(
+                      child: const Icon(
                         Icons.storefront_outlined,
                         color: SonarPulseTheme.primaryAccent,
                         size: DesignTokens.iconSM,
@@ -809,7 +820,7 @@ class _MenuScreenState extends State<MenuScreen> {
                     ),
                     const Spacer(),
                     IconButton(
-                      icon: Icon(Icons.close, size: DesignTokens.iconMD),
+                      icon: const Icon(Icons.close, size: DesignTokens.iconMD),
                       onPressed: () => Navigator.of(ctx).pop(),
                       visualDensity: VisualDensity.compact,
                     ),

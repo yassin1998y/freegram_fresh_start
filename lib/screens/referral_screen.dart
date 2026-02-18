@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:freegram/theme/design_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/services/referral_service.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:share_plus/share_plus.dart';
+
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:freegram/repositories/achievement_repository.dart';
+import 'package:freegram/widgets/common/confetti_overlay.dart';
 
 class ReferralScreen extends StatefulWidget {
   const ReferralScreen({super.key});
@@ -15,12 +21,84 @@ class ReferralScreen extends StatefulWidget {
 
 class _ReferralScreenState extends State<ReferralScreen> {
   final _referralService = locator<ReferralService>();
+  final _achievementRepo = locator<AchievementRepository>();
   final _codeController = TextEditingController();
   bool _isGenerating = false;
   bool _isApplying = false;
+  StreamSubscription<QuerySnapshot>? _commissionSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupCommissionListener();
+  }
+
+  void _setupCommissionListener() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    _commissionSubscription = _referralService
+        .getReferralCommissionStream(currentUser.uid)
+        .listen((snapshot) async {
+      for (final change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.added) {
+          // New commission received!
+          final data = change.doc.data() as Map<String, dynamic>;
+          final amount = data['amount'] ?? 0;
+
+          // Unlock "Ambassador" badge
+          // Check if this is the first one or just verify progress
+          final unlocked = await _achievementRepo.updateProgress(
+            currentUser.uid,
+            'referral_first_sale',
+            1,
+          );
+
+          if (unlocked && mounted) {
+            // Show celebration!
+            showDialog(
+              context: context,
+              builder: (context) => ConfettiOverlay(
+                child: AlertDialog(
+                  backgroundColor: Theme.of(context).cardColor,
+                  title: const Text('🎉 Ambassador Badge Unlocked!'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.stars, size: 60, color: Colors.amber),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Your friend made their first purchase!\nYou earned $amount coins and the Ambassador Badge!',
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Awesome!'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          } else if (mounted) {
+            // Just a snackbar for commission if not a new badge
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('💰 You earned $amount coins commission!'),
+                backgroundColor: Colors.amber,
+              ),
+            );
+          }
+        }
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _commissionSubscription?.cancel();
     _codeController.dispose();
     super.dispose();
   }
@@ -92,8 +170,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
   }
 
   Widget _buildStatsCard(ReferralStats? stats) {
-    return Card(
-      elevation: 2,
+    return Container(
+      decoration: Containers.glassCard(context),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -133,8 +211,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
   }
 
   Widget _buildReferralCodeCard(String code) {
-    return Card(
-      elevation: 2,
+    return Container(
+      decoration: Containers.glassCard(context),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -147,9 +225,15 @@ class _ReferralScreenState extends State<ReferralScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.grey[200],
+                color: Theme.of(context)
+                    .colorScheme
+                    .surface
+                    .withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue, width: 2),
+                border: Border.all(
+                  color: const Color(0xFF00BFA5),
+                  width: 1.0,
+                ),
               ),
               child: Text(
                 code,
@@ -217,8 +301,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
   }
 
   Widget _buildApplyCodeSection() {
-    return Card(
-      elevation: 2,
+    return Container(
+      decoration: Containers.glassCard(context),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -284,7 +368,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
             }
 
             if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return Card(
+              return Container(
+                decoration: Containers.glassCard(context),
                 child: Padding(
                   padding: const EdgeInsets.all(32),
                   child: Center(
@@ -300,8 +385,9 @@ class _ReferralScreenState extends State<ReferralScreen> {
 
             return Column(
               children: snapshot.data!.map((record) {
-                return Card(
+                return Container(
                   margin: const EdgeInsets.only(bottom: 8),
+                  decoration: Containers.glassCard(context),
                   child: ListTile(
                     leading: const CircleAvatar(
                       child: Icon(Icons.person),

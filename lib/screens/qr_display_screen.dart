@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/models/user_model.dart';
 import 'package:freegram/widgets/freegram_app_bar.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -29,14 +30,15 @@ class QrDisplayScreen extends StatelessWidget {
             children: [
               Container(
                 padding: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
+                decoration: Containers.glassCard(context).copyWith(
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 10,
-                      spreadRadius: 2,
+                      color: (user.presence
+                              ? const Color(0xFF00BFA5)
+                              : Colors.grey)
+                          .withValues(alpha: 0.4),
+                      blurRadius: 24,
+                      spreadRadius: 4,
                     ),
                   ],
                 ),

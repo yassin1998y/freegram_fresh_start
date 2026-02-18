@@ -175,7 +175,7 @@ class GalleryService {
     try {
       final String filename =
           'image_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final AssetEntity? image = await PhotoManager.editor.saveImage(
+      final AssetEntity image = await PhotoManager.editor.saveImage(
         bytes,
         title: title ?? 'Story Image',
         filename: filename,
@@ -190,7 +190,7 @@ class GalleryService {
   /// Save video to gallery
   Future<AssetEntity?> saveVideo(File file, {String? title}) async {
     try {
-      final AssetEntity? video = await PhotoManager.editor.saveVideo(
+      final AssetEntity video = await PhotoManager.editor.saveVideo(
         file,
         title: title ?? 'Story Video',
       );

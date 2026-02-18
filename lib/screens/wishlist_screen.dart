@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:freegram/locator.dart';
 import 'package:freegram/models/wishlist_item_model.dart';
 import 'package:freegram/repositories/gift_repository.dart';
+import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/utils/haptic_helper.dart';
 import 'package:freegram/widgets/common/app_progress_indicator.dart';
 import 'package:share_plus/share_plus.dart';
@@ -83,18 +84,16 @@ class _WishlistScreenState extends State<WishlistScreen> {
   }
 
   Widget _buildWishlistCard(WishlistItem item, String userId) {
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
+      decoration: Containers.glassCard(context),
       child: Column(
         children: [
           ListTile(
             leading: Container(
               width: 60,
               height: 60,
-              decoration: BoxDecoration(
-                color: _getPriorityColor(item.priority).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
+              decoration: Containers.glassCard(context),
               child: Icon(
                 Icons.card_giftcard,
                 color: _getPriorityColor(item.priority),

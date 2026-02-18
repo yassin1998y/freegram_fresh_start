@@ -21,7 +21,7 @@ import firebase_database
 import firebase_messaging
 import firebase_storage
 import flutter_ble_peripheral
-import flutter_blue_plus_darwin
+import flutter_blue_plus
 import flutter_local_notifications
 import flutter_secure_storage_macos
 import flutter_webrtc

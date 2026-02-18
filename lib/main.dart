@@ -56,7 +56,42 @@ import 'package:freegram/models/gift_model.dart';
 // Services
 
 import 'package:freegram/services/user_stream_provider.dart';
-// <<<--- Added for overlay cleanup
+// Screens for Routing
+import 'package:freegram/screens/analytics_dashboard_screen.dart';
+import 'package:freegram/screens/moderation_dashboard_screen.dart';
+import 'package:freegram/screens/report_screen.dart';
+import 'package:freegram/screens/leaderboard_screen.dart';
+import 'package:freegram/screens/achievements_screen.dart';
+import 'package:freegram/screens/daily_gift_screen.dart';
+import 'package:freegram/screens/page_profile_screen.dart';
+import 'package:freegram/screens/page_settings_screen.dart';
+import 'package:freegram/screens/page_analytics_screen.dart';
+import 'package:freegram/screens/qr_display_screen.dart';
+import 'package:freegram/screens/match_animation_screen.dart';
+import 'package:freegram/screens/hashtag_explore_screen.dart';
+import 'package:freegram/screens/search_screen.dart';
+import 'package:freegram/screens/location_picker_screen.dart';
+import 'package:freegram/screens/mentioned_posts_screen.dart';
+import 'package:freegram/screens/post_detail_screen.dart';
+import 'package:freegram/screens/story_viewer_screen.dart';
+import 'package:freegram/screens/image_gallery_screen.dart';
+import 'package:freegram/screens/video_player_screen.dart';
+import 'package:freegram/screens/marketplace_screen.dart';
+import 'package:freegram/screens/category_browse_screen.dart';
+import 'package:freegram/screens/gift_history_screen.dart';
+import 'package:freegram/screens/gift_detail_screen.dart';
+import 'package:freegram/screens/limited_editions_screen.dart';
+import 'package:freegram/screens/boost_analytics_screen.dart';
+import 'package:freegram/screens/menu_screen.dart'; // Menu Screen
+import 'package:freegram/screens/edit_profile_screen.dart'; // Edit Profile
+import 'package:freegram/screens/inventory_screen.dart';
+import 'package:freegram/screens/referral_screen.dart';
+import 'package:freegram/screens/feature_discovery_screen.dart';
+import 'package:freegram/screens/create_page_screen.dart';
+import 'package:freegram/screens/boost_post_screen.dart';
+import 'package:freegram/screens/wishlist_screen.dart';
+import 'package:freegram/screens/notifications_screen.dart';
+import 'package:freegram/screens/notification_settings_screen.dart';
 // MIUI/Redmi Fixes
 
 // Other Imports
@@ -446,6 +481,223 @@ class MyApp extends StatelessWidget {
                   ownedGiftId: ownedGiftId,
                 ),
               );
+
+            // --- Social & Discovery ---
+            case AppRoutes.menu:
+              return MaterialPageRoute(builder: (_) => const MenuScreen());
+            case AppRoutes.editProfile:
+              final args = settings.arguments as Map<String, dynamic>?;
+              final parsed = EditProfileArguments.fromMap(args);
+              return MaterialPageRoute(
+                builder: (_) => EditProfileScreen(
+                  currentUserData: parsed.currentUserData,
+                  isCompletingProfile: parsed.isCompletingProfile,
+                ),
+              );
+            case AppRoutes.qrDisplay:
+              final args = settings.arguments as Map<String, dynamic>?;
+              final user = args?['user'] as UserModel?;
+              if (user != null) {
+                return MaterialPageRoute(
+                    builder: (_) => QrDisplayScreen(user: user));
+              }
+              return MaterialPageRoute(
+                  builder: (_) => const Scaffold(
+                      body: Center(child: Text("Error: User required"))));
+
+            case AppRoutes.matchAnimation:
+              final args = settings.arguments as Map<String, dynamic>?;
+              // Direct object passing for complex models
+              final currentUser = args?['currentUser'] as UserModel?;
+              final matchedUser = args?['matchedUser'] as UserModel?;
+
+              if (currentUser != null && matchedUser != null) {
+                return MaterialPageRoute(
+                  builder: (_) => MatchAnimationScreen(
+                    currentUser: currentUser,
+                    matchedUser: matchedUser,
+                  ),
+                );
+              }
+              return null;
+
+            case AppRoutes.hashtagExplore:
+              final args = settings.arguments as HashtagExploreArguments?;
+              if (args != null) {
+                return MaterialPageRoute(
+                    builder: (_) =>
+                        HashtagExploreScreen(hashtag: args.hashtag));
+              }
+              return null;
+            case AppRoutes.search:
+              return MaterialPageRoute(builder: (_) => const SearchScreen());
+            case AppRoutes.locationPicker:
+              // LocationPickerScreen usually returns a LocationResult
+              return MaterialPageRoute(
+                  builder: (_) => const LocationPickerScreen());
+            case AppRoutes.mentionedPosts:
+              return MaterialPageRoute(
+                  builder: (_) => const MentionedPostsScreen());
+
+            // --- Media & Viewer ---
+            case AppRoutes.postDetail:
+              final args = settings.arguments as PostDetailArguments?;
+              if (args != null) {
+                return MaterialPageRoute(
+                    builder: (_) => PostDetailScreen(postId: args.postId));
+              }
+              return null;
+            case AppRoutes.storyViewer:
+              final args = settings.arguments as StoryViewerArguments?;
+              if (args != null) {
+                return MaterialPageRoute(
+                  builder: (_) => StoryViewerScreen(
+                    startingUserId: args.startingUserId,
+                  ),
+                );
+              }
+              return null;
+            case AppRoutes.imageGallery:
+              final args = settings.arguments as ImageGalleryArguments?;
+              if (args != null) {
+                return MaterialPageRoute(
+                  builder: (_) => ImageGalleryScreen(
+                    imageUrls: args.imageUrls,
+                    initialIndex: args.initialIndex,
+                  ),
+                );
+              }
+              return null;
+            case AppRoutes.videoPlayer:
+              final args = settings.arguments as VideoPlayerArguments?;
+              if (args != null) {
+                return MaterialPageRoute(
+                  builder: (_) => VideoPlayerScreen(
+                    mediaItem: args.mediaItem,
+                    initialPosition: args.initialPosition,
+                  ),
+                );
+              }
+              return null;
+
+            // --- Gifting Economy ---
+            case AppRoutes.marketplace:
+              return MaterialPageRoute(
+                  builder: (_) => const MarketplaceScreen());
+            case AppRoutes.categoryBrowse:
+              final args = settings.arguments as CategoryBrowseArguments?;
+              if (args != null) {
+                return MaterialPageRoute(
+                    builder: (_) =>
+                        CategoryBrowseScreen(category: args.category));
+              }
+              return null;
+            case AppRoutes.giftHistory:
+              return MaterialPageRoute(
+                  builder: (_) => const GiftHistoryScreen());
+            case AppRoutes.giftDetail:
+              final args = settings.arguments as GiftDetailArguments?;
+              if (args != null) {
+                return MaterialPageRoute(
+                    builder: (_) => GiftDetailScreen(gift: args.gift));
+              }
+              return null;
+            case AppRoutes.limitedEditions:
+              return MaterialPageRoute(
+                  builder: (_) => const LimitedEditionsScreen());
+
+            // --- Admin & Analytics ---
+            case AppRoutes.analyticsDashboard:
+              return MaterialPageRoute(
+                  builder: (_) => const AnalyticsDashboardScreen());
+            case AppRoutes.moderationDashboard:
+              return MaterialPageRoute(
+                  builder: (_) => const ModerationDashboardScreen());
+            case AppRoutes.boostAnalytics:
+              final args = settings.arguments as BoostAnalyticsArguments?;
+              if (args != null) {
+                return MaterialPageRoute(
+                    builder: (_) => BoostAnalyticsScreen(post: args.post));
+              }
+              return null;
+            case AppRoutes.report:
+              final args = settings.arguments as ReportArguments?;
+              if (args != null) {
+                return MaterialPageRoute(
+                    builder: (_) => ReportScreen(
+                          contentId: args.contentId,
+                          contentType: args.contentType,
+                        ));
+              }
+              return null;
+
+            case AppRoutes.createPage:
+              return MaterialPageRoute(
+                  builder: (_) => const CreatePageScreen());
+            case AppRoutes.inventory:
+              return MaterialPageRoute(builder: (_) => const InventoryScreen());
+            case AppRoutes.referral:
+              return MaterialPageRoute(builder: (_) => const ReferralScreen());
+            case AppRoutes.featureDiscovery:
+              return MaterialPageRoute(
+                  builder: (_) => const FeatureDiscoveryScreen());
+
+            case AppRoutes.boostPost:
+              final args = settings.arguments as BoostPostArguments?;
+              if (args != null) {
+                return MaterialPageRoute(
+                  builder: (_) => BoostPostScreen(post: args.post),
+                );
+              }
+              // Fallback for Map arguments if any
+              final mapArgs = settings.arguments as Map<String, dynamic>?;
+              if (mapArgs != null && mapArgs.containsKey('post')) {
+                return MaterialPageRoute(
+                    builder: (_) => BoostPostScreen(post: mapArgs['post']));
+              }
+              return null;
+
+            case AppRoutes.wishlist:
+              return MaterialPageRoute(builder: (_) => const WishlistScreen());
+
+            case AppRoutes.notifications:
+              return MaterialPageRoute(
+                  builder: (_) => const NotificationsScreen());
+
+            case AppRoutes.notificationSettings:
+              return MaterialPageRoute(
+                  builder: (_) => const NotificationSettingsScreen());
+
+            // --- Specialized Hubs ---
+            case AppRoutes.leaderboard:
+              return MaterialPageRoute(
+                  builder: (_) => const LeaderboardScreen());
+            case AppRoutes.achievements:
+              return MaterialPageRoute(
+                  builder: (_) => const AchievementsScreen());
+            case AppRoutes.dailyRewards:
+              return MaterialPageRoute(builder: (_) => const DailyGiftScreen());
+            case AppRoutes.pageProfile:
+              final args = settings.arguments as PageProfileArguments?;
+              if (args != null) {
+                return MaterialPageRoute(
+                    builder: (_) => PageProfileScreen(pageId: args.pageId));
+              }
+              return null;
+            case AppRoutes.pageSettings:
+              final args = settings.arguments as PageSettingsArguments?;
+              if (args != null) {
+                return MaterialPageRoute(
+                    builder: (_) => PageSettingsScreen(pageId: args.pageId));
+              }
+              return null;
+            case AppRoutes.pageAnalytics:
+              final args = settings.arguments as PageProfileArguments?;
+              if (args != null) {
+                return MaterialPageRoute(
+                    builder: (_) => PageAnalyticsScreen(pageId: args.pageId));
+              }
+              return null;
           }
           debugPrint('Navigation: Unknown route: ${settings.name}');
           return null;

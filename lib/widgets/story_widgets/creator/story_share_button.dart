@@ -32,7 +32,7 @@ class StoryShareButton extends StatelessWidget {
               decoration: BoxDecoration(
                 color: theme.colorScheme.primary,
                 shape: BoxShape.circle,
-                boxShadow: DesignTokens.shadowMedium,
+                border: Border.fromBorderSide(Borders.standard(context)),
               ),
               child: SizedBox(
                 width: DesignTokens.iconLG,
