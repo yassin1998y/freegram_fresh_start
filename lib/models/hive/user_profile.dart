@@ -19,41 +19,41 @@ class UserProfile extends HiveObject {
 
   // --- NEW FIELDS added for caching ---
   @HiveField(4)
-  int level;
+  int? level;
 
   @HiveField(5)
-  int xp;
+  int? xp;
 
   @HiveField(6)
-  List<String> interests;
+  List<String>? interests;
 
   @HiveField(7)
-  List<String> friends; // Store friend IDs for mutual friend check
+  List<String>? friends; // Store friend IDs for mutual friend check
 
   @HiveField(8)
-  String gender; // Store gender string ('Male', 'Female', 'Other', '')
+  String? gender; // Store gender string ('Male', 'Female', 'Other', '')
 
   @HiveField(9)
-  String nearbyStatusMessage;
+  String? nearbyStatusMessage;
 
   @HiveField(10)
-  String nearbyStatusEmoji;
+  String? nearbyStatusEmoji;
 
   // *** ADDED FIELDS TO FIX ERRORS ***
   @HiveField(11)
-  List<String> friendRequestsSent;
+  List<String>? friendRequestsSent;
 
   @HiveField(12)
-  List<String> friendRequestsReceived;
+  List<String>? friendRequestsReceived;
 
   @HiveField(13)
-  List<String> blockedUsers;
+  List<String>? blockedUsers;
 
   @HiveField(14)
   String? equippedBadgeUrl;
 
   @HiveField(15)
-  Map<String, dynamic> privacySettings;
+  Map? privacySettings;
   // --- END NEW FIELDS ---
 
   UserProfile({
@@ -62,18 +62,27 @@ class UserProfile extends HiveObject {
     required this.photoUrl,
     required this.updatedAt,
     // Add new fields to constructor with defaults
-    this.level = 1,
-    this.xp = 0,
-    this.interests = const [],
-    this.friends = const [],
-    this.gender = '',
-    this.nearbyStatusMessage = '',
-    this.nearbyStatusEmoji = '',
-    // Add defaults for new fields
-    this.friendRequestsSent = const [],
-    this.friendRequestsReceived = const [],
-    this.blockedUsers = const [],
+    int? level,
+    int? xp,
+    List<String>? interests,
+    List<String>? friends,
+    String? gender,
+    String? nearbyStatusMessage,
+    String? nearbyStatusEmoji,
+    List<String>? friendRequestsSent,
+    List<String>? friendRequestsReceived,
+    List<String>? blockedUsers,
     this.equippedBadgeUrl,
-    this.privacySettings = const {},
-  });
+    Map? privacySettings,
+  })  : level = level ?? 1,
+        xp = xp ?? 0,
+        interests = interests ?? const [],
+        friends = friends ?? const [],
+        gender = gender ?? '',
+        nearbyStatusMessage = nearbyStatusMessage ?? '',
+        nearbyStatusEmoji = nearbyStatusEmoji ?? '',
+        friendRequestsSent = friendRequestsSent ?? const [],
+        friendRequestsReceived = friendRequestsReceived ?? const [],
+        blockedUsers = blockedUsers ?? const [],
+        privacySettings = privacySettings ?? const {};
 }

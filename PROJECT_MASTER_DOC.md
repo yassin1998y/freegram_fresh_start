@@ -29,7 +29,7 @@ The **Sonar System** is the heartbeat of Freegram, enabling the "Nearby-First" e
 
 ---
 
-## 3. Complete Screen Registry (57+ Screens)
+## 3. Complete Screen Registry (71 Screens) [UPDATED]
 
 All screens adhere to the **1px Border Rule** (using `DesignTokens.borders`) and **SWR (Stale-While-Revalidate)** caching strategies. Every screen is registered in `AppRoutes` and accessible via named navigation.
 
@@ -70,7 +70,7 @@ All screens adhere to the **1px Border Rule** (using `DesignTokens.borders`) and
 
 ### E. Economy & Gifting (13 screens)
 28. **StoreScreen** (`/store`) - Main store hub with tabs (Coins, Boosts, Gifts, Profile, Marketplace)
-29. **MarketplaceScreen** (`/marketplace`) - User-to-user item trading
+29. **MarketplaceScreen** (`/marketplace`) - **[Status: Integrated]** User-to-user item trading
 30. **CategoryBrowseScreen** (`/categoryBrowse`) - Gift category exploration
 31. **GiftDetailScreen** (`/giftDetail`) - Individual gift item details
 32. **GiftHistoryScreen** (`/giftHistory`) - Sent and received gift log
@@ -86,7 +86,7 @@ All screens adhere to the **1px Border Rule** (using `DesignTokens.borders`) and
 ### F. Pages & Communities (4 screens)
 41. **PageProfileScreen** (`/pageProfile`) - Public page/community profile
 42. **PageSettingsScreen** (`/pageSettings`) - Page management and configuration
-43. **PageAnalyticsScreen** (`/pageAnalytics`) - Page growth and engagement metrics
+43. **PageAnalyticsScreen** (`/pageAnalytics`) - **[Status: Integrated]** Page growth and engagement metrics
 44. **CreatePageScreen** (`/createPage`) - New page creation wizard
 
 ### G. Gamification & Progression (4 screens)
@@ -107,8 +107,8 @@ All screens adhere to the **1px Border Rule** (using `DesignTokens.borders`) and
 55. **FeatureDiscoveryScreen** (`/featureDiscovery`) - App feature tutorials
 
 ### J. Administration & Moderation (3 screens)
-56. **AnalyticsDashboardScreen** (`/analyticsDashboard`) - Platform-wide analytics
-57. **ModerationDashboardScreen** (`/moderationDashboard`) - Content moderation tools
+56. **AnalyticsDashboardScreen** (`/analyticsDashboard`) - **[Status: Integrated]** Platform-wide analytics
+57. **ModerationDashboardScreen** (`/moderationDashboard`) - **[Status: Integrated]** Content moderation tools
 58. **ReportScreen** (`/report`) - User/content reporting interface
 
 ### K. Random Chat Module (13 screens in `/screens/random_chat/`)
@@ -168,6 +168,9 @@ This section defines the inviolable rules of the ecosystem.
     *   Admin Ban actions.
     *   Error states.
 
+### D. The 1px Border Rule [NEW]
+*   **Global Constraint:** Every interactive container, card, and input MUST use a 1.0px width border with `Theme.of(context).dividerColor` and a consistent `16.0px` corner radius (defined in `DesignTokens`). This creates the tactile, "Pure" aesthetic that defines Freegram's visual premium.
+
 ### C. Architecture: The Local-First Truth
 *   **Single Source of Truth:** `GlobalCacheCoordinator`.
 *   **Rule:** UI **NEVER** waits for the network.
@@ -183,3 +186,25 @@ This section defines the inviolable rules of the ecosystem.
 *   **Local DB:** Hive (NoSQL) - *The Brain*
 *   **Remote DB:** Firebase Firestore/Realtime DB - *The Cloud*
 *   **Media:** Cloudinary (Images), WebRTC (Live Video)
+
+---
+
+## 7. Core User Journeys [NEW]
+
+### A. The Discovery Flow
+*   **Nearby Search:** User opens the Radar → **BLE Presence:** Scanner detects proximity signals → **Profile Preview:** Radar avatar tap peels open a glass card → **Match Animation:** Mutual interest triggers the Heavy Haptic celebration and full-screen animation.
+
+### B. The Economic Flow
+*   **Boutique Selection:** User enters the Store → **Purchase Trigger:** One-tap coin transaction with biometric verification → **Inventory Update:** Item appears instantly in the Local-First Vault → **Leaderboard Point Payout:** Global rank updates in real-time as points are attributed to the user's spending profile.
+
+---
+
+## 8. System Resilience [NEW]
+
+### A. Web Compatibility Guards
+*   **kIsWeb Logic:** The application uses explicit `foundation.dart` checks to bypass mobile-only hardware (BLE, Byte-Caching) on Web platforms. 
+*   **Direct URL Streaming:** For Reels on Web, the system forces direct URL streaming via `VideoPlayerController.networkUrl`, ensuring playback stability where filesystem caches are unavailable.
+
+### B. SWR Caching (Stale-While-Revalidate)
+*   **Feed Stability:** The Unified Feed prioritizes `Hive` data for instant visual rendering while refreshing from `Firestore` in the background. 
+*   **Bad State Protection:** All LRU services (MediaPrefetchService) include strict `isEmpty` guards to prevent crashes during rapid feed invalidation or high-frequency caching cycles.

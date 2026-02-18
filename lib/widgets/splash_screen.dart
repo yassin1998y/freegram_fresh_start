@@ -106,13 +106,16 @@ class _SplashScreenState extends State<SplashScreen>
         // RETURNING USER: Instant skip
         // Still need to wait for minimal app init sync
         int waitTime = 0;
-        while (!_appInitComplete && mounted && waitTime < 5000) {
+        while (!_appInitComplete &&
+            mounted &&
+            waitTime < 5000 &&
+            _phase != LoadingPhase.error) {
           await Future.delayed(const Duration(milliseconds: 50));
           waitTime += 50;
         }
       }
 
-      if (!mounted) return;
+      if (!mounted || _phase == LoadingPhase.error) return;
       setState(() {
         _phase = LoadingPhase.sessionPreparation;
         _currentStep = _initializationSteps[5];
@@ -209,7 +212,10 @@ class _SplashScreenState extends State<SplashScreen>
     }
 
     int waitTime = 0;
-    while (!_appInitComplete && mounted && waitTime < 10000) {
+    while (!_appInitComplete &&
+        mounted &&
+        waitTime < 10000 &&
+        _phase != LoadingPhase.error) {
       await Future.delayed(const Duration(milliseconds: 100));
       waitTime += 100;
     }
