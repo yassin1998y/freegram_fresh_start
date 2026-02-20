@@ -232,13 +232,20 @@ class VideoCallOverlay extends StatelessWidget {
                   key: giftButtonKey,
                   onTap: () {
                     HapticFeedback.lightImpact();
+                    // 1. Capture the existing bloc instance
+                    final interactionBloc = context.read<InteractionBloc>();
+
                     showModalBottomSheet(
                         context: context,
                         backgroundColor: Colors.transparent,
-                        builder: (context) => BackdropFilter(
-                              filter:
-                                  ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                              child: const GiftPickerSheet(),
+                        builder: (sheetContext) => BlocProvider.value(
+                              // 2. Inject it into the new route
+                              value: interactionBloc,
+                              child: BackdropFilter(
+                                filter:
+                                    ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                                child: const GiftPickerSheet(),
+                              ),
                             ));
                   },
                   child: Container(

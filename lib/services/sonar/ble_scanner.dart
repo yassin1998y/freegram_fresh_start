@@ -214,7 +214,7 @@ class BleScanner {
       // Service Data bypasses MIUI's manufacturer data filtering!
       // Check for our service UUID in service data
       final discoveryServiceUuid = BluetoothDiscoveryService
-          .DISCOVERY_SERVICE_UUID
+          .discoveryServiceUuid
           .toString()
           .toUpperCase();
       if (serviceData.isNotEmpty) {

@@ -208,3 +208,23 @@ This section defines the inviolable rules of the ecosystem.
 ### B. SWR Caching (Stale-While-Revalidate)
 *   **Feed Stability:** The Unified Feed prioritizes `Hive` data for instant visual rendering while refreshing from `Firestore` in the background. 
 *   **Bad State Protection:** All LRU services (MediaPrefetchService) include strict `isEmpty` guards to prevent crashes during rapid feed invalidation or high-frequency caching cycles.
+
+---
+
+## 9. Random Chat Evolution [NEW]
+
+### A. Old State (Legacy)
+*   **Architecture:** Monolithic controller managing UI, Signaling, and Media streams simultaneously.
+*   **Stability:** Prone to resource leaks (camera/mic staying open), "Zombie" connections after backgrounding, and race conditions during peer discovery.
+*   **Discovery:** Basic polling mechanism without proper queuing or handshake validation.
+
+### B. The Fixes (Refactoring)
+*   **Service Separation:** Decoupled logic into `WebRTCService` (Media/Signaling), `LoungeRepository` (Queue/Handshake), and `MatchHistoryRepository` (Persistence).
+*   **State Machine:** Implemented a strict `Searching -> Handshake -> Connected -> Rated` flow to prevent invalid transitions.
+*   **Resource Management:** Added `Wakelock` integration to prevent screen sleep during video calls and mandated `dispose()` patterns for stream cleanup.
+*   **Auto-Reconnect:** Built-in signaling recovery to handle temporary network drops without ending the session.
+
+### C. Current State (Production)
+*   **Robustness:** Enterprise-grade WebRTC handling with clear separation of concerns.
+*   **UX:** Pulse animation during search, haptic feedback on connection, and integrated safety reporting.
+*   **Maintainability:** Modular structure allowing independent updates to the signaling protocol or audio/video subsystems.

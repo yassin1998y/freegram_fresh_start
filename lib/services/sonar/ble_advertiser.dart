@@ -114,8 +114,7 @@ class BleAdvertiser {
       // Use AdvertiseData from flutter_ble_peripheral
       final advData = AdvertiseData(
         // Use the string representation for serviceUuid
-        serviceUuid:
-            BluetoothDiscoveryService.DISCOVERY_SERVICE_UUID.toString(),
+        serviceUuid: BluetoothDiscoveryService.discoveryServiceUuid.toString(),
         // Note: includeDeviceName is often controlled by platform-specific settings or defaults
         // includeDeviceName: false, // May not be directly settable here
         manufacturerId: MANUFACTURER_ID_DISCOVERY,
@@ -239,8 +238,7 @@ class BleAdvertiser {
       Uint8List payload = Uint8List.fromList([...uidBytes, gender & 0xFF]);
 
       final advData = AdvertiseData(
-        serviceUuid:
-            BluetoothDiscoveryService.DISCOVERY_SERVICE_UUID.toString(),
+        serviceUuid: BluetoothDiscoveryService.discoveryServiceUuid.toString(),
         manufacturerId: MANUFACTURER_ID_DISCOVERY,
         manufacturerData: payload,
       );
@@ -270,8 +268,7 @@ class BleAdvertiser {
       Uint8List payload = Uint8List.fromList([...uidBytes, gender & 0xFF]);
 
       final advData = AdvertiseData(
-        serviceUuid:
-            BluetoothDiscoveryService.DISCOVERY_SERVICE_UUID.toString(),
+        serviceUuid: BluetoothDiscoveryService.discoveryServiceUuid.toString(),
         manufacturerId: alternativeManufacturerId,
         manufacturerData: payload,
       );
@@ -430,8 +427,7 @@ class BleAdvertiser {
           "BLE Advertiser: WARNING - Using manufacturer data fallback (may be filtered by MIUI)");
 
       final waveAdvData = AdvertiseData(
-        serviceUuid:
-            BluetoothDiscoveryService.DISCOVERY_SERVICE_UUID.toString(),
+        serviceUuid: BluetoothDiscoveryService.discoveryServiceUuid.toString(),
         manufacturerId: MANUFACTURER_ID_WAVE,
         manufacturerData: payload,
       );

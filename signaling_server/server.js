@@ -83,25 +83,25 @@ io.on('connection', (socket) => {
     // Strict forwarding to the specific roomId
     socket.on('offer', (payload) => {
         const { roomId, offer } = payload;
-        // console.log(`[${new Date().toISOString()}] Offer from ${socket.id} to room ${roomId}`);
         if (roomId && offer) {
-            socket.to(roomId).emit('offer', { offer, senderId: socket.id });
+            // FIXED: Added roomId back into the emitted payload
+            socket.to(roomId).emit('offer', { offer, roomId, senderId: socket.id });
         }
     });
 
     socket.on('answer', (payload) => {
         const { roomId, answer } = payload;
-        // console.log(`[${new Date().toISOString()}] Answer from ${socket.id} to room ${roomId}`);
         if (roomId && answer) {
-            socket.to(roomId).emit('answer', { answer, senderId: socket.id });
+            // FIXED: Added roomId back into the emitted payload
+            socket.to(roomId).emit('answer', { answer, roomId, senderId: socket.id });
         }
     });
 
     socket.on('candidate', (payload) => {
         const { roomId, candidate } = payload;
-        // console.log(`[${new Date().toISOString()}] Candidate from ${socket.id} to room ${roomId}`);
         if (roomId && candidate) {
-            socket.to(roomId).emit('candidate', { candidate, senderId: socket.id });
+            // FIXED: Added roomId back into the emitted payload. This is critical for ICE negotiation.
+            socket.to(roomId).emit('candidate', { candidate, roomId, senderId: socket.id });
         }
     });
 

@@ -213,70 +213,74 @@ class _GatedPlaceholder extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      // FIXED: Added SingleChildScrollView to prevent overflow when keyboard appears
       body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(DesignTokens.spaceXXL),
-          child: Container(
-            padding: const EdgeInsets.all(DesignTokens.spaceXXXL),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
-              border: Border.all(
-                color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
-                width: 1.0,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(DesignTokens.spaceXXL),
+            child: Container(
+              padding: const EdgeInsets.all(DesignTokens.spaceXXXL),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
+                border: Border.all(
+                  color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+                  width: 1.0,
+                ),
               ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(DesignTokens.spaceXL),
-                  decoration: BoxDecoration(
-                    color: SonarPulseTheme.primaryAccent.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.lock_person_outlined,
-                    size: DesignTokens.iconXXL,
-                    color: SonarPulseTheme.primaryAccent,
-                  ),
-                ),
-                const SizedBox(height: DesignTokens.spaceXL),
-                Text(
-                  'Exclusive Access',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        fontSize: DesignTokens.fontSizeXXL,
-                        letterSpacing: DesignTokens.letterSpacingTight,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: DesignTokens.spaceMD),
-                Text(
-                  'Random Match is currently in private beta for selected regions. Join the waitlist for early access.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).textTheme.bodySmall?.color,
-                        fontSize: DesignTokens.fontSizeMD,
-                        height: DesignTokens.lineHeightNormal,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: DesignTokens.spaceXXL),
-                TextButton.icon(
-                  onPressed: onAdminTap,
-                  icon: const Icon(Icons.admin_panel_settings_outlined,
-                      size: DesignTokens.iconSM),
-                  label: const Text("Admin Access"),
-                  style: TextButton.styleFrom(
-                    foregroundColor:
-                        Theme.of(context).textTheme.bodySmall?.color,
-                    textStyle: const TextStyle(
-                      fontSize: DesignTokens.fontSizeSM,
-                      fontWeight: FontWeight.w500,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(DesignTokens.spaceXL),
+                    decoration: BoxDecoration(
+                      color:
+                          SonarPulseTheme.primaryAccent.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.lock_person_outlined,
+                      size: DesignTokens.iconXXL,
+                      color: SonarPulseTheme.primaryAccent,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: DesignTokens.spaceXL),
+                  Text(
+                    'Exclusive Access',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          fontSize: DesignTokens.fontSizeXXL,
+                          letterSpacing: DesignTokens.letterSpacingTight,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: DesignTokens.spaceMD),
+                  Text(
+                    'Random Match is currently in private beta for selected regions. Join the waitlist for early access.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                          fontSize: DesignTokens.fontSizeMD,
+                          height: DesignTokens.lineHeightNormal,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: DesignTokens.spaceXXL),
+                  TextButton.icon(
+                    onPressed: onAdminTap,
+                    icon: const Icon(Icons.admin_panel_settings_outlined,
+                        size: DesignTokens.iconSM),
+                    label: const Text("Admin Access"),
+                    style: TextButton.styleFrom(
+                      foregroundColor:
+                          Theme.of(context).textTheme.bodySmall?.color,
+                      textStyle: const TextStyle(
+                        fontSize: DesignTokens.fontSizeSM,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

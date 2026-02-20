@@ -10,7 +10,8 @@ import 'package:freegram/services/sonar/ble_advertiser.dart';
 import 'package:freegram/services/sonar/ble_scanner.dart';
 import 'package:freegram/services/sonar/local_cache_service.dart';
 import 'package:freegram/services/sonar/wave_service.dart'; // Still need to import for type usage later
-import 'package:freegram/services/sonar/bluetooth_service.dart' show NearbyStatus, BluetoothStatusService;
+import 'package:freegram/services/sonar/bluetooth_service.dart'
+    show NearbyStatus, BluetoothStatusService;
 import 'package:freegram/services/sonar/wave_manager.dart';
 
 class BluetoothDiscoveryService {
@@ -21,7 +22,7 @@ class BluetoothDiscoveryService {
   final BluetoothStatusService _statusService = BluetoothStatusService();
   final WaveManager _waveManager = WaveManager();
 
-  static final fbp.Guid DISCOVERY_SERVICE_UUID =
+  static final fbp.Guid discoveryServiceUuid =
       fbp.Guid("12345678-1234-5678-1234-56789abcdef0");
 
   String? _currentUserShortId;
@@ -158,7 +159,7 @@ class BluetoothDiscoveryService {
         if (currentId != null) {
           final profile = _cacheService.getUserProfile(currentId);
           // Check 'cloaking_mode' (default false)
-          isCloaked = profile?.privacySettings['cloaking_mode'] == true;
+          isCloaked = profile?.privacySettings?['cloaking_mode'] == true;
           if (isCloaked) {
             AppLogger.info(
                 "BluetoothDiscoveryService: Cloaking Mode ENABLED. Skipping advertising.");

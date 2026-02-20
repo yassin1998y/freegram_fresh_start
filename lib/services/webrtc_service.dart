@@ -277,21 +277,18 @@ class WebRTCService {
     _socket?.on('offer', (data) async {
       debugPrint('📡 [SIGNALING] Received Remote Offer from: $_roomId');
 
-      // Signaling Guard: Unless waiting, don't just kill it.
-      if (_peerConnection != null &&
-          _peerConnection!.signalingState !=
-              RTCSignalingState.RTCSignalingStateStable) {
-        debugPrint(
-            '⚠️ [WEBRTC_WARN] Unstable signaling state ${_peerConnection!.signalingState} during offer. Retrying in 500ms...');
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (_peerConnection?.signalingState !=
-            RTCSignalingState.RTCSignalingStateStable) {
-          _cleanupSession(); // Give up and clean if still bad
+      // Signaling Guard: Wait if not stable, but don't aggressively cleanup
+      if (_peerConnection != null) {
+        final state = _peerConnection!.signalingState;
+        if (state != null &&
+            state != RTCSignalingState.RTCSignalingStateStable) {
+          debugPrint(
+              '⚠️ [WEBRTC_WARN] Unstable signaling state $state during offer. Retrying in 500ms...');
+          await Future.delayed(const Duration(milliseconds: 500));
         }
       }
 
-      // If peer connection was cleaned up or null, create it now (implicit in _startCall flow, but here we might need to handle it)
-      // Actually, for 'offer' event, we are the callee (answerer).
+      // Ensure peer connection exists
       if (_peerConnection == null) {
         await _createPeerConnection();
       }
@@ -349,10 +346,10 @@ class WebRTCService {
     _socket?.on('candidate', (data) async {
       debugPrint('❄️ [ICE] Received Candidate from Peer: $data');
 
-      // Check if candidate belongs to current room
-      if (data['roomId'] != _roomId) {
+      // Check if candidate belongs to current room or if we are not in an active room
+      if (_roomId == null || data['roomId'] != _roomId) {
         debugPrint(
-            '⚠️ [WEBRTC_WARN] Ignoring candidate for wrong room: ${data['roomId']} (Current: $_roomId)');
+            '⚠️ [WEBRTC_WARN] Ignoring candidate. Expected $_roomId but got ${data['roomId']}');
         return;
       }
 
@@ -469,36 +466,59 @@ class WebRTCService {
   }
 
   Future<void> _createPeerConnection() async {
-    // 🛑 STUN/TURN Audit
+    // 1. Safely load credentials from your .env file
     final turnUser = dotenv.env['METERED_USERNAME'];
     final turnPass = dotenv.env['METERED_PASSWORD'];
 
+    // 2. Setup STUN servers (Finds your public IP)
     final List<Map<String, dynamic>> iceServers = [
-      {'urls': 'stun:stun.l.google.com:19302'},
+      {
+        'urls': 'stun:stun.relay.metered.ca:80', // Metered STUN
+      },
+      {
+        'urls': 'stun:stun.l.google.com:19302', // Google Backup STUN
+      },
     ];
 
+    // 3. Setup TURN servers (Bypasses Firewalls/Mobile Data blocks)
     if (turnUser != null && turnPass != null) {
-      iceServers.add({
-        'urls': 'turn:global.turn.metered.ca:80',
-        'username': turnUser,
-        'credential': turnPass,
-      });
-      debugPrint('✅ [WEBRTC_CONFIG] TURN servers configured.');
+      iceServers.addAll([
+        {
+          'urls': 'turn:global.relay.metered.ca:80',
+          'username': turnUser,
+          'credential': turnPass,
+        },
+        {
+          'urls': 'turn:global.relay.metered.ca:80?transport=tcp',
+          'username': turnUser,
+          'credential': turnPass,
+        },
+        {
+          'urls': 'turn:global.relay.metered.ca:443',
+          'username': turnUser,
+          'credential': turnPass,
+        },
+        {
+          'urls':
+              'turns:global.relay.metered.ca:443?transport=tcp', // Crucial TLS secure fallback
+          'username': turnUser,
+          'credential': turnPass,
+        },
+      ]);
+      debugPrint('✅ [WEBRTC_CONFIG] Advanced Metered TURN servers configured.');
     } else {
-      debugPrint(
-          '⚠️ [PRODUCTION_ALERT] TURN servers not configured. Remote connections may fail on strict firewalls.');
+      debugPrint('⚠️ [PRODUCTION_ALERT] TURN credentials missing from .env!');
     }
 
+    // 4. Critical Configuration Fixes
     final configuration = {
       'iceServers': iceServers,
       'sdpSemantics': 'unified-plan',
-      'iceTransportPolicy':
-          'relay', // Force TURN for stability on restricted networks
+      'iceTransportPolicy': 'all', // FIXED: Allows both direct P2P and TURN
       'bundlePolicy': 'max-compat',
     };
 
-    _peerConnection = await createPeerConnection(
-        configuration); // Moved to top effectively by logic flow, but ensuring no gaps.
+    _peerConnection = await createPeerConnection(configuration);
 
     // Give native layer a moment to warm up
     await Future.delayed(const Duration(milliseconds: 200));
@@ -676,22 +696,21 @@ class WebRTCService {
 
   void _startWatchdog() {
     _watchdogTimer?.cancel();
-    // Task 1: 10-second production-grade watchdog
-    _watchdogTimer = Timer(const Duration(seconds: 10), () {
+    // 20-second production-grade watchdog for mobile data
+    _watchdogTimer = Timer(const Duration(seconds: 20), () {
       debugPrint('🐕 [WEBRTC_WATCHDOG] Watchdog timeout triggered');
 
       final currentState = _peerConnection?.connectionState;
       if (currentState !=
           RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
         debugPrint(
-            '🐕 [WEBRTC_WATCHDOG] Connection failed to reach connected state within 10s. Triggering recovery.');
+            '🐕 [WEBRTC_WATCHDOG] Connection failed to reach connected state within 20s. Triggering recovery.');
 
-        // Task 1: Automatic cleanup and notify UI
         _cleanupSession();
 
         if (!_messageStreamController.isClosed) {
           _messageStreamController.add(
-            "Network unstable, searching for a new match", // Matches requested string
+            "Network unstable, searching for a new match",
           );
         }
 
