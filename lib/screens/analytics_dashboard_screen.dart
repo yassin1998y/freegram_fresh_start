@@ -106,8 +106,8 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
               Expanded(
                 child: LineChart(
                   LineChartData(
-                    gridData: FlGridData(show: false),
-                    titlesData: FlTitlesData(show: false),
+                    gridData: const FlGridData(show: false),
+                    titlesData: const FlTitlesData(show: false),
                     borderData: FlBorderData(show: false),
                     lineBarsData: [
                       LineChartBarData(
@@ -119,10 +119,10 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
                         color: Colors.green,
                         barWidth: 3,
                         isStrokeCapRound: true,
-                        dotData: FlDotData(show: false),
+                        dotData: const FlDotData(show: false),
                         belowBarData: BarAreaData(
                           show: true,
-                          color: Colors.green.withOpacity(0.2),
+                          color: Colors.green.withValues(alpha: 0.2),
                         ),
                       ),
                     ],
@@ -209,7 +209,7 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
         padding: const EdgeInsets.all(16),
         decoration: Containers.glassCard(context).copyWith(
           border: Border.all(
-            color: color.withOpacity(0.2),
+            color: color.withValues(alpha: 0.2),
             width: 1.0,
           ),
         ),
@@ -219,7 +219,7 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 24),
@@ -238,7 +238,7 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
                     color: Theme.of(context)
                         .colorScheme
                         .onSurface
-                        .withOpacity(0.7),
+                        .withValues(alpha: 0.7),
                   ),
             ),
           ],
@@ -279,7 +279,8 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: RarityHelper.getColor(gift.rarity).withOpacity(0.1),
+                    color: RarityHelper.getColor(gift.rarity)
+                        .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -296,14 +297,16 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color:
-                        Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: Theme.of(context)
                           .colorScheme
                           .primary
-                          .withOpacity(0.2),
+                          .withValues(alpha: 0.2),
                       width: 1,
                     ),
                   ),

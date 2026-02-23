@@ -8,9 +8,7 @@ import 'package:freegram/screens/store_tabs/coins_tab.dart';
 import 'package:freegram/screens/store_tabs/boosts_tab.dart';
 import 'package:freegram/screens/store_tabs/gifts_tab.dart';
 import 'package:freegram/screens/store_tabs/profile_tab.dart';
-import 'package:freegram/screens/store_tabs/marketplace_tab.dart';
 import 'package:freegram/navigation/app_routes.dart';
-import 'package:freegram/screens/limited_editions_screen.dart';
 
 import 'package:freegram/locator.dart';
 import 'package:freegram/repositories/gift_repository.dart';
@@ -19,9 +17,6 @@ import 'package:freegram/repositories/profile_repository.dart';
 import 'package:freegram/services/daily_reward_service.dart';
 import 'package:freegram/widgets/gamification/daily_reward_dialog.dart';
 import 'package:freegram/repositories/user_repository.dart';
-import 'package:freegram/screens/achievements_screen.dart';
-import 'package:freegram/screens/referral_screen.dart';
-import 'package:freegram/screens/inventory_screen.dart';
 import 'package:freegram/models/user_model.dart';
 
 class StoreScreen extends StatefulWidget {

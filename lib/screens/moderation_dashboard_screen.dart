@@ -1007,12 +1007,12 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
                             HapticFeedback.mediumImpact();
                             _reviewReport(report, 'dismiss');
                           },
-                          child: const Text('Dismiss'),
                           style: OutlinedButton.styleFrom(
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
+                          child: const Text('Dismiss'),
                         ),
                         const SizedBox(width: 8),
                         PopupMenuButton<String>(
@@ -1021,15 +1021,15 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
                             _reviewReport(report, action);
                           },
                           itemBuilder: (context) => [
-                            PopupMenuItem(
+                            const PopupMenuItem(
                               value: 'delete',
                               child: Row(
                                 children: [
                                   Icon(Icons.delete,
                                       size: 18,
                                       color: SemanticColors.highPriority),
-                                  const SizedBox(width: 8),
-                                  const Text('Delete Content'),
+                                  SizedBox(width: 8),
+                                  Text('Delete Content'),
                                 ],
                               ),
                             ),

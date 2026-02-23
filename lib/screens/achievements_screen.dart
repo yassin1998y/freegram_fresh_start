@@ -18,7 +18,6 @@ import 'package:freegram/repositories/user_repository.dart';
 import 'package:freegram/widgets/achievements/achievement_progress_bar.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:freegram/repositories/leaderboard_repository.dart';
-import 'package:freegram/screens/leaderboard_screen.dart';
 import 'package:freegram/services/navigation_service.dart';
 import 'package:freegram/navigation/app_routes.dart';
 

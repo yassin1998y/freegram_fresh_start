@@ -1,17 +1,26 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:freegram/blocs/random_chat/random_chat_bloc.dart';
-import 'package:freegram/blocs/random_chat/random_chat_event.dart';
-import 'package:freegram/blocs/random_chat/random_chat_state.dart';
-import 'package:freegram/blocs/interaction/interaction_bloc.dart';
-import 'package:freegram/screens/random_chat/match_tab.dart';
-import 'package:freegram/screens/random_chat/lounge_tab.dart';
-import 'package:freegram/screens/random_chat/history_tab.dart';
-import 'package:freegram/theme/app_theme.dart';
-import 'package:freegram/utils/memory_manager.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:freegram/locator.dart';
+import 'package:freegram/services/webrtc_service.dart';
+import 'package:freegram/screens/random_chat/logic/random_chat_bloc.dart';
+import 'package:freegram/screens/random_chat/logic/random_chat_event.dart';
+import 'package:freegram/screens/random_chat/logic/random_chat_state.dart';
+import 'package:freegram/screens/random_chat/lifecycle_and_gestures/random_chat_lifecycle_handler.dart';
+import 'package:freegram/screens/random_chat/lifecycle_and_gestures/smart_snap_draggable_pip.dart';
+import 'package:freegram/screens/random_chat/lifecycle_and_gestures/swipe_to_skip_detector.dart';
+import 'package:freegram/screens/random_chat/components/webrtc_render_manager.dart';
+import 'package:freegram/screens/random_chat/phases/idle_phase_overlay.dart';
+import 'package:freegram/screens/random_chat/phases/searching_phase_overlay.dart';
+import 'package:freegram/screens/random_chat/phases/matching_phase_overlay.dart';
+import 'package:freegram/screens/random_chat/phases/connected_phase_overlay.dart';
+import 'package:freegram/screens/random_chat/phases/shared_components/persistent_media_controls.dart';
+import 'package:freegram/screens/random_chat/animations/remote_avatar_transition.dart';
+import 'package:freegram/screens/random_chat/dialogs_and_sheets/permissions_preflight_sheet.dart';
 import 'package:freegram/theme/design_tokens.dart';
+import 'package:freegram/blocs/interaction/interaction_bloc.dart';
 
 class RandomChatScreen extends StatefulWidget {
   final bool isVisible;
@@ -21,9 +30,8 @@ class RandomChatScreen extends StatefulWidget {
   State<RandomChatScreen> createState() => _RandomChatScreenState();
 }
 
-class _RandomChatScreenState extends State<RandomChatScreen>
-    with GlobalMemoryManager {
-  int _currentIndex = 1; // Default to 'Match' tab
+class _RandomChatScreenState extends State<RandomChatScreen> {
+  bool _showFlash = false;
 
   @override
   void initState() {
@@ -34,257 +42,173 @@ class _RandomChatScreenState extends State<RandomChatScreen>
   }
 
   @override
-  void didUpdateWidget(RandomChatScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isVisible != oldWidget.isVisible) {
-      if (widget.isVisible) {
-        _enableSecureMode();
-      } else {
-        _disableSecureMode();
-      }
-    }
-  }
-
-  @override
   void dispose() {
-    evictResources();
     _disableSecureMode();
     super.dispose();
   }
 
   static const _windowChannel = MethodChannel('freegram/window_manager');
-  static const int _flagSecure = 8192; // WindowManager.LayoutParams.FLAG_SECURE
+  static const int _flagSecure = 8192;
 
   Future<void> _enableSecureMode() async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    if (Theme.of(context).platform != TargetPlatform.android) return;
     try {
       await _windowChannel.invokeMethod('addFlags', {'flags': _flagSecure});
-    } catch (e) {
-      debugPrint("Error enabling secure mode: $e");
-    }
+    } catch (_) {}
   }
 
   Future<void> _disableSecureMode() async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    if (Theme.of(context).platform != TargetPlatform.android) return;
     try {
       await _windowChannel.invokeMethod('clearFlags', {'flags': _flagSecure});
-    } catch (e) {
-      debugPrint("Error disabling secure mode: $e");
-    }
+    } catch (_) {}
   }
 
-  void _showAdminDialog(BuildContext context) {
-    final TextEditingController passwordController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        final theme = Theme.of(context);
-        return AlertDialog(
-          backgroundColor: theme.colorScheme.surface,
-          title: Text("Admin Access",
-              style: TextStyle(color: theme.colorScheme.onSurface)),
-          content: TextField(
-            controller: passwordController,
-            obscureText: true,
-            style: TextStyle(color: theme.colorScheme.onSurface),
-            decoration: InputDecoration(
-              hintText: "Enter Admin Password",
-              hintStyle: TextStyle(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.54)),
-              enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(
-                      color:
-                          theme.colorScheme.onSurface.withValues(alpha: 0.54))),
-              focusedBorder: const UnderlineInputBorder(
-                  borderSide: BorderSide(color: SonarPulseTheme.primaryAccent)),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text("Cancel"),
-            ),
-            TextButton(
-              onPressed: () {
-                if (passwordController.text == "Morph1998@") {
-                  context.read<RandomChatBloc>().add(InitializeGatedScreen());
-                  Navigator.pop(dialogContext);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("✅ Access Granted. Welcome, Admin."),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                } else {
-                  Navigator.pop(dialogContext);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("❌ Access Denied."),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              },
-              child: const Text("Unlock"),
-            ),
-          ],
-        );
-      },
-    );
+  void _triggerCameraFlash() {
+    setState(() => _showFlash = true);
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) {
+        setState(() => _showFlash = false);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => RandomChatBloc(),
-      child: BlocProvider(
-        create: (context) => InteractionBloc(),
-        child: Builder(builder: (context) {
-          // Use BlocBuilder to conditionally render the entire screen content
-          return BlocBuilder<RandomChatBloc, RandomChatState>(
-            buildWhen: (p, c) => p.isGated != c.isGated,
-            builder: (context, state) {
-              if (state.isGated) {
-                // If gated, return the full-screen placeholder (similar to Nearby Screen on Web)
-                return _GatedPlaceholder(
-                  onAdminTap: () => _showAdminDialog(context),
-                );
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+            create: (context) =>
+                RandomChatBloc()..add(const RandomChatEnterMatchTab())),
+        BlocProvider(create: (context) => InteractionBloc()),
+      ],
+      child: RandomChatLifecycleHandler(
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: BlocConsumer<RandomChatBloc, RandomChatState>(
+            listenWhen: (prev, curr) =>
+                prev.currentPhase != curr.currentPhase ||
+                prev.errorMessage != curr.errorMessage,
+            listener: (context, state) {
+              if (state.errorMessage == 'PERMISSIONS_DENIED') {
+                PermissionsPreflightSheet.show(context);
               }
 
-              // Normal UI when NOT gated
-              final theme = Theme.of(context);
-              return Scaffold(
-                resizeToAvoidBottomInset: false,
-                appBar: AppBar(
-                  title: const Text('Random Chat'),
-                  automaticallyImplyLeading: false,
-                ),
-                body: IndexedStack(
-                  index: _currentIndex,
+              if (state.currentPhase == RandomChatPhase.connected) {
+                _triggerCameraFlash();
+                HapticFeedback.vibrate();
+              }
+            },
+            builder: (context, state) {
+              return SwipeToSkipDetector(
+                child: Stack(
                   children: [
-                    LoungeTab(onUserTap: () {
-                      setState(() => _currentIndex = 1);
-                    }),
-                    MatchTab(isVisible: widget.isVisible && _currentIndex == 1),
-                    const HistoryTab(),
-                  ],
-                ),
-                bottomNavigationBar: BottomNavigationBar(
-                  currentIndex: _currentIndex,
-                  backgroundColor: theme.colorScheme.surface,
-                  selectedItemColor: SonarPulseTheme.primaryAccent,
-                  unselectedItemColor:
-                      theme.colorScheme.onSurface.withValues(alpha: 0.54),
-                  onTap: (index) {
-                    setState(() => _currentIndex = index);
-                  },
-                  items: const [
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.grid_view),
-                      label: "Lounge",
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.video_chat),
-                      label: "Match",
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.history),
-                      label: "History",
+                    // --- Layer A: Base Layer (Video Feed) ---
+                    _buildBaseLayer(state),
+
+                    // --- Layer B: Phase Overlays ---
+                    _buildPhaseOverlay(state),
+
+                    // --- Layer C: Local Video Layer (PiP) ---
+                    _buildPiP(state),
+
+                    // --- Layer D: Shared UI Layer ---
+                    _buildSharedUI(state),
+
+                    // Camera Flash Effect
+                    IgnorePointer(
+                      child: AnimatedOpacity(
+                        opacity: _showFlash ? 1.0 : 0.0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Container(color: Colors.white),
+                      ),
                     ),
                   ],
                 ),
               );
             },
-          );
-        }),
-      ),
-    );
-  }
-}
-
-// Mimics _WebPlaceholder from nearby_screen.dart
-class _GatedPlaceholder extends StatelessWidget {
-  final VoidCallback onAdminTap;
-
-  const _GatedPlaceholder({required this.onAdminTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      // FIXED: Added SingleChildScrollView to prevent overflow when keyboard appears
-      body: Center(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(DesignTokens.spaceXXL),
-            child: Container(
-              padding: const EdgeInsets.all(DesignTokens.spaceXXXL),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(DesignTokens.radiusLG),
-                border: Border.all(
-                  color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
-                  width: 1.0,
-                ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(DesignTokens.spaceXL),
-                    decoration: BoxDecoration(
-                      color:
-                          SonarPulseTheme.primaryAccent.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.lock_person_outlined,
-                      size: DesignTokens.iconXXL,
-                      color: SonarPulseTheme.primaryAccent,
-                    ),
-                  ),
-                  const SizedBox(height: DesignTokens.spaceXL),
-                  Text(
-                    'Exclusive Access',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          fontSize: DesignTokens.fontSizeXXL,
-                          letterSpacing: DesignTokens.letterSpacingTight,
-                        ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: DesignTokens.spaceMD),
-                  Text(
-                    'Random Match is currently in private beta for selected regions. Join the waitlist for early access.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).textTheme.bodySmall?.color,
-                          fontSize: DesignTokens.fontSizeMD,
-                          height: DesignTokens.lineHeightNormal,
-                        ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: DesignTokens.spaceXXL),
-                  TextButton.icon(
-                    onPressed: onAdminTap,
-                    icon: const Icon(Icons.admin_panel_settings_outlined,
-                        size: DesignTokens.iconSM),
-                    label: const Text("Admin Access"),
-                    style: TextButton.styleFrom(
-                      foregroundColor:
-                          Theme.of(context).textTheme.bodySmall?.color,
-                      textStyle: const TextStyle(
-                        fontSize: DesignTokens.fontSizeSM,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBaseLayer(RandomChatState state) {
+    final webrtc = locator<WebRTCService>();
+
+    if (state.currentPhase == RandomChatPhase.connected) {
+      if (state.isRemoteCameraOff) {
+        return const RemoteAvatarTransition();
+      } else {
+        return StreamBuilder<MediaStream?>(
+          stream: webrtc.remoteStreamStream,
+          builder: (context, snapshot) {
+            return WebRTCRenderManager(
+              stream: snapshot.data,
+              isLocal: false,
+            );
+          },
+        );
+      }
+    } else if (state.currentPhase == RandomChatPhase.idle) {
+      // Idle phase: blurry local camera
+      return Stack(
+        children: [
+          WebRTCRenderManager(stream: webrtc.localStream, isLocal: true),
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.4),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Container(color: Colors.black);
+  }
+
+  Widget _buildPhaseOverlay(RandomChatState state) {
+    switch (state.currentPhase) {
+      case RandomChatPhase.idle:
+        return const IdlePhaseOverlay();
+      case RandomChatPhase.searching:
+        return const SearchingPhaseOverlay();
+      case RandomChatPhase.matching:
+        return const MatchingPhaseOverlay();
+      case RandomChatPhase.connected:
+        return const ConnectedPhaseOverlay();
+    }
+  }
+
+  Widget _buildPiP(RandomChatState state) {
+    if (state.currentPhase == RandomChatPhase.idle) {
+      return const SizedBox.shrink();
+    }
+
+    return SmartSnapDraggablePiP(
+      cameraPreview: WebRTCRenderManager(
+        stream: locator<WebRTCService>().localStream,
+        isLocal: true,
+      ),
+    );
+  }
+
+  Widget _buildSharedUI(RandomChatState state) {
+    // Hidden only in matching
+    if (state.currentPhase == RandomChatPhase.matching) {
+      return const SizedBox.shrink();
+    }
+
+    return const Positioned(
+      bottom: DesignTokens.spaceXL,
+      left: 0,
+      right: 0,
+      child: PersistentMediaControls(),
     );
   }
 }

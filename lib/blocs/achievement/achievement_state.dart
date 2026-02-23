@@ -63,11 +63,11 @@ class AchievementClaimSuccess extends AchievementLoaded {
   final String achievementId;
 
   const AchievementClaimSuccess({
-    required String achievementId,
+    required this.achievementId,
     required super.allAchievements,
     required super.userProgress,
     super.newlyCompleted,
-  }) : achievementId = achievementId;
+  });
 
   @override
   List<Object?> get props =>

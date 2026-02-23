@@ -172,10 +172,10 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: const [
-                                const Color(0xFF00BFA5),
-                                const Color(0xFF00E5FF),
+                                Color(0xFF00BFA5),
+                                Color(0xFF00E5FF),
                                 Colors.white,
-                                const Color(0xFF00BFA5),
+                                Color(0xFF00BFA5),
                               ],
                               stops: [
                                 0.0,
@@ -260,7 +260,7 @@ class _MatchAnimationScreenState extends State<MatchAnimationScreen>
                             Text(
                               mutualInterests.take(3).join(' • '),
                               style: const TextStyle(
-                                color: const Color(0xFF00BFA5),
+                                color: Color(0xFF00BFA5),
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
                               ),
