@@ -130,3 +130,11 @@ class RandomChatMediaStateChanged extends RandomChatEvent {
   @override
   List<Object?> get props => [isMicOn, isCameraOn];
 }
+
+class RandomChatFirstFrameRendered extends RandomChatEvent {
+  const RandomChatFirstFrameRendered();
+}
+
+class RandomChatGracePeriodExpired extends RandomChatEvent {
+  const RandomChatGracePeriodExpired();
+}

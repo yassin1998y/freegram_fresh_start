@@ -51,6 +51,8 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
     on<RandomChatRemoteStreamChanged>(_onRemoteStreamChanged);
     on<RandomChatNewMessage>(_onNewMessage);
     on<RandomChatMediaStateChanged>(_onMediaStateChanged);
+    on<RandomChatFirstFrameRendered>(_onFirstFrameRendered);
+    on<RandomChatGracePeriodExpired>(_onGracePeriodExpired);
 
     _subscribeToService();
   }
@@ -264,7 +266,6 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
     switch (event.status) {
       case 'connected':
         if (state.currentPhase != RandomChatPhase.connected) {
-          _connectedTime = DateTime.now(); // Track start time
           _searchTimeout?.cancel();
 
           // Create partner context from service info
@@ -277,8 +278,8 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
                   age: 20)
               : null;
 
+          // Stay in matching phase until first frame is rendered
           emit(state.copyWith(
-            currentPhase: RandomChatPhase.connected,
             partnerContext: partnerContext,
           ));
         }
@@ -308,12 +309,10 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
   ) {
     // remoteStream is now handled by locator/service directly in component
 
-    // FORCE UI TRANSITION: If we have a stream, we are effectively connected
+    // If we have a stream, we update partner context but STAY in matching phase
     if (event.stream != null &&
         state.currentPhase != RandomChatPhase.connected) {
-      debugPrint(
-          '🚀 [BLOC_ACTION] Force transitioning to connected (Stream Received)');
-      _connectedTime = DateTime.now(); // Track start time
+      debugPrint('[BLOC_ACTION] Stream Received - Staying in Matching Phase');
       _searchTimeout?.cancel();
 
       final partnerId = _webRTCService.currentPartnerId;
@@ -326,10 +325,35 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
           : null;
 
       emit(state.copyWith(
-        currentPhase: RandomChatPhase.connected,
         partnerContext: partnerContext,
       ));
     }
+  }
+
+  void _onFirstFrameRendered(
+    RandomChatFirstFrameRendered event,
+    Emitter<RandomChatState> emit,
+  ) {
+    if (state.currentPhase != RandomChatPhase.connected) {
+      debugPrint(
+          '🚀 [BLOC_ACTION] First Frame Rendered - Transitioning to connected');
+      _connectedTime = DateTime.now();
+      emit(state.copyWith(
+        currentPhase: RandomChatPhase.connected,
+      ));
+    }
+  }
+
+  void _onGracePeriodExpired(
+    RandomChatGracePeriodExpired event,
+    Emitter<RandomChatState> emit,
+  ) {
+    debugPrint('[BLO_ACTION] Grace Period Expired - Disposing Session');
+    _checkAndSaveHistory();
+    _searchTimeout?.cancel();
+    _webRTCService.dispose();
+    emit(state.copyWith(
+        currentPhase: RandomChatPhase.idle, partnerContext: null));
   }
 
   Future<void> _checkAndSaveHistory() async {

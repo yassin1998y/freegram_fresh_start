@@ -16,6 +16,7 @@ import 'package:freegram/screens/random_chat/phases/idle_phase_overlay.dart';
 import 'package:freegram/screens/random_chat/phases/searching_phase_overlay.dart';
 import 'package:freegram/screens/random_chat/phases/matching_phase_overlay.dart';
 import 'package:freegram/screens/random_chat/phases/connected_phase_overlay.dart';
+import 'package:freegram/screens/random_chat/components/privacy_secure_wrapper.dart';
 import 'package:freegram/screens/random_chat/phases/shared_components/persistent_media_controls.dart';
 import 'package:freegram/screens/random_chat/animations/remote_avatar_transition.dart';
 import 'package:freegram/screens/random_chat/dialogs_and_sheets/permissions_preflight_sheet.dart';
@@ -32,37 +33,6 @@ class RandomChatScreen extends StatefulWidget {
 
 class _RandomChatScreenState extends State<RandomChatScreen> {
   bool _showFlash = false;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.isVisible) {
-      _enableSecureMode();
-    }
-  }
-
-  @override
-  void dispose() {
-    _disableSecureMode();
-    super.dispose();
-  }
-
-  static const _windowChannel = MethodChannel('freegram/window_manager');
-  static const int _flagSecure = 8192;
-
-  Future<void> _enableSecureMode() async {
-    if (Theme.of(context).platform != TargetPlatform.android) return;
-    try {
-      await _windowChannel.invokeMethod('addFlags', {'flags': _flagSecure});
-    } catch (_) {}
-  }
-
-  Future<void> _disableSecureMode() async {
-    if (Theme.of(context).platform != TargetPlatform.android) return;
-    try {
-      await _windowChannel.invokeMethod('clearFlags', {'flags': _flagSecure});
-    } catch (_) {}
-  }
 
   void _triggerCameraFlash() {
     setState(() => _showFlash = true);
@@ -85,48 +55,50 @@ class _RandomChatScreenState extends State<RandomChatScreen> {
       child: RandomChatLifecycleHandler(
         child: Scaffold(
           backgroundColor: Colors.black,
-          body: BlocConsumer<RandomChatBloc, RandomChatState>(
-            listenWhen: (prev, curr) =>
-                prev.currentPhase != curr.currentPhase ||
-                prev.errorMessage != curr.errorMessage,
-            listener: (context, state) {
-              if (state.errorMessage == 'PERMISSIONS_DENIED') {
-                PermissionsPreflightSheet.show(context);
-              }
+          body: PrivacySecureWrapper(
+            child: BlocConsumer<RandomChatBloc, RandomChatState>(
+              listenWhen: (prev, curr) =>
+                  prev.currentPhase != curr.currentPhase ||
+                  prev.errorMessage != curr.errorMessage,
+              listener: (context, state) {
+                if (state.errorMessage == 'PERMISSIONS_DENIED') {
+                  PermissionsPreflightSheet.show(context);
+                }
 
-              if (state.currentPhase == RandomChatPhase.connected) {
-                _triggerCameraFlash();
-                HapticFeedback.vibrate();
-              }
-            },
-            builder: (context, state) {
-              return SwipeToSkipDetector(
-                child: Stack(
-                  children: [
-                    // --- Layer A: Base Layer (Video Feed) ---
-                    _buildBaseLayer(state),
+                if (state.currentPhase == RandomChatPhase.connected) {
+                  _triggerCameraFlash();
+                  HapticFeedback.vibrate();
+                }
+              },
+              builder: (context, state) {
+                return SwipeToSkipDetector(
+                  child: Stack(
+                    children: [
+                      // --- Layer A: Base Layer (Video Feed) ---
+                      _buildBaseLayer(state),
 
-                    // --- Layer B: Phase Overlays ---
-                    _buildPhaseOverlay(state),
+                      // --- Layer B: Phase Overlays ---
+                      _buildPhaseOverlay(state),
 
-                    // --- Layer C: Local Video Layer (PiP) ---
-                    _buildPiP(state),
+                      // --- Layer C: Local Video Layer (PiP) ---
+                      _buildPiP(state),
 
-                    // --- Layer D: Shared UI Layer ---
-                    _buildSharedUI(state),
+                      // --- Layer D: Shared UI Layer ---
+                      _buildSharedUI(state),
 
-                    // Camera Flash Effect
-                    IgnorePointer(
-                      child: AnimatedOpacity(
-                        opacity: _showFlash ? 1.0 : 0.0,
-                        duration: const Duration(milliseconds: 200),
-                        child: Container(color: Colors.white),
+                      // Camera Flash Effect
+                      IgnorePointer(
+                        child: AnimatedOpacity(
+                          opacity: _showFlash ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 200),
+                          child: Container(color: Colors.white),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              );
-            },
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -136,8 +108,11 @@ class _RandomChatScreenState extends State<RandomChatScreen> {
   Widget _buildBaseLayer(RandomChatState state) {
     final webrtc = locator<WebRTCService>();
 
-    if (state.currentPhase == RandomChatPhase.connected) {
-      if (state.isRemoteCameraOff) {
+    // Render remote stream during matching AND connected phases to allow for first frame detection
+    if (state.currentPhase == RandomChatPhase.connected ||
+        state.currentPhase == RandomChatPhase.matching) {
+      if (state.isRemoteCameraOff &&
+          state.currentPhase == RandomChatPhase.connected) {
         return const RemoteAvatarTransition();
       } else {
         return StreamBuilder<MediaStream?>(
@@ -146,6 +121,11 @@ class _RandomChatScreenState extends State<RandomChatScreen> {
             return WebRTCRenderManager(
               stream: snapshot.data,
               isLocal: false,
+              onFirstFrameRendered: () {
+                context
+                    .read<RandomChatBloc>()
+                    .add(const RandomChatFirstFrameRendered());
+              },
             );
           },
         );

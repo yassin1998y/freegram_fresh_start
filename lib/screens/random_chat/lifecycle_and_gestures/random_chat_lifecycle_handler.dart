@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:freegram/screens/random_chat/logic/random_chat_bloc.dart';
 import 'package:freegram/screens/random_chat/logic/random_chat_event.dart';
 
@@ -20,11 +22,15 @@ class RandomChatLifecycleHandler extends StatefulWidget {
 
 class _RandomChatLifecycleHandlerState extends State<RandomChatLifecycleHandler>
     with WidgetsBindingObserver, RouteAware {
+  Timer? _backgroundGraceTimer;
+
   @override
   void initState() {
     super.initState();
     // Register App Lifecycle Observer
     WidgetsBinding.instance.addObserver(this);
+    // Acquire Wakelock to prevent screen dimming during call/search
+    WakelockPlus.enable();
   }
 
   @override
@@ -39,6 +45,9 @@ class _RandomChatLifecycleHandlerState extends State<RandomChatLifecycleHandler>
 
   @override
   void dispose() {
+    // Release Wakelock when screen is destroyed
+    WakelockPlus.disable();
+    _backgroundGraceTimer?.cancel();
     // Strict Cleanup: Remove observers to prevent memory leaks and zombie calls
     WidgetsBinding.instance.removeObserver(this);
     randomChatRouteObserver.unsubscribe(this);
@@ -47,14 +56,20 @@ class _RandomChatLifecycleHandlerState extends State<RandomChatLifecycleHandler>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.detached) {
-      final bloc = context.read<RandomChatBloc>();
+    final bloc = context.read<RandomChatBloc>();
 
-      // Stop background processing to save battery/data
-      bloc.add(const RandomChatAppBackgrounded());
-
-      // Ensure user is removed from matchmaking queue
+    if (state == AppLifecycleState.paused) {
+      debugPrint('[LIFECYCLE] App Backgrounded - Starting 30s Grace Period');
+      _backgroundGraceTimer?.cancel();
+      _backgroundGraceTimer = Timer(const Duration(seconds: 30), () {
+        debugPrint('[LIFECYCLE] Grace Period Expired - Killing Session');
+        bloc.add(const RandomChatGracePeriodExpired());
+        WakelockPlus.disable();
+      });
+    } else if (state == AppLifecycleState.resumed) {
+      debugPrint('[LIFECYCLE] App Resumed - Cancelling Grace Period');
+      _backgroundGraceTimer?.cancel();
+    } else if (state == AppLifecycleState.detached) {
       bloc.add(const RandomChatStopSearching());
     }
   }

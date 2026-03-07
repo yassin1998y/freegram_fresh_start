@@ -19,11 +19,12 @@ class _SwipeToSkipDetectorState extends State<SwipeToSkipDetector> {
   double _dragOffset = 0;
   bool _showArrow = false;
   bool _arrowReverse = false; // true for swipe left, false for swipe right
+  bool _thresholdCrossedHapticTriggered = false;
 
   static const double _swipeThreshold = 60.0;
+  static const double _velocityThreshold = 500.0;
 
-  void _onSwipeDetected(bool isRight) {
-    HapticFeedback.lightImpact();
+  void _onSwipeAction(bool isRight) {
     context.read<RandomChatBloc>().add(const RandomChatStartSearching());
 
     setState(() {
@@ -45,18 +46,33 @@ class _SwipeToSkipDetectorState extends State<SwipeToSkipDetector> {
         GestureDetector(
           onHorizontalDragUpdate: (details) {
             _dragOffset += details.primaryDelta ?? 0;
+
+            // Trigger haptic physical validation exactly when threshold is crossed
+            if (_dragOffset.abs() > _swipeThreshold &&
+                !_thresholdCrossedHapticTriggered) {
+              HapticFeedback.mediumImpact();
+              _thresholdCrossedHapticTriggered = true;
+            } else if (_dragOffset.abs() < _swipeThreshold) {
+              _thresholdCrossedHapticTriggered = false;
+            }
           },
           onHorizontalDragEnd: (details) {
-            if (_dragOffset.abs() > _swipeThreshold) {
-              _onSwipeDetected(_dragOffset > 0);
+            final velocity = details.primaryVelocity ?? 0;
+
+            // Swipe must be deliberate: exceed threshold AND have sufficient velocity
+            if (_dragOffset.abs() > _swipeThreshold &&
+                velocity.abs() > _velocityThreshold) {
+              _onSwipeAction(_dragOffset > 0);
             }
+
             _dragOffset = 0;
+            _thresholdCrossedHapticTriggered = false;
           },
           behavior: HitTestBehavior.translucent,
           child: widget.child,
         ),
 
-        // Visual Arrow Overlay
+        // Visual Arrow Overlay (Premium Feedback)
         if (_showArrow)
           IgnorePointer(
             child: AnimatedOpacity(
@@ -65,16 +81,23 @@ class _SwipeToSkipDetectorState extends State<SwipeToSkipDetector> {
               child: Center(
                 child: Container(
                   padding: const EdgeInsets.all(DesignTokens.spaceLG),
-                  decoration: const BoxDecoration(
-                    color: Colors.black45,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.6),
                     shape: BoxShape.circle,
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.white12,
+                        blurRadius: 20,
+                        spreadRadius: 5,
+                      )
+                    ],
                   ),
                   child: Icon(
                     _arrowReverse
                         ? Icons.arrow_back_ios_new_rounded
                         : Icons.arrow_forward_ios_rounded,
                     color: Colors.white,
-                    size: 48,
+                    size: 56,
                   ),
                 ),
               ),

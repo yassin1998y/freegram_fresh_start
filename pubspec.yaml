@@ -129,6 +129,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   socket_io_client: ^2.0.3
+  wakelock_plus: ^1.4.0
 
 
 
