@@ -16,10 +16,13 @@ import 'package:freegram/screens/random_chat/phases/idle_phase_overlay.dart';
 import 'package:freegram/screens/random_chat/phases/searching_phase_overlay.dart';
 import 'package:freegram/screens/random_chat/phases/matching_phase_overlay.dart';
 import 'package:freegram/screens/random_chat/phases/connected_phase_overlay.dart';
+import 'package:freegram/screens/random_chat/phases/disconnected_phase_overlay.dart';
 import 'package:freegram/screens/random_chat/components/privacy_secure_wrapper.dart';
-import 'package:freegram/screens/random_chat/phases/shared_components/persistent_media_controls.dart';
 import 'package:freegram/screens/random_chat/animations/remote_avatar_transition.dart';
 import 'package:freegram/screens/random_chat/dialogs_and_sheets/permissions_preflight_sheet.dart';
+import 'package:freegram/screens/random_chat/phases/shared_components/persistent_media_controls.dart';
+import 'package:freegram/screens/random_chat/phases/sub_components/primary_action_bar.dart';
+import 'package:freegram/screens/random_chat/widgets/glass_overlay_container.dart';
 import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/blocs/interaction/interaction_bloc.dart';
 
@@ -59,10 +62,22 @@ class _RandomChatScreenState extends State<RandomChatScreen> {
             child: BlocConsumer<RandomChatBloc, RandomChatState>(
               listenWhen: (prev, curr) =>
                   prev.currentPhase != curr.currentPhase ||
-                  prev.errorMessage != curr.errorMessage,
+                  prev.errorType != curr.errorType,
               listener: (context, state) {
-                if (state.errorMessage == 'PERMISSIONS_DENIED') {
-                  PermissionsPreflightSheet.show(context);
+                if (state.errorType == RandomChatError.permissionsDenied ||
+                    state.errorType ==
+                        RandomChatError.permissionsPermanentlyDenied) {
+                  PermissionsPreflightSheet.show(
+                    context,
+                    isPermanentlyDenied: state.errorType ==
+                        RandomChatError.permissionsPermanentlyDenied,
+                  ).then((_) {
+                    if (context.mounted) {
+                      context
+                          .read<RandomChatBloc>()
+                          .add(const RandomChatClearError());
+                    }
+                  });
                 }
 
                 if (state.currentPhase == RandomChatPhase.connected) {
@@ -72,6 +87,7 @@ class _RandomChatScreenState extends State<RandomChatScreen> {
               },
               builder: (context, state) {
                 return SwipeToSkipDetector(
+                  isEnabled: state.isGesturesEnabled,
                   child: Stack(
                     children: [
                       // --- Layer A: Base Layer (Video Feed) ---
@@ -102,6 +118,57 @@ class _RandomChatScreenState extends State<RandomChatScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSharedUI(RandomChatState state) {
+    final bool isFatalError = state.errorType == RandomChatError.permissionsDenied || 
+                             state.errorType == RandomChatError.permissionsPermanentlyDenied;
+
+    return Stack(
+      children: [
+        // 1. Media Controls (Bottom Left) - Visible in all phases except fatal error
+        if (!isFatalError)
+          Align(
+            alignment: Alignment.bottomLeft,
+            child: Padding(
+              padding: const EdgeInsets.all(DesignTokens.spaceMD),
+              child: const MinimalistMediaControls(),
+            ),
+          ),
+
+        // 2. Primary Action Bar (Right side) - Only in Connected Phase
+        Align(
+          alignment: Alignment.centerRight,
+          child: AnimatedOpacity(
+            opacity: state.currentPhase == RandomChatPhase.connected ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 400),
+            child: IgnorePointer(
+              ignoring: state.currentPhase != RandomChatPhase.connected,
+              child: const Padding(
+                padding: EdgeInsets.only(right: DesignTokens.spaceMD),
+                child: PrimaryActionBar(),
+              ),
+            ),
+          ),
+        ),
+
+        // 3. Standalone Skip Button (Bottom Right)
+        if (state.currentPhase != RandomChatPhase.idle && !isFatalError)
+          Align(
+            alignment: Alignment.bottomRight,
+            child: Padding(
+              padding: const EdgeInsets.all(DesignTokens.spaceMD),
+              child: _CircularGlassButton(
+                icon: Icons.skip_next_rounded,
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  context.read<RandomChatBloc>().add(const RandomChatStartSearching());
+                },
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -153,16 +220,44 @@ class _RandomChatScreenState extends State<RandomChatScreen> {
   }
 
   Widget _buildPhaseOverlay(RandomChatState state) {
+    Widget overlay;
     switch (state.currentPhase) {
       case RandomChatPhase.idle:
-        return const IdlePhaseOverlay();
+        overlay = const IdlePhaseOverlay(key: ValueKey(RandomChatPhase.idle));
+        break;
       case RandomChatPhase.searching:
-        return const SearchingPhaseOverlay();
+        overlay = const SearchingPhaseOverlay(
+            key: ValueKey(RandomChatPhase.searching));
+        break;
       case RandomChatPhase.matching:
-        return const MatchingPhaseOverlay();
+        overlay =
+            const MatchingPhaseOverlay(key: ValueKey(RandomChatPhase.matching));
+        break;
       case RandomChatPhase.connected:
-        return const ConnectedPhaseOverlay();
+        overlay = const ConnectedPhaseOverlay(
+            key: ValueKey(RandomChatPhase.connected));
+        break;
+      case RandomChatPhase.disconnected:
+        overlay = const DisconnectedPhaseOverlay(
+            key: ValueKey(RandomChatPhase.disconnected));
+        break;
     }
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 400),
+      transitionBuilder: (Widget child, Animation<double> animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.95, end: 1.0).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+            ),
+            child: child,
+          ),
+        );
+      },
+      child: overlay,
+    );
   }
 
   Widget _buildPiP(RandomChatState state) {
@@ -177,18 +272,26 @@ class _RandomChatScreenState extends State<RandomChatScreen> {
       ),
     );
   }
+}
 
-  Widget _buildSharedUI(RandomChatState state) {
-    // Hidden only in matching
-    if (state.currentPhase == RandomChatPhase.matching) {
-      return const SizedBox.shrink();
-    }
+class _CircularGlassButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onPressed;
 
-    return const Positioned(
-      bottom: DesignTokens.spaceXL,
-      left: 0,
-      right: 0,
-      child: PersistentMediaControls(),
+  const _CircularGlassButton({
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: GlassOverlayContainer(
+        borderRadius: BorderRadius.circular(32),
+        padding: const EdgeInsets.all(DesignTokens.spaceSM),
+        child: Icon(icon, color: Colors.white, size: DesignTokens.iconMD),
+      ),
     );
   }
 }

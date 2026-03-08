@@ -4,14 +4,16 @@ import 'package:freegram/theme/design_tokens.dart';
 import 'package:freegram/theme/app_theme.dart';
 
 class PermissionsPreflightSheet extends StatelessWidget {
-  const PermissionsPreflightSheet({super.key});
+  final bool isPermanentlyDenied;
 
-  static Future<void> show(BuildContext context) {
+  const PermissionsPreflightSheet({super.key, this.isPermanentlyDenied = false});
+
+  static Future<void> show(BuildContext context, {bool isPermanentlyDenied = false}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const PermissionsPreflightSheet(),
+      builder: (context) => PermissionsPreflightSheet(isPermanentlyDenied: isPermanentlyDenied),
     );
   }
 
@@ -90,12 +92,19 @@ class PermissionsPreflightSheet extends StatelessWidget {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () async {
-                final cameraStatus = await Permission.camera.request();
-                final micStatus = await Permission.microphone.request();
+                if (isPermanentlyDenied) {
+                  await openAppSettings();
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
+                } else {
+                  final cameraStatus = await Permission.camera.request();
+                  final micStatus = await Permission.microphone.request();
 
-                if (context.mounted) {
-                  Navigator.pop(
-                      context, cameraStatus.isGranted && micStatus.isGranted);
+                  if (context.mounted) {
+                    Navigator.pop(
+                        context, cameraStatus.isGranted && micStatus.isGranted);
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -108,9 +117,9 @@ class PermissionsPreflightSheet extends StatelessWidget {
                 ),
                 elevation: 0,
               ),
-              child: const Text(
-                'Grant Access',
-                style: TextStyle(
+              child: Text(
+                isPermanentlyDenied ? 'Open Settings' : 'Grant Access',
+                style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: DesignTokens.fontSizeLG,
                 ),

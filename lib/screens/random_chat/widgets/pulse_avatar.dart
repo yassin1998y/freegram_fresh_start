@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:freegram/theme/design_tokens.dart';
 
 class PulseAvatar extends StatefulWidget {
   final String? photoUrl;
   final double size;
+  final bool showAvatar;
 
   const PulseAvatar({
     super.key,
     required this.photoUrl,
     this.size = 100,
+    this.showAvatar = true,
   });
 
   @override
@@ -26,10 +29,10 @@ class _PulseAvatarState extends State<PulseAvatar>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
+      duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
 
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
 
@@ -61,10 +64,10 @@ class _PulseAvatarState extends State<PulseAvatar>
                 height: widget.size * _scaleAnimation.value,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFF00BFA5)
+                  color: SemanticColors.primary(context)
                       .withValues(alpha: _opacityAnimation.value),
                   border: Border.all(
-                    color: const Color(0xFF00BFA5).withValues(alpha: 0.5),
+                    color: SemanticColors.primary(context).withValues(alpha: 0.5),
                     width: 2,
                   ),
                 ),
@@ -72,22 +75,30 @@ class _PulseAvatarState extends State<PulseAvatar>
             },
           ),
           // Avatar
-          Container(
-            width: widget.size,
+          if (widget.showAvatar)
+            Container(
+              width: widget.size,
             height: widget.size,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 2),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ],
             ),
             child: ClipOval(
-              child: widget.photoUrl != null
+              child: widget.photoUrl != null && widget.photoUrl!.isNotEmpty
                   ? CachedNetworkImage(
                       imageUrl: widget.photoUrl!,
                       fit: BoxFit.cover,
                       placeholder: (context, url) =>
-                          const Icon(Icons.person, color: Colors.white70),
+                          const Icon(Icons.person, color: Colors.white70, size: 40),
                       errorWidget: (context, url, error) =>
-                          const Icon(Icons.person, color: Colors.white70),
+                          const Icon(Icons.person, color: Colors.white70, size: 40),
                     )
                   : const Icon(Icons.person, color: Colors.white70, size: 40),
             ),

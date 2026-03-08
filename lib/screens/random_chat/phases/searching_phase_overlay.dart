@@ -1,7 +1,8 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:freegram/screens/random_chat/animations/match_sonar_view.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:freegram/screens/random_chat/widgets/pulse_avatar.dart';
+import 'package:freegram/screens/random_chat/widgets/ambient_bokeh_background.dart';
 import 'package:freegram/screens/random_chat/logic/random_chat_bloc.dart';
 import 'package:freegram/screens/random_chat/logic/random_chat_event.dart';
 import 'package:freegram/theme/design_tokens.dart';
@@ -14,82 +15,57 @@ class SearchingPhaseOverlay extends StatefulWidget {
 }
 
 class _SearchingPhaseOverlayState extends State<SearchingPhaseOverlay> {
-  late Timer _timer;
-  int _tipIndex = 0;
-
-  final List<String> _searchTips = [
-    "Finding someone amazing...",
-    "Smiling helps! ✨",
-    "Adjusting the radar...",
-    "Global connections incoming...",
-    "The perfect match takes time...",
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(const Duration(milliseconds: 2500), (timer) {
-      if (mounted) {
-        setState(() {
-          _tipIndex = (_tipIndex + 1) % _searchTips.length;
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer.cancel();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // 1. Dark Overlay (Deeper than idle)
+        // 1. Ambient Background Bokeh Effect
+        const AmbientBokehBackground(),
+
+        // 2. Dark Overlay
         const Positioned.fill(
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: Colors.black54,
+              color: Colors.black45,
             ),
           ),
         ),
 
-        // 2. Central Sonar
-        const Center(
-          child: MatchSonarView(),
+        // 2. Central Pulse Avatar
+        Center(
+          child: Hero(
+            tag: 'match_avatar',
+            child: PulseAvatar(
+              photoUrl: FirebaseAuth.instance.currentUser?.photoURL,
+              size: 140,
+            ),
+          ),
         ),
 
-        // 3. Cycling Search Tips
+        // 4. Searching Dynamic Typography pulse
         Positioned(
-          bottom: MediaQuery.of(context).size.height * 0.35,
-          left: DesignTokens.spaceXL,
-          right: DesignTokens.spaceXL,
-          child: AnimatedSwitcher(
-            duration: AnimationTokens.normal,
-            transitionBuilder: (child, animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, 0.2),
-                    end: Offset.zero,
-                  ).animate(animation),
-                  child: child,
+          bottom: 120.0,
+          left: 0,
+          right: 0,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0.4, end: 0.8),
+            duration: const Duration(milliseconds: 1000),
+            curve: Curves.easeInOut,
+            builder: (context, opacity, child) {
+              return Opacity(
+                opacity: opacity,
+                child: const Text(
+                  'SEARCHING FOR PARTNER',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w300,
+                    letterSpacing: 4.0,
+                    fontSize: 12.0,
+                  ),
                 ),
               );
             },
-            child: Text(
-              _searchTips[_tipIndex],
-              key: ValueKey<int>(_tipIndex),
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.5,
-                  ),
-            ),
           ),
         ),
 

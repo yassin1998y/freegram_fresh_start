@@ -7,20 +7,24 @@ import 'package:freegram/screens/random_chat/logic/random_chat_state.dart';
 import 'package:freegram/screens/random_chat/models/match_partner_context.dart';
 import 'package:freegram/services/webrtc_service.dart';
 import 'package:freegram/locator.dart';
-import 'package:freegram/models/match_history_model.dart';
-import 'package:freegram/repositories/match_history_repository.dart';
-// Removed unused imports
+import 'package:freegram/services/match_monitor_service.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:freegram/services/foreground_service_manager.dart';
 
 class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
   late final WebRTCService _webRTCService;
+  late final MatchMonitorService _matchMonitorService;
   final List<StreamSubscription> _subscriptions = [];
 
   // Track start time for history
   DateTime? _connectedTime;
   Timer? _searchTimeout;
+  Timer? _matchingTimeout;
+  Timer? _backgroundCleanupTimer;
 
   RandomChatBloc() : super(const RandomChatState()) {
     _webRTCService = locator<WebRTCService>();
+    _matchMonitorService = locator<MatchMonitorService>();
 
     on<RandomChatEnterMatchTab>(_onEnterMatchTab);
     on<RandomChatJoinQueue>(
@@ -43,8 +47,11 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
     on<RandomChatToggleLocalMic>(_onToggleLocalMic);
     on<RandomChatRemoteMediaChanged>(_onRemoteMediaChanged);
     on<RandomChatAppBackgrounded>(_onAppBackgrounded);
+    on<RandomChatAppResumed>(_onAppResumed);
     on<RandomChatRoutePushed>(_onRoutePushed);
     on<RandomChatRoutePopped>(_onRoutePopped);
+    on<RandomChatClearError>((event, emit) => emit(state.copyWith(errorType: RandomChatError.none)));
+    on<RandomChatSetGesturesEnabled>((event, emit) => emit(state.copyWith(isGesturesEnabled: event.isEnabled)));
 
     // Internal Events
     on<RandomChatConnectionStateChanged>(_onConnectionStateChanged);
@@ -53,6 +60,7 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
     on<RandomChatMediaStateChanged>(_onMediaStateChanged);
     on<RandomChatFirstFrameRendered>(_onFirstFrameRendered);
     on<RandomChatGracePeriodExpired>(_onGracePeriodExpired);
+    on<RandomChatMatchingTimedOut>(_onMatchingTimedOut);
 
     _subscribeToService();
   }
@@ -112,17 +120,29 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
     // Transitioning directly to media initialization.
 
     emit(state.copyWith(currentPhase: RandomChatPhase.idle));
+    
+    final cameraStatus = await Permission.camera.status;
+    final micStatus = await Permission.microphone.status;
+    
+    if (cameraStatus.isPermanentlyDenied || micStatus.isPermanentlyDenied) {
+      emit(state.copyWith(
+        currentPhase: RandomChatPhase.idle,
+        errorType: RandomChatError.permissionsPermanentlyDenied,
+      ));
+      return;
+    }
+
     try {
       await _webRTCService.initializeMedia();
       emit(state.copyWith(
         currentPhase: RandomChatPhase.idle,
         // localStream is now handled by locator/service directly in component
-        errorMessage: null,
+        errorType: RandomChatError.none,
       ));
     } catch (e) {
       emit(state.copyWith(
         currentPhase: RandomChatPhase.idle,
-        errorMessage: "Failed to initialize camera: $e",
+        errorType: RandomChatError.mediaInitializationFailed,
       ));
     }
   }
@@ -133,12 +153,30 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
   ) async {
     // Transitioning to idle phase and initializing media
     emit(state.copyWith(currentPhase: RandomChatPhase.idle));
-    await _webRTCService.initializeMedia();
+    
+    final cameraStatus = await Permission.camera.status;
+    final micStatus = await Permission.microphone.status;
+    
+    if (cameraStatus.isPermanentlyDenied || micStatus.isPermanentlyDenied) {
+      emit(state.copyWith(
+        currentPhase: RandomChatPhase.idle,
+        errorType: RandomChatError.permissionsPermanentlyDenied,
+      ));
+      return;
+    }
 
-    emit(state.copyWith(
-      currentPhase: RandomChatPhase.idle,
-      errorMessage: null,
-    ));
+    try {
+      await _webRTCService.initializeMedia();
+      emit(state.copyWith(
+        currentPhase: RandomChatPhase.idle,
+        errorType: RandomChatError.none,
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        currentPhase: RandomChatPhase.idle,
+        errorType: RandomChatError.permissionsDenied,
+      ));
+    }
   }
 
   Future<void> _onSwipeNext(
@@ -148,15 +186,17 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
     // 🛑 Monetization Check: Filter Paywall
     // Filters and Paywall logic will be moved to models/config in Phase 2
 
-    await _checkAndSaveHistory();
+    _recordHistoryIfApplicable();
 
     emit(state.copyWith(
       currentPhase: RandomChatPhase.searching,
       partnerContext: null, // Reset partner
-      errorMessage: null,
+      errorType: RandomChatError.none,
+      isRetrying: false,
     ));
 
     _webRTCService.startRandomSearch();
+    _matchingTimeout?.cancel();
 
     // Start 15s Global Search Timeout
     _searchTimeout?.cancel();
@@ -206,8 +246,9 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
     RandomChatLeaveMatchTab event,
     Emitter<RandomChatState> emit,
   ) async {
-    await _checkAndSaveHistory();
+    _recordHistoryIfApplicable();
     _searchTimeout?.cancel();
+    _matchingTimeout?.cancel();
     _webRTCService.dispose();
     emit(state.copyWith(currentPhase: RandomChatPhase.idle));
   }
@@ -222,6 +263,7 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
   void _onStopSearching(
       RandomChatStopSearching event, Emitter<RandomChatState> emit) {
     _searchTimeout?.cancel();
+    _matchingTimeout?.cancel();
     _webRTCService.dispose();
     emit(state.copyWith(currentPhase: RandomChatPhase.idle));
   }
@@ -246,7 +288,28 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
 
   void _onAppBackgrounded(
       RandomChatAppBackgrounded event, Emitter<RandomChatState> emit) {
-    add(const RandomChatStopSearching());
+    if (state.currentPhase == RandomChatPhase.connected) {
+      // High priority match. Keep alive with foreground service
+      ForegroundServiceManager().startService();
+      return;
+    }
+    _backgroundCleanupTimer?.cancel();
+    _backgroundCleanupTimer = Timer(const Duration(seconds: 60), () {
+      if (!isClosed) {
+        add(const RandomChatStopSearching());
+      }
+    });
+  }
+
+  void _onAppResumed(
+      RandomChatAppResumed event, Emitter<RandomChatState> emit) {
+    ForegroundServiceManager().stopService();
+    _backgroundCleanupTimer?.cancel();
+
+    // If we dropped to disconnected in the background, we want to go straight to idle
+    if (state.currentPhase == RandomChatPhase.disconnected) {
+      emit(state.copyWith(currentPhase: RandomChatPhase.idle, partnerContext: null));
+    }
   }
 
   void _onRoutePushed(
@@ -267,6 +330,12 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
       case 'connected':
         if (state.currentPhase != RandomChatPhase.connected) {
           _searchTimeout?.cancel();
+          _matchingTimeout?.cancel();
+          _matchingTimeout = Timer(const Duration(seconds: 7), () {
+            if (!isClosed) {
+              add(const RandomChatMatchingTimedOut());
+            }
+          });
 
           // Create partner context from service info
           final partnerId = _webRTCService.currentPartnerId;
@@ -287,11 +356,15 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
 
       case 'disconnected':
         if (state.currentPhase == RandomChatPhase.connected) {
+          final duration = _connectedTime != null
+              ? DateTime.now().difference(_connectedTime!).inSeconds
+              : 0;
+
           emit(state.copyWith(
-            currentPhase: RandomChatPhase.idle,
-            partnerContext: null,
+            currentPhase: RandomChatPhase.disconnected,
+            lastMatchDurationSeconds: duration,
           ));
-          _checkAndSaveHistory();
+          _recordHistoryIfApplicable();
         }
         break;
 
@@ -334,6 +407,7 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
     RandomChatFirstFrameRendered event,
     Emitter<RandomChatState> emit,
   ) {
+    _matchingTimeout?.cancel();
     if (state.currentPhase != RandomChatPhase.connected) {
       debugPrint(
           '🚀 [BLOC_ACTION] First Frame Rendered - Transitioning to connected');
@@ -349,36 +423,37 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
     Emitter<RandomChatState> emit,
   ) {
     debugPrint('[BLO_ACTION] Grace Period Expired - Disposing Session');
-    _checkAndSaveHistory();
+    _recordHistoryIfApplicable();
     _searchTimeout?.cancel();
+    _matchingTimeout?.cancel();
     _webRTCService.dispose();
     emit(state.copyWith(
         currentPhase: RandomChatPhase.idle, partnerContext: null));
   }
 
-  Future<void> _checkAndSaveHistory() async {
-    if (_connectedTime != null) {
+  void _recordHistoryIfApplicable() {
+    if (_connectedTime != null && state.partnerContext != null) {
       final duration = DateTime.now().difference(_connectedTime!).inSeconds;
-      if (duration > 5) {
-        final partnerId = _webRTCService.currentPartnerId;
-        if (partnerId != null) {
-          final match = MatchHistoryModel(
-            id: partnerId,
-            nickname: "Random User",
-            avatarUrl: "https://via.placeholder.com/150",
-            timestamp: DateTime.now(),
-            durationSeconds: duration,
-          );
-
-          try {
-            await locator<MatchHistoryRepository>().saveMatch(match);
-          } catch (e) {
-            debugPrint("History Error: $e");
-          }
-        }
-      }
+      _matchMonitorService.recordSessionEnd(
+        partner: state.partnerContext!,
+        durationSeconds: duration,
+      );
     }
     _connectedTime = null;
+  }
+
+  void _onMatchingTimedOut(
+    RandomChatMatchingTimedOut event,
+    Emitter<RandomChatState> emit,
+  ) {
+    if (state.currentPhase == RandomChatPhase.matching || state.currentPhase == RandomChatPhase.searching) {
+      debugPrint('[BLOC_ACTION] Matching timeout expired - Transitioning to swipe next');
+      emit(state.copyWith(
+        isRetrying: true,
+        errorType: RandomChatError.connectionTimeout,
+      ));
+      add(const RandomChatSwipeNext());
+    }
   }
 
   @override
@@ -388,7 +463,10 @@ class RandomChatBloc extends Bloc<RandomChatEvent, RandomChatState> {
       await sub.cancel();
     }
     _searchTimeout?.cancel();
-    // _webRTCService.dispose(); // Do not dispose service to keep call alive in PiP or background
+    _matchingTimeout?.cancel();
+    _backgroundCleanupTimer?.cancel();
+    _webRTCService.dispose(); 
+    await ForegroundServiceManager().stopService();
     await super.close();
   }
 }

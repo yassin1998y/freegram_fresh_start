@@ -68,6 +68,7 @@ import 'package:freegram/services/remote_command_service.dart'; // Remote Comman
 import 'package:freegram/services/webrtc_service.dart'; // Random Chat WebRTC
 import 'package:freegram/repositories/lounge_repository.dart'; // RandomChat Discovery
 import 'package:freegram/repositories/match_history_repository.dart'; // RandomChat History
+import 'package:freegram/services/match_monitor_service.dart'; // History Monitoring
 import 'package:freegram/blocs/unified_feed_bloc.dart';
 import 'package:get_it/get_it.dart';
 
@@ -271,6 +272,7 @@ void setupLocator({required ConnectivityBloc connectivityBloc}) {
 
   // Refactored RandomChat Service
   locator.registerLazySingleton(() => WebRTCService.instance);
+  locator.registerLazySingleton(() => MatchMonitorService.instance);
   locator.registerLazySingleton(() => LoungeRepository());
   locator.registerLazySingleton(() => MatchHistoryRepository());
 

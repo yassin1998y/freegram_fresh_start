@@ -15,11 +15,11 @@ class ReportBottomSheet extends StatefulWidget {
     this.onReported,
   });
 
-  static void show(BuildContext context,
+  static Future<void> show(BuildContext context,
       {required String userId,
       String userName = 'User',
       VoidCallback? onReported}) {
-    showModalBottomSheet(
+    return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

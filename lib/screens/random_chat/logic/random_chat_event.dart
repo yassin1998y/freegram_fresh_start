@@ -42,12 +42,28 @@ class RandomChatAppBackgrounded extends RandomChatEvent {
   const RandomChatAppBackgrounded();
 }
 
+class RandomChatAppResumed extends RandomChatEvent {
+  const RandomChatAppResumed();
+}
+
 class RandomChatRoutePushed extends RandomChatEvent {
   const RandomChatRoutePushed();
 }
 
 class RandomChatRoutePopped extends RandomChatEvent {
   const RandomChatRoutePopped();
+}
+
+class RandomChatClearError extends RandomChatEvent {
+  const RandomChatClearError();
+}
+
+class RandomChatSetGesturesEnabled extends RandomChatEvent {
+  final bool isEnabled;
+  const RandomChatSetGesturesEnabled(this.isEnabled);
+
+  @override
+  List<Object?> get props => [isEnabled];
 }
 
 // --- Existing Events (Keeping for compatibility until Bloc is refactored) ---
@@ -133,6 +149,10 @@ class RandomChatMediaStateChanged extends RandomChatEvent {
 
 class RandomChatFirstFrameRendered extends RandomChatEvent {
   const RandomChatFirstFrameRendered();
+}
+
+class RandomChatMatchingTimedOut extends RandomChatEvent {
+  const RandomChatMatchingTimedOut();
 }
 
 class RandomChatGracePeriodExpired extends RandomChatEvent {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:freegram/screens/random_chat/animations/match_sonar_view.dart';
+import 'package:freegram/screens/random_chat/widgets/pulse_avatar.dart';
 import 'package:freegram/screens/random_chat/logic/random_chat_bloc.dart';
 import 'package:freegram/screens/random_chat/logic/random_chat_state.dart';
 import 'package:freegram/theme/design_tokens.dart';
@@ -40,7 +40,11 @@ class RemoteAvatarTransition extends StatelessWidget {
                 // Sonar only active when fully centered
                 if (value > 0.9)
                   Center(
-                    child: MatchSonarView(size: currentSize * 2.5),
+                    child: PulseAvatar(
+                      photoUrl: partner.avatarUrl,
+                      size: currentSize * 1.5,
+                      showAvatar: false,
+                    ),
                   ),
 
                 Positioned(

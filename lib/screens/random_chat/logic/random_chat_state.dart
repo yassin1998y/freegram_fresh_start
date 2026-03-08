@@ -1,7 +1,15 @@
 import 'package:equatable/equatable.dart';
 import 'package:freegram/screens/random_chat/models/match_partner_context.dart';
 
-enum RandomChatPhase { idle, searching, matching, connected }
+enum RandomChatPhase { idle, searching, matching, connected, disconnected }
+
+enum RandomChatError {
+  none,
+  permissionsDenied,
+  permissionsPermanentlyDenied,
+  connectionTimeout,
+  mediaInitializationFailed,
+}
 
 class RandomChatState extends Equatable {
   final RandomChatPhase currentPhase;
@@ -10,7 +18,10 @@ class RandomChatState extends Equatable {
   final bool isLocalMicOff;
   final bool isRemoteCameraOff;
   final bool isRemoteMicOff;
-  final String? errorMessage;
+  final RandomChatError errorType;
+  final bool isRetrying;
+  final bool isGesturesEnabled;
+  final int? lastMatchDurationSeconds;
 
   const RandomChatState({
     this.currentPhase = RandomChatPhase.idle,
@@ -19,26 +30,37 @@ class RandomChatState extends Equatable {
     this.isLocalMicOff = false,
     this.isRemoteCameraOff = false,
     this.isRemoteMicOff = false,
-    this.errorMessage,
+    this.errorType = RandomChatError.none,
+    this.isRetrying = false,
+    this.isGesturesEnabled = true,
+    this.lastMatchDurationSeconds,
   });
 
   RandomChatState copyWith({
     RandomChatPhase? currentPhase,
-    MatchPartnerContext? partnerContext,
+    Object? partnerContext = const Object(),
     bool? isLocalCameraOff,
     bool? isLocalMicOff,
     bool? isRemoteCameraOff,
     bool? isRemoteMicOff,
-    String? errorMessage,
+    RandomChatError? errorType,
+    bool? isRetrying,
+    bool? isGesturesEnabled,
+    int? lastMatchDurationSeconds,
   }) {
     return RandomChatState(
       currentPhase: currentPhase ?? this.currentPhase,
-      partnerContext: partnerContext ?? this.partnerContext,
+      partnerContext: partnerContext == const Object() 
+          ? this.partnerContext 
+          : partnerContext as MatchPartnerContext?,
       isLocalCameraOff: isLocalCameraOff ?? this.isLocalCameraOff,
       isLocalMicOff: isLocalMicOff ?? this.isLocalMicOff,
       isRemoteCameraOff: isRemoteCameraOff ?? this.isRemoteCameraOff,
       isRemoteMicOff: isRemoteMicOff ?? this.isRemoteMicOff,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorType: errorType ?? this.errorType,
+      isRetrying: isRetrying ?? this.isRetrying,
+      isGesturesEnabled: isGesturesEnabled ?? this.isGesturesEnabled,
+      lastMatchDurationSeconds: lastMatchDurationSeconds ?? this.lastMatchDurationSeconds,
     );
   }
 
@@ -50,6 +72,9 @@ class RandomChatState extends Equatable {
         isLocalMicOff,
         isRemoteCameraOff,
         isRemoteMicOff,
-        errorMessage,
+        errorType,
+        isRetrying,
+        isGesturesEnabled,
+        lastMatchDurationSeconds,
       ];
 }
